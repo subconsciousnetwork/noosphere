@@ -1,0 +1,1 @@
+- NIPs: noosphere improvement proposals
