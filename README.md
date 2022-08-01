@@ -13,7 +13,12 @@ Noosphere is the foundational protocol that the Subconscious app builds upon to 
 - The [**docs**](docs) contain usage instructions relevant to users of our first-party Noosphere projects
 - The [**specs**](specs) are where we define how the core protocol works, and may be most interesting to those who wish to build interoperable projects
 
-TODO: NIPs?
+## License
+
+This project is dual licensed under MIT and Apache-2.0.
+
+MIT: https://www.opensource.org/licenses/mit
+Apache-2.0: https://www.apache.org/licenses/license-2.0
 
 [noosphere]: https://en.wikipedia.org/wiki/Noosphere#cite_note-4:~:text=The%20noosphere%20represents%20the%20highest%20stage%20of%20biospheric%20development%2C%20its%20defining%20factor%20being%20the%20development%20of%20humankind%27s%20rational%20activities.
 [docs]: https://github.com/subconsciousnetwork/noosphere/main/docs/
