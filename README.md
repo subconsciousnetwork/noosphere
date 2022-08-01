@@ -1,3 +1,5 @@
+![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)
+
 # Noosphere
 
 > The noosphere represents the highest stage of biospheric development, its defining factor being the development of humankind's rational activities.
@@ -8,10 +10,9 @@ This repository contains documentation and specifications for the Noosphere prot
 
 Noosphere is the foundational protocol that the Subconscious app builds upon to enable an open-ended, permissionless multiplayer experience. The documentation and specifications in this repository are intended to enable others to contribute to our efforts, and also to build clients and deploy infrastructure that interoperates over Noosphere.
 
-## Project layout
+## Project status: discovery
 
-- The [**docs**](docs) contain usage instructions relevant to users of our first-party Noosphere projects
-- The [**specs**](specs) are where we define how the core protocol works, and may be most interesting to those who wish to build interoperable projects
+Our ambition is to build a new kind of web, but we have only begun to discover what that means. Our work is rapidly progressing but still in-progres, and we need your help to drive it forward!
 
 ## License
 
