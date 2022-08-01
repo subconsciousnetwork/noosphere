@@ -1,0 +1,28 @@
+[package]
+name = "noosphere-api"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "^1"
+cid = "~0.8"
+url = "^2"
+serde = "^1"
+noosphere = { path = "../noosphere" }
+noosphere-cbor = { path = "../noosphere-cbor" }
+reqwest = { version = "~0.11", features = ["json"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "^1", features = ["full"] }
+ucan = { version = "0.6.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
+ucan-key-support = { version = "0.4.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "~0.2"
+ucan = { version = "0.6.0-alpha.1", features = ["web"], git = "https://github.com/cdata/rs-ucan.git" }
+ucan-key-support = { version = "0.4.0-alpha.1", features = ["web"], git = "https://github.com/cdata/rs-ucan.git" }
+
+[dev-dependencies]
+wasm-bindgen-test = "~0.3"
