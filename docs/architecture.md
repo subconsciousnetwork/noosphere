@@ -1,3 +1,0 @@
-- gateway
-- name system
-- clients
