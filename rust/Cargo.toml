@@ -1,7 +1,8 @@
 [workspace]
 members = [
   "noosphere-cbor",
-  "noosphere-storage"
+  "noosphere-storage",
+  "noosphere-collections"
 ]
 # See: https://github.com/rust-lang/rust/issues/90148#issuecomment-949194352
 resolver = "2"
