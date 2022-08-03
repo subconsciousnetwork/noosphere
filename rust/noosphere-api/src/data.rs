@@ -61,40 +61,6 @@ pub enum PushResponse {
     MissingRevisions(MissingRevisionsResponse),
 }
 
-// #[cfg(not(target_arch = "wasm32"))]
-// impl axum::extract::FromRequest for PushBody {
-//     type Rejection = anyhow::Error;
-
-//     async fn from_request(
-//         req: &mut axum::extract::RequestParts<B>,
-//     ) -> Result<Self, Self::Rejection> {
-//         todo!()
-//     }
-// }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub enum PushResult {
-//     Ok,
-//     OutOfDate,
-// }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct PushResponse {
-//     result: PushResult,
-// }
-
-// Identify
-// #[derive(Debug, Deserialize)]
-// pub struct IdentifyParameters {
-//     pub signature: String,
-// }
-
-// impl AsQuery for IdentifyParameters {
-//     fn as_query(&self) -> Option<String> {
-//         Some(format!("signature={}", self.signature))
-//     }
-// }
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IdentifyResponse {
     pub identity: String,

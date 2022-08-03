@@ -84,7 +84,6 @@ where
         .layer(Extension(Arc::new(Mutex::new(state))))
         .layer(Extension(Arc::new(Mutex::new(block_store))))
         .layer(Extension(Arc::new(storage_provider)))
-        // .layer(Extension(Arc::new(root)))
         .layer(Extension(Arc::new(config)))
         .layer(Extension(Arc::new(Mutex::new(did_parser))))
         .layer(TraceLayer::new_for_http());
