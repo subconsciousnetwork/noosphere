@@ -141,7 +141,6 @@ impl<Storage: Store> Sphere<Storage> {
     }
 
     pub async fn try_hydrate(&self) -> Result<()> {
-        debug!("HYDRATING REVISION {}", self.cid());
         Sphere::try_hydrate_with_cid(self.cid(), &mut self.store.clone()).await
     }
 

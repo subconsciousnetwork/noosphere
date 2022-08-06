@@ -291,9 +291,7 @@ mod tests {
                 .await
                 .unwrap();
 
-            debug!("WAK");
             assert_eq!(push_result, PushResponse::Ok);
-            debug!("WAK2");
 
             let mut mutation = SphereMutation::new(&owner_did);
             mutation.links_mut().set("zero", sphere.cid());
@@ -324,13 +322,11 @@ mod tests {
                 .await
                 .unwrap();
 
-            debug!("BUNDLING");
             let next_bundle = Sphere::at(&final_revision_cid, &memory_store)
                 .try_bundle_until_ancestor(Some(&first_revision_cid))
                 .await
                 .unwrap();
 
-            debug!("SECOND PUSH");
             let push_result = client
                 .push(&PushBody {
                     sphere: sphere_did,
@@ -341,7 +337,6 @@ mod tests {
                 .await
                 .unwrap();
 
-            debug!("SECOND PUSH DONE");
             server_task.abort();
             let _ = server_task.await;
 
@@ -353,19 +348,10 @@ mod tests {
                 .into_store();
 
             memory_store.expect_replica_in(&block_store).await.unwrap();
-
-            // for cid in memory_store.get_stored_cids().await {
-            //     debug!("Checking for {}", cid);
-            //     assert!(&block_store.contains_cbor(&cid).await.unwrap());
-            // }
         });
 
         client_task.await.unwrap();
     }
-
-    // #[tokio::test]
-    // #[ignore = "TODO"]
-    // async fn it_hydrates_revisions_synced_from_a_client() {}
 
     #[tokio::test]
     #[ignore = "TODO"]
