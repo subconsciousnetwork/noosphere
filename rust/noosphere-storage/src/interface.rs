@@ -52,13 +52,16 @@ pub trait DagCborStore: Store {
     }
 
     /// Loads a deserializable type from storage
-    async fn load<Type: TryDagCbor>(&self, cid: &Cid) -> Result<Type> {
+    async fn load<Type: TryDagCborSendSync>(&self, cid: &Cid) -> Result<Type> {
         let bytes = self.require_cbor(cid).await?;
         Type::try_from_dag_cbor(&bytes)
     }
 
     /// Helper to conditionally load an Option<Cid>
-    async fn load_some<Type: TryDagCbor>(&self, maybe_cid: Option<&Cid>) -> Result<Option<Type>> {
+    async fn load_some<Type: TryDagCborSendSync>(
+        &self,
+        maybe_cid: Option<&Cid>,
+    ) -> Result<Option<Type>> {
         Ok(match maybe_cid {
             Some(cid) => Some(self.load(cid).await?),
             None => None,
@@ -81,6 +84,7 @@ pub trait DagCborStore: Store {
     /// Writes DAG-CBOR bytes to storage and returns the CID of those bytes
     async fn write_cbor(&mut self, bytes: &[u8]) -> Result<Cid> {
         let cid = Self::make_cid(bytes);
+        trace!("Writing CBOR for {}", cid);
         if !self.contains_cbor(&cid).await? {
             self.write(&cid.to_bytes(), bytes).await?;
         }

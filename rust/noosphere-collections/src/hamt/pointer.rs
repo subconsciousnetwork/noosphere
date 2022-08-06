@@ -15,11 +15,16 @@ use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
 
 use forest_hash_utils::Hash;
 
+use super::TargetConditionalSendSync;
 use super::{node::Node, HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
 
 /// Pointer to index values or a link to another child node.
 #[derive(Debug)]
-pub(crate) enum Pointer<K, V, H> {
+pub(crate) enum Pointer<K, V, H>
+where
+    K: TargetConditionalSendSync,
+    V: TargetConditionalSendSync,
+{
     Values(Vec<KeyValuePair<K, V>>),
     Link {
         cid: Cid,
@@ -28,7 +33,9 @@ pub(crate) enum Pointer<K, V, H> {
     Dirty(Box<Node<K, V, H>>),
 }
 
-impl<K: Clone, V: Clone, H: Clone> Clone for Pointer<K, V, H> {
+impl<K: Clone + TargetConditionalSendSync, V: Clone + TargetConditionalSendSync, H: Clone> Clone
+    for Pointer<K, V, H>
+{
     fn clone(&self) -> Self {
         match self {
             Self::Values(arg0) => Self::Values(arg0.clone()),
@@ -41,7 +48,9 @@ impl<K: Clone, V: Clone, H: Clone> Clone for Pointer<K, V, H> {
     }
 }
 
-impl<K: PartialEq, V: PartialEq, H> PartialEq for Pointer<K, V, H> {
+impl<K: PartialEq + TargetConditionalSendSync, V: PartialEq + TargetConditionalSendSync, H>
+    PartialEq for Pointer<K, V, H>
+{
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (&Pointer::Values(ref a), &Pointer::Values(ref b)) => a == b,
@@ -55,8 +64,8 @@ impl<K: PartialEq, V: PartialEq, H> PartialEq for Pointer<K, V, H> {
 /// Serialize the Pointer like an untagged enum.
 impl<K, V, H> Serialize for Pointer<K, V, H>
 where
-    K: Serialize,
-    V: Serialize,
+    K: Serialize + TargetConditionalSendSync,
+    V: Serialize + TargetConditionalSendSync,
 {
     fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
     where
@@ -72,8 +81,8 @@ where
 
 impl<K, V, H> TryFrom<Ipld> for Pointer<K, V, H>
 where
-    K: DeserializeOwned,
-    V: DeserializeOwned,
+    K: DeserializeOwned + TargetConditionalSendSync,
+    V: DeserializeOwned + TargetConditionalSendSync,
 {
     type Error = String;
 
@@ -99,8 +108,8 @@ where
 /// Deserialize the Pointer like an untagged enum.
 impl<'de, K, V, H> Deserialize<'de> for Pointer<K, V, H>
 where
-    K: DeserializeOwned,
-    V: DeserializeOwned,
+    K: DeserializeOwned + TargetConditionalSendSync,
+    V: DeserializeOwned + TargetConditionalSendSync,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -110,7 +119,11 @@ where
     }
 }
 
-impl<K, V, H> Default for Pointer<K, V, H> {
+impl<K, V, H> Default for Pointer<K, V, H>
+where
+    K: TargetConditionalSendSync,
+    V: TargetConditionalSendSync,
+{
     fn default() -> Self {
         Pointer::Values(Vec::new())
     }
@@ -118,8 +131,8 @@ impl<K, V, H> Default for Pointer<K, V, H> {
 
 impl<K, V, H> Pointer<K, V, H>
 where
-    K: Serialize + DeserializeOwned + Hash + PartialOrd,
-    V: Serialize + DeserializeOwned,
+    K: Serialize + DeserializeOwned + Hash + PartialOrd + TargetConditionalSendSync,
+    V: Serialize + DeserializeOwned + TargetConditionalSendSync,
     H: HashAlgorithm,
 {
     pub(crate) fn from_key_value(key: K, value: V) -> Self {

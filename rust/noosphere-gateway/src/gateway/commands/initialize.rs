@@ -31,7 +31,7 @@ pub async fn initialize(directory: &PathBuf, owner_did: &str) -> Result<String> 
         config.get_raw_contents().await?
     );
 
-    println!("Gateway initialized in {}", root.path().display());
+    debug!("Gateway initialized in {}", root.path().display());
 
     Ok(identity)
 }

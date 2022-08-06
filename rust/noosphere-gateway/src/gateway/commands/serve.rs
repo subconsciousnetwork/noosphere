@@ -25,7 +25,7 @@ use ucan::crypto::did::DidParser;
 use url::Url;
 
 use crate::gateway::{
-    environment::{BlockStore, GatewayConfig, GatewayRoot, GatewayState},
+    environment::{Blocks, GatewayConfig, GatewayRoot, GatewayState},
     handlers::{fetch_handler, identify_handler, push_handler},
 };
 
@@ -53,7 +53,7 @@ where
     let did_parser = DidParser::new(SUPPORTED_KEYS);
 
     let state = GatewayState::from_storage_provider(&storage_provider).await?;
-    let block_store = BlockStore::from_storage_provider(&storage_provider).await?;
+    let block_store = Blocks::from_storage_provider(&storage_provider).await?;
 
     let mut cors = CorsLayer::new();
 
@@ -101,7 +101,10 @@ where
 mod tests {
     use std::net::TcpListener;
 
-    use noosphere::{authority::generate_ed25519_key, view::Sphere};
+    use noosphere::{
+        authority::generate_ed25519_key,
+        view::{Sphere, SphereMutation},
+    };
     use noosphere_api::{
         client::Client,
         data::{PushBody, PushResponse},
@@ -113,7 +116,7 @@ mod tests {
 
     use crate::gateway::{
         commands::{initialize, serve},
-        environment::{BlockStore, GatewayRoot},
+        environment::{Blocks, GatewayRoot},
         tracing::initialize_tracing,
     };
 
@@ -215,7 +218,7 @@ mod tests {
 
             assert_eq!(push_result, PushResponse::Ok);
 
-            let block_store = BlockStore::from_storage_provider(&storage_provider)
+            let block_store = Blocks::from_storage_provider(&storage_provider)
                 .await
                 .unwrap();
 
@@ -229,8 +232,140 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "TODO"]
-    async fn it_can_update_an_existing_subspace_with_changes_from_the_client() {}
+    async fn it_can_update_an_existing_subspace_with_changes_from_the_client() {
+        initialize_tracing();
+
+        let owner_key_material = generate_ed25519_key();
+        let owner_did = owner_key_material.get_did().await.unwrap();
+        let root_dir = TempDir::new().unwrap();
+        let root = GatewayRoot::at_path(&root_dir.path().to_path_buf());
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let gateway_address = listener.local_addr().unwrap();
+
+        let gateway_did = initialize(&root_dir.path().to_path_buf(), &owner_did)
+            .await
+            .unwrap();
+
+        let config = root.to_config();
+        let storage_provider = root.to_storage_provider().unwrap();
+
+        let server_task = {
+            let storage_provider = storage_provider.clone();
+            tokio::spawn(async move {
+                serve(listener, storage_provider, config, None)
+                    .await
+                    .unwrap();
+            })
+        };
+
+        // TODO(#1): Move the "client" work to a task
+
+        let client_task = tokio::spawn(async move {
+            let mut memory_store = MemoryStore::default();
+            let (sphere, sphere_proof, _) = Sphere::try_generate(&owner_did, &mut memory_store)
+                .await
+                .unwrap();
+
+            let uri = format!("http://{}:{}", gateway_address.ip(), gateway_address.port());
+            let client = Client::identify(
+                &uri,
+                &owner_key_material,
+                Some(vec![sphere_proof.clone()]),
+                Some(&gateway_did),
+            )
+            .await
+            .unwrap();
+
+            let sphere_did = sphere.try_get_identity().await.unwrap();
+            let bundle = sphere.try_as_bundle().await.unwrap();
+            let original_cid = sphere.cid().clone();
+
+            let push_result = client
+                .push(&PushBody {
+                    sphere: sphere_did.clone(),
+                    base: None,
+                    tip: original_cid.clone(),
+                    blocks: bundle.clone(),
+                })
+                .await
+                .unwrap();
+
+            debug!("WAK");
+            assert_eq!(push_result, PushResponse::Ok);
+            debug!("WAK2");
+
+            let mut mutation = SphereMutation::new(&owner_did);
+            mutation.links_mut().set("zero", sphere.cid());
+
+            let mut revision = sphere.try_apply(&mutation).await.unwrap();
+            let first_revision_cid = revision
+                .try_sign(&owner_key_material, Some(&sphere_proof))
+                .await
+                .unwrap();
+
+            let sphere = Sphere::at(&first_revision_cid, &memory_store);
+            let mut mutation = SphereMutation::new(&owner_did);
+            mutation.links_mut().set("one", &first_revision_cid);
+
+            let mut revision = sphere.try_apply(&mutation).await.unwrap();
+            let second_revision_cid = revision
+                .try_sign(&owner_key_material, Some(&sphere_proof))
+                .await
+                .unwrap();
+
+            let sphere = Sphere::at(&second_revision_cid, &memory_store);
+            let mut mutation = SphereMutation::new(&owner_did);
+            mutation.links_mut().set("two", &second_revision_cid);
+
+            let mut revision = sphere.try_apply(&mutation).await.unwrap();
+            let final_revision_cid = revision
+                .try_sign(&owner_key_material, Some(&sphere_proof))
+                .await
+                .unwrap();
+
+            debug!("BUNDLING");
+            let next_bundle = Sphere::at(&final_revision_cid, &memory_store)
+                .try_bundle_until_ancestor(Some(&first_revision_cid))
+                .await
+                .unwrap();
+
+            debug!("SECOND PUSH");
+            let push_result = client
+                .push(&PushBody {
+                    sphere: sphere_did,
+                    base: Some(original_cid),
+                    tip: final_revision_cid,
+                    blocks: next_bundle.clone(),
+                })
+                .await
+                .unwrap();
+
+            debug!("SECOND PUSH DONE");
+            server_task.abort();
+            let _ = server_task.await;
+
+            assert_eq!(push_result, PushResponse::Ok);
+
+            let block_store = Blocks::from_storage_provider(&storage_provider)
+                .await
+                .unwrap()
+                .into_store();
+
+            memory_store.expect_replica_in(&block_store).await.unwrap();
+
+            // for cid in memory_store.get_stored_cids().await {
+            //     debug!("Checking for {}", cid);
+            //     assert!(&block_store.contains_cbor(&cid).await.unwrap());
+            // }
+        });
+
+        client_task.await.unwrap();
+    }
+
+    // #[tokio::test]
+    // #[ignore = "TODO"]
+    // async fn it_hydrates_revisions_synced_from_a_client() {}
 
     #[tokio::test]
     #[ignore = "TODO"]

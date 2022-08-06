@@ -7,10 +7,6 @@ edition = "2021"
 name = "ng"
 path = "src/main.rs"
 
-# [[lib]]
-# name = "noosphere-gateway"
-# path = "src/lib.rs"
-
 [dependencies]
 tracing = "0.1"
 anyhow = "^1"
@@ -54,6 +50,7 @@ toml_edit = "~0.14"
 async-std = "^1"
 async-once-cell = "~0.3"
 async-trait = "~0.1"
+futures = "~0.3"
 
 clap = { version = "^3", features = ["derive"] }
 pretty_env_logger = "~0.4"

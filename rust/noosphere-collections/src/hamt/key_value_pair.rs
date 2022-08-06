@@ -5,10 +5,12 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::TargetConditionalSendSync;
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct KeyValuePair<K, V>(K, V);
 
-impl<K, V> KeyValuePair<K, V> {
+impl<K: TargetConditionalSendSync, V: TargetConditionalSendSync> KeyValuePair<K, V> {
     pub fn key(&self) -> &K {
         &self.0
     }
@@ -21,9 +23,6 @@ impl<K, V> KeyValuePair<K, V> {
     pub fn take(self) -> (K, V) {
         (self.0, self.1)
     }
-}
-
-impl<K, V> KeyValuePair<K, V> {
     pub fn new(key: K, value: V) -> Self {
         KeyValuePair(key, value)
     }

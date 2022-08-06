@@ -9,10 +9,12 @@ use sha2::{Digest, Sha256 as Sha256Hasher};
 
 pub use forest_hash_utils::Hash;
 
+use super::TargetConditionalSendSync;
+
 pub type HashedKey = [u8; 32];
 
 /// Algorithm used as the hasher for the Hamt.
-pub trait HashAlgorithm {
+pub trait HashAlgorithm: TargetConditionalSendSync {
     fn hash<X: ?Sized>(key: &X) -> HashedKey
     where
         X: Hash;

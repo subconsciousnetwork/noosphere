@@ -1,10 +1,10 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_std::sync::Mutex;
 use async_trait::async_trait;
 use cid::Cid;
 use std::{collections::HashMap, sync::Arc};
 
-use crate::interface::Store;
+use crate::interface::{DagCborStore, Store};
 
 #[derive(Clone, Default, Debug)]
 pub struct MemoryStore {
@@ -22,6 +22,32 @@ impl MemoryStore {
                 _ => None,
             })
             .collect()
+    }
+
+    pub async fn expect_replica_in<S: Store>(&self, other: &S) -> Result<()> {
+        let cids = self.get_stored_cids().await;
+        let mut missing = Vec::new();
+
+        for cid in cids {
+            trace!("Checking for {}", cid);
+
+            if !other.contains_cbor(&cid).await? {
+                trace!("Not found!");
+                missing.push(cid);
+            }
+        }
+
+        if missing.len() > 0 {
+            return Err(anyhow!(
+                "Expected replica, but the following CIDs are missing: {:#?}",
+                missing
+                    .into_iter()
+                    .map(|cid| format!("{}", cid))
+                    .collect::<Vec<String>>()
+            ));
+        }
+
+        Ok(())
     }
 
     pub async fn fork(&self) -> Self {

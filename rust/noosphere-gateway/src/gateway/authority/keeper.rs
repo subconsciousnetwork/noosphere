@@ -40,10 +40,7 @@ impl GatewayAuthority {
         let owner_did = self.config.expect_owner_did().await?;
         let gateway_identity = self.config.expect_identity().await?;
 
-        println!("Authorizing maybe: {:?}", action);
-
         if self.proof_chain.ucan().audience() != gateway_identity {
-            println!("Wrong audience!");
             return Err(anyhow!(AuthzError::WrongCredentials));
         }
 
@@ -59,7 +56,6 @@ impl GatewayAuthority {
         let capability_infos = self.proof_chain.reduce_capabilities(&GATEWAY_SEMANTICS);
 
         for info in capability_infos {
-            // println!("Info: {:?}", info);
             if info.capability.enables(&desired_capability) && info.originators.contains(&owner_did)
             {
                 return Ok(());
