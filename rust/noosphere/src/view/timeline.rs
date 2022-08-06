@@ -2,7 +2,7 @@ use std::{collections::VecDeque, fmt::Display};
 
 use anyhow::Result;
 use cid::Cid;
-use futures::{stream, StreamExt, TryStream};
+use futures::{stream, Stream, StreamExt, TryStream};
 
 use crate::data::MemoIpld;
 
@@ -21,7 +21,7 @@ impl<'a, Storage: Store> Timeline<'a, Storage> {
         Timeline { store }
     }
 
-    pub fn slice(&'a self, future: &'a Cid, past: &'a Cid) -> Timeslice<'a, Storage> {
+    pub fn slice(&'a self, future: &'a Cid, past: Option<&'a Cid>) -> Timeslice<'a, Storage> {
         Timeslice {
             timeline: self,
             past,
@@ -29,37 +29,37 @@ impl<'a, Storage: Store> Timeline<'a, Storage> {
         }
     }
 
+    // TODO: Consider using async-stream crate for this
     pub fn try_stream(
         &self,
         future: &Cid,
-        past: &Cid,
+        past: Option<&Cid>,
     ) -> impl TryStream<Item = Result<(Cid, MemoIpld)>> {
         stream::try_unfold(
-            (Some(future.clone()), past.clone(), self.store.clone()),
+            (Some(future.clone()), past.cloned(), self.store.clone()),
             |(from, to, storage)| async move {
                 match from {
                     Some(from) => {
                         let cid = from;
                         let next_dag: MemoIpld = storage.load(&cid).await?;
-                        let from = match from == to {
-                            true => None,
-                            false => next_dag.parent.clone(),
+
+                        let next_from = match to {
+                            Some(to) if from == to => None,
+                            _ => next_dag.parent,
                         };
 
-                        Ok(Some(((cid, next_dag), (from, to, storage))))
+                        Ok(Some(((cid, next_dag), (next_from, to, storage))))
                     }
                     None => Ok(None),
                 }
             },
         )
     }
-
-    // pub async fn try_rebase(&mut self, l)
 }
 
 pub struct Timeslice<'a, Storage: Store> {
     pub timeline: &'a Timeline<'a, Storage>,
-    pub past: &'a Cid,
+    pub past: Option<&'a Cid>,
     pub future: &'a Cid,
 }
 
@@ -82,6 +82,10 @@ impl<'a, Storage: Store> Timeslice<'a, Storage> {
 
 impl<'a, Storage: Store> Display for Timeslice<'a, Storage> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Timeslice(Past: {}, Future: {})", self.past, self.future)
+        write!(
+            f,
+            "Timeslice(Past: {:?}, Future: {:?})",
+            self.past, self.future
+        )
     }
 }

@@ -168,7 +168,6 @@ async fn set_with_no_effect_does_not_put() {
         }
     );
 
-    println!("Setting an already-set value....");
     begn.set(
         "favorite-animal".to_string(),
         "bright green bear".to_string(),

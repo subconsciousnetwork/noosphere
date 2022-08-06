@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use async_std::sync::Mutex;
 use hyper::StatusCode;
+use noosphere::view::{Sphere, Timeline};
 use noosphere_api::data::PushResponse;
 use noosphere_storage::interface::KeyValueStore;
 use std::sync::Arc;
@@ -13,25 +14,33 @@ use noosphere_api::{
 };
 use noosphere_storage::{interface::DagCborStore, native::NativeStore};
 
-use crate::gateway::environment::{BlockStore, SphereTracker};
+use crate::gateway::environment::{Blocks, SphereTracker};
 use crate::gateway::extractors::DagCbor;
 use crate::gateway::{authority::GatewayAuthority, environment::GatewayState, GatewayError};
 
 async fn incorporate_lineage(
     state: Arc<Mutex<GatewayState<NativeStore>>>,
-    store: Arc<Mutex<BlockStore<NativeStore>>>,
+    store: Arc<Mutex<Blocks<NativeStore>>>,
     push_body: &PushBody,
 ) -> Result<()> {
-    debug!("INCORPORATING LINEAGE {:?}", push_body);
+    let mut store = store.lock().await.clone();
+
     for (expected_cid, block) in push_body.blocks.map() {
-        debug!("WRITING BLOCK {}", expected_cid);
-        let actual_cid = store.lock().await.write_cbor(block).await?;
+        let actual_cid = store.write_cbor(block).await?;
         if expected_cid != &actual_cid {
             return Err(anyhow!("Invalid block"));
         }
     }
 
-    // TODO: Hydrate
+    let PushBody { base, tip, .. } = push_body;
+
+    let timeline = Timeline::new(&store);
+    let timeslice = timeline.slice(tip, base.as_ref());
+    let steps = timeslice.try_to_chronological().await?;
+
+    for (cid, _) in steps {
+        Sphere::at(&cid, &store).try_hydrate().await?;
+    }
 
     let mut state = state.lock().await;
     let mut tracker = state.get_or_initialize_tracker(&push_body.sphere).await?;
@@ -48,7 +57,7 @@ pub async fn push_handler(
     authority: GatewayAuthority,
     ContentLengthLimit(DagCbor(push_body)): ContentLengthLimit<DagCbor<PushBody>, { 1024 * 5000 }>,
     Extension(state): Extension<Arc<Mutex<GatewayState<NativeStore>>>>,
-    Extension(store): Extension<Arc<Mutex<BlockStore<NativeStore>>>>,
+    Extension(store): Extension<Arc<Mutex<Blocks<NativeStore>>>>,
 ) -> Result<(StatusCode, Json<PushResponse>), GatewayError> {
     authority.try_authorize(GatewayAction::Push).await?;
 

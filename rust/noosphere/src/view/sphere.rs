@@ -51,6 +51,14 @@ impl<Storage: Store> Sphere<Storage> {
         MemoIpld::try_bundle_with_cid(self.cid(), &self.store).await
     }
 
+    pub async fn try_bundle_until_ancestor(&self, cid: Option<&Cid>) -> Result<Bundle> {
+        Bundle::try_from_timeslice(
+            &Timeline::new(&self.store).slice(&self.cid, cid),
+            &self.store,
+        )
+        .await
+    }
+
     pub async fn try_get_parent(&self) -> Result<Option<Sphere<Storage>>> {
         match self.try_as_memo().await?.parent {
             Some(cid) => Ok(Some(Sphere::at(&cid, &self.store))),
@@ -61,7 +69,6 @@ impl<Storage: Store> Sphere<Storage> {
     pub async fn try_get_links(&self) -> Result<Links<Storage>> {
         let sphere = self.try_as_body().await?;
 
-        println!("Getting links....");
         Ok(Links::try_at_or_empty(sphere.links.as_ref(), &mut self.store.clone()).await?)
     }
 
@@ -72,7 +79,6 @@ impl<Storage: Store> Sphere<Storage> {
     }
 
     pub async fn try_to_mutation(&self) -> Result<SphereMutation> {
-        println!("Trying to convert to mutation...");
         let memo: MemoIpld = self.store.load(&self.cid).await?;
         let author = memo
             .get_first_header(&Header::Author.to_string())
@@ -82,7 +88,9 @@ impl<Storage: Store> Sphere<Storage> {
         let links = self.try_get_links().await?;
         let changelog = links.try_get_changelog().await?;
 
-        mutation.links_mut().try_apply_changelog(changelog)?;
+        if !changelog.is_empty() {
+            mutation.links_mut().try_apply_changelog(&changelog)?;
+        }
 
         Ok(mutation)
     }
@@ -142,7 +150,9 @@ impl<Storage: Store> Sphere<Storage> {
         let base_cid = match memo.parent {
             Some(cid) => cid,
             None => {
-                let empty_dag = MemoIpld::for_body(store, &SphereIpld::default()).await?;
+                let mut base_sphere = SphereIpld::default();
+                base_sphere.identity = sphere.try_get_identity().await?;
+                let empty_dag = MemoIpld::for_body(store, &base_sphere).await?;
                 store.save(&empty_dag).await?
             }
         };
@@ -151,7 +161,11 @@ impl<Storage: Store> Sphere<Storage> {
             Sphere::try_apply_with_cid(&base_cid, &sphere.try_to_mutation().await?, store).await?;
 
         if hydrated_revision.memo.body != memo.body {
-            return Err(anyhow!("Unexpected CID after hydration"));
+            return Err(anyhow!(
+                "Unexpected CID after hydration (expected: {}, actual: {})",
+                memo.body,
+                hydrated_revision.memo.body
+            ));
         }
 
         Ok(())
@@ -166,14 +180,14 @@ impl<Storage: Store> Sphere<Storage> {
     ) -> Result<Cid> {
         let mut store = self.store.clone();
         let timeline = Timeline::new(&self.store);
-        let timeslice = timeline.slice(new_base, old_base);
+        let timeslice = timeline.slice(new_base, Some(old_base));
         let hydrate_cids = timeslice.try_to_chronological().await?;
 
         for (cid, _) in hydrate_cids.iter().skip(1) {
             Self::try_hydrate_with_cid(cid, &mut store).await?;
         }
 
-        let timeslice = timeline.slice(self.cid(), old_base);
+        let timeslice = timeline.slice(self.cid(), Some(old_base));
         let rebase_revisions = timeslice.try_to_chronological().await?;
 
         let mut next_base = new_base.clone();
@@ -273,7 +287,7 @@ impl<Storage: Store> Sphere<Storage> {
             ));
         }
 
-        // TODO: Revoke old proof
+        // TODO(#21): Revoke old proof
 
         let ucan = UcanBuilder::default()
             .issued_by(&restored_key)
@@ -291,6 +305,7 @@ impl<Storage: Store> Sphere<Storage> {
 #[cfg(test)]
 mod tests {
     use cid::Cid;
+    use futures::{pin_mut, StreamExt};
     use ucan::{
         builder::UcanBuilder,
         capability::{Capability, Resource, With},
@@ -558,6 +573,45 @@ mod tests {
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_hydrate_revisions_from_sparse_link_blocks() {
+        let mut store = MemoryStore::default();
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await.unwrap();
+
+        let (mut sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+
+        for i in 0..32u8 {
+            let mut mutation = SphereMutation::new(&owner_did);
+            let key = format!("key{}", i);
+
+            mutation
+                .links_mut()
+                .set(&key, &store.write_cbor(&[i]).await.unwrap());
+            let mut revision = sphere.try_apply(&mutation).await.unwrap();
+            let next_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
+            sphere = Sphere::at(&next_cid, &store);
+        }
+
+        let bundle = sphere.try_bundle_until_ancestor(None).await.unwrap();
+        let mut other_store = MemoryStore::default();
+
+        for (_, block) in bundle.map() {
+            other_store.write_cbor(block).await.unwrap();
+        }
+
+        let timeline = Timeline::new(&other_store);
+        let timeslice = timeline.slice(sphere.cid(), None);
+        let items = timeslice.try_to_chronological().await.unwrap();
+
+        for (cid, _) in items {
+            Sphere::at(&cid, &other_store).try_hydrate().await.unwrap();
+        }
+
+        store.expect_replica_in(&other_store).await.unwrap();
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_sync_a_lineage_with_external_changes() {
         let mut store = MemoryStore::default();
         let owner_key = generate_ed25519_key();
@@ -623,7 +677,7 @@ mod tests {
         .unwrap();
 
         let external_bundle = Bundle::try_from_timeslice(
-            &Timeline::new(&external_store).slice(&external_cid_b, &external_cid_a),
+            &Timeline::new(&external_store).slice(&external_cid_b, Some(&external_cid_a)),
             &external_store,
         )
         .await
@@ -651,15 +705,6 @@ mod tests {
         .await
         .unwrap();
 
-        println!("Loading bundle into store...");
-        println!(
-            "{:#?}",
-            external_bundle
-                .map()
-                .keys()
-                .map(|cid| cid.to_string())
-                .collect::<Vec<String>>()
-        );
         external_bundle.load_into(&mut store).await.unwrap();
 
         let local_sphere = Sphere::at(&local_cid_b, &store);

@@ -20,17 +20,19 @@ use forest_hash_utils::Hash;
 use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
-use super::{HashAlgorithm, KeyValuePair, MAX_ARRAY_WIDTH};
+use super::{HashAlgorithm, KeyValuePair, TargetConditionalSendSync, MAX_ARRAY_WIDTH};
 
 /// Node in Hamt tree which contains bitfield of set indexes and pointers to nodes
 #[derive(Debug, Clone)]
-pub struct Node<K, V, H> {
+pub struct Node<K: TargetConditionalSendSync, V: TargetConditionalSendSync, H> {
     pub(crate) bitfield: Bitfield,
     pub(crate) pointers: Vec<Pointer<K, V, H>>,
     hash: PhantomData<H>,
 }
 
-impl<K: PartialEq, V: PartialEq, H> PartialEq for Node<K, V, H> {
+impl<K: PartialEq + TargetConditionalSendSync, V: PartialEq + TargetConditionalSendSync, H>
+    PartialEq for Node<K, V, H>
+{
     fn eq(&self, other: &Self) -> bool {
         (self.bitfield == other.bitfield) && (self.pointers == other.pointers)
     }
@@ -38,8 +40,8 @@ impl<K: PartialEq, V: PartialEq, H> PartialEq for Node<K, V, H> {
 
 impl<K, V, H> Serialize for Node<K, V, H>
 where
-    K: Serialize,
-    V: Serialize,
+    K: Serialize + TargetConditionalSendSync,
+    V: Serialize + TargetConditionalSendSync,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -51,8 +53,8 @@ where
 
 impl<'de, K, V, H> Deserialize<'de> for Node<K, V, H>
 where
-    K: DeserializeOwned,
-    V: DeserializeOwned,
+    K: DeserializeOwned + TargetConditionalSendSync,
+    V: DeserializeOwned + TargetConditionalSendSync,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -67,7 +69,11 @@ where
     }
 }
 
-impl<K, V, H> Default for Node<K, V, H> {
+impl<K, V, H> Default for Node<K, V, H>
+where
+    K: TargetConditionalSendSync,
+    V: TargetConditionalSendSync,
+{
     fn default() -> Self {
         Node {
             bitfield: Bitfield::zero(),
@@ -79,9 +85,9 @@ impl<K, V, H> Default for Node<K, V, H> {
 
 impl<K, V, H> Node<K, V, H>
 where
-    K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
-    H: HashAlgorithm,
-    V: Serialize + DeserializeOwned,
+    K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned + TargetConditionalSendSync,
+    H: HashAlgorithm + TargetConditionalSendSync,
+    V: Serialize + DeserializeOwned + TargetConditionalSendSync,
 {
     pub async fn set<S: Store>(
         &mut self,
@@ -107,7 +113,7 @@ where
     }
 
     #[inline]
-    pub async fn get<Q: ?Sized, S: Store>(
+    pub async fn get<Q: ?Sized + TargetConditionalSendSync, S: Store>(
         &self,
         k: &Q,
         store: &S,
@@ -129,7 +135,7 @@ where
     ) -> Result<Option<(K, V)>>
     where
         K: Borrow<Q>,
-        Q: Eq + Hash,
+        Q: Eq + Hash + TargetConditionalSendSync,
         S: Store,
     {
         self.rm_value(HashBits::new(H::hash(k)), bit_width, 0, k, store)
@@ -180,7 +186,7 @@ where
     }
 
     /// Search for a key.
-    async fn search<Q: ?Sized, S: Store>(
+    async fn search<Q: ?Sized + TargetConditionalSendSync, S: Store>(
         &self,
         q: &Q,
         store: &S,
@@ -194,8 +200,9 @@ where
             .await
     }
 
-    #[async_recursion(?Send)]
-    async fn get_value<Q: ?Sized, S: Store>(
+    #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
+    #[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
+    async fn get_value<Q: ?Sized + TargetConditionalSendSync, S: Store>(
         &self,
         mut hashed_key: HashBits,
         bit_width: u32,
@@ -251,7 +258,8 @@ where
 
     /// Internal method to modify values.
     #[allow(clippy::too_many_arguments)]
-    #[async_recursion(?Send)]
+    #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
+    #[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
     async fn modify_value<S: Store>(
         &mut self,
         mut hashed_key: HashBits,
@@ -263,9 +271,8 @@ where
         overwrite: bool,
     ) -> Result<(Option<V>, bool)>
     where
-        V: PartialEq,
+        V: PartialEq + TargetConditionalSendSync,
     {
-        println!("MODIFY VALUE");
         let idx = hashed_key.next(bit_width)?;
 
         // No existing values at this point.
@@ -279,12 +286,8 @@ where
 
         match child {
             Pointer::Link { cid, cache } => {
-                println!("-> Link");
                 cache
-                    .get_or_try_init(async {
-                        println!("INIT CACHE");
-                        store.load(cid).await
-                    })
+                    .get_or_try_init(async { store.load(cid).await })
                     .await?;
                 let child_node = cache.get_mut().expect("filled line above");
 
@@ -304,9 +307,8 @@ where
                 }
                 Ok((old, modified))
             }
-            Pointer::Dirty(n) => {
-                println!("-> Dirty");
-                Ok(n.modify_value(
+            Pointer::Dirty(n) => Ok(n
+                .modify_value(
                     hashed_key,
                     bit_width,
                     depth + 1,
@@ -315,10 +317,8 @@ where
                     store,
                     overwrite,
                 )
-                .await?)
-            }
+                .await?),
             Pointer::Values(vals) => {
-                println!("-> Values");
                 // Update, if the key already exists.
                 if let Some(i) = vals.iter().position(|p| p.key() == &key) {
                     if overwrite {
@@ -389,8 +389,9 @@ where
     }
 
     /// Internal method to delete entries.
-    #[async_recursion(?Send)]
-    async fn rm_value<Q: ?Sized, S: Store>(
+    #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
+    #[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
+    async fn rm_value<Q: ?Sized + TargetConditionalSendSync, S: Store>(
         &mut self,
         mut hashed_key: HashBits,
         bit_width: u32,
@@ -463,7 +464,8 @@ where
         }
     }
 
-    #[async_recursion(?Send)]
+    #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
+    #[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
     pub async fn flush<S: Store>(&mut self, store: &mut S) -> Result<()> {
         for pointer in &mut self.pointers {
             if let Pointer::Dirty(node) = pointer {

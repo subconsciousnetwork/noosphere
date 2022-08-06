@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use cid::Cid;
 
-use futures::StreamExt;
+use futures::{pin_mut, StreamExt};
 use noosphere_cbor::{TryDagCbor, TryDagCborSendSync};
 use noosphere_storage::interface::{DagCborStore, Store};
 use serde::{Deserialize, Serialize};
@@ -43,8 +43,10 @@ impl Bundle {
         timeslice: &Timeslice<'a, Storage>,
         store: &Storage,
     ) -> Result<Bundle> {
-        let mut stream = Box::pin(timeslice.try_stream());
+        let stream = timeslice.try_stream();
         let mut bundle = Bundle::default();
+
+        pin_mut!(stream);
 
         while let Some(ancestor) = stream.next().await {
             let (_, memo) = ancestor?;
@@ -423,9 +425,10 @@ mod tests {
 
         let timeline = Timeline::new(&store);
 
-        let bundle = Bundle::try_from_timeslice(&timeline.slice(&final_cid, &second_cid), &store)
-            .await
-            .unwrap();
+        let bundle =
+            Bundle::try_from_timeslice(&timeline.slice(&final_cid, Some(&second_cid)), &store)
+                .await
+                .unwrap();
 
         assert_eq!(bundle.map().keys().len(), 10);
 

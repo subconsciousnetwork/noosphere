@@ -13,6 +13,7 @@ pub struct SphereRevision<Storage: Store> {
 }
 
 impl<Storage: Store> SphereRevision<Storage> {
+    // TODO: It would be nice if this was internally mutable
     pub async fn try_sign<Credential: KeyMaterial>(
         &mut self,
         credential: &Credential,

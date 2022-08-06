@@ -1,10 +1,10 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use cid::Cid;
 pub use crdts::{map, Orswot};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{hash::Hash, marker::PhantomData};
 
-use noosphere_cbor::TryDagCbor;
+use noosphere_cbor::{TryDagCbor, TryDagCborConditionalSendSync};
 use noosphere_collections::hamt::{Hamt, Hash as HamtHash, Sha256};
 use noosphere_storage::interface::{DagCborStore, Store};
 
@@ -21,8 +21,8 @@ pub enum MapOperation<Key, Value> {
 #[derive(Debug, Default, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct VersionedMapIpld<Key, Value>
 where
-    Key: HamtHash + Eq + Ord,
-    Value: Clone + Eq + Hash,
+    Key: HamtHash + Eq + Ord + TryDagCborConditionalSendSync,
+    Value: Clone + Eq + Hash + TryDagCborConditionalSendSync,
 {
     /// A pointer to a HAMT
     pub hamt: Cid,
@@ -38,14 +38,13 @@ where
 
 impl<Key, Value> VersionedMapIpld<Key, Value>
 where
-    Key: DeserializeOwned + Serialize + HamtHash + Eq + Ord,
-    Value: DeserializeOwned + Serialize + Clone + Eq + Hash,
+    Key: DeserializeOwned + Serialize + HamtHash + Eq + Ord + TryDagCborConditionalSendSync,
+    Value: DeserializeOwned + Serialize + Clone + Eq + Hash + TryDagCborConditionalSendSync,
 {
     pub async fn try_load_hamt<Storage: Store>(
         &self,
         store: &Storage,
     ) -> Result<Hamt<Storage, Value, Key, Sha256>> {
-        println!("LOADING HAMT");
         Hamt::load(&self.hamt, store.clone()).await
     }
 

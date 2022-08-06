@@ -1,3 +1,0 @@
-- UCANs
-- Capabilities
-- Actions

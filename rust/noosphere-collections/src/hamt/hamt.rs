@@ -6,7 +6,7 @@
 use anyhow::Result;
 use noosphere_cbor::TryDagCbor;
 use noosphere_storage::interface::{DagCborStore, Store};
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::Borrow;
 use std::marker::PhantomData;
 
 use cid::Cid;
@@ -21,6 +21,18 @@ pub const MAX_ARRAY_WIDTH: usize = 3;
 
 /// Default bit width for indexing a hash at each depth level
 pub const DEFAULT_BIT_WIDTH: u32 = 8;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub trait TargetConditionalSendSync: Send + Sync {}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<S: Send + Sync> TargetConditionalSendSync for S {}
+
+#[cfg(target_arch = "wasm32")]
+pub trait TargetConditionalSendSync {}
+
+#[cfg(target_arch = "wasm32")]
+impl<S> TargetConditionalSendSync for S {}
 
 /// Implementation of the HAMT data structure for IPLD.
 ///
@@ -42,7 +54,11 @@ pub const DEFAULT_BIT_WIDTH: u32 = 8;
 /// });
 /// ```
 #[derive(Debug)]
-pub struct Hamt<BS, V, K = BytesKey, H = Sha256> {
+pub struct Hamt<BS, V, K = BytesKey, H = Sha256>
+where
+    K: TargetConditionalSendSync,
+    V: TargetConditionalSendSync,
+{
     root: Node<K, V, H>,
     store: BS,
 
@@ -52,8 +68,8 @@ pub struct Hamt<BS, V, K = BytesKey, H = Sha256> {
 
 impl<BS, V, K, H> Serialize for Hamt<BS, V, K, H>
 where
-    K: Serialize,
-    V: Serialize,
+    K: Serialize + TargetConditionalSendSync,
+    V: Serialize + TargetConditionalSendSync,
     H: HashAlgorithm,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -64,7 +80,13 @@ where
     }
 }
 
-impl<K: PartialEq, V: PartialEq, S: Store, H: HashAlgorithm> PartialEq for Hamt<S, V, K, H> {
+impl<
+        K: PartialEq + TargetConditionalSendSync,
+        V: PartialEq + TargetConditionalSendSync,
+        S: Store,
+        H: HashAlgorithm,
+    > PartialEq for Hamt<S, V, K, H>
+{
     fn eq(&self, other: &Self) -> bool {
         self.root == other.root
     }
@@ -72,8 +94,8 @@ impl<K: PartialEq, V: PartialEq, S: Store, H: HashAlgorithm> PartialEq for Hamt<
 
 impl<BS, V, K, H> Hamt<BS, V, K, H>
 where
-    K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned,
-    V: Serialize + DeserializeOwned,
+    K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned + TargetConditionalSendSync,
+    V: Serialize + DeserializeOwned + TargetConditionalSendSync + PartialEq,
     BS: Store,
     H: HashAlgorithm,
 {
@@ -143,10 +165,7 @@ where
     ///     map.set(37, "c".to_string()).await.unwrap();
     /// })
     /// ```
-    pub async fn set(&mut self, key: K, value: V) -> Result<Option<V>>
-    where
-        V: PartialEq,
-    {
+    pub async fn set(&mut self, key: K, value: V) -> Result<Option<V>> {
         self.root
             .set(key, value, self.store.borrow(), self.bit_width, true)
             .await
@@ -216,7 +235,7 @@ where
     pub async fn get<Q: ?Sized>(&self, k: &Q) -> Result<Option<&V>>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: Hash + Eq + TargetConditionalSendSync,
         V: DeserializeOwned,
     {
         match self
@@ -254,7 +273,7 @@ where
     pub async fn contains_key<Q: ?Sized>(&self, k: &Q) -> Result<bool>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: Hash + Eq + TargetConditionalSendSync,
     {
         Ok(self
             .root
@@ -288,7 +307,7 @@ where
     pub async fn delete<Q: ?Sized>(&mut self, k: &Q) -> Result<Option<(K, V)>>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: Hash + Eq + TargetConditionalSendSync,
     {
         self.root
             .remove_entry(k, self.store.borrow(), self.bit_width)
@@ -297,7 +316,7 @@ where
 
     /// Flush root and return Cid for hamt
     pub async fn flush(&mut self) -> Result<Cid> {
-        self.root.flush(self.store.borrow_mut()).await?;
+        self.root.flush(&mut self.store).await?;
         let bytes = self.root.try_into_dag_cbor()?;
         Ok(self.store.write_cbor(&bytes).await?)
     }

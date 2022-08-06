@@ -30,7 +30,6 @@ impl GatewayConfig {
     async fn read_config(&self) -> Result<Document> {
         debug!("Reading config at {:?}", self.path);
         let contents = String::from_utf8(read(&self.path).await.unwrap_or_default())?;
-        debug!("CONFIG CONTENTS: {}", contents);
         Ok(contents.as_str().parse()?)
     }
 

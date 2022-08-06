@@ -12,6 +12,10 @@ pub struct ChangelogIpld<Op> {
 }
 
 impl<Op> ChangelogIpld<Op> {
+    pub fn is_empty(&self) -> bool {
+        self.changes.len() == 0
+    }
+
     pub fn push(&mut self, op: Op) -> Result<()> {
         let did = self
             .did
