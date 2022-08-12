@@ -6,7 +6,7 @@
 > 1. Planetary consciousness. A hypothetical new evolutionary phenomena rising out of the biosphere.
 > 2. A protocol for thought.
 
-This repository contains documentation and specifications for the Noosphere protocol. Noosphere, like its namesake, is a worldwide space for thinking together. We like to think of it as a protocol for thought.
+This repository contains documentation and specifications for the Noosphere protocol. Noosphere, like its namesake, is a worldwide medium for thinking together. We like to think of it as a protocol for thought.
 
 Noosphere is the foundational protocol that the Subconscious app builds upon to enable an open-ended, permissionless multiplayer experience. The documentation and specifications in this repository are intended to enable others to contribute to our efforts, and also to build clients and deploy infrastructure that interoperates over Noosphere.
 
