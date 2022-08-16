@@ -1,4 +1,5 @@
 ![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)
+[![Discord](https://img.shields.io/discord/1003419732516552724.svg?logo=discord&colorB=7289DA)](https://discord.gg/HmHypb6DCj)
 
 # Noosphere
 
