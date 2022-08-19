@@ -37,4 +37,5 @@ Apache-2.0: https://www.apache.org/licenses/license-2.0
 [rust]: https://github.com/subconsciousnetwork/noosphere/main/rust/
 [design]: https://github.com/subconsciousnetwork/noosphere/main/design/
 [roadmap-board]: https://github.com/orgs/subconsciousnetwork/projects/1/views/4
-[noosphere-kanban]: https://github.com/orgs/subconsciousnetwork/projects/2/views/1
+[noosphere-kanban]: https://github.com/orgs/subconsciousnetwork/projects/1/views/8
+
