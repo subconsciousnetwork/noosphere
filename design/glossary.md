@@ -10,6 +10,6 @@
 | transclusion | content that's embedded into a note by a link |
 | Subconscious | a social notetaking app built on Noosphere. not public yet. |
 | Noosphere | "thought sphere". a protocol for thought. a massively-multiplayer knowledge graph. You can think of it like a world-wide Wiki. https://docs.google.com/document/d/1oUunOtzj27JmCFAD5Qpt1EGKseUcTzk2xq3Aok0kDxk/edit?usp=sharing https://github.com/subconsciousnetwork/noosphere |
-| memo | a data structure with keyvalue headers and content |
-| block | a line in a subtext note - text, link, quote, list, header, etc |
+| memo | An envelope data structure that groups headers, content and a chronological history of revisions |
+| block | a line in a Subtext note - text, link, quote, list, header, etc |
 
