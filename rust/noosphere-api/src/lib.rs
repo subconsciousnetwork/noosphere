@@ -1,7 +1,7 @@
 pub mod authority;
 pub mod client;
 pub mod data;
-pub mod url;
+pub mod gateway;
 
 #[cfg(test)]
 mod tests {

@@ -15,7 +15,7 @@ use ucan::{
 
 use crate::gateway::{environment::GatewayConfig, AuthzError};
 
-use noosphere_api::authority::{GatewayAction, GatewayReference, GATEWAY_SEMANTICS};
+use noosphere_api::authority::{GatewayAction, GatewayIdentity, GATEWAY_SEMANTICS};
 
 pub struct GatewayAuthority {
     proof_chain: ProofChain,
@@ -46,7 +46,7 @@ impl GatewayAuthority {
 
         let desired_capability = Capability {
             with: With::Resource {
-                kind: Resource::Scoped(GatewayReference {
+                kind: Resource::Scoped(GatewayIdentity {
                     did: gateway_identity,
                 }),
             },
