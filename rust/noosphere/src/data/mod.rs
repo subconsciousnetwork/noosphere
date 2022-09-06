@@ -4,6 +4,7 @@ mod changelog;
 mod headers;
 mod links;
 mod memo;
+mod reference;
 mod sphere;
 mod versioned_map;
 
@@ -13,5 +14,6 @@ pub use changelog::*;
 pub use headers::*;
 pub use links::*;
 pub use memo::*;
+pub use reference::*;
 pub use sphere::*;
 pub use versioned_map::*;

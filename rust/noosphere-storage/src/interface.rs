@@ -6,7 +6,7 @@ use cid::{
 };
 use noosphere_cbor::{TryDagCbor, TryDagCborSendSync};
 
-const DAG_CBOR_CODEC: u64 = 0x71;
+pub const DAG_CBOR_CODEC: u64 = 0x71;
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]

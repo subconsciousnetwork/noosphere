@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use std::fmt::Display;
 use url::{ParseError, Url};
 
-use crate::data::AsQuery;
+use crate::{authority::GatewayIdentity, data::AsQuery};
 
 pub const API_VERSION: &str = "v0alpha1";
 
@@ -27,38 +27,65 @@ impl Display for Route {
 }
 
 #[derive(Clone)]
-pub struct GatewayIdentity {
+pub struct GatewayReference {
     pub scheme: String,
     pub host: String,
     pub port: u16,
-    pub did: String,
+    pub identity: Option<GatewayIdentity>,
 }
 
-impl GatewayIdentity {
-    pub fn try_from_uri_and_did(uri: &str, did: &str) -> Result<GatewayIdentity> {
+impl GatewayReference {
+    pub fn try_from_uri(uri: &str) -> Result<GatewayReference> {
         let url = Url::parse(uri)?;
-        Ok(GatewayIdentity {
+        println!("{:?}", url);
+        Ok(GatewayReference {
             scheme: url.scheme().to_string(),
             host: url
-                .domain()
+                .host()
                 .ok_or_else(|| anyhow!("Could not derive domain from {}", uri))?
                 .to_string(),
-            port: url
-                .port()
-                .ok_or_else(|| anyhow!("Could not derive port from {}", uri))?,
-            did: did.to_string(),
+            port: url.port().unwrap_or(80),
+            identity: None,
         })
     }
 
-    pub fn try_as_base_url(&self) -> Result<Url> {
-        Url::parse(&format!("{}://{}:{}", self.scheme, self.host, self.port))
-            .map_err(|error| anyhow!(error))
+    pub fn try_from_uri_and_did(uri: &str, did: &str) -> Result<GatewayReference> {
+        let mut reference = GatewayReference::try_from_uri(uri)?;
+        reference.identity = Some(GatewayIdentity {
+            did: did.to_string(),
+        });
+        Ok(reference)
+    }
+
+    pub fn require_identity(&self) -> Result<&GatewayIdentity> {
+        Ok(self
+            .identity
+            .as_ref()
+            .ok_or_else(|| anyhow!("No DID configured for gateway identity"))?)
+    }
+
+    pub fn ensure_identity(&mut self, claimed_identity: &GatewayIdentity) -> Result<()> {
+        match &self.identity {
+            Some(identity) if identity != claimed_identity => {
+                return Err(anyhow!(
+                    "Gateway claimed identity {} but client expected {}",
+                    claimed_identity,
+                    identity
+                ));
+            }
+            None => {
+                self.identity = Some(claimed_identity.clone());
+            }
+            _ => (),
+        };
+
+        Ok(())
     }
 }
 
-impl TryFrom<&GatewayIdentity> for Url {
+impl TryFrom<&GatewayReference> for Url {
     type Error = url::ParseError;
-    fn try_from(origin: &GatewayIdentity) -> Result<Self, Self::Error> {
+    fn try_from(origin: &GatewayReference) -> Result<Self, Self::Error> {
         Url::parse(&format!(
             "{}://{}:{}",
             origin.scheme, origin.host, origin.port
@@ -67,7 +94,7 @@ impl TryFrom<&GatewayIdentity> for Url {
 }
 
 pub struct GatewayRequestUrl<'a, 'b, Params: AsQuery = ()>(
-    pub &'a GatewayIdentity,
+    pub &'a GatewayReference,
     pub Route,
     pub Option<&'b Params>,
 );
@@ -77,7 +104,7 @@ impl<'a, 'b, Params: AsQuery> TryFrom<GatewayRequestUrl<'a, 'b, Params>> for Url
 
     fn try_from(value: GatewayRequestUrl<'a, 'b, Params>) -> Result<Self, Self::Error> {
         let GatewayRequestUrl(
-            GatewayIdentity {
+            GatewayReference {
                 scheme,
                 host: domain,
                 port,

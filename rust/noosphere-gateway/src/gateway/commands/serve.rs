@@ -1,8 +1,4 @@
-use std::{
-    net::{SocketAddr, TcpListener},
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{net::TcpListener, sync::Arc};
 
 use anyhow::Result;
 use async_std::sync::Mutex;
@@ -13,10 +9,7 @@ use axum::{
 };
 use hyper::Method;
 use noosphere::authority::SUPPORTED_KEYS;
-use noosphere_storage::{
-    interface::{StorageProvider, Store},
-    native::{NativeStorageInit, NativeStorageProvider},
-};
+use noosphere_storage::interface::{StorageProvider, Store};
 use tower_http::{
     cors::{Any, CorsLayer},
     trace::TraceLayer,
@@ -25,7 +18,7 @@ use ucan::crypto::did::DidParser;
 use url::Url;
 
 use crate::gateway::{
-    environment::{Blocks, GatewayConfig, GatewayRoot, GatewayState},
+    environment::{Blocks, GatewayConfig, GatewayState},
     handlers::{fetch_handler, identify_handler, push_handler},
 };
 
@@ -108,6 +101,7 @@ mod tests {
     use noosphere_api::{
         client::Client,
         data::{PushBody, PushResponse},
+        gateway::GatewayReference,
     };
 
     use noosphere_storage::{interface::DagCborStore, memory::MemoryStore};
@@ -117,7 +111,7 @@ mod tests {
     use crate::gateway::{
         commands::{initialize, serve},
         environment::{Blocks, GatewayRoot},
-        tracing::initialize_tracing,
+        // tracing::initialize_tracing,
     };
 
     #[tokio::test]
@@ -144,10 +138,17 @@ mod tests {
         });
 
         let client_task = tokio::spawn(async move {
-            let uri = format!("http://{}:{}", gateway_address.ip(), gateway_address.port());
-            let _client = Client::identify(&uri, &owner_key_material, None, Some(&gateway_did))
+            let gateway = GatewayReference::try_from_uri(&format!(
+                "http://{}:{}",
+                gateway_address.ip(),
+                gateway_address.port()
+            ))
+            .unwrap();
+            let client = Client::identify(&gateway, &owner_key_material, None)
                 .await
                 .unwrap();
+
+            assert_eq!(client.gateway.require_identity().unwrap().did, gateway_did);
 
             server_task.abort();
             let _ = server_task.await;
@@ -168,7 +169,7 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let gateway_address = listener.local_addr().unwrap();
 
-        let gateway_did = initialize(&root_dir.path().to_path_buf(), &owner_did)
+        let _gateway_did = initialize(&root_dir.path().to_path_buf(), &owner_did)
             .await
             .unwrap();
 
@@ -190,15 +191,16 @@ mod tests {
                 .await
                 .unwrap();
 
-            let uri = format!("http://{}:{}", gateway_address.ip(), gateway_address.port());
-            let client = Client::identify(
-                &uri,
-                &owner_key_material,
-                Some(vec![sphere_proof]),
-                Some(&gateway_did),
-            )
-            .await
+            let gateway = GatewayReference::try_from_uri(&format!(
+                "http://{}:{}",
+                gateway_address.ip(),
+                gateway_address.port()
+            ))
             .unwrap();
+
+            let client = Client::identify(&gateway, &owner_key_material, Some(vec![sphere_proof]))
+                .await
+                .unwrap();
 
             let sphere_did = sphere.try_get_identity().await.unwrap();
             let bundle = sphere.try_as_bundle().await.unwrap();
@@ -233,7 +235,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_can_update_an_existing_subspace_with_changes_from_the_client() {
-        initialize_tracing();
+        // initialize_tracing();
 
         let owner_key_material = generate_ed25519_key();
         let owner_did = owner_key_material.get_did().await.unwrap();
@@ -243,7 +245,7 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let gateway_address = listener.local_addr().unwrap();
 
-        let gateway_did = initialize(&root_dir.path().to_path_buf(), &owner_did)
+        let _gateway_did = initialize(&root_dir.path().to_path_buf(), &owner_did)
             .await
             .unwrap();
 
@@ -259,20 +261,23 @@ mod tests {
             })
         };
 
-        // TODO(#1): Move the "client" work to a task
-
         let client_task = tokio::spawn(async move {
             let mut memory_store = MemoryStore::default();
             let (sphere, sphere_proof, _) = Sphere::try_generate(&owner_did, &mut memory_store)
                 .await
                 .unwrap();
 
-            let uri = format!("http://{}:{}", gateway_address.ip(), gateway_address.port());
+            let gateway = GatewayReference::try_from_uri(&format!(
+                "http://{}:{}",
+                gateway_address.ip(),
+                gateway_address.port()
+            ))
+            .unwrap();
+
             let client = Client::identify(
-                &uri,
+                &gateway,
                 &owner_key_material,
                 Some(vec![sphere_proof.clone()]),
-                Some(&gateway_did),
             )
             .await
             .unwrap();

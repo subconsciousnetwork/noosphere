@@ -44,28 +44,28 @@ impl TryFrom<String> for GatewayAction {
 }
 
 #[derive(Clone, PartialEq)]
-pub struct GatewayReference {
+pub struct GatewayIdentity {
     pub did: String,
 }
 
-impl Scope for GatewayReference {
+impl Scope for GatewayIdentity {
     fn contains(&self, other: &Self) -> bool {
         other.did == self.did
     }
 }
 
-impl ToString for GatewayReference {
-    fn to_string(&self) -> String {
-        format!("ng:{}", self.did)
+impl Display for GatewayIdentity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ng:{}", self.did)
     }
 }
 
-impl TryFrom<Url> for GatewayReference {
+impl TryFrom<Url> for GatewayIdentity {
     type Error = anyhow::Error;
 
     fn try_from(value: Url) -> Result<Self> {
         match value.scheme() {
-            "ng" => Ok(GatewayReference {
+            "ng" => Ok(GatewayIdentity {
                 did: String::from(value.path()),
             }),
             _ => Err(anyhow!(
@@ -78,6 +78,6 @@ impl TryFrom<Url> for GatewayReference {
 
 pub struct GatewaySemantics {}
 
-impl CapabilitySemantics<GatewayReference, GatewayAction> for GatewaySemantics {}
+impl CapabilitySemantics<GatewayIdentity, GatewayAction> for GatewaySemantics {}
 
 pub const GATEWAY_SEMANTICS: GatewaySemantics = GatewaySemantics {};

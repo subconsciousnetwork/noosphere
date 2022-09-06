@@ -69,7 +69,7 @@ pub async fn push_handler(
 
     match (tip, push_body.base) {
         (Some(mine), theirs) => {
-            // TODO: Probably should do some diligence here to check if
+            // TODO(#26): Probably should do some diligence here to check if
             // their base is even in our lineage. Note that this condition
             // will be hit if theirs is ahead of mine, which actually
             // should be a "missing revisions" condition.

@@ -20,7 +20,7 @@ pub struct BodyChunkIpld {
 }
 
 impl BodyChunkIpld {
-    pub async fn store_bytes<Storage: Store>(bytes: &[u8], mut store: Storage) -> Result<Cid> {
+    pub async fn store_bytes<Storage: Store>(bytes: &[u8], store: &mut Storage) -> Result<Cid> {
         let chunks = FastCDC::new(
             bytes,
             fastcdc::MINIMUM_MIN,
