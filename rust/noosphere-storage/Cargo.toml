@@ -8,26 +8,26 @@ edition = "2021"
 [dependencies]
 anyhow = "^1"
 async-std = "^1"
-async-trait = "0.1"
-cid = "0.8"
+async-trait = "~0.1"
+cid = "~0.8"
 noosphere-cbor = { path = "../noosphere-cbor" }
 tracing = "~0.1"
 
 [dev-dependencies]
-witty-phrase-generator = "0.2"
-wasm-bindgen-test = "0.3"
+witty-phrase-generator = "~0.2"
+wasm-bindgen-test = "~0.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-sled = "0.34"
+sled = "~0.34"
 tokio = { version = "^1", features = ["full"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "~0.2"
 rexie = { git = "https://github.com/cdata/rexie" }
-js-sys = "0.3"
+js-sys = "~0.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
-version = "0.3"
+version = "~0.3"
 features = [
   "Window",
   "DedicatedWorkerGlobalScope",

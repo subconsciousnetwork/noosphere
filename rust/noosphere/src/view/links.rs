@@ -1,6 +1,9 @@
+use std::pin::Pin;
+
 use anyhow::Result;
 use async_once_cell::OnceCell;
 use cid::Cid;
+use futures::Stream;
 
 use crate::{
     data::{LinksChangelogIpld, LinksIpld, MapOperation},
@@ -119,5 +122,11 @@ impl<Storage: Store> Links<Storage> {
         ForEach: FnMut(&String, &Cid) -> Result<()>,
     {
         self.try_get_hamt().await?.for_each(for_each).await
+    }
+
+    pub async fn stream<'a>(
+        &'a self,
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<(&'a String, &'a Cid)>> + 'a>>> {
+        Ok(self.try_get_hamt().await?.stream())
     }
 }

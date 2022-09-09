@@ -1,5 +1,5 @@
 [package]
-name = "noosphere-fs"
+name = "noosphere-into"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,17 +8,24 @@ edition = "2021"
 [dependencies]
 noosphere = { path = "../noosphere" }
 noosphere-storage = { path = "../noosphere-storage" }
+noosphere-fs = { path = "../noosphere-fs" }
 
-tokio = { version = "^1", features = ["sync", "io-util"] }
-tokio-util = { version = "~0.7", features = ["io"] }
-tokio-stream = "~0.1"
-async-stream = "~0.3"
-bytes = "^1"
-once_cell = "^1"
-cid = "~0.8"
 anyhow = "^1"
+async-trait = "~0.1"
 
-futures-util = "~0.3"
+subtext = { path = "../../../subtext/parsers/rust/subtext", features = ["stream"] }
+horrorshow = "~0.8"
+cid = "~0.8"
+
+bytes = "^1"
+tokio-stream = "~0.1"
+tokio-util = "~0.7"
+tokio = { version = "^1", features = ["io-util", "macros", "test-util"] }
+
+async-stream = { version = "~0.3" }
+futures = { version = "~0.3" }
+async-compat = { version = "~0.2" }
+async-utf8-decoder = { version = "~0.3" }
 
 [dev-dependencies]
 wasm-bindgen-test = "~0.3"

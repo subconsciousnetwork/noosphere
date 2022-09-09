@@ -8,6 +8,8 @@ use noosphere_cbor::TryDagCbor;
 use noosphere_storage::interface::{DagCborStore, Store};
 use std::borrow::Borrow;
 use std::marker::PhantomData;
+use std::pin::Pin;
+use tokio_stream::{Stream, StreamExt};
 
 use cid::Cid;
 use forest_hash_utils::{BytesKey, Hash};
@@ -357,7 +359,19 @@ where
         V: DeserializeOwned,
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
-        self.root.for_each(self.store.borrow(), &mut f).await
+        // self.root.for_each(self.store.borrow(), &mut f).await
+        let mut stream = self.stream();
+
+        while let Some(Ok((key, value))) = stream.next().await {
+            f(key, value)?;
+        }
+
+        Ok(())
+        // for item
+    }
+
+    pub fn stream<'a>(&'a self) -> Pin<Box<dyn Stream<Item = Result<(&'a K, &'a V)>> + 'a>> {
+        self.root.stream(&self.store)
     }
 
     /// Consumes this HAMT and returns the Blockstore it owns.

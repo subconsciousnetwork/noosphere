@@ -5,11 +5,14 @@
 
 use anyhow::Result;
 use async_recursion::async_recursion;
+use async_stream::try_stream;
 use noosphere_cbor::TryDagCbor;
 use noosphere_storage::interface::{DagCborStore, Store};
 use std::borrow::Borrow;
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use std::pin::Pin;
+use tokio_stream::Stream;
 
 use async_once_cell::OnceCell;
 use serde::de::DeserializeOwned;
@@ -146,43 +149,58 @@ where
         self.pointers.is_empty()
     }
 
-    #[async_recursion(?Send)]
-    pub(crate) async fn for_each<S, F>(&self, store: &S, f: &mut F) -> Result<()>
+    pub(crate) fn stream<'a, S>(
+        &'a self,
+        store: &'a S,
+    ) -> Pin<Box<dyn Stream<Item = Result<(&'a K, &'a V)>> + 'a>>
     where
-        F: FnMut(&K, &V) -> anyhow::Result<()>,
         S: Store,
     {
-        for p in &self.pointers {
-            match p {
-                Pointer::Link { cid, cache } => {
-                    if let Some(cached_node) = cache.get() {
-                        cached_node.for_each(store, f).await?
-                    } else {
-                        let node = match store.load(cid).await {
-                            Ok(node) => node,
-                            Err(error) => {
-                                #[cfg(not(feature = "ignore-dead-links"))]
-                                return Err(error);
-
-                                #[cfg(feature = "ignore-dead-links")]
-                                continue;
+        Box::pin(try_stream! {
+            for p in &self.pointers {
+                match p {
+                    Pointer::Link { cid, cache } => {
+                        if let Some(cached_node) = cache.get() {
+                            let stream = cached_node.stream(store);
+                            tokio::pin!(stream);
+                            for await item in stream {
+                                yield item?;
                             }
-                        };
+                        } else {
+                            let node = match store.load(cid).await {
+                                Ok(node) => Ok(node),
+                                Err(error) => {
+                                    #[cfg(feature = "ignore-dead-links")]
+                                    continue;
+                                    #[cfg(not(feature = "ignore-dead-links"))]
+                                    Err(error)
+                                }
+                            }?;
 
-                        // Ignore error intentionally, the cache value will always be the same
-                        let cache_node = cache.get_or_init(async { node }).await;
-                        cache_node.for_each(store, f).await?
+                            // Ignore error intentionally, the cache value will always be the same
+                            let cache_node = cache.get_or_init(async { node }).await;
+                            let stream = cache_node.stream(store);
+                            tokio::pin!(stream);
+                            for await item in stream {
+                                yield item?;
+                            }
+                        }
                     }
-                }
-                Pointer::Dirty(n) => n.for_each(store, f).await?,
-                Pointer::Values(kvs) => {
-                    for kv in kvs {
-                        f(kv.key(), kv.value())?;
+                    Pointer::Dirty(n) => {
+                        let stream = n.stream(store);
+                        tokio::pin!(stream);
+                        for await item in stream {
+                            yield item?;
+                        }
+                    }
+                    Pointer::Values(kvs) => {
+                        for kv in kvs {
+                            yield (kv.key(), kv.value());
+                        }
                     }
                 }
             }
-        }
-        Ok(())
+        })
     }
 
     /// Search for a key.

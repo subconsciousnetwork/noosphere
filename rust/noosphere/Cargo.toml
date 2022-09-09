@@ -27,6 +27,7 @@ once_cell = "^1"
 serde_ipld_dagcbor = "~0.2"
 tiny-bip39 = "^1"
 crdts = "^7"
+tokio-stream = "~0.1"
 
 noosphere-storage = { path = "../noosphere-storage" }
 noosphere-cbor = { path = "../noosphere-cbor" }

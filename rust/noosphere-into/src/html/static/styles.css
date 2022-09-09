@@ -1,0 +1,256 @@
+.monospace {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.undecorated {
+  text-decoration: none;
+}
+
+.collapsing {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.strong {
+  font-weight: bold;
+}
+
+.small {
+  font-size: var(--small-text-size);
+}
+
+.italic {
+  font-style: italic;
+}
+
+html,
+body {
+  min-height: 100vh;
+
+  --small-text-size: 0.85rem;
+  --text-color: #10101a;
+  --background-color: #fefefe;
+  --divider-color: rgba(0, 0, 0, 0.05);
+}
+
+body {
+  font-family: "IBM Plex Sans", sans-serif;
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: column;
+  margin: 0;
+  padding: 1em;
+  color: var(--text-color);
+  background-color: var(--background-color);
+}
+
+a[href=""] {
+  display: none;
+}
+
+nav {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding-bottom: 1em;
+  border-bottom: 1px solid var(--divider-color);
+}
+
+nav > :not(:last-child) {
+  margin-right: .5em;
+}
+
+nav > .title {
+  flex: 1;
+  margin-right: 0.5em;
+}
+
+/* nav > .updated-date {
+  font-style: italic;
+  font-size: var(--small-text-size);
+} */
+
+section[role="main"] > blockquote {
+  border-left: 1em solid var(--divider-color);
+  margin-left: 0;
+  padding-left: 1em;
+  font-style: italic;
+}
+
+
+section[role="main"] {
+  flex: 1;
+}
+
+section[role="main"] > ul {
+  padding-left: 2em;
+}
+
+footer {
+  border-top: 1px solid var(--divider-color);
+  margin-top: 1rem;
+  padding-top: 1rem;
+  /* font-size: var(--small-text-size); */
+}
+
+#permalinks {
+  padding-left: 1.5rem;
+}
+
+#permalinks > li {
+  padding: 0;
+}
+
+#permalinks > li > div {
+  display: flex;
+  flex-direction: row;
+  position: relative;
+}
+
+#permalinks > li > div > span {
+  white-space: nowrap;
+}
+
+#sources {
+  margin: 0;
+  padding: 0rem;
+}
+
+#sources > li {
+  display: flex;
+  flex-direction: row;
+  white-space: nowrap;
+}
+
+#sources > li > span:not(:last-child) {
+  margin-right: 0.5em;
+}
+
+#sources > li:not(:last-child) {
+  margin-bottom: 0.25em;
+}
+
+#sphere {
+  /* padding: 1em 0; */
+}
+
+#sphere h1,
+#sphere h2,
+#sphere h3 {
+  line-height: 1.5rem;
+  margin: 2rem 0;
+}
+
+#sphere h3 {
+  font-weight: normal;
+}
+
+#sphere section[role="main"] {
+  display: grid;
+  background: var(--divider-color);
+  column-gap: 1px;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "header latest-updates"
+    "sublinks-index latest-updates"
+    "footer footer";
+}
+
+#sphere section[role="main"] > * {
+  background-color: var(--background-color);
+}
+
+#sphere section[role="main"] > #sublinks {
+  margin: 0;
+  padding: 0 1em 0 0;
+  grid-area: sublinks-index;
+  overflow: hidden;
+}
+
+#sublinks > li {
+  display: block;
+}
+
+#sublinks > li:not(:last-child) {
+  margin-bottom: 0.5em;
+  padding-bottom: 0.5em;
+  border-bottom: 1px solid var(--divider-color);
+}
+
+#sublinks > li > a {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto auto;
+  grid-template-areas: 
+      "title updated-date"
+      "summary summary"
+      "slug slug";
+
+  align-items: baseline;
+  text-decoration: none;
+}
+
+#sublinks > li > a > span:first-child {
+  text-decoration: underline;
+}
+
+#sublinks > li > a > .title {
+  grid-area: title;
+}
+
+#sublinks > li > a > .updated-date {
+  grid-area: updated-date;
+}
+
+#sublinks > li > a > .summary {
+  grid-area: summary;
+}
+
+#sublinks > li > a > .slug {
+  grid-area: slug;
+}
+
+
+#sphere section[role="main"] > header {
+  padding: 0;
+  grid-area: header;
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+#sphere section[role="main"] > header > h2 {
+  margin-right: 1rem;
+}
+
+
+#sphere section[role="main"] > footer {
+  grid-area: footer;
+  margin: 0;
+}
+
+#sphere section[role="main"] > #latest-updates {
+  flex: 1;
+  padding: 0 0 0 1em;
+  grid-area: latest-updates;
+}
+
+@media (max-width: 600px) {
+  
+  #sphere section[role="main"] > #sublinks,
+  #sphere section[role="main"] > #latest-updates {
+    padding: 0;
+  }
+
+  #sphere section[role="main"] {
+    grid-template-columns: [col-start] calc(100vw - 2rem) [col-end];
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas:
+      "header"
+      "sublinks-index"
+      "latest-updates"
+      "footer";
+  }
+}
