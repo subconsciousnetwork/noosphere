@@ -1,5 +1,5 @@
 # Noosphere
-Core implementation
+Core implementation.
 
 ## Build Notes
 
