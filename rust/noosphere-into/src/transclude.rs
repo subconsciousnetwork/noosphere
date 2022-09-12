@@ -1,6 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use cid::Cid;
+use noosphere_fs::SphereFs;
 use noosphere_storage::interface::Store;
 
 use crate::slashlink::Slashlink;
@@ -28,10 +29,7 @@ pub enum Transclude {
 pub trait Transcluder {
     async fn make_transclude<S: Store>(
         &self,
-        host_sphere: &Cid,
-        host_content: &Cid,
-        guest_sphere: &Cid,
+        guest_sphere_fs: &SphereFs<S>,
         link: &Slashlink,
-        block_store: &S,
-    ) -> Result<Transclude>;
+    ) -> Result<Option<Transclude>>;
 }
