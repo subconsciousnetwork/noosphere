@@ -2696,6 +2696,8 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 [[package]]
 name = "subtext"
 version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24375f1ef632ac47caddfd9bc5ec32e525e3ff3059cc88bbff3d1b2e06730d28"
 dependencies = [
  "anyhow",
  "async-compat",
