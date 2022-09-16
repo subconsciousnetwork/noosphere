@@ -9,7 +9,7 @@ edition = "2021"
 noosphere = { path = "../noosphere" }
 noosphere-storage = { path = "../noosphere-storage" }
 noosphere-fs = { path = "../noosphere-fs" }
-subtext = { path = "../../../subtext/parsers/rust/subtext", features = ["stream"] }
+subtext = { version = "~0.3", path = "../../../subtext/parsers/rust/subtext", features = ["stream"] }
 
 anyhow = "^1"
 async-trait = "~0.1"
