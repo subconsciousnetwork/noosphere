@@ -43,7 +43,7 @@ tokio = { version = "^1", features = ["full"] }
 tower = "~0.4"
 tower-http = { version = "~0.3", features = ["cors", "trace"] }
 tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
-axum = { version = "~0.5", features = ["headers", "macros"] }
+axum = { version = "~0.5.16", features = ["headers", "macros"] }
 hyper = { version = "~0.14", features = ["client"] }
 sled = "~0.34"
 toml_edit = "~0.14"

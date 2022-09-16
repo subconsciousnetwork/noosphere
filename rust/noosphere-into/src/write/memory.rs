@@ -10,13 +10,28 @@ use tokio::sync::Mutex;
 
 use super::WriteTarget;
 
+/// An implementation of WriteTarget that is only intended to be used in tests.
 #[derive(Default, Clone)]
 pub struct MemoryWriteTarget {
     vfs: Arc<Mutex<BTreeMap<PathBuf, Vec<u8>>>>,
+    aliases: Arc<Mutex<BTreeMap<PathBuf, PathBuf>>>,
 }
 
 impl MemoryWriteTarget {
+    pub async fn resolve_symlink(&self, path: &PathBuf) -> Option<PathBuf> {
+        let aliases = self.aliases.lock().await;
+        aliases.get(path).cloned()
+    }
+
     pub async fn read(&self, path: &PathBuf) -> Option<Vec<u8>> {
+        let aliases = self.aliases.lock().await;
+
+        let path = if let Some(alias) = aliases.get(path) {
+            alias
+        } else {
+            path
+        };
+
         self.vfs.lock().await.get(path).cloned()
     }
 }
@@ -35,6 +50,12 @@ impl WriteTarget for MemoryWriteTarget {
         let mut buffer = Vec::new();
         contents.read_to_end(&mut buffer).await?;
         self.vfs.lock().await.insert(path.clone(), buffer);
+        Ok(())
+    }
+
+    async fn symlink(&self, src: &PathBuf, dst: &PathBuf) -> Result<()> {
+        let mut aliases = self.aliases.lock().await;
+        aliases.insert(dst.clone(), src.clone());
         Ok(())
     }
 

@@ -9,11 +9,11 @@ edition = "2021"
 noosphere = { path = "../noosphere" }
 noosphere-storage = { path = "../noosphere-storage" }
 noosphere-fs = { path = "../noosphere-fs" }
+subtext = { path = "../../../subtext/parsers/rust/subtext", features = ["stream"] }
 
 anyhow = "^1"
 async-trait = "~0.1"
 
-subtext = { path = "../../../subtext/parsers/rust/subtext", features = ["stream"] }
 horrorshow = "~0.8"
 cid = "~0.8"
 
@@ -29,6 +29,16 @@ async-utf8-decoder = { version = "~0.3" }
 
 [dev-dependencies]
 wasm-bindgen-test = "~0.3"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+# Mostly these dependencies are used in the examples
+tokio = { version = "^1", features = ["full"] }
+temp-dir = "~0.1"
+axum = "~0.5"
+axum-extra = { version = "~0.3", features = ["spa"] }
+tower-http = { version = "~0.3", features = ["fs", "trace"] }
+tracing = "~0.1"
+tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ucan = { version = "0.6.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }

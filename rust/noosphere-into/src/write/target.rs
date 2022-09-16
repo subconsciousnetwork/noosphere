@@ -17,6 +17,8 @@ pub trait WriteTargetConditionalSend {}
 #[cfg(target_arch = "wasm32")]
 pub trait WriteTargetConditionalSendSync {}
 
+/// An interface for accessing durable storage. This is used by transformers
+/// in this crate to render files from Noosphere content.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 pub trait WriteTarget: Clone + WriteTargetConditionalSendSync {
@@ -24,6 +26,8 @@ pub trait WriteTarget: Clone + WriteTargetConditionalSendSync {
     async fn write<R>(&self, path: &PathBuf, contents: &mut R) -> Result<()>
     where
         R: AsyncRead + Unpin + WriteTargetConditionalSend;
+
+    async fn symlink(&self, src: &PathBuf, dst: &PathBuf) -> Result<()>;
 
     async fn spawn<F>(future: F) -> Result<()>
     where

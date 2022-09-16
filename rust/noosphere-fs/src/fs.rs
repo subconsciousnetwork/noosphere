@@ -34,6 +34,18 @@ impl<S> SphereFs<S>
 where
     S: Store,
 {
+    pub fn identity(&self) -> &str {
+        &self.sphere_identity
+    }
+
+    pub fn revision(&self) -> &Cid {
+        &self.sphere_revision
+    }
+
+    pub fn to_sphere(&self) -> Sphere<S> {
+        Sphere::at(self.revision(), &self.block_store)
+    }
+
     async fn require_sphere_revision(sphere_identity: &str, sphere_store: &S) -> Result<Cid> {
         let reference: ReferenceIpld = sphere_store
             .get(sphere_identity)
@@ -116,6 +128,12 @@ where
             }
             None => Ok(None),
         }
+    }
+
+    /// Returns true if the content identitifed by slug exists in the sphere at
+    /// the current revision.
+    pub async fn exists(&self, slug: &str) -> Result<bool> {
+        Ok(self.read(slug).await?.is_some())
     }
 
     /// Read a file that is associated with a given slug at the revision of the
