@@ -14,6 +14,10 @@ jobs:
             ~/.cargo
             ./rust/target
           key: ${{ runner.os }}-cargo-artifacts-${{ hashFiles('**/Cargo.toml') }}
+      - name: 'Install environment packages'
+        run: |
+          sudo apt-get update -qqy
+          sudo apt-get install jq
       - name: 'Run Rust native target tests'
         working-directory: ./rust
         run: cargo test
@@ -23,7 +27,7 @@ jobs:
         run: |
           rustup target install wasm32-unknown-unknown
           cargo install toml-cli
-          WASM_BINDGEN_VERSION=`toml get ./noosphere-storage/Cargo.toml 'target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen' | xargs echo`
+          WASM_BINDGEN_VERSION=`toml get ./Cargo.lock . | jq '.package | map(select(.name == "wasm-bindgen"))[0].version' | xargs echo`
           cargo install wasm-bindgen-cli --vers "$WASM_BINDGEN_VERSION"
         shell: bash
       # See: https://github.com/SeleniumHQ/selenium/blob/5d108f9a679634af0bbc387e7e3811bc1565912b/.github/actions/setup-chrome/action.yml

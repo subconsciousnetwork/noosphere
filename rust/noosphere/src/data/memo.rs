@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, str::FromStr};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
@@ -9,6 +9,8 @@ use crate::{data::Header, encoding::base64_encode};
 
 use noosphere_cbor::TryDagCbor;
 use noosphere_storage::interface::{DagCborStore, Store};
+
+use super::ContentType;
 
 /// A basic Memo. A Memo is a history-retaining structure that pairs
 /// inline headers with a body CID.
@@ -180,6 +182,18 @@ impl MemoIpld {
             .into_iter()
             .filter(|(a_name, _)| a_name.to_lowercase() != lower_name)
             .collect();
+    }
+
+    pub fn content_type(&self) -> Option<ContentType> {
+        if let Some(content_type) = self.get_first_header(&Header::ContentType.to_string()) {
+            if let Ok(content_type) = ContentType::from_str(&content_type) {
+                Some(content_type)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 

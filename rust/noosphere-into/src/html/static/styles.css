@@ -1,0 +1,81 @@
+.monospace {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+html,
+body {
+  min-height: 100vh;
+
+  --small-text-size: 0.85rem;
+  --text-color: #10101a;
+  --light-text-color: #44444c;
+  --background-color: #fefefe;
+
+  --transclude-background-color: rgba(0, 0, 0, 0.025);
+}
+
+body {
+  font-family: "IBM Plex Sans", sans-serif;
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: column;
+  margin: 0;
+  padding: 1em;
+  color: var(--text-color);
+  background-color: var(--background-color);
+}
+
+a[href=""] {
+  display: none;
+}
+
+ol.blocks {
+  margin: 0;
+  padding: 0;
+}
+
+ol.blocks > li {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+}
+
+ul.sphere-transcludes, ul.block-transcludes {
+  margin: 0;
+  padding: 0;
+}
+
+.transclude-item {
+  display: flex;
+  margin: 0;
+  padding: 0.85em;
+  background-color: var(--transclude-background-color);
+  border-radius: 0.25em;
+}
+
+.transclude-item:not(:last-child) {
+  margin-bottom: 0.5em;
+}
+
+.transclude-format-text {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+}
+
+.transclude-format-text > *:not(:last-child) {
+  margin-bottom: 0.5em;
+}
+
+.transclude-format-text .title {
+  font-weight: bold;
+}
+
+.transclude-format-text .excerpt {
+  color: var(--text-color);
+}
+.transclude-format-text .link-text {
+  color: var(--light-text-color);
+}
+
