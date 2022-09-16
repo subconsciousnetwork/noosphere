@@ -1,19 +1,15 @@
 use std::str::FromStr;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use async_stream::try_stream;
 use bytes::Bytes;
 use futures::Stream;
 use horrorshow::{html, Raw};
-use noosphere::data::Header;
 use noosphere_fs::{SphereFile, SphereFs};
 use noosphere_storage::interface::Store;
 use subtext::{block::Block, primitive::Entity, Slashlink};
-use tokio::io::{AsyncRead, AsyncReadExt};
-use tokio_stream::StreamExt;
+use tokio::io::AsyncRead;
 use tokio_util::io::StreamReader;
-
-use crate::transclude::{TextTransclude, Transclude, Transcluder};
 
 use crate::html::template::html_document_envelope;
 
@@ -39,7 +35,8 @@ where
         }
     }
 
-    // TODO: Need a mechanism to enqueue additional transformations e.g., for linked media
+    // TODO(#55): Need a mechanism to enqueue additional transformations
+    // e.g., for linked media
     pub async fn transform(&'a self, slug: &str) -> Result<Option<impl AsyncRead + 'a>> {
         let sphere_file = match self.fs.read(slug).await? {
             Some(sphere_file) => sphere_file,
@@ -192,13 +189,14 @@ where
                         a(href=format!("{}", text), class="hyperlink", target="_blank", rel="noopener")
                     }
                 ),
-                // TODO: Discriminate by origin, if/when there is a known target publishing origin
-                // TODO: Support hyperlink transcludes
+                // TODO(#60): Discriminate by origin, if/when there is a known target publishing origin
+                // TODO(#61): Support hyperlink transcludes
                 None,
             ),
             Entity::WikiLink(text) => {
                 let slug = subtext::util::to_slug(text.as_ref())?;
-                // TODO: For now, we are not transcluding wikilinks; decide if we should eventually
+                // TODO(subconsciousnetwork/subconscious#328): For now, we are
+                // not transcluding wikilinks; decide if we should eventually
                 //let transclude = self.make_transclude(&slug).await?;
 
                 (

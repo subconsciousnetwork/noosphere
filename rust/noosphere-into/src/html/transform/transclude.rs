@@ -1,10 +1,7 @@
-use std::io::Cursor;
-
 use anyhow::Result;
 use horrorshow::html;
 use noosphere_fs::SphereFs;
 use noosphere_storage::interface::Store;
-use tokio::io::AsyncRead;
 
 use crate::transclude::{Transclude, Transcluder};
 
@@ -13,7 +10,6 @@ pub struct TranscludeToHtmlTransformer<'a, S>
 where
     S: Store,
 {
-    fs: &'a SphereFs<S>,
     transcluder: Transcluder<'a, S>,
 }
 
@@ -23,7 +19,6 @@ where
 {
     pub fn new(fs: &'a SphereFs<S>) -> Self {
         TranscludeToHtmlTransformer {
-            fs,
             transcluder: Transcluder::new(fs),
         }
     }

@@ -1,11 +1,8 @@
 use anyhow::{anyhow, Result};
-use axum::{
-    error_handling::HandleErrorLayer, http::StatusCode, response::IntoResponse,
-    routing::get_service, Router,
-};
+use axum::{http::StatusCode, response::IntoResponse, routing::get_service, Router};
 use noosphere_fs::SphereFs;
 use noosphere_into::{html::sphere_into_html, write::NativeFs};
-use std::{net::SocketAddr, os::unix::prelude::OsStrExt, path::Path, time::Duration};
+use std::{net::SocketAddr, os::unix::prelude::OsStrExt, path::Path};
 use temp_dir::TempDir;
 use tokio::fs::{self, File};
 use tower_http::services::ServeDir;

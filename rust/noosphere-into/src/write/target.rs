@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::future::Future;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use async_trait::async_trait;
 use tokio::io::AsyncRead;

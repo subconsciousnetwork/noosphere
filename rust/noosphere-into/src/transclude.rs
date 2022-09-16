@@ -43,12 +43,13 @@ where
 
     /// Generate a transclude for the given slug.
     pub async fn transclude(&self, slug: &str) -> Result<Option<Transclude>> {
-        // TODO: Perhaps this should be sensitive to external content e.g., from other spheres
-        // TODO: Support content types other than Subtext
+        // TODO(#49): Perhaps this should be sensitive to external content
+        // e.g., from other spheres
+        // TODO(#50): Support content types other than Subtext
 
         Ok(match self.fs.read(slug).await? {
             Some(file) => {
-                // TODO: Maybe fall back to first heading if present and use
+                // TODO(#52): Maybe fall back to first heading if present and use
                 // that as a stand-in for title...
                 let title = file.memo.get_first_header(&Header::Title.to_string());
 
@@ -77,7 +78,7 @@ where
                 }))
             }
             None => {
-                // TODO: Figure out how to treat "dead" links for HTML generation
+                // TODO(#53): Figure out how to treat "dead" links for HTML generation
                 // purposes; it may be that we want some dynamic widget that
                 // determines the liveness of a transclude at render time
                 Some(Transclude::Text(TextTransclude {

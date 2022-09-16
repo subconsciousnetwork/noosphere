@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use std::path::PathBuf;
 use tokio::fs::{create_dir_all, File};
@@ -15,7 +15,18 @@ pub struct NativeFs {
     pub root: PathBuf,
 }
 
-impl NativeFs {}
+impl NativeFs {
+    fn assert_relative(path: &PathBuf) -> Result<()> {
+        if path.is_absolute() || path.starts_with("..") {
+            Err(anyhow!(
+                "Only relative sub-paths allowed, but received: {:?}",
+                path
+            ))
+        } else {
+            Ok(())
+        }
+    }
+}
 
 #[async_trait]
 impl WriteTarget for NativeFs {
@@ -27,7 +38,8 @@ impl WriteTarget for NativeFs {
     where
         R: AsyncRead + Unpin + WriteTargetConditionalSend,
     {
-        // TODO: Need to verify that input path is not climbing up the tree!
+        NativeFs::assert_relative(path)?;
+
         if let Some(parent) = path.parent() {
             create_dir_all(self.root.join(parent)).await?;
         }
@@ -43,7 +55,9 @@ impl WriteTarget for NativeFs {
     }
 
     async fn symlink(&self, src: &PathBuf, dst: &PathBuf) -> Result<()> {
-        // TODO: Need to verify that input path is not climbing up the tree!
+        NativeFs::assert_relative(src)?;
+        NativeFs::assert_relative(dst)?;
+
         Ok(tokio::fs::symlink(self.root.join(src), self.root.join(dst)).await?)
     }
 

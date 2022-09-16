@@ -46,7 +46,7 @@ where
 
         // We write the sphere index last, so if we already have it we can
         // assume this revision has been written in the past
-        // TODO: Figure out how to enable forced-regeneration of some-or-all
+        // TODO(#54): Figure out how to enable forced-regeneration of some-or-all
         // of history that has been generated before
         if write_target.exists(&sphere_index).await? {
             break;
@@ -63,7 +63,7 @@ where
             let file_name: PathBuf = format!("permalink/{}/index.html", cid.to_string()).into();
 
             // Skip this write entirely if the content has been written
-            // TODO: This may not hold in a world where there are multiple
+            // TODO(#55): This may not hold in a world where there are multiple
             // files written per slug; an example might be a video file that
             // needs to be transformed into an HTML document to present the
             // video, and the video file itself.
@@ -119,7 +119,7 @@ where
                         }
                     }
 
-                    // TODO: Support backlinks somehow; probably as a dynamic
+                    // TODO(#56): Support backlinks somehow; probably as a dynamic
                     // widget at the bottom of the HTML document
 
                     Ok(())
@@ -128,7 +128,7 @@ where
         }
 
         // Let all the content writes happen; bail out if any of them fail
-        // TODO: Investigate if we should attempt to recover in any of the
+        // TODO(#59): Investigate if we should attempt to recover in any of the
         // cases where writing content may fail
         futures::future::try_join_all(tasks).await?;
 
@@ -158,7 +158,7 @@ where
         latest_revision = false;
     }
 
-    // TODO: Writing these static files should be done concurrently
+    // TODO(#57): Writing these static files should be done concurrently
     write_target
         .write(
             &PathBuf::from("theme/styles.css"),
@@ -166,7 +166,7 @@ where
         )
         .await?;
 
-    // TODO: Introduce some kind of default logo
+    // TODO(#58): Introduce some kind of default logo
     // write_target
     //     .write(
     //         &PathBuf::from("theme/logo.svg"),
