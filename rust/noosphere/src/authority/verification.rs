@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use libipld_cbor::DagCborCodec;
 use ucan::{
     capability::{Capability, Resource, With},
     chain::ProofChain,
@@ -12,18 +13,18 @@ use crate::{
     encoding::base64_decode,
 };
 
-use noosphere_storage::interface::{DagCborStore, Store};
+use noosphere_storage::{interface::BlockStore, ucan::UcanStore};
 
 use crate::authority::SPHERE_SEMANTICS;
 
 use super::{SphereAction, SphereReference};
 
-pub async fn verify_sphere_cid<Storage: Store>(
+pub async fn verify_sphere_cid<S: BlockStore>(
     cid: &Cid,
-    store: &Storage,
+    store: &S,
     did_parser: &mut DidParser,
 ) -> Result<()> {
-    let memo: MemoIpld = store.load(cid).await?;
+    let memo = store.load::<DagCborCodec, MemoIpld>(cid).await?;
 
     // Ensure that we have the correct content type
     memo.expect_header(
@@ -41,10 +42,12 @@ pub async fn verify_sphere_cid<Storage: Store>(
     let signature = base64_decode(&signature_header)?;
 
     // Load up the sphere being verified
-    let sphere: SphereIpld = store.load(&memo.body).await?;
+    let sphere = store.load::<DagCborCodec, SphereIpld>(&memo.body).await?;
 
     // If we have an authorizing proof...
     if let Some(proof_header) = memo.get_header(&Header::Proof.to_string()).first() {
+        let ucan_store = UcanStore(store.clone());
+
         // Extract a UCAN from the proof header, or...
         let ucan = Ucan::try_from_token_string(proof_header)?;
 
@@ -55,7 +58,7 @@ pub async fn verify_sphere_cid<Storage: Store>(
         credential.verify(&memo.body.to_bytes(), &signature).await?;
 
         // Check the proof's provenance and that it enables the signer to sign
-        let proof = ProofChain::from_ucan(ucan, did_parser).await?;
+        let proof = ProofChain::from_ucan(ucan, did_parser, &ucan_store).await?;
 
         let desired_capability = Capability {
             with: With::Resource {

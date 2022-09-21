@@ -2,13 +2,13 @@ use std::{collections::BTreeMap, str::FromStr};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use libipld_cbor::DagCborCodec;
 use serde::{Deserialize, Serialize};
 use ucan::{crypto::KeyMaterial, ucan::Ucan};
 
 use crate::{data::Header, encoding::base64_encode};
 
-use noosphere_cbor::TryDagCbor;
-use noosphere_storage::interface::{DagCborStore, Store};
+use noosphere_storage::interface::{BlockStore, BlockStoreSend};
 
 use super::ContentType;
 
@@ -25,14 +25,18 @@ pub struct MemoIpld {
 }
 
 impl MemoIpld {
-    pub async fn try_compare_body<Storage: Store>(&self, store: &Storage) -> Result<Option<Cid>> {
-        Ok(match store.load_some(self.parent.as_ref()).await? {
-            Some(MemoIpld { body, .. }) => match self.body != body {
-                true => Some(self.body),
-                false => None,
-            },
-            None => Some(self.body),
-        })
+    /// If the body of this memo is different from it's parent, returns true.
+    pub async fn try_compare_body<S: BlockStore>(&self, store: &S) -> Result<bool> {
+        let parent_cid = match self.parent {
+            Some(cid) => cid,
+            None => return Ok(true),
+        };
+
+        let MemoIpld {
+            body: parent_body, ..
+        } = store.load::<DagCborCodec, _>(&parent_cid).await?;
+
+        Ok(self.body != parent_body)
     }
 
     /// Get the list of headers that either do not appear in other, or
@@ -56,11 +60,14 @@ impl MemoIpld {
         Ok(diff)
     }
 
-    pub async fn for_body<Storage: Store, Body: TryDagCbor>(
-        store: &mut Storage,
-        body: &Body,
+    /// Initializes a memo for the provided body, persisting the body to storage
+    /// and returning the memo. Note that only the body is persisted, not the
+    /// memo that wraps it.
+    pub async fn for_body<S: BlockStore, Body: Serialize + BlockStoreSend>(
+        store: &mut S,
+        body: Body,
     ) -> Result<MemoIpld> {
-        let body_cid = store.write_cbor(&body.try_into_dag_cbor()?).await?;
+        let body_cid = store.save::<DagCborCodec, _>(body).await?;
         Ok(MemoIpld {
             parent: None,
             headers: Vec::new(),
@@ -68,10 +75,13 @@ impl MemoIpld {
         })
     }
 
-    pub async fn branch_from<Storage: Store>(cid: &Cid, store: &Storage) -> Result<Self> {
-        match store.load(cid).await {
-            Ok(mut memo @ MemoIpld { .. }) => {
-                memo.parent = Some(cid.clone());
+    /// Loads a memo from the provided CID, initializes a copy of it, sets
+    /// the copy's parent to the provided CID and cleans signature information
+    /// from the copy's headers; the new memo is returned.
+    pub async fn branch_from<S: BlockStore>(cid: &Cid, store: &S) -> Result<Self> {
+        match store.load::<DagCborCodec, MemoIpld>(cid).await {
+            Ok(mut memo) => {
+                memo.parent = Some(*cid);
                 memo.remove_header(&Header::Signature.to_string());
                 memo.remove_header(&Header::Proof.to_string());
 
@@ -81,6 +91,8 @@ impl MemoIpld {
         }
     }
 
+    /// Sign the memo's body CID, adding the signature and proof as headers in
+    /// the memo
     pub async fn sign<Credential: KeyMaterial>(
         &mut self,
         credential: &Credential,
@@ -103,6 +115,7 @@ impl MemoIpld {
         Ok(())
     }
 
+    /// Retreive the set of headers that matches the given string name
     pub fn get_header(&self, name: &str) -> Vec<String> {
         let lower_name = name.to_lowercase();
 
@@ -118,6 +131,7 @@ impl MemoIpld {
             .collect()
     }
 
+    /// Retrieve the first header (if any) that matches the given string name
     pub fn get_first_header(&self, name: &str) -> Option<String> {
         let lower_name = name.to_lowercase();
 
@@ -129,6 +143,7 @@ impl MemoIpld {
         None
     }
 
+    /// Asserts that a header with the given name and value exists in the memo
     pub fn expect_header(&self, name: &str, value: &str) -> Result<()> {
         let lower_name = name.to_lowercase();
 
@@ -145,6 +160,8 @@ impl MemoIpld {
         ))
     }
 
+    /// Replaces the value of the first header that matches name with provided
+    /// value
     pub fn replace_header(&mut self, name: &str, value: &str) {
         let mut found = 0usize;
 
@@ -173,6 +190,7 @@ impl MemoIpld {
         }
     }
 
+    /// Removes all headers with the given name from the memo
     pub fn remove_header(&mut self, name: &str) {
         let lower_name = name.to_lowercase();
 
@@ -184,6 +202,7 @@ impl MemoIpld {
             .collect();
     }
 
+    /// Helper to quickly deserialize a content-type (if any) from the memo
     pub fn content_type(&self) -> Option<ContentType> {
         if let Some(content_type) = self.get_first_header(&Header::ContentType.to_string()) {
             if let Ok(content_type) = ContentType::from_str(&content_type) {
@@ -199,6 +218,7 @@ impl MemoIpld {
 
 #[cfg(test)]
 mod test {
+    use libipld_cbor::DagCborCodec;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
@@ -209,27 +229,35 @@ mod test {
     use serde::{Deserialize, Serialize};
 
     pub fn make_raw_cid<B: AsRef<[u8]>>(bytes: B) -> Cid {
-        Cid::new_v1(0x55, Code::Sha2_256.digest(bytes.as_ref()))
+        Cid::new_v1(0x55, Code::Blake2b256.digest(bytes.as_ref()))
     }
 
-    use crate::data::MemoIpld;
-    use noosphere_cbor::TryDagCbor;
-    use noosphere_storage::{interface::DagCborStore, memory::MemoryStore};
+    use crate::{
+        data::MemoIpld,
+        encoding::{block_deserialize, block_serialize},
+    };
 
-    #[test]
-    fn it_round_trips_as_cbor() {
+    use noosphere_storage::{interface::BlockStore, memory::MemoryStore};
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_round_trips_as_cbor() {
         let body_cid = make_raw_cid(b"foobar");
+        let mut store = MemoryStore::default();
 
         let memo = MemoIpld {
             parent: None,
             headers: Vec::new(),
-            body: body_cid.clone(),
+            body: body_cid,
         };
 
-        let memo_bytes = memo.try_into_dag_cbor().unwrap();
-        let decoded_memo = MemoIpld::try_from_dag_cbor(&memo_bytes).unwrap();
+        let memo_cid = store.save::<DagCborCodec, _>(&memo).await.unwrap();
+        let loaded_memo = store
+            .load::<DagCborCodec, MemoIpld>(&memo_cid)
+            .await
+            .unwrap();
 
-        assert_eq!(memo, decoded_memo);
+        assert_eq!(memo, loaded_memo);
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
@@ -245,15 +273,18 @@ mod test {
         let structured = Structured {
             foo: String::from("bar"),
         };
-        let body_cid = store.save(&structured).await.unwrap();
+        let body_cid = store.save::<DagCborCodec, _>(&structured).await.unwrap();
         let memo = MemoIpld {
             parent: None,
             headers: Vec::new(),
-            body: body_cid.clone(),
+            body: body_cid,
         };
-        let memo_bytes = memo.try_into_dag_cbor().unwrap();
-        let decoded_memo = MemoIpld::try_from_dag_cbor(&memo_bytes).unwrap();
-        let decoded_body: Structured = store.load(&decoded_memo.body).await.unwrap();
+        let (_, memo_bytes) = block_serialize::<DagCborCodec, _>(&memo).unwrap();
+        let decoded_memo = block_deserialize::<DagCborCodec, MemoIpld>(&memo_bytes).unwrap();
+        let decoded_body: Structured = store
+            .load::<DagCborCodec, Structured>(&decoded_memo.body)
+            .await
+            .unwrap();
 
         assert_eq!(decoded_body.foo, String::from("bar"));
     }

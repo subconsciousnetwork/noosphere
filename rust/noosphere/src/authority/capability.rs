@@ -14,9 +14,9 @@ impl Action for SphereAction {}
 impl ToString for SphereAction {
     fn to_string(&self) -> String {
         match self {
-            SphereAction::Authorize => "sphere/AUTHORIZE",
-            SphereAction::Publish => "sphere/PUBLISH",
-            SphereAction::Sign => "sphere/SIGN",
+            SphereAction::Authorize => "sphere/authorize",
+            SphereAction::Publish => "sphere/publish",
+            SphereAction::Sign => "sphere/sign",
         }
         .into()
     }
@@ -27,15 +27,15 @@ impl TryFrom<String> for SphereAction {
 
     fn try_from(value: String) -> Result<Self> {
         Ok(match value.as_str() {
-            "sphere/AUTHORIZE" => SphereAction::Authorize,
-            "sphere/PUBLISH" => SphereAction::Publish,
-            "sphere/SIGN" => SphereAction::Sign,
+            "sphere/authorize" => SphereAction::Authorize,
+            "sphere/publish" => SphereAction::Publish,
+            "sphere/sign" => SphereAction::Sign,
             _ => return Err(anyhow!("Unrecognized action: {:?}", value)),
         })
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct SphereReference {
     pub did: String,
 }

@@ -1,3 +1,4 @@
+mod authorization;
 mod body_chunk;
 mod bundle;
 mod changelog;
@@ -8,6 +9,7 @@ mod reference;
 mod sphere;
 mod versioned_map;
 
+pub use authorization::*;
 pub use body_chunk::*;
 pub use bundle::*;
 pub use changelog::*;

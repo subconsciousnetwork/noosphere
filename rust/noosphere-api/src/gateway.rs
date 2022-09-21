@@ -58,10 +58,10 @@ impl GatewayReference {
     }
 
     pub fn require_identity(&self) -> Result<&GatewayIdentity> {
-        Ok(self
+        self
             .identity
             .as_ref()
-            .ok_or_else(|| anyhow!("No DID configured for gateway identity"))?)
+            .ok_or_else(|| anyhow!("No DID configured for gateway identity"))
     }
 
     pub fn ensure_identity(&mut self, claimed_identity: &GatewayIdentity) -> Result<()> {

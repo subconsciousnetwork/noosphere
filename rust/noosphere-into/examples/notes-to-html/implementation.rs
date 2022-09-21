@@ -9,31 +9,27 @@ use tower_http::services::ServeDir;
 
 use noosphere::{
     authority::generate_ed25519_key,
-    data::{ContentType, Header, ReferenceIpld},
+    data::{ContentType, Header},
     view::Sphere,
 };
-use noosphere_storage::{interface::KeyValueStore, memory::MemoryStore};
+use noosphere_storage::{
+    db::SphereDb,
+    memory::{MemoryStorageProvider},
+};
 use ucan::crypto::KeyMaterial;
 
 pub async fn main() -> Result<()> {
-    let mut sphere_store = MemoryStore::default();
-    let mut block_store = MemoryStore::default();
+    let storage_provider = MemoryStorageProvider::default();
+    let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
     let owner_key = generate_ed25519_key();
     let owner_did = owner_key.get_did().await?;
 
-    let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut block_store).await?;
+    let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await?;
 
     let sphere_identity = sphere.try_get_identity().await?;
 
-    sphere_store
-        .set(
-            &sphere_identity,
-            &ReferenceIpld {
-                link: sphere.cid().clone(),
-            },
-        )
-        .await?;
+    db.set_version(&sphere_identity, sphere.cid()).await?;
 
     let content_root = std::env::current_dir()?.join(Path::new("examples/notes-to-html/content"));
     let html_root = TempDir::new()?;
@@ -41,7 +37,7 @@ pub async fn main() -> Result<()> {
     println!("Content root: {:?}", content_root);
     println!("HTML root: {:?}", html_root.path());
 
-    let mut sphere_fs = SphereFs::latest(&sphere_identity, &block_store, &sphere_store).await?;
+    let mut sphere_fs = SphereFs::latest(&sphere_identity, &db).await?;
 
     let mut read_dir = fs::read_dir(content_root).await?;
 
@@ -61,7 +57,7 @@ pub async fn main() -> Result<()> {
                 .as_bytes(),
         )?;
         let file = File::open(&file_path).await?;
-        let title = capitalize(&slug);
+        let title = capitalize(slug);
 
         sphere_fs
             .write(
@@ -79,7 +75,7 @@ pub async fn main() -> Result<()> {
         root: html_root.path().to_path_buf(),
     };
 
-    sphere_into_html(&sphere_identity, &sphere_store, &block_store, &native_fs).await?;
+    sphere_into_html(&sphere_identity, &db, &native_fs).await?;
 
     let app = Router::new()
         .fallback(get_service(ServeDir::new(html_root.path())).handle_error(handle_error));

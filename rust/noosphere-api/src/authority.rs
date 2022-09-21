@@ -20,10 +20,10 @@ impl Display for GatewayAction {
             f,
             "{}",
             match self {
-                GatewayAction::Migrate => "gateway/MIGRATE",
-                GatewayAction::Publish => "gateway/PUBLISH",
-                GatewayAction::Push => "gateway/PUSH",
-                GatewayAction::Fetch => "gateway/FETCH",
+                GatewayAction::Migrate => "gateway/migrate",
+                GatewayAction::Publish => "gateway/publish",
+                GatewayAction::Push => "gateway/push",
+                GatewayAction::Fetch => "gateway/fetch",
             }
         )
     }
@@ -34,16 +34,16 @@ impl TryFrom<String> for GatewayAction {
 
     fn try_from(value: String) -> Result<Self> {
         Ok(match value.as_str() {
-            "gateway/MIGRATE" => GatewayAction::Migrate,
-            "gateway/PUBLISH" => GatewayAction::Publish,
-            "gateway/PUSH" => GatewayAction::Push,
-            "gateway/FETCH" => GatewayAction::Fetch,
+            "gateway/migrate" => GatewayAction::Migrate,
+            "gateway/publish" => GatewayAction::Publish,
+            "gateway/push" => GatewayAction::Push,
+            "gateway/fetch" => GatewayAction::Fetch,
             _ => return Err(anyhow!("Unrecognized action: {:?}", value)),
         })
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct GatewayIdentity {
     pub did: String,
 }

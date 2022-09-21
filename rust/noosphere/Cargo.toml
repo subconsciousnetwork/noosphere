@@ -28,21 +28,26 @@ serde_ipld_dagcbor = "~0.2"
 tiny-bip39 = "^1"
 crdts = "^7"
 tokio-stream = "~0.1"
+libipld-core = "~0.14"
+libipld-cbor = "~0.14"
 
 noosphere-storage = { path = "../noosphere-storage" }
 noosphere-cbor = { path = "../noosphere-cbor" }
 noosphere-collections = { path = "../noosphere-collections" }
 
+ucan = { version = "0.6.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git", branch = "feature/canonicalization" }
+ucan-key-support = { version = "0.4.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git", branch = "feature/canonicalization" }
+
+# ucan = { version = "0.6.0-alpha.1", path = "../../../../ucan-wg/rs-ucan/ucan" }
+# ucan-key-support = { version = "0.4.0-alpha.1", path = "../../../../ucan-wg/rs-ucan/ucan-key-support" }
+
 [dev-dependencies]
 wasm-bindgen-test = "~0.3"
+serde_bytes = "~0.11"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ucan = { version = "0.6.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
-ucan-key-support = { version = "0.4.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
 tokio = { version = "^1", features = ["full"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-ucan = { version = "0.6.0-alpha.1", features = ["web"], git = "https://github.com/cdata/rs-ucan.git" }
-ucan-key-support = { version = "0.4.0-alpha.1", features = ["web"], git = "https://github.com/cdata/rs-ucan.git" }
 # NOTE: This is needed so that rand can be included in WASM builds
-getrandom = { version = "0.2.5", features = ["js"] }
+getrandom = { version = "~0.2", features = ["js"] }

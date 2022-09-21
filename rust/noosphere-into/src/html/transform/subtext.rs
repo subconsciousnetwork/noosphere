@@ -80,8 +80,7 @@ where
         let mut transclude_html_strings = Vec::new();
         let content_entities: Vec<Entity> = block
             .to_content_entities()
-            .into_iter()
-            .map(|entity| entity.clone())
+            .into_iter().cloned()
             .collect();
         let is_solo_slashlink = if let (Some(&Entity::SlashLink(_)), 1) =
             (content_entities.first(), content_entities.len())
@@ -131,12 +130,12 @@ where
         let transclude_html = transclude_html_strings.join("\n");
 
         Ok(html! {
-            @if content_html.len() > 0 || transclude_html.len() > 0 {
+            @if !content_html.is_empty() || !transclude_html.is_empty() {
                 li(class="block") {
-                    @if content_html.len() > 0 {
+                    @if !content_html.is_empty() {
                         section(class="block-content") : Raw(&content_html);
                     }
-                    @if transclude_html.len() > 0 {
+                    @if !transclude_html.is_empty() {
                         ul(class="block-transcludes") : Raw(&transclude_html);
                     }
                 }

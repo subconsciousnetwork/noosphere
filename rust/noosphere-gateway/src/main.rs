@@ -2,10 +2,8 @@
 extern crate tracing;
 
 #[cfg(target_arch = "wasm32")]
-mod inner {
-    pub async fn main() -> anyhow::Result<()> {
-        Ok(())
-    }
+pub fn main() -> anyhow::Result<()> {
+    Ok(())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -13,17 +11,13 @@ mod gateway;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod inner {
-    use std::net::{SocketAddr, TcpListener};
+    use std::net::TcpListener;
 
     use crate::gateway::{
-        commands,
-        environment::{GatewayConfig, GatewayRoot},
-        tracing::initialize_tracing,
-        Cli, Command,
+        commands, environment::GatewayRoot, tracing::initialize_tracing, Cli, Command,
     };
     use anyhow::Result;
     use clap::Parser;
-    use noosphere_storage::native::{NativeStorageInit, NativeStorageProvider};
 
     pub async fn main() -> Result<()> {
         initialize_tracing();
@@ -53,6 +47,7 @@ mod inner {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     inner::main().await

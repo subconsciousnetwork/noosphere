@@ -16,8 +16,8 @@ pub struct SphereIpld {
     /// The non-public content of the sphere (SealedIpld)
     pub sealed: Option<Cid>,
 
-    /// TODO: UCAN revocations (RevocationsIpld)
-    pub revocations: Option<Cid>,
+    /// Authorization and revocation state for non-owner keys (AuthorizationIpld)
+    pub authorization: Option<Cid>,
 }
 
 impl SphereIpld {}
@@ -25,6 +25,7 @@ impl SphereIpld {}
 #[cfg(test)]
 mod tests {
     use ed25519_zebra::{SigningKey as Ed25519PrivateKey, VerificationKey as Ed25519PublicKey};
+    use libipld_cbor::DagCborCodec;
     use ucan::{
         builder::UcanBuilder,
         capability::{Capability, Resource, With},
@@ -39,7 +40,7 @@ mod tests {
         data::{ContentType, Header, MemoIpld, SphereIpld},
     };
 
-    use noosphere_storage::{interface::DagCborStore, memory::MemoryStore};
+    use noosphere_storage::{interface::BlockStore, memory::MemoryStore};
 
     fn generate_credential() -> Ed25519KeyMaterial {
         let private_key = Ed25519PrivateKey::new(rand::thread_rng());
@@ -59,10 +60,10 @@ mod tests {
             identity: identity_did.clone(),
             links: None,
             sealed: None,
-            revocations: None,
+            authorization: None,
         };
 
-        let sphere_cid = store.save(&sphere).await.unwrap();
+        let sphere_cid = store.save::<DagCborCodec, _>(&sphere).await.unwrap();
 
         let mut memo = MemoIpld {
             parent: None,
@@ -95,7 +96,7 @@ mod tests {
 
         memo.sign(&identity_credential, Some(&proof)).await.unwrap();
 
-        let memo_cid = store.save(&memo).await.unwrap();
+        let memo_cid = store.save::<DagCborCodec, _>(&memo).await.unwrap();
 
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
 
@@ -119,10 +120,10 @@ mod tests {
             identity: identity_did.clone(),
             links: None,
             sealed: None,
-            revocations: None,
+            authorization: None,
         };
 
-        let sphere_cid = store.save(&sphere).await.unwrap();
+        let sphere_cid = store.save::<DagCborCodec, _>(&sphere).await.unwrap();
 
         let mut memo = MemoIpld {
             parent: None,
@@ -157,7 +158,7 @@ mod tests {
             .await
             .unwrap();
 
-        let memo_cid = store.save(&memo).await.unwrap();
+        let memo_cid = store.save::<DagCborCodec, _>(&memo).await.unwrap();
 
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
 

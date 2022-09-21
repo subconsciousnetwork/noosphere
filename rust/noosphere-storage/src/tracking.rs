@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::interface::Store;
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StoreStats {
     pub reads: usize,
     pub writes: usize,
@@ -55,12 +55,6 @@ impl<Storage: Store> Store for TrackingStore<Storage> {
         stats.writes += 1;
         stats.bytes_written += bytes.len();
         self.store.write(key, bytes).await
-    }
-
-    async fn contains(&self, key: &[u8]) -> Result<bool> {
-        let mut stats = self.stats.lock().await;
-        stats.reads += 1;
-        self.store.contains(key).await
     }
 
     async fn remove(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {

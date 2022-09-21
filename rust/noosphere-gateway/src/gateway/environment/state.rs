@@ -2,11 +2,11 @@ use std::ops::{Deref, DerefMut};
 
 use anyhow::Result;
 use cid::Cid;
-use noosphere_cbor::TryDagCbor;
+
 use noosphere_storage::interface::{KeyValueStore, StorageProvider, Store};
 use serde::{Deserialize, Serialize};
 
-use crate::gateway::{commands::GATEWAY_STATE_STORE, schema::PublishedSphere};
+use crate::gateway::{commands::GATEWAY_STATE_STORE};
 
 #[derive(Serialize, Deserialize)]
 pub struct SphereTracker {
@@ -18,7 +18,7 @@ pub struct GatewayState<Storage: Store>(pub Storage);
 
 impl<Storage: Store> GatewayState<Storage> {
     pub async fn get_or_initialize_tracker(&self, sphere: &str) -> Result<SphereTracker> {
-        match self.get(sphere).await? {
+        match self.get_key(sphere).await? {
             Some(sphere @ SphereTracker { .. }) => Ok(sphere),
             None => Ok(SphereTracker {
                 latest: None,

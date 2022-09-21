@@ -18,7 +18,8 @@ multihash = "0.16"
 # NOTE: async-once-cell 0.4.0 shipped unstable feature usage
 async-once-cell = "0.3"
 async-recursion = "^1"
-libipld-core = { version = "0.14", features = ["serde-codec"] }
+libipld-core = "~0.14"
+libipld-cbor = "~0.14"
 noosphere-storage = { path = "../noosphere-storage" }
 noosphere-cbor = { path = "../noosphere-cbor" }
 

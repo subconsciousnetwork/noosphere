@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::TargetConditionalSendSync;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct KeyValuePair<K, V>(K, V);
 
 impl<K: TargetConditionalSendSync, V: TargetConditionalSendSync> KeyValuePair<K, V> {

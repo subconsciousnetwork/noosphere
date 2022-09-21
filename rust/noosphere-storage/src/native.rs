@@ -46,7 +46,6 @@ impl NativeStore {
 
 #[async_trait]
 impl Store for NativeStore {
-    // impl Store for NativeStore {
     async fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         Ok(self.db.get(key)?.map(|entry| entry.to_vec()))
     }
@@ -57,10 +56,6 @@ impl Store for NativeStore {
             .insert(key, bytes)?
             .map(|old_entry| old_entry.to_vec());
         Ok(old_bytes)
-    }
-
-    async fn contains(&self, key: &[u8]) -> Result<bool> {
-        Ok(self.db.contains_key(key)?)
     }
 
     /// Remove a value given a CID

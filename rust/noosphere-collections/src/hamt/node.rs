@@ -6,8 +6,9 @@
 use anyhow::Result;
 use async_recursion::async_recursion;
 use async_stream::try_stream;
-use noosphere_cbor::TryDagCbor;
-use noosphere_storage::interface::{DagCborStore, Store};
+use libipld_cbor::DagCborCodec;
+
+use noosphere_storage::interface::BlockStore;
 use std::borrow::Borrow;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -92,7 +93,7 @@ where
     H: HashAlgorithm + TargetConditionalSendSync,
     V: Serialize + DeserializeOwned + TargetConditionalSendSync,
 {
-    pub async fn set<S: Store>(
+    pub async fn set<S: BlockStore>(
         &mut self,
         key: K,
         value: V,
@@ -116,7 +117,7 @@ where
     }
 
     #[inline]
-    pub async fn get<Q: ?Sized + TargetConditionalSendSync, S: Store>(
+    pub async fn get<Q: ?Sized + TargetConditionalSendSync, S: BlockStore>(
         &self,
         k: &Q,
         store: &S,
@@ -139,7 +140,7 @@ where
     where
         K: Borrow<Q>,
         Q: Eq + Hash + TargetConditionalSendSync,
-        S: Store,
+        S: BlockStore,
     {
         self.rm_value(HashBits::new(H::hash(k)), bit_width, 0, k, store)
             .await
@@ -154,7 +155,7 @@ where
         store: &'a S,
     ) -> Pin<Box<dyn Stream<Item = Result<(&'a K, &'a V)>> + 'a>>
     where
-        S: Store,
+        S: BlockStore,
     {
         Box::pin(try_stream! {
             for p in &self.pointers {
@@ -167,7 +168,7 @@ where
                                 yield item?;
                             }
                         } else {
-                            let node = match store.load(cid).await {
+                            let node = match store.load::<DagCborCodec, _>(cid).await {
                                 Ok(node) => Ok(node),
                                 Err(error) => {
                                     #[cfg(feature = "ignore-dead-links")]
@@ -204,7 +205,7 @@ where
     }
 
     /// Search for a key.
-    async fn search<Q: ?Sized + TargetConditionalSendSync, S: Store>(
+    async fn search<Q: ?Sized + TargetConditionalSendSync, S: BlockStore>(
         &self,
         q: &Q,
         store: &S,
@@ -220,7 +221,7 @@ where
 
     #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
     #[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
-    async fn get_value<Q: ?Sized + TargetConditionalSendSync, S: Store>(
+    async fn get_value<Q: ?Sized + TargetConditionalSendSync, S: BlockStore>(
         &self,
         mut hashed_key: HashBits,
         bit_width: u32,
@@ -248,7 +249,7 @@ where
                         .get_value(hashed_key, bit_width, depth + 1, key, store)
                         .await
                 } else {
-                    let node = match store.load(cid).await {
+                    let node = match store.load::<DagCborCodec, _>(cid).await {
                         Ok(node) => node,
                         Err(error) => {
                             #[cfg(not(feature = "ignore-dead-links"))]
@@ -278,7 +279,7 @@ where
     #[allow(clippy::too_many_arguments)]
     #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
     #[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
-    async fn modify_value<S: Store>(
+    async fn modify_value<S: BlockStore>(
         &mut self,
         mut hashed_key: HashBits,
         bit_width: u32,
@@ -305,7 +306,7 @@ where
         match child {
             Pointer::Link { cid, cache } => {
                 cache
-                    .get_or_try_init(async { store.load(cid).await })
+                    .get_or_try_init(async { store.load::<DagCborCodec, _>(cid).await })
                     .await?;
                 let child_node = cache.get_mut().expect("filled line above");
 
@@ -409,7 +410,7 @@ where
     /// Internal method to delete entries.
     #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
     #[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
-    async fn rm_value<Q: ?Sized + TargetConditionalSendSync, S: Store>(
+    async fn rm_value<Q: ?Sized + TargetConditionalSendSync, S: BlockStore>(
         &mut self,
         mut hashed_key: HashBits,
         bit_width: u32,
@@ -434,7 +435,7 @@ where
         match child {
             Pointer::Link { cid, cache } => {
                 cache
-                    .get_or_try_init(async { store.load(cid).await })
+                    .get_or_try_init(async { store.load::<DagCborCodec, _>(cid).await })
                     .await?;
                 let child_node = cache.get_mut().expect("filled line above");
 
@@ -484,15 +485,14 @@ where
 
     #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
     #[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
-    pub async fn flush<S: Store>(&mut self, store: &mut S) -> Result<()> {
+    pub async fn flush<S: BlockStore>(&mut self, store: &mut S) -> Result<()> {
         for pointer in &mut self.pointers {
             if let Pointer::Dirty(node) = pointer {
                 // Flush cached sub node to clear it's cache
                 node.flush(store).await?;
 
                 // Put node in blockstore and retrieve Cid
-                let node_bytes = node.try_into_dag_cbor()?;
-                let cid = store.write_cbor(&node_bytes).await?;
+                let cid = store.save::<DagCborCodec, _>(&node).await?;
 
                 // Can keep the flushed node in link cache
                 let cache = OnceCell::new_with(Some(std::mem::take(node)));

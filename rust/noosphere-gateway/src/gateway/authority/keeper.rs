@@ -6,6 +6,11 @@ use axum::{
     headers::{authorization::Bearer, Authorization},
     TypedHeader,
 };
+use cid::Cid;
+use noosphere_storage::ucan::UcanStore;
+use noosphere_storage::{interface::BlockStore, native::NativeStore};
+use serde_bytes::Bytes;
+use std::ops::{Deref};
 use std::sync::Arc;
 use ucan::{
     capability::{Capability, Resource, With},
@@ -13,7 +18,10 @@ use ucan::{
     crypto::did::DidParser,
 };
 
-use crate::gateway::{environment::GatewayConfig, AuthzError};
+use crate::gateway::{
+    environment::{Blocks, GatewayConfig},
+    AuthzError,
+};
 
 use noosphere_api::authority::{GatewayAction, GatewayIdentity, GATEWAY_SEMANTICS};
 
@@ -26,10 +34,16 @@ impl GatewayAuthority {
     pub async fn for_bearer(
         config: Arc<GatewayConfig>,
         did_parser: Arc<Mutex<DidParser>>,
+        blocks: Blocks<NativeStore>,
         auth_token: &str,
     ) -> Result<GatewayAuthority> {
         let mut did_parser = did_parser.lock().await;
-        let proof_chain = ProofChain::try_from_token_string(auth_token, &mut did_parser).await?;
+        let proof_chain = ProofChain::try_from_token_string(
+            auth_token,
+            &mut did_parser,
+            &UcanStore(blocks.deref().clone()),
+        )
+        .await?;
         Ok(GatewayAuthority {
             config,
             proof_chain,
@@ -88,6 +102,14 @@ where
             ))?
             .clone();
 
+        let mut blocks = req
+            .extensions()
+            .get::<Blocks<NativeStore>>()
+            .ok_or(AuthzError::Internal(
+                "No gateway configuration found".into(),
+            ))?
+            .clone();
+
         let TypedHeader(Authorization(bearer)) =
             TypedHeader::<Authorization<Bearer>>::from_request(req)
                 .await
@@ -96,13 +118,35 @@ where
                     AuthzError::MalformedToken
                 })?;
 
-        Ok(
-            GatewayAuthority::for_bearer(config.clone(), did_parser.clone(), bearer.token())
+        // TODO: We should write a typed header thing for this:
+        let ucan_headers = req.headers().get_all("ucan");
+        for header in ucan_headers.iter() {
+            let value = header.to_str().map_err(|_| AuthzError::MalformedToken)?;
+            let mut parts: Vec<&str> = value.split_ascii_whitespace().take(2).collect();
+
+            let jwt = parts.pop().ok_or(AuthzError::MalformedToken)?;
+            let cid_string = parts.pop().ok_or(AuthzError::MalformedToken)?;
+
+            let cid = Cid::try_from(cid_string).map_err(|_| AuthzError::MalformedToken)?;
+
+            println!("SAVING {} -> {}", cid, jwt);
+
+            blocks
+                .put_block(&cid, Bytes::new(jwt.as_bytes()))
                 .await
-                .map_err(|error| {
-                    error!("{:?}", error);
-                    AuthzError::InvalidCredentials
-                })?,
+                .map_err(|_| AuthzError::Internal("Failed to save UCAN JWT".into()))?;
+        }
+
+        Ok(GatewayAuthority::for_bearer(
+            config.clone(),
+            did_parser.clone(),
+            blocks.clone(),
+            bearer.token(),
         )
+        .await
+        .map_err(|error| {
+            error!("{:?}", error);
+            AuthzError::InvalidCredentials
+        })?)
     }
 }

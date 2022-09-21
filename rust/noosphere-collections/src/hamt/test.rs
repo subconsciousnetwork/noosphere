@@ -115,7 +115,7 @@ async fn test_set_if_absent() {
     assert_eq!(
         stats,
         StoreStats {
-            reads: 2,
+            reads: 1,
             writes: 1,
             removes: 0,
             bytes_read: 63,
@@ -159,7 +159,7 @@ async fn set_with_no_effect_does_not_put() {
     assert_eq!(
         stats,
         StoreStats {
-            reads: 18,
+            reads: 0,
             writes: 18,
             removes: 0,
             bytes_read: 0,
@@ -186,11 +186,11 @@ async fn set_with_no_effect_does_not_put() {
     assert_eq!(
         stats,
         StoreStats {
-            reads: 19,
-            writes: 18,
+            reads: 0,
+            writes: 19,
             removes: 0,
             bytes_read: 0,
-            bytes_written: 1282,
+            bytes_written: 1372,
             bytes_removed: 0
         }
     );
@@ -234,7 +234,7 @@ async fn delete() {
     assert_eq!(
         stats,
         StoreStats {
-            reads: 3,
+            reads: 1,
             writes: 2,
             removes: 0,
             bytes_read: 79,
@@ -275,7 +275,7 @@ async fn delete_case() {
     assert_eq!(
         stats,
         StoreStats {
-            reads: 3,
+            reads: 1,
             writes: 2,
             removes: 0,
             bytes_read: 31,
@@ -310,11 +310,11 @@ async fn reload_empty() {
     assert_eq!(
         stats,
         StoreStats {
-            reads: 3,
-            writes: 1,
+            reads: 1,
+            writes: 2,
             removes: 0,
             bytes_read: 3,
-            bytes_written: 3,
+            bytes_written: 6,
             bytes_removed: 0
         }
     );
@@ -367,11 +367,11 @@ async fn set_delete_many() {
     assert_eq!(
         stats,
         StoreStats {
-            reads: 91,
-            writes: 62,
+            reads: 0,
+            writes: 91,
             removes: 0,
             bytes_read: 0,
-            bytes_written: 6715,
+            bytes_written: 9251,
             bytes_removed: 0
         }
     );
@@ -443,11 +443,11 @@ async fn for_each() {
     assert_eq!(
         stats,
         StoreStats {
-            reads: 59,
-            writes: 29,
+            reads: 29,
+            writes: 30,
             removes: 0,
             bytes_read: 2536,
-            bytes_written: 2536,
+            bytes_written: 3803,
             bytes_removed: 0
         }
     );
@@ -687,7 +687,7 @@ async fn clean_child_ordering() {
     assert_eq!(
         stats,
         StoreStats {
-            reads: 14,
+            reads: 3,
             writes: 11,
             removes: 0,
             bytes_read: 1449,

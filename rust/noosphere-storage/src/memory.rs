@@ -4,7 +4,43 @@ use async_trait::async_trait;
 use cid::Cid;
 use std::{collections::HashMap, sync::Arc};
 
-use crate::interface::{DagCborStore, Store};
+use crate::interface::{StorageProvider, Store};
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+pub trait StoreContainsCid {
+    async fn contains_cid(&self, cid: &Cid) -> Result<bool>;
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<S: Store> StoreContainsCid for S {
+    async fn contains_cid(&self, cid: &Cid) -> Result<bool> {
+        Ok(self.read(&cid.to_bytes()).await?.is_some())
+    }
+}
+
+#[derive(Default)]
+pub struct MemoryStorageProvider {
+    stores: Arc<Mutex<HashMap<String, MemoryStore>>>,
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl StorageProvider<MemoryStore> for MemoryStorageProvider {
+    async fn get_store(&self, name: &str) -> Result<MemoryStore> {
+        let mut stores = self.stores.lock().await;
+
+        if !stores.contains_key(name) {
+            stores.insert(name.to_string(), Default::default());
+        }
+
+        stores
+            .get(name)
+            .cloned()
+            .ok_or_else(|| anyhow!("Failed to initialize {} store", name))
+    }
+}
 
 #[derive(Clone, Default, Debug)]
 pub struct MemoryStore {
@@ -31,13 +67,13 @@ impl MemoryStore {
         for cid in cids {
             trace!("Checking for {}", cid);
 
-            if !other.contains_cbor(&cid).await? {
+            if !other.contains_cid(&cid).await? {
                 trace!("Not found!");
                 missing.push(cid);
             }
         }
 
-        if missing.len() > 0 {
+        if !missing.is_empty() {
             return Err(anyhow!(
                 "Expected replica, but the following CIDs are missing: {:#?}",
                 missing
@@ -72,11 +108,6 @@ impl Store for MemoryStore {
         dags.insert(key.to_vec(), bytes.to_vec());
 
         Ok(old_value)
-    }
-
-    async fn contains(&self, key: &[u8]) -> Result<bool> {
-        let dags = self.dags.lock().await;
-        Ok(dags.contains_key(key))
     }
 
     async fn remove(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
