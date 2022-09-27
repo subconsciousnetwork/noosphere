@@ -11,6 +11,8 @@ This repository contains documentation and specifications for the Noosphere prot
 
 Noosphere is the foundational protocol that the Subconscious app builds upon to enable an open-ended, permissionless multiplayer experience. The documentation and specifications in this repository are intended to enable others to contribute to our efforts, and also to build clients and deploy infrastructure that interoperates over Noosphere.
 
+See [explainer](/design/explainer.md).
+
 ## Status: discovery
 
 Our ambition is to build a new kind of web, but we have only begun to discover what that means. Our work is rapidly advancing but still in-progress, and we need your help to drive it forward!
