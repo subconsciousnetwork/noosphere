@@ -11,39 +11,39 @@ noosphere-storage = { path = "../noosphere-storage" }
 noosphere-fs = { path = "../noosphere-fs" }
 subtext = { version = "~0.3", features = ["stream"] }
 
-anyhow = "^1"
-async-trait = "~0.1"
+anyhow.workspace = true
+async-trait.workspace = true
 
 horrorshow = "~0.8"
-cid = "~0.8"
+cid.workspace = true
 
-bytes = "^1"
-tokio-stream = "~0.1"
-tokio-util = "~0.7"
-tokio = { version = "^1", features = ["io-util", "macros", "test-util"] }
+bytes.workspace = true
+tokio-stream.workspace = true
+tokio-util.workspace = true
+tokio = { workspace = true, features = ["macros", "test-util"] }
 
-async-stream = { version = "~0.3" }
-futures = { version = "~0.3" }
+async-stream.workspace = true
+futures.workspace = true
 async-compat = { version = "~0.2" }
 async-utf8-decoder = { version = "~0.3" }
 
 [dev-dependencies]
-wasm-bindgen-test = "~0.3"
+wasm-bindgen-test.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 # Mostly these dependencies are used in the examples
-tokio = { version = "^1", features = ["full"] }
-temp-dir = "~0.1"
-axum = "~0.5"
+tokio = { workspace = true, features = ["full"] }
+temp-dir.workspace = true
+axum.workspace = true
 axum-extra = { version = "~0.3", features = ["spa"] }
-tower-http = { version = "~0.3", features = ["fs", "trace"] }
-tracing = "~0.1"
-tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
+tower-http = { workspace = true, features = ["fs"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ucan = { version = "0.6.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
-ucan-key-support = { version = "0.4.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
+ucan.workspace = true
+ucan-key-support.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-ucan = { version = "0.6.0-alpha.1", features = ["web"], git = "https://github.com/cdata/rs-ucan.git" }
-ucan-key-support = { version = "0.4.0-alpha.1", features = ["web"], git = "https://github.com/cdata/rs-ucan.git" }
+ucan = { workspace = true, features = ["web"] }
+ucan-key-support = { workspace = true, features = ["web"] }

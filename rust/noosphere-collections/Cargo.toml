@@ -6,36 +6,36 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "^1"
-sha2 = "0.10"
-cid = "0.8"
+anyhow.workspace = true
+sha2.workspace = true
+cid.workspace = true
 forest_hash_utils = "0.1.0"
-serde = "^1"
+serde.workspace = true
 serde_bytes = "0.11"
-serde_ipld_dagcbor = "0.2"
-byteorder = "^1.4"
+serde_ipld_dagcbor.workspace = true
+byteorder.workspace = true
 multihash = "0.16"
 # NOTE: async-once-cell 0.4.0 shipped unstable feature usage
-async-once-cell = "0.3"
-async-recursion = "^1"
+async-once-cell.workspace = true
+async-recursion.workspace = true
 libipld-core = { version = "0.14", features = ["serde-codec"] }
 noosphere-storage = { path = "../noosphere-storage" }
 noosphere-cbor = { path = "../noosphere-cbor" }
 
-tokio = { version = "^1", features = ["sync", "io-util"] }
+tokio = { workspace = true, features = ["sync", "io-util"] }
 # tokio-util = { version = "~0.7", features = ["io"] }
-tokio-stream = "~0.1"
-async-stream = "~0.3"
+tokio-stream.workspace = true
+async-stream.workspace = true
 
 [dev-dependencies]
-async-std = "^1"
+async-std.workspace = true
 unsigned-varint = "0.7"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-tokio = { version = "^1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-wasm-bindgen-test = "0.3"
+wasm-bindgen-test.workspace = true
 
 [features]
 identity = []

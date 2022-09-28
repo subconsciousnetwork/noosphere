@@ -6,24 +6,24 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "^1"
-cid = "~0.8"
-url = "^2"
-serde = "^1"
+anyhow.workspace = true
+cid.workspace = true
+url.workspace = true
+serde.workspace = true
 noosphere = { path = "../noosphere" }
 noosphere-cbor = { path = "../noosphere-cbor" }
 noosphere-storage = { path = "../noosphere-storage" }
 reqwest = { version = "~0.11", features = ["json"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "^1", features = ["full"] }
-ucan = { version = "0.6.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
-ucan-key-support = { version = "0.4.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
+tokio = { workspace = true, features = ["full"] }
+ucan.workspace = true
+ucan-key-support.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "~0.2"
-ucan = { version = "0.6.0-alpha.1", features = ["web"], git = "https://github.com/cdata/rs-ucan.git" }
-ucan-key-support = { version = "0.4.0-alpha.1", features = ["web"], git = "https://github.com/cdata/rs-ucan.git" }
+wasm-bindgen.workspace = true
+ucan = { workspace = true, features = ["web"] }
+ucan-key-support = { workspace = true, features = ["web"] }
 
 [dev-dependencies]
-wasm-bindgen-test = "~0.3"
+wasm-bindgen-test.workspace = true

@@ -8,21 +8,21 @@ name = "ng"
 path = "src/main.rs"
 
 [dependencies]
-tracing = "0.1"
-anyhow = "^1"
+tracing.workspace = true
+anyhow.workspace = true
 
 [dev-dependencies]
-temp-dir = "0.1"
+temp-dir.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-tokio = { version = "^1", features = ["rt", "macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ucan = { version = "0.6.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
-ucan-key-support = { version = "0.4.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
+ucan.workspace = true
+ucan-key-support.workspace = true
 
-cid = "0.8"
+cid.workspace = true
 
 noosphere = { path = "../noosphere" }
 noosphere-api = { path = "../noosphere-api" }
@@ -31,28 +31,28 @@ noosphere-cbor = { path = "../noosphere-cbor" }
 noosphere-collections = { path = "../noosphere-collections" }
 
 zeroize = "^1"
-sha2 = "~0.10"
-rand = "~0.8"
-url = "^2"
+sha2.workspace = true
+rand.workspace = true
+url.workspace = true
 jsonwebtoken = "^8"
 # base64 = "0.13"
 # ed25519-zebra = "^3"
 
 mime = "~0.3"
-tokio = { version = "^1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 tower = "~0.4"
-tower-http = { version = "~0.3", features = ["cors", "trace"] }
-tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
-axum = { version = "~0.5.16", features = ["headers", "macros"] }
+tower-http = { workspace = true, features = ["cors"] }
+tracing-subscriber.workspace = true
+axum = { workspace = true, features = ["headers", "macros"] }
 hyper = { version = "~0.14", features = ["client"] }
-sled = "~0.34"
+sled.workspace = true
 toml_edit = "~0.14"
-async-std = "^1"
-async-once-cell = "~0.3"
-async-trait = "~0.1"
-futures = "~0.3"
+async-std.workspace = true
+async-once-cell.workspace = true
+async-trait.workspace = true
+futures.workspace = true
 
 clap = { version = "^3", features = ["derive"] }
 pretty_env_logger = "~0.4"
 serde_json = "^1"
-serde = "^1"
+serde.workspace = true
