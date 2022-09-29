@@ -34,9 +34,9 @@ wasm-bindgen-test.workspace = true
 # Mostly these dependencies are used in the examples
 tokio = { workspace = true, features = ["full"] }
 temp-dir.workspace = true
-axum.workspace = true
+axum = "~0.5"
 axum-extra = { version = "~0.3", features = ["spa"] }
-tower-http = { workspace = true, features = ["fs"] }
+tower-http = { version = "~0.3", features = ["fs", "trace"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
 

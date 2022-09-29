@@ -17,7 +17,6 @@ async-recursion = "^1"
 async-std = "^1"
 async-stream = "~0.3"
 async-trait = "~0.1"
-axum = "~0.5.16"
 byteorder = "^1.4"
 bytes = "^1"
 cid = "~0.8"
@@ -33,7 +32,6 @@ temp-dir = "~0.1"
 tokio = { version = "^1", default-features = false, features = ["sync", "io-util"] }
 tokio-stream = "~0.1"
 tokio-util = "~0.7"
-tower-http = { version = "~0.3", features = ["trace"] }
 tracing = "~0.1"
 tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
 ucan = { version = "0.6.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }

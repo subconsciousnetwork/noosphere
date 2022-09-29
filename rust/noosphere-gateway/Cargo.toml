@@ -41,9 +41,9 @@ jsonwebtoken = "^8"
 mime = "~0.3"
 tokio = { workspace = true, features = ["full"] }
 tower = "~0.4"
-tower-http = { workspace = true, features = ["cors"] }
+tower-http = { version = "~0.3", features = ["cors", "trace"] }
 tracing-subscriber.workspace = true
-axum = { workspace = true, features = ["headers", "macros"] }
+axum = { version = "~0.5.16", features = ["headers", "macros"] }
 hyper = { version = "~0.14", features = ["client"] }
 sled.workspace = true
 toml_edit = "~0.14"
