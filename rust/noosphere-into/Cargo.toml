@@ -27,8 +27,8 @@ futures = { version = "~0.3" }
 async-compat = { version = "~0.2" }
 async-utf8-decoder = { version = "~0.3" }
 
-ucan = { version = "0.6.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git", branch = "feature/canonicalization" }
-ucan-key-support = { version = "0.4.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git", branch = "feature/canonicalization" }
+ucan = { version = "0.7.0-alpha.1" }
+ucan-key-support = { version = "0.7.0-alpha.1" }
 
 
 

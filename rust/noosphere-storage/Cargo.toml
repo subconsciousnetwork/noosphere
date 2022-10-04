@@ -12,7 +12,7 @@ async-trait = "~0.1"
 cid = "~0.8"
 noosphere-cbor = { path = "../noosphere-cbor" }
 tracing = "~0.1"
-ucan = { version = "0.6.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git", branch = "feature/canonicalization" }
+ucan = { version = "0.7.0-alpha.1" }
 libipld-core = "~0.14"
 libipld-cbor = "~0.14"
 serde = "^1"
