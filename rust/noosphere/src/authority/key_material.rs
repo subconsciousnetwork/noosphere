@@ -36,3 +36,17 @@ pub fn ed25519_key_to_mnemonic(key_material: &Ed25519KeyMaterial) -> Result<Stri
     let mnemonic = Mnemonic::from_entropy(private_key.as_ref(), Language::English)?;
     Ok(mnemonic.into_phrase())
 }
+
+const KEYPAIR_LENGTH: usize = 64;
+const KEY_LENGTH: usize = 32;
+pub fn ed25519_key_to_bytes(key_material: &Ed25519KeyMaterial) -> Result<([u8; KEYPAIR_LENGTH])> {
+    let public_key = key_material.0;
+    let private_key: Ed25519PrivateKey = key_material
+        .1
+        .ok_or_else(|| anyhow!("Private key required in order to deserialize."))?;
+
+    let mut bytes: [u8; KEYPAIR_LENGTH] = [0u8; KEYPAIR_LENGTH];
+    bytes[..KEY_LENGTH].copy_from_slice(private_key.as_ref());
+    bytes[KEY_LENGTH..].copy_from_slice(public_key.as_ref());
+    Ok(bytes)
+}
