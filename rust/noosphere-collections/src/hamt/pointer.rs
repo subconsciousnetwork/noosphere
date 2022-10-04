@@ -40,7 +40,7 @@ impl<K: Clone + TargetConditionalSendSync, V: Clone + TargetConditionalSendSync,
         match self {
             Self::Values(arg0) => Self::Values(arg0.clone()),
             Self::Link { cid, .. } => Self::Link {
-                cid: cid.clone(),
+                cid: *cid,
                 cache: OnceCell::new(),
             },
             Self::Dirty(arg0) => Self::Dirty(arg0.clone()),

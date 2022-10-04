@@ -1,3 +1,4 @@
 {
-  "rust-analyzer.cargo.target": null
+  "rust-analyzer.cargo.target": null,
+  "lldb.launch.cwd": "${workspaceFolder}"
 }

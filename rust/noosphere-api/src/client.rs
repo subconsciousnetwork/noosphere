@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::Arc};
+use std::{str::FromStr};
 
 use crate::{
     authority::{GatewayAction, GatewayIdentity},
@@ -7,36 +7,41 @@ use crate::{
 };
 
 use anyhow::Result;
+use cid::Cid;
 use noosphere_cbor::TryDagCbor;
-use noosphere_storage::interface::{StorageProvider, Store};
-use reqwest::Body;
+use reqwest::{header::HeaderMap, Body};
 use ucan::{
     builder::UcanBuilder,
     capability::{Capability, Resource, With},
     crypto::KeyMaterial,
+    store::{UcanJwtStore, UcanStore},
     ucan::Ucan,
 };
 use url::Url;
 
-pub struct Client<'a, K>
+pub struct Client<'a, K, S>
 where
     K: KeyMaterial,
+    S: UcanStore,
 {
     pub gateway: GatewayReference,
     pub credential: &'a K,
     pub authorization: Vec<Ucan>,
+    pub store: S,
     client: reqwest::Client,
 }
 
-impl<'a, K> Client<'a, K>
+impl<'a, K, S> Client<'a, K, S>
 where
     K: KeyMaterial,
+    S: UcanStore,
 {
     pub async fn identify(
         gateway: &GatewayReference,
         credential: &'a K,
         authorization: Option<Vec<Ucan>>,
-    ) -> Result<Client<'a, K>> {
+        store: S,
+    ) -> Result<Client<'a, K, S>> {
         let mut url = Url::try_from(gateway)?;
 
         url.set_path(&Route::Identify.to_string());
@@ -50,7 +55,8 @@ where
         Ok(Client {
             gateway,
             credential,
-            authorization: authorization.unwrap_or_else(|| Vec::new()),
+            authorization: authorization.unwrap_or_default(),
+            store,
             client: reqwest::Client::new(),
         })
     }
@@ -58,7 +64,7 @@ where
     async fn make_bearer_token(
         &self,
         capability: &Capability<GatewayIdentity, GatewayAction>,
-    ) -> Result<String> {
+    ) -> Result<(String, HeaderMap)> {
         let mut builder = UcanBuilder::default()
             .issued_by(self.credential)
             .for_audience(&self.gateway.require_identity()?.did)
@@ -70,7 +76,30 @@ where
             builder = builder.witnessed_by(proof);
         }
 
-        Ok(builder.build()?.sign().await?.encode()?)
+        let final_ucan = builder.build()?.sign().await?;
+
+        // TODO: We should integrate a helper for this kind of stuff into rs-ucan
+        let mut proofs_to_search: Vec<String> = final_ucan.proofs().clone();
+        let mut ucan_headers = HeaderMap::new();
+
+        println!("Making bearer token... {:?}", proofs_to_search);
+        while let Some(cid_string) = proofs_to_search.pop() {
+            let cid = Cid::from_str(cid_string.as_str())?;
+            let jwt = self.store.require_token(&cid).await?;
+            let ucan = Ucan::try_from_token_string(&jwt)?;
+
+            println!("Adding UCAN header for {}", cid);
+
+            proofs_to_search.extend(ucan.proofs().clone().into_iter());
+            ucan_headers.append("ucan", format!("{} {}", cid, jwt).parse()?);
+        }
+
+        // TODO: It is inefficient to send the same UCANs with every request,
+        // we should probably establish a conventional flow for syncing UCANs
+        // this way only once when pairing a gateway. For now, this is about the
+        // same efficiency as what we had before when UCANs were all inlined to
+        // a single token.
+        Ok((final_ucan.encode()?, ucan_headers))
     }
 
     async fn fetch(&self, params: &FetchParameters) -> Result<FetchResponse> {
@@ -82,18 +111,19 @@ where
             can: GatewayAction::Fetch,
         };
 
-        let token = self.make_bearer_token(&capability).await?;
+        let (token, ucan_headers) = self.make_bearer_token(&capability).await?;
 
         let bytes = self
             .client
             .get(url)
             .bearer_auth(token)
+            .headers(ucan_headers)
             .send()
             .await?
             .bytes()
             .await?;
 
-        Ok(FetchResponse::try_from_dag_cbor(&bytes)?)
+        FetchResponse::try_from_dag_cbor(&bytes)
     }
 
     pub async fn push(&self, push_body: &PushBody) -> Result<PushResponse> {
@@ -106,12 +136,13 @@ where
             can: GatewayAction::Push,
         };
 
-        let token = self.make_bearer_token(&capability).await?;
+        let (token, ucan_headers) = self.make_bearer_token(&capability).await?;
 
         Ok(self
             .client
             .put(url)
             .bearer_auth(token)
+            .headers(ucan_headers)
             .header("Content-Type", "application/octet-stream")
             .body(Body::from(push_body.try_into_dag_cbor()?))
             .send()

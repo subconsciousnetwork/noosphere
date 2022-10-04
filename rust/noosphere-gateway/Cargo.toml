@@ -14,14 +14,9 @@ anyhow = "^1"
 [dev-dependencies]
 temp-dir = "0.1"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-tokio = { version = "^1", features = ["rt", "macros", "rt-multi-thread"] }
-
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ucan = { version = "0.6.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
-ucan-key-support = { version = "0.4.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
-
+ucan = { version = "0.7.0-alpha.1" }
+ucan-key-support = { version = "0.7.0-alpha.1" }
 cid = "0.8"
 
 noosphere = { path = "../noosphere" }
@@ -43,6 +38,7 @@ tokio = { version = "^1", features = ["full"] }
 tower = "~0.4"
 tower-http = { version = "~0.3", features = ["cors", "trace"] }
 tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
+# 
 axum = { version = "~0.5.16", features = ["headers", "macros"] }
 hyper = { version = "~0.14", features = ["client"] }
 sled = "~0.34"
@@ -56,3 +52,7 @@ clap = { version = "^3", features = ["derive"] }
 pretty_env_logger = "~0.4"
 serde_json = "^1"
 serde = "^1"
+serde_bytes = "~0.11"
+
+libipld-core = "~0.14"
+libipld-cbor = "~0.14"

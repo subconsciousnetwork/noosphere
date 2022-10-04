@@ -4,8 +4,9 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::Result;
-use noosphere_cbor::TryDagCbor;
-use noosphere_storage::interface::{DagCborStore, Store};
+use libipld_cbor::DagCborCodec;
+
+use noosphere_storage::interface::BlockStore;
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 use std::pin::Pin;
@@ -85,7 +86,7 @@ where
 impl<
         K: PartialEq + TargetConditionalSendSync,
         V: PartialEq + TargetConditionalSendSync,
-        S: Store,
+        S: BlockStore,
         H: HashAlgorithm,
     > PartialEq for Hamt<S, V, K, H>
 {
@@ -98,7 +99,7 @@ impl<BS, V, K, H> Hamt<BS, V, K, H>
 where
     K: Hash + Eq + PartialOrd + Serialize + DeserializeOwned + TargetConditionalSendSync,
     V: Serialize + DeserializeOwned + TargetConditionalSendSync + PartialEq,
-    BS: Store,
+    BS: BlockStore,
     H: HashAlgorithm,
 {
     pub fn new(store: BS) -> Self {
@@ -122,7 +123,7 @@ where
 
     /// Lazily instantiate a hamt from this root Cid with a specified bit width.
     pub async fn load_with_bit_width(cid: &Cid, store: BS, bit_width: u32) -> Result<Self> {
-        let root: Node<K, V, H> = store.load(cid).await?;
+        let root: Node<K, V, H> = store.load::<DagCborCodec, _>(cid).await?;
         Ok(Self {
             root,
             store,
@@ -133,7 +134,7 @@ where
 
     /// Sets the root based on the Cid of the root node using the Hamt store
     pub async fn set_root(&mut self, cid: &Cid) -> Result<()> {
-        self.root = self.store.load(cid).await?;
+        self.root = self.store.load::<DagCborCodec, _>(cid).await?;
 
         Ok(())
     }
@@ -319,8 +320,7 @@ where
     /// Flush root and return Cid for hamt
     pub async fn flush(&mut self) -> Result<Cid> {
         self.root.flush(&mut self.store).await?;
-        let bytes = self.root.try_into_dag_cbor()?;
-        Ok(self.store.write_cbor(&bytes).await?)
+        self.store.save::<DagCborCodec, _>(&self.root).await
     }
 
     /// Returns true if the HAMT has no entries
@@ -359,7 +359,6 @@ where
         V: DeserializeOwned,
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
-        // self.root.for_each(self.store.borrow(), &mut f).await
         let mut stream = self.stream();
 
         while let Some(Ok((key, value))) = stream.next().await {
@@ -367,7 +366,6 @@ where
         }
 
         Ok(())
-        // for item
     }
 
     pub fn stream<'a>(&'a self) -> Pin<Box<dyn Stream<Item = Result<(&'a K, &'a V)>> + 'a>> {

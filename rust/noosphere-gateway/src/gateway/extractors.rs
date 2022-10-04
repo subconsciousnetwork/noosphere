@@ -33,7 +33,7 @@ where
             .map_err(|error| GatewayError::Internal(anyhow!(error)))?;
 
         Ok(DagCbor(
-            T::try_from_dag_cbor(&bytes).map_err(|error| GatewayError::Internal(error))?,
+            T::try_from_dag_cbor(&bytes).map_err(GatewayError::Internal)?,
         ))
     }
 }

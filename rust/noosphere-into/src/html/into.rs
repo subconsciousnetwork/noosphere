@@ -2,9 +2,12 @@ use std::{collections::BTreeSet, io::Cursor, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere::{data::ReferenceIpld, view::Sphere};
+use noosphere::{view::Sphere};
 use noosphere_fs::SphereFs;
-use noosphere_storage::interface::{KeyValueStore, Store};
+use noosphere_storage::{
+    db::SphereDb,
+    interface::{Store},
+};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 
@@ -19,16 +22,15 @@ static DEFAULT_STYLES: &[u8] = include_bytes!("./static/styles.css");
 /// of the slug-named content of the sphere.
 pub async fn sphere_into_html<S, W>(
     sphere_identity: &str,
-    sphere_store: &S,
-    block_store: &S,
+    db: &SphereDb<S>,
     write_target: &W,
 ) -> Result<()>
 where
     S: Store + 'static,
     W: WriteTarget + 'static,
 {
-    let mut next_sphere_cid = match sphere_store.get(sphere_identity).await? {
-        Some(ReferenceIpld { link }) => Some(link),
+    let mut next_sphere_cid = match db.get_version(sphere_identity).await? {
+        Some(link) => Some(link),
         _ => {
             return Err(anyhow!(
                 "Could not resolve CID for sphere {}",
@@ -41,8 +43,7 @@ where
     let mut latest_revision = true;
 
     while let Some(sphere_cid) = next_sphere_cid {
-        let sphere_index: PathBuf =
-            format!("permalink/{}/index.html", sphere_cid.to_string()).into();
+        let sphere_index: PathBuf = format!("permalink/{}/index.html", sphere_cid).into();
 
         // We write the sphere index last, so if we already have it we can
         // assume this revision has been written in the past
@@ -53,14 +54,14 @@ where
         }
 
         let write_actions = Arc::new(Mutex::new(BTreeSet::<Cid>::new()));
-        let sphere = Sphere::at(&sphere_cid, block_store);
+        let sphere = Sphere::at(&sphere_cid, db);
         let links = sphere.try_get_links().await?;
         let mut link_stream = links.stream().await?;
 
         let mut tasks = Vec::new();
 
         while let Some(Ok((slug, cid))) = link_stream.next().await {
-            let file_name: PathBuf = format!("permalink/{}/index.html", cid.to_string()).into();
+            let file_name: PathBuf = format!("permalink/{}/index.html", cid).into();
 
             // Skip this write entirely if the content has been written
             // TODO(#55): This may not hold in a world where there are multiple
@@ -73,12 +74,13 @@ where
 
             tasks.push(W::spawn({
                 let slug = slug.clone();
-                let cid = cid.clone();
+                let cid = *cid;
                 let write_actions = write_actions.clone();
                 let write_target = write_target.clone();
                 let sphere_identity = sphere_identity.to_string();
-                let block_store = block_store.clone();
-                let sphere_store = sphere_store.clone();
+                let db = db.clone();
+                // let block_store = block_store.clone();
+                // let sphere_store = sphere_store.clone();
                 let latest_revision = latest_revision;
 
                 async move {
@@ -91,13 +93,12 @@ where
                         if write_actions.contains(&cid) {
                             return Ok(());
                         } else {
-                            write_actions.insert(cid.clone());
+                            write_actions.insert(cid);
                         }
                     }
 
                     let fs =
-                        SphereFs::at(&sphere_identity, &sphere_cid, &block_store, &sphere_store)?
-                            .ok_or_else(|| {
+                        SphereFs::at(&sphere_identity, &sphere_cid, &db)?.ok_or_else(|| {
                             anyhow!(
                                 "Unable to find revision for sphere {}: {}",
                                 sphere_identity,
@@ -132,14 +133,13 @@ where
         // cases where writing content may fail
         futures::future::try_join_all(tasks).await?;
 
-        let fs = SphereFs::at(&sphere_identity, &sphere_cid, block_store, sphere_store)?
-            .ok_or_else(|| {
-                anyhow!(
-                    "Unable to find revision for sphere {}: {}",
-                    sphere_identity,
-                    sphere_cid
-                )
-            })?;
+        let fs = SphereFs::at(sphere_identity, &sphere_cid, db)?.ok_or_else(|| {
+            anyhow!(
+                "Unable to find revision for sphere {}: {}",
+                sphere_identity,
+                sphere_cid
+            )
+        })?;
         let sphere_transformer = SphereToHtmlTransformer::new(&fs);
 
         if let Some(read) = sphere_transformer.transform().await? {
@@ -183,11 +183,14 @@ pub mod tests {
 
     use noosphere::{
         authority::generate_ed25519_key,
-        data::{ContentType, Header, ReferenceIpld},
+        data::{ContentType, Header},
         view::Sphere,
     };
     use noosphere_fs::SphereFs;
-    use noosphere_storage::{interface::KeyValueStore, memory::MemoryStore};
+    use noosphere_storage::{
+        db::SphereDb,
+        memory::{MemoryStorageProvider},
+    };
     use ucan::crypto::KeyMaterial;
 
     #[cfg(target_arch = "wasm32")]
@@ -202,31 +205,24 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_writes_a_file_from_the_sphere_to_the_target_as_html() {
-        let mut sphere_store = MemoryStore::default();
-        let mut block_store = MemoryStore::default();
+        // let mut sphere_store = MemoryStore::default();
+        // let mut block_store = MemoryStore::default();
+
+        let storage_provider = MemoryStorageProvider::default();
+        let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut block_store)
-            .await
-            .unwrap();
+        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
         let sphere_identity = sphere.try_get_identity().await.unwrap();
 
-        sphere_store
-            .set(
-                &sphere_identity,
-                &ReferenceIpld {
-                    link: sphere.cid().clone(),
-                },
-            )
+        db.set_version(&sphere_identity, sphere.cid())
             .await
             .unwrap();
 
-        let mut fs = SphereFs::latest(&sphere_identity, &block_store, &sphere_store)
-            .await
-            .unwrap();
+        let mut fs = SphereFs::latest(&sphere_identity, &db).await.unwrap();
 
         let cats_cid = fs
             .write(
@@ -254,15 +250,12 @@ pub mod tests {
 
         let write_target = MemoryWriteTarget::default();
 
-        sphere_into_html(&sphere_identity, &sphere_store, &block_store, &write_target)
+        sphere_into_html(&sphere_identity, &db, &write_target)
             .await
             .unwrap();
 
         let bytes = write_target
-            .read(&PathBuf::from(format!(
-                "permalink/{}/index.html",
-                cats_cid.to_string()
-            )))
+            .read(&PathBuf::from(format!("permalink/{}/index.html", cats_cid)))
             .await
             .unwrap();
 
@@ -296,31 +289,21 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_symlinks_a_file_slug_to_the_latest_file_version() {
-        let mut sphere_store = MemoryStore::default();
-        let mut block_store = MemoryStore::default();
+        let storage_provider = MemoryStorageProvider::default();
+        let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut block_store)
-            .await
-            .unwrap();
+        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
         let sphere_identity = sphere.try_get_identity().await.unwrap();
 
-        sphere_store
-            .set(
-                &sphere_identity,
-                &ReferenceIpld {
-                    link: sphere.cid().clone(),
-                },
-            )
+        db.set_version(&sphere_identity, sphere.cid())
             .await
             .unwrap();
 
-        let mut fs = SphereFs::latest(&sphere_identity, &block_store, &sphere_store)
-            .await
-            .unwrap();
+        let mut fs = SphereFs::latest(&sphere_identity, &db).await.unwrap();
 
         let _cats_cid = fs
             .write(
@@ -348,7 +331,7 @@ pub mod tests {
 
         let write_target = MemoryWriteTarget::default();
 
-        sphere_into_html(&sphere_identity, &sphere_store, &block_store, &write_target)
+        sphere_into_html(&sphere_identity, &db, &write_target)
             .await
             .unwrap();
 

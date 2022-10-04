@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result};
 use async_trait::async_trait;
 use noosphere::authority::{ed25519_key_to_mnemonic, generate_ed25519_key, restore_ed25519_key};
 use ucan::crypto::KeyMaterial;

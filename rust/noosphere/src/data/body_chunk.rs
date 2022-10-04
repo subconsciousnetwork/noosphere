@@ -1,9 +1,10 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use fastcdc::FastCDC;
+use libipld_cbor::DagCborCodec;
 use serde::{Deserialize, Serialize};
 
-use noosphere_storage::interface::{DagCborStore, Store};
+use noosphere_storage::interface::BlockStore;
 
 pub const BODY_CHUNK_MAX_SIZE: usize = 1024 * 64 * 8; // ~.5mb/chunk worst case
 
@@ -20,7 +21,7 @@ pub struct BodyChunkIpld {
 }
 
 impl BodyChunkIpld {
-    pub async fn store_bytes<Storage: Store>(bytes: &[u8], store: &mut Storage) -> Result<Cid> {
+    pub async fn store_bytes<S: BlockStore>(bytes: &[u8], store: &mut S) -> Result<Cid> {
         let chunks = FastCDC::new(
             bytes,
             fastcdc::MINIMUM_MIN,
@@ -43,7 +44,7 @@ impl BodyChunkIpld {
         for byte_chunk in byte_chunks.into_iter().rev() {
             next_chunk_cid = Some(
                 store
-                    .save(&BodyChunkIpld {
+                    .save::<DagCborCodec, _>(&BodyChunkIpld {
                         bytes: Vec::from(byte_chunk),
                         next: next_chunk_cid,
                     })
@@ -51,15 +52,15 @@ impl BodyChunkIpld {
             );
         }
 
-        Ok(next_chunk_cid.ok_or(anyhow!("No CID; did you try to store zero bytes?"))?)
+        next_chunk_cid.ok_or(anyhow!("No CID; did you try to store zero bytes?"))
     }
 
-    pub async fn load_all_bytes<Storage: Store>(&self, store: Storage) -> Result<Vec<u8>> {
+    pub async fn load_all_bytes<S: BlockStore>(&self, store: &S) -> Result<Vec<u8>> {
         let mut all_bytes = self.bytes.clone();
         let mut next_cid = self.next;
 
         while let Some(cid) = next_cid {
-            let BodyChunkIpld { mut bytes, next } = store.load(&cid).await?;
+            let BodyChunkIpld { mut bytes, next } = store.load::<DagCborCodec, _>(&cid).await?;
 
             all_bytes.append(&mut bytes);
             next_cid = next;

@@ -1,9 +1,13 @@
 use anyhow::{anyhow, Result};
+use libipld_cbor::DagCborCodec;
 use noosphere::{
-    data::{BodyChunkIpld, ContentType, Header, MemoIpld, ReferenceIpld},
+    data::{BodyChunkIpld, ContentType, Header, MemoIpld},
     view::{Sphere, SphereMutation},
 };
-use noosphere_storage::interface::{DagCborStore, KeyValueStore, Store};
+use noosphere_storage::{
+    db::SphereDb,
+    interface::{BlockStore, Store},
+};
 use std::str::FromStr;
 use tokio_util::io::StreamReader;
 use ucan::{crypto::KeyMaterial, ucan::Ucan};
@@ -26,8 +30,7 @@ where
 {
     sphere_identity: String,
     sphere_revision: Cid,
-    block_store: S,
-    sphere_store: S,
+    db: SphereDb<S>,
 }
 
 impl<S> SphereFs<S>
@@ -43,20 +46,20 @@ where
     }
 
     pub fn to_sphere(&self) -> Sphere<S> {
-        Sphere::at(self.revision(), &self.block_store)
+        Sphere::at(self.revision(), &self.db.to_block_store())
     }
 
-    async fn require_sphere_revision(sphere_identity: &str, sphere_store: &S) -> Result<Cid> {
-        let reference: ReferenceIpld = sphere_store
-            .get(sphere_identity)
+    async fn require_sphere_version(sphere_identity: &str, db: &SphereDb<S>) -> Result<Cid> {
+        db.get_version(sphere_identity)
             .await?
-            .ok_or_else(|| anyhow!("No reference to sphere {} found", sphere_identity))?;
-
-        Ok(reference.link)
+            .ok_or_else(|| anyhow!("No reference to sphere {} found", sphere_identity))
     }
 
     async fn get_file(&self, memo_revision: &Cid) -> Result<SphereFile<impl AsyncRead + Unpin>> {
-        let memo: MemoIpld = self.block_store.load(memo_revision).await?;
+        let memo = self
+            .db
+            .load::<DagCborCodec, MemoIpld>(memo_revision)
+            .await?;
         let content_type = match memo.get_first_header(&Header::ContentType.to_string()) {
             Some(content_type) => Some(ContentType::from_str(content_type.as_str())?),
             None => None,
@@ -64,7 +67,7 @@ where
 
         let stream = match content_type {
             Some(ContentType::Subtext) | Some(ContentType::Bytes) => {
-                BodyChunkDecoder(&memo.body, &self.block_store).stream()
+                BodyChunkDecoder(&memo.body, &self.db).stream()
             }
             Some(content_type) => {
                 return Err(anyhow!("Unsupported content type: {}", content_type))
@@ -73,8 +76,8 @@ where
         };
 
         Ok(SphereFile {
-            sphere_revision: self.sphere_revision.clone(),
-            memo_revision: memo_revision.clone(),
+            sphere_revision: self.sphere_revision,
+            memo_revision: *memo_revision,
             memo,
             contents: StreamReader::new(stream),
         })
@@ -82,18 +85,13 @@ where
 
     /// Create an FS view into the latest revision found in the provided sphere
     /// reference storage
-    pub async fn latest(
-        sphere_identity: &str,
-        block_store: &S,
-        sphere_store: &S,
-    ) -> Result<SphereFs<S>> {
-        let sphere_revision = Self::require_sphere_revision(sphere_identity, sphere_store).await?;
+    pub async fn latest(sphere_identity: &str, db: &SphereDb<S>) -> Result<SphereFs<S>> {
+        let sphere_revision = Self::require_sphere_version(sphere_identity, db).await?;
 
         Ok(SphereFs {
             sphere_identity: sphere_identity.into(),
             sphere_revision,
-            block_store: block_store.clone(),
-            sphere_store: sphere_store.clone(),
+            db: db.clone(),
         })
     }
 
@@ -103,14 +101,12 @@ where
     pub fn at(
         sphere_identity: &str,
         sphere_revision: &Cid,
-        block_store: &S,
-        sphere_store: &S,
+        db: &SphereDb<S>,
     ) -> Result<Option<SphereFs<S>>> {
         Ok(Some(SphereFs {
             sphere_identity: sphere_identity.into(),
-            sphere_revision: sphere_revision.clone(),
-            block_store: block_store.clone(),
-            sphere_store: sphere_store.clone(),
+            sphere_revision: *sphere_revision,
+            db: db.clone(),
         }))
     }
 
@@ -119,12 +115,12 @@ where
     /// then the returned `Option` has the CID of the revision, otherwise if the
     /// current version is the oldest one it is `None`.
     pub async fn rewind(&mut self) -> Result<Option<Cid>> {
-        let sphere = Sphere::at(&self.sphere_revision, &self.block_store);
+        let sphere = Sphere::at(&self.sphere_revision, &self.db);
 
         match sphere.try_get_parent().await? {
             Some(parent) => {
-                self.sphere_revision = parent.cid().clone();
-                Ok(Some(self.sphere_revision.clone()))
+                self.sphere_revision = *parent.cid();
+                Ok(Some(self.sphere_revision))
             }
             None => Ok(None),
         }
@@ -141,12 +137,12 @@ where
     /// Note that "contents" are `AsyncRead`, and content bytes won't be read
     /// until contents is polled.
     pub async fn read(&self, slug: &str) -> Result<Option<SphereFile<impl AsyncRead>>> {
-        let sphere = Sphere::at(&self.sphere_revision, &self.block_store);
+        let sphere = Sphere::at(&self.sphere_revision, &self.db);
         let links = sphere.try_get_links().await?;
         let hamt = links.try_get_hamt().await?;
 
         Ok(match hamt.get(&slug.to_string()).await? {
-            Some(content_cid) => Some(self.get_file(&content_cid).await?),
+            Some(content_cid) => Some(self.get_file(content_cid).await?),
             None => None,
         })
     }
@@ -169,12 +165,10 @@ where
         additional_headers: Option<Vec<(String, String)>>,
     ) -> Result<Cid> {
         let current_file = self.read(slug).await?;
-        let previous_memo_cid = current_file.map_or(None, |file| Some(file.memo_revision));
+        let previous_memo_cid = current_file.map(|file| file.memo_revision);
 
-        // let sphere_cid = self.require_sphere_revision().await?;
-        let sphere_cid =
-            Self::require_sphere_revision(&self.sphere_identity, &self.sphere_store).await?;
-        let sphere = Sphere::at(&sphere_cid, &self.block_store);
+        let sphere_cid = Self::require_sphere_version(&self.sphere_identity, &self.db).await?;
+        let sphere = Sphere::at(&sphere_cid, &self.db);
 
         let mut bytes = Vec::new();
         value.read_to_end(&mut bytes).await?;
@@ -182,11 +176,11 @@ where
         // TODO(#38): We imply here that the only content types we care about
         // amount to byte streams, but in point of fact we can support anything
         // that may be referenced by CID including arbitrary IPLD structures
-        let body_cid = BodyChunkIpld::store_bytes(&bytes, &mut self.block_store).await?;
+        let body_cid = BodyChunkIpld::store_bytes(&bytes, &mut self.db).await?;
 
         let mut new_memo = match previous_memo_cid {
             Some(cid) => {
-                let mut memo = MemoIpld::branch_from(&cid, &self.block_store).await?;
+                let mut memo = MemoIpld::branch_from(&cid, &self.db).await?;
                 memo.body = body_cid;
                 memo
             }
@@ -206,23 +200,18 @@ where
         new_memo.replace_header(&Header::ContentType.to_string(), content_type);
 
         // TODO(#43): Configure default/implicit headers here
-        let memo_cid = self.block_store.save(&new_memo).await?;
+        let memo_cid = self.db.save::<DagCborCodec, MemoIpld>(new_memo).await?;
 
         let author_did = credential.get_did().await?;
 
         let mut mutation = SphereMutation::new(&author_did);
-        mutation.links_mut().set(slug, &memo_cid);
+        mutation.links_mut().set(&slug.into(), &memo_cid);
 
-        let mut revision = sphere.try_apply(&mutation).await?;
+        let mut revision = sphere.try_apply_mutation(&mutation).await?;
         let next_sphere_cid = revision.try_sign(credential, proof).await?;
 
-        self.sphere_store
-            .set(
-                &self.sphere_identity,
-                &ReferenceIpld {
-                    link: next_sphere_cid.clone(),
-                },
-            )
+        self.db
+            .set_version(&self.sphere_identity, &next_sphere_cid)
             .await?;
 
         self.sphere_revision = next_sphere_cid;
@@ -235,11 +224,11 @@ where
 pub mod tests {
     use noosphere::{
         authority::generate_ed25519_key,
-        data::{ContentType, Header, ReferenceIpld},
+        data::{ContentType, Header},
         view::Sphere,
     };
-    use noosphere_storage::interface::KeyValueStore;
-    use noosphere_storage::memory::MemoryStore;
+    use noosphere_storage::{db::SphereDb};
+    use noosphere_storage::{memory::MemoryStorageProvider};
     use tokio::io::AsyncReadExt;
     use ucan::crypto::KeyMaterial;
 
@@ -253,31 +242,21 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_write_a_file_and_read_it_back() {
-        let mut sphere_store = MemoryStore::default();
-        let mut block_store = MemoryStore::default();
+        let storage_provider = MemoryStorageProvider::default();
+        let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut block_store)
-            .await
-            .unwrap();
+        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
         let sphere_identity = sphere.try_get_identity().await.unwrap();
 
-        sphere_store
-            .set(
-                &sphere_identity,
-                &ReferenceIpld {
-                    link: sphere.cid().clone(),
-                },
-            )
+        db.set_version(&sphere_identity, sphere.cid())
             .await
             .unwrap();
 
-        let mut fs = SphereFs::latest(&sphere_identity, &block_store, &sphere_store)
-            .await
-            .unwrap();
+        let mut fs = SphereFs::latest(&sphere_identity, &db).await.unwrap();
 
         fs.write(
             "cats",
@@ -308,31 +287,21 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_overwrite_a_file_with_new_contents_and_preserve_history() {
-        let mut sphere_store = MemoryStore::default();
-        let mut block_store = MemoryStore::default();
+        let storage_provider = MemoryStorageProvider::default();
+        let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut block_store)
-            .await
-            .unwrap();
+        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
         let sphere_identity = sphere.try_get_identity().await.unwrap();
 
-        sphere_store
-            .set(
-                &sphere_identity,
-                &ReferenceIpld {
-                    link: sphere.cid().clone(),
-                },
-            )
+        db.set_version(&sphere_identity, sphere.cid())
             .await
             .unwrap();
 
-        let mut fs = SphereFs::latest(&sphere_identity, &block_store, &sphere_store)
-            .await
-            .unwrap();
+        let mut fs = SphereFs::latest(&sphere_identity, &db).await.unwrap();
 
         fs.write(
             "cats",

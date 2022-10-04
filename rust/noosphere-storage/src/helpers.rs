@@ -11,7 +11,7 @@ pub async fn make_disposable_store() -> Result<NativeStore> {
         .with_words(3)
         .unwrap()
         .into_iter()
-        .map(|word| String::from(word))
+        .map(String::from)
         .collect();
     let db = sled::open(temp_dir.join(temp_name)).unwrap();
     let provider = NativeStorageProvider::new(NativeStorageInit::Db(db))?;

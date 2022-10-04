@@ -1,12 +1,14 @@
 use std::{collections::BTreeMap, str::FromStr};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use cid::Cid;
 
 use futures::{pin_mut, StreamExt};
+use libipld_cbor::DagCborCodec;
+use libipld_core::{serde::to_ipld};
 use noosphere_cbor::{TryDagCbor, TryDagCborSendSync};
-use noosphere_storage::interface::{DagCborStore, Store};
+use noosphere_storage::interface::BlockStore;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -14,8 +16,11 @@ use crate::{
         BodyChunkIpld, ChangelogIpld, ContentType, Header, LinksIpld, MapOperation, MemoIpld,
         SphereIpld, VersionedMapIpld,
     },
+    encoding::{block_deserialize, block_serialize},
     view::Timeslice,
 };
+
+use super::{AllowedIpld, AuthorizationIpld, RevokedIpld, VersionedMapKey, VersionedMapValue};
 
 // TODO: This should maybe only collect CIDs, and then streaming-serialize to
 // a CAR (https://ipld.io/specs/transport/car/carv2/)
@@ -23,25 +28,20 @@ use crate::{
 pub struct Bundle(BTreeMap<Cid, Vec<u8>>);
 
 impl Bundle {
-    pub async fn load_into<Storage: Store>(&self, store: &mut Storage) -> Result<()> {
+    pub async fn load_into<S: BlockStore>(&self, store: &mut S) -> Result<()> {
         // TODO: Parrallelize this
         for (cid, cbor_bytes) in self.0.iter() {
-            let stored_cid = store.write_cbor(cbor_bytes).await?;
-            if cid != &stored_cid {
-                return Err(anyhow!(
-                    "CID in bundle ({:?}) did not match CID as stored ({:?})",
-                    cid,
-                    stored_cid
-                ));
-            }
+            // TODO: Verify CID is correct
+            store.put_block(cid, cbor_bytes).await?;
+            store.put_links::<DagCborCodec>(cid, cbor_bytes).await?;
         }
 
         Ok(())
     }
 
-    pub async fn try_from_timeslice<'a, Storage: Store>(
-        timeslice: &Timeslice<'a, Storage>,
-        store: &Storage,
+    pub async fn try_from_timeslice<'a, S: BlockStore>(
+        timeslice: &Timeslice<'a, S>,
+        store: &S,
     ) -> Result<Bundle> {
         let stream = timeslice.try_stream();
         let mut bundle = Bundle::default();
@@ -74,10 +74,10 @@ impl Bundle {
         &self.0
     }
 
-    pub async fn extend<CanBundle: TryBundle, Storage: Store>(
+    pub async fn extend<CanBundle: TryBundle, S: BlockStore>(
         &mut self,
         cid: &Cid,
-        store: &Storage,
+        store: &S,
     ) -> Result<()> {
         CanBundle::try_extend_bundle_with_cid(cid, self, store).await?;
         Ok(())
@@ -87,32 +87,34 @@ impl Bundle {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 pub trait TryBundle: TryDagCborSendSync {
-    async fn try_extend_bundle<Storage: Store>(
+    async fn try_extend_bundle<S: BlockStore>(
         &self,
         bundle: &mut Bundle,
-        store: &Storage,
+        _store: &S,
     ) -> Result<()> {
-        let self_bytes = self.try_into_dag_cbor()?;
-        let self_cid = Storage::make_cid(&self_bytes);
-        Self::try_extend_bundle_with_cid(&self_cid, bundle, store).await
-    }
-
-    async fn try_extend_bundle_with_cid<Storage: Store>(
-        cid: &Cid,
-        bundle: &mut Bundle,
-        store: &Storage,
-    ) -> Result<()> {
-        bundle.add(cid.clone(), store.require_cbor(cid).await?);
+        let (self_cid, self_bytes) = block_serialize::<DagCborCodec, _>(self)?;
+        bundle.add(self_cid, self_bytes);
         Ok(())
     }
 
-    async fn try_bundle<Storage: Store>(&self, store: &Storage) -> Result<Bundle> {
+    async fn try_extend_bundle_with_cid<S: BlockStore>(
+        cid: &Cid,
+        bundle: &mut Bundle,
+        store: &S,
+    ) -> Result<()> {
+        let item = store.load::<DagCborCodec, Self>(cid).await?;
+        item.try_extend_bundle(bundle, store).await?;
+
+        Ok(())
+    }
+
+    async fn try_bundle<S: BlockStore>(&self, store: &S) -> Result<Bundle> {
         let mut bundle = Bundle::default();
         self.try_extend_bundle(&mut bundle, store).await?;
         Ok(bundle)
     }
 
-    async fn try_bundle_with_cid<Storage: Store>(cid: &Cid, store: &Storage) -> Result<Bundle> {
+    async fn try_bundle_with_cid<S: BlockStore>(cid: &Cid, store: &S) -> Result<Bundle> {
         let mut bundle = Bundle::default();
         Self::try_extend_bundle_with_cid(cid, &mut bundle, store).await?;
         Ok(bundle)
@@ -122,15 +124,15 @@ pub trait TryBundle: TryDagCborSendSync {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl TryBundle for BodyChunkIpld {
-    async fn try_extend_bundle_with_cid<Storage: Store>(
+    async fn try_extend_bundle_with_cid<S: BlockStore>(
         cid: &Cid,
         bundle: &mut Bundle,
-        store: &Storage,
+        store: &S,
     ) -> Result<()> {
-        let mut next_cid = Some(cid.clone());
+        let mut next_cid = Some(*cid);
 
         while let Some(cid) = next_cid {
-            let bytes = store.require_cbor(&cid).await?;
+            let bytes = store.require_block(&cid).await?;
             let chunk = BodyChunkIpld::try_from_dag_cbor(&bytes)?;
             bundle.add(cid, bytes);
             next_cid = chunk.next;
@@ -140,30 +142,63 @@ impl TryBundle for BodyChunkIpld {
     }
 }
 
+// #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+// #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+// impl<K, Cid> TryBundle for ChangelogIpld<MapOperation<K, Cid>>
+// where
+//     K: VersionedMapKey,
+// {
+//     async fn try_extend_bundle_with_cid<S: BlockStore>(
+//         cid: &Cid,
+//         bundle: &mut Bundle,
+//         store: &S,
+//     ) -> Result<()> {
+//         let bytes = store.require_block(cid).await?;
+//         let changelog = Self::try_from_dag_cbor(&bytes)?;
+
+//         bundle.add(*cid, bytes);
+
+//         for op in changelog.changes {
+//             match op {
+//                 MapOperation::<_, Cid>::Add { value, .. } => {
+//                     let bytes = store.require_block(&cid).await?;
+//                     bundle.add(cid, bytes);
+//                 }
+//                 _ => (),
+//             };
+//         }
+
+//         Ok(())
+//     }
+// }
+
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl TryBundle for ChangelogIpld<MapOperation<String, Cid>>
+impl<K, V> TryBundle for ChangelogIpld<MapOperation<K, V>>
 where
-    Self: TryDagCborSendSync,
+    K: VersionedMapKey,
+    V: VersionedMapValue,
 {
-    async fn try_extend_bundle_with_cid<Storage: Store>(
+    async fn try_extend_bundle_with_cid<S: BlockStore>(
         cid: &Cid,
         bundle: &mut Bundle,
-        store: &Storage,
+        store: &S,
     ) -> Result<()> {
-        let bytes = store.require_cbor(cid).await?;
+        let bytes = store.require_block(cid).await?;
+        let mut cids = Vec::new();
         let changelog = Self::try_from_dag_cbor(&bytes)?;
 
-        bundle.add(cid.clone(), bytes);
+        bundle.add(*cid, bytes);
 
         for op in changelog.changes {
             match op {
-                MapOperation::Add { value: cid, .. } => {
-                    let bytes = store.require_cbor(&cid).await?;
-                    bundle.add(cid, bytes);
-                }
+                MapOperation::Add { .. } => to_ipld(&op)?.references(&mut cids),
                 _ => (),
             };
+        }
+
+        for cid in cids {
+            bundle.add(cid, store.require_block(&cid).await?);
         }
 
         Ok(())
@@ -173,13 +208,8 @@ where
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl TryBundle for MemoIpld {
-    async fn try_extend_bundle<Storage: Store>(
-        &self,
-        bundle: &mut Bundle,
-        store: &Storage,
-    ) -> Result<()> {
-        let self_bytes = self.try_into_dag_cbor()?;
-        let self_cid = Storage::make_cid(&self_bytes);
+    async fn try_extend_bundle<S: BlockStore>(&self, bundle: &mut Bundle, store: &S) -> Result<()> {
+        let (self_cid, self_bytes) = block_serialize::<DagCborCodec, _>(self)?;
 
         bundle.add(self_cid, self_bytes);
 
@@ -199,13 +229,15 @@ impl TryBundle for MemoIpld {
         Ok(())
     }
 
-    async fn try_extend_bundle_with_cid<Storage: Store>(
+    async fn try_extend_bundle_with_cid<S: BlockStore>(
         cid: &Cid,
         bundle: &mut Bundle,
-        store: &Storage,
+        store: &S,
     ) -> Result<()> {
+        let memo = store.load::<DagCborCodec, MemoIpld>(cid).await?;
+        println!("BUNDLING MEMO {} {:?}", cid, memo);
         store
-            .load::<MemoIpld>(cid)
+            .load::<DagCborCodec, MemoIpld>(cid)
             .await?
             .try_extend_bundle(bundle, store)
             .await?;
@@ -215,19 +247,15 @@ impl TryBundle for MemoIpld {
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl TryBundle for VersionedMapIpld<String, Cid>
+impl<K, V> TryBundle for VersionedMapIpld<K, V>
 where
-    Self: TryDagCborSendSync,
+    K: VersionedMapKey,
+    V: VersionedMapValue,
 {
-    async fn try_extend_bundle<Storage: Store>(
-        &self,
-        bundle: &mut Bundle,
-        store: &Storage,
-    ) -> Result<()> {
-        let self_bytes = self.try_into_dag_cbor()?;
-        let self_cid = Storage::make_cid(&self_bytes);
+    async fn try_extend_bundle<S: BlockStore>(&self, bundle: &mut Bundle, store: &S) -> Result<()> {
+        let (self_cid, self_bytes) = block_serialize::<DagCborCodec, _>(self)?;
 
-        ChangelogIpld::<MapOperation<String, Cid>>::try_extend_bundle_with_cid(
+        ChangelogIpld::<MapOperation<K, V>>::try_extend_bundle_with_cid(
             &self.changelog,
             bundle,
             store,
@@ -239,12 +267,12 @@ where
         Ok(())
     }
 
-    async fn try_extend_bundle_with_cid<Storage: Store>(
+    async fn try_extend_bundle_with_cid<S: BlockStore>(
         cid: &Cid,
         bundle: &mut Bundle,
-        store: &Storage,
+        store: &S,
     ) -> Result<()> {
-        let map: Self = store.load(cid).await?;
+        let map: Self = store.load::<DagCborCodec, _>(cid).await?;
         map.try_extend_bundle(bundle, store).await?;
         Ok(())
     }
@@ -253,15 +281,15 @@ where
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl TryBundle for SphereIpld {
-    async fn try_extend_bundle_with_cid<Storage: Store>(
+    async fn try_extend_bundle_with_cid<S: BlockStore>(
         cid: &Cid,
         bundle: &mut Bundle,
-        store: &Storage,
+        store: &S,
     ) -> Result<()> {
-        let self_bytes = store.require_cbor(cid).await?;
+        let self_bytes = store.require_block(cid).await?;
         let sphere = SphereIpld::try_from_dag_cbor(&self_bytes)?;
 
-        bundle.add(cid.clone(), self_bytes);
+        bundle.add(*cid, self_bytes);
 
         match sphere.links {
             Some(cid) => {
@@ -270,9 +298,9 @@ impl TryBundle for SphereIpld {
             _ => (),
         }
 
-        match sphere.revocations {
-            Some(_cid) => {
-                todo!();
+        match sphere.authorization {
+            Some(cid) => {
+                AuthorizationIpld::try_extend_bundle_with_cid(&cid, bundle, store).await?;
             }
             _ => (),
         }
@@ -288,9 +316,32 @@ impl TryBundle for SphereIpld {
     }
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl TryBundle for AuthorizationIpld {
+    async fn try_extend_bundle_with_cid<S: BlockStore>(
+        cid: &Cid,
+        bundle: &mut Bundle,
+        store: &S,
+    ) -> Result<()> {
+        let self_bytes = store.require_block(cid).await?;
+        let authorization_ipld = block_deserialize::<DagCborCodec, AuthorizationIpld>(&self_bytes)?;
+
+        AllowedIpld::try_extend_bundle_with_cid(&authorization_ipld.allowed, bundle, store).await?;
+        RevokedIpld::try_extend_bundle_with_cid(&authorization_ipld.revoked, bundle, store).await?;
+
+        bundle.add(*cid, self_bytes);
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use noosphere_storage::{interface::DagCborStore, memory::MemoryStore};
+    use libipld_cbor::DagCborCodec;
+    use libipld_core::raw::RawCodec;
+    use noosphere_storage::{interface::BlockStore, memory::MemoryStore};
+    use serde_bytes::Bytes;
     use ucan::crypto::KeyMaterial;
 
     #[cfg(target_arch = "wasm32")]
@@ -330,18 +381,19 @@ mod tests {
 
         let (sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
 
-        let foo_cid = store.write_cbor(b"foo").await.unwrap();
+        let foo_key = String::from("foo");
+        let foo_cid = store.save::<RawCodec, _>(Bytes::new(b"foo")).await.unwrap();
         let mut mutation = SphereMutation::new(&owner_did);
-        mutation.links_mut().set("foo", &foo_cid);
+        mutation.links_mut().set(&foo_key, &foo_cid);
 
-        let mut revision = sphere.try_apply(&mutation).await.unwrap();
+        let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
         let new_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let bundle = MemoIpld::try_bundle_with_cid(&new_cid, &store)
             .await
             .unwrap();
 
-        assert_eq!(bundle.map().keys().len(), 5);
+        assert_eq!(bundle.map().keys().len(), 11);
 
         let sphere = Sphere::at(&new_cid, &store);
 
@@ -356,7 +408,10 @@ mod tests {
 
         assert!(bundle.map().contains_key(&links_cid));
 
-        let links_ipld = store.load::<LinksIpld>(&links_cid).await.unwrap();
+        let links_ipld = store
+            .load::<DagCborCodec, LinksIpld>(&links_cid)
+            .await
+            .unwrap();
 
         assert!(bundle.map().contains_key(&links_ipld.changelog));
         assert!(bundle.map().contains_key(&foo_cid));
@@ -371,27 +426,29 @@ mod tests {
 
         let (sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
 
-        let foo_cid = store.write_cbor(b"foo").await.unwrap();
+        let foo_key = String::from("foo");
+        let foo_cid = store.save::<RawCodec, _>(Bytes::new(b"foo")).await.unwrap();
         let mut first_mutation = SphereMutation::new(&owner_did);
-        first_mutation.links_mut().set("foo", &foo_cid);
+        first_mutation.links_mut().set(&foo_key, &foo_cid);
 
-        let mut revision = sphere.try_apply(&first_mutation).await.unwrap();
+        let mut revision = sphere.try_apply_mutation(&first_mutation).await.unwrap();
         let new_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let sphere = Sphere::at(&new_cid, &store);
 
-        let bar_cid = store.write_cbor(b"bar").await.unwrap();
+        let bar_key = String::from("bar");
+        let bar_cid = store.save::<RawCodec, _>(Bytes::new(b"bar")).await.unwrap();
         let mut second_mutation = SphereMutation::new(&owner_did);
-        second_mutation.links_mut().set("bar", &bar_cid);
+        second_mutation.links_mut().set(&bar_key, &bar_cid);
 
-        let mut revision = sphere.try_apply(&second_mutation).await.unwrap();
+        let mut revision = sphere.try_apply_mutation(&second_mutation).await.unwrap();
         let new_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let bundle = MemoIpld::try_bundle_with_cid(&new_cid, &store)
             .await
             .unwrap();
 
-        assert_eq!(bundle.map().keys().len(), 5);
+        assert_eq!(bundle.map().keys().len(), 11);
         assert!(!bundle.map().contains_key(&foo_cid));
         assert!(bundle.map().contains_key(&bar_cid));
     }
@@ -405,22 +462,24 @@ mod tests {
 
         let (sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
 
-        let original_cid = sphere.cid().clone();
+        let original_cid = *sphere.cid();
 
-        let foo_cid = store.write_cbor(b"foo").await.unwrap();
+        let foo_key = String::from("foo");
+        let foo_cid = store.save::<RawCodec, _>(Bytes::new(b"foo")).await.unwrap();
         let mut first_mutation = SphereMutation::new(&owner_did);
-        first_mutation.links_mut().set("foo", &foo_cid);
+        first_mutation.links_mut().set(&foo_key, &foo_cid);
 
-        let mut revision = sphere.try_apply(&first_mutation).await.unwrap();
+        let mut revision = sphere.try_apply_mutation(&first_mutation).await.unwrap();
         let second_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let sphere = Sphere::at(&second_cid, &store);
 
-        let bar_cid = store.write_cbor(b"bar").await.unwrap();
+        let bar_key = String::from("bar");
+        let bar_cid = store.save::<RawCodec, _>(Bytes::new(b"bar")).await.unwrap();
         let mut second_mutation = SphereMutation::new(&owner_did);
-        second_mutation.links_mut().set("bar", &bar_cid);
+        second_mutation.links_mut().set(&bar_key, &bar_cid);
 
-        let mut revision = sphere.try_apply(&second_mutation).await.unwrap();
+        let mut revision = sphere.try_apply_mutation(&second_mutation).await.unwrap();
         let final_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let timeline = Timeline::new(&store);
@@ -430,7 +489,7 @@ mod tests {
                 .await
                 .unwrap();
 
-        assert_eq!(bundle.map().keys().len(), 10);
+        assert_eq!(bundle.map().keys().len(), 16);
 
         assert!(bundle.map().contains_key(&foo_cid));
         assert!(bundle.map().contains_key(&bar_cid));

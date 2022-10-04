@@ -1,9 +1,11 @@
-mod links;
+mod authorization;
 mod mutation;
 mod sphere;
 mod timeline;
+mod versioned_map;
 
-pub use links::*;
+pub use authorization::*;
 pub use mutation::*;
 pub use sphere::*;
 pub use timeline::*;
+pub use versioned_map::*;

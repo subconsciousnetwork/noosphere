@@ -1,16 +1,56 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use cid::Cid;
 pub use crdts::{map, Orswot};
+use libipld_cbor::DagCborCodec;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{hash::Hash, marker::PhantomData};
 
-use noosphere_cbor::{TryDagCbor, TryDagCborConditionalSendSync};
 use noosphere_collections::hamt::{Hamt, Hash as HamtHash, Sha256};
-use noosphere_storage::interface::{DagCborStore, Store};
+use noosphere_storage::interface::BlockStore;
 
 use super::ChangelogIpld;
 
-// pub type Changelog<Key, Value> = Vec<map::Op<Key, Orswot<Value, String>, String>>;
+#[cfg(not(target_arch = "wasm32"))]
+pub trait VersionedMapSendSync: Send + Sync {}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<T> VersionedMapSendSync for T where T: Send + Sync {}
+
+#[cfg(target_arch = "wasm32")]
+pub trait VersionedMapSendSync {}
+
+#[cfg(target_arch = "wasm32")]
+impl<T> VersionedMapSendSync for T {}
+
+#[repr(transparent)]
+#[derive(Ord, Eq, PartialEq, PartialOrd, Debug, Clone, Serialize, Deserialize)]
+pub struct CidKey(pub Cid);
+
+impl HamtHash for CidKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash().hash(state);
+    }
+}
+
+pub trait VersionedMapKey:
+    Serialize + DeserializeOwned + HamtHash + Clone + Eq + Ord + VersionedMapSendSync
+{
+}
+
+impl<T> VersionedMapKey for T where
+    T: Serialize + DeserializeOwned + HamtHash + Clone + Eq + Ord + VersionedMapSendSync
+{
+}
+
+pub trait VersionedMapValue:
+    Serialize + DeserializeOwned + Clone + Eq + Hash + VersionedMapSendSync
+{
+}
+
+impl<T> VersionedMapValue for T where
+    T: Serialize + DeserializeOwned + Clone + Eq + Hash + VersionedMapSendSync
+{
+}
 
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum MapOperation<Key, Value> {
@@ -21,8 +61,8 @@ pub enum MapOperation<Key, Value> {
 #[derive(Debug, Default, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct VersionedMapIpld<Key, Value>
 where
-    Key: HamtHash + Eq + Ord + TryDagCborConditionalSendSync,
-    Value: Clone + Eq + Hash + TryDagCborConditionalSendSync,
+    Key: VersionedMapKey,
+    Value: VersionedMapValue,
 {
     /// A pointer to a HAMT
     pub hamt: Cid,
@@ -33,36 +73,37 @@ where
     // pub changelog: ChangelogIpld<MapOperation<Key, Value>>,
     pub changelog: Cid,
 
+    #[serde(skip)]
     pub signature: PhantomData<(Key, Value)>,
 }
 
 impl<Key, Value> VersionedMapIpld<Key, Value>
 where
-    Key: DeserializeOwned + Serialize + HamtHash + Eq + Ord + TryDagCborConditionalSendSync,
-    Value: DeserializeOwned + Serialize + Clone + Eq + Hash + TryDagCborConditionalSendSync,
+    Key: VersionedMapKey,
+    Value: VersionedMapValue,
 {
-    pub async fn try_load_hamt<Storage: Store>(
+    pub async fn try_load_hamt<S: BlockStore>(
         &self,
-        store: &Storage,
-    ) -> Result<Hamt<Storage, Value, Key, Sha256>> {
+        store: &S,
+    ) -> Result<Hamt<S, Value, Key, Sha256>> {
         Hamt::load(&self.hamt, store.clone()).await
     }
 
-    pub async fn try_load_changelog<Storage: Store>(
+    pub async fn try_load_changelog<S: BlockStore>(
         &self,
-        store: &Storage,
+        store: &S,
     ) -> Result<ChangelogIpld<MapOperation<Key, Value>>> {
-        store.load(&self.changelog).await
+        store.load::<DagCborCodec, _>(&self.changelog).await
     }
 
     // NOTE: We currently don't have a mechanism to prepuplate the store with
     // "empty" DAGs like a HAMT. So, we do it lazily by requiring async
     // initialization of this struct even when it is empty.
-    pub async fn try_empty<Storage: Store>(store: &mut Storage) -> Result<Self> {
-        let mut hamt = Hamt::<Storage, Value, Key, Sha256>::new(store.clone());
+    pub async fn try_empty<S: BlockStore>(store: &mut S) -> Result<Self> {
+        let mut hamt = Hamt::<S, Value, Key, Sha256>::new(store.clone());
         let changelog = ChangelogIpld::<MapOperation<Key, Value>>::default();
 
-        let changelog_cid = store.write_cbor(&changelog.try_into_dag_cbor()?).await?;
+        let changelog_cid = store.save::<DagCborCodec, _>(&changelog).await?;
         let hamt_cid = hamt.flush().await?;
 
         Ok(VersionedMapIpld {

@@ -136,16 +136,6 @@ impl Store for WebStore {
         Ok(old_bytes)
     }
 
-    async fn contains(&self, key: &[u8]) -> Result<bool> {
-        let (store, tx) = self.start_transaction(TransactionMode::ReadOnly)?;
-
-        let contains = WebStore::contains(&WebStore::bytes_to_typed_array(key)?, &store).await?;
-
-        WebStore::finish_transaction(tx).await?;
-
-        Ok(contains)
-    }
-
     async fn remove(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let (store, tx) = self.start_transaction(TransactionMode::ReadWrite)?;
 

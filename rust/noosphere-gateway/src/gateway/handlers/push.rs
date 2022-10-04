@@ -1,9 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use async_std::sync::Mutex;
 use hyper::StatusCode;
+use libipld_cbor::DagCborCodec;
 use noosphere::view::{Sphere, Timeline};
 use noosphere_api::data::PushResponse;
 use noosphere_storage::interface::KeyValueStore;
+use std::ops::Deref;
 use std::sync::Arc;
 
 use axum::debug_handler;
@@ -12,7 +14,7 @@ use noosphere_api::{
     authority::GatewayAction,
     data::{MissingRevisionsResponse, OutOfDateResponse, PushBody},
 };
-use noosphere_storage::{interface::DagCborStore, native::NativeStore};
+use noosphere_storage::{interface::BlockStore, native::NativeStore};
 
 use crate::gateway::environment::{Blocks, SphereTracker};
 use crate::gateway::extractors::DagCbor;
@@ -20,34 +22,33 @@ use crate::gateway::{authority::GatewayAuthority, environment::GatewayState, Gat
 
 async fn incorporate_lineage(
     state: Arc<Mutex<GatewayState<NativeStore>>>,
-    store: Arc<Mutex<Blocks<NativeStore>>>,
+    mut store: Blocks<NativeStore>,
     push_body: &PushBody,
 ) -> Result<()> {
-    let mut store = store.lock().await.clone();
-
-    for (expected_cid, block) in push_body.blocks.map() {
-        let actual_cid = store.write_cbor(block).await?;
-        if expected_cid != &actual_cid {
-            return Err(anyhow!("Invalid block"));
-        }
+    for (cid, block) in push_body.blocks.map() {
+        debug!("Saving pushed block {}", cid);
+        // TODO: Use SphereDb instead
+        store.put_block(cid, block).await?;
+        store.put_links::<DagCborCodec>(cid, block).await?;
     }
 
     let PushBody { base, tip, .. } = push_body;
 
-    let timeline = Timeline::new(&store);
+    let timeline = Timeline::new(store.deref());
     let timeslice = timeline.slice(tip, base.as_ref());
     let steps = timeslice.try_to_chronological().await?;
 
     for (cid, _) in steps {
-        Sphere::at(&cid, &store).try_hydrate().await?;
+        debug!("Hydrating {}", cid);
+        Sphere::at(&cid, store.deref()).try_hydrate().await?;
     }
 
     let mut state = state.lock().await;
     let mut tracker = state.get_or_initialize_tracker(&push_body.sphere).await?;
 
-    tracker.latest = Some(push_body.tip.clone());
+    tracker.latest = Some(push_body.tip);
 
-    state.set(&push_body.sphere, &tracker).await?;
+    state.set_key(&push_body.sphere, &tracker).await?;
 
     Ok(())
 }
@@ -57,7 +58,7 @@ pub async fn push_handler(
     authority: GatewayAuthority,
     ContentLengthLimit(DagCbor(push_body)): ContentLengthLimit<DagCbor<PushBody>, { 1024 * 5000 }>,
     Extension(state): Extension<Arc<Mutex<GatewayState<NativeStore>>>>,
-    Extension(store): Extension<Arc<Mutex<Blocks<NativeStore>>>>,
+    Extension(store): Extension<Blocks<NativeStore>>,
 ) -> Result<(StatusCode, Json<PushResponse>), GatewayError> {
     authority.try_authorize(GatewayAction::Push).await?;
 

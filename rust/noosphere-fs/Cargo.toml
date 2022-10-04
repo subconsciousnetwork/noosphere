@@ -17,16 +17,12 @@ bytes = "^1"
 once_cell = "^1"
 cid = "~0.8"
 anyhow = "^1"
+libipld-core = "~0.14"
+libipld-cbor = "~0.14"
 
 futures-util = "~0.3"
+ucan = { version = "0.7.0-alpha.1" }
+ucan-key-support = { version = "0.7.0-alpha.1" }
 
 [dev-dependencies]
 wasm-bindgen-test = "~0.3"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ucan = { version = "0.6.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
-ucan-key-support = { version = "0.4.0-alpha.1", git = "https://github.com/cdata/rs-ucan.git" }
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-ucan = { version = "0.6.0-alpha.1", features = ["web"], git = "https://github.com/cdata/rs-ucan.git" }
-ucan-key-support = { version = "0.4.0-alpha.1", features = ["web"], git = "https://github.com/cdata/rs-ucan.git" }

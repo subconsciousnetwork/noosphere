@@ -31,14 +31,14 @@ pub struct FetchResponse {
     pub blocks: Bundle,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OutOfDateResponse {
     pub sphere: String,
     pub presumed_base: Option<Cid>,
     pub actual_tip: Cid,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MissingRevisionsResponse {
     pub sphere: String,
     pub presumed_base: Cid,
@@ -54,7 +54,7 @@ pub struct PushBody {
     pub blocks: Bundle,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PushResponse {
     Ok,
     OutOfDate(OutOfDateResponse),
