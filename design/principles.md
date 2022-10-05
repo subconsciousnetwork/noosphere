@@ -52,9 +52,9 @@ We aim to build protocols that provoke permissionless innovation—the ability t
 
 > Evolution is the most decentralized thing that you can imagine. It is something that runs itself and is self-organizing at every level and at every scale. (Stewart Brand)
 
-Decentralization makes ecosystems resilient and enables many of the other values we embrace, including evolvability, pluralism, user-ownership, and subsidiarity.
-
 We value decentralization in protocol design, and avoid centralization. Centralization can be usefully defined as "the ability of a single entity or a small group of them to exclusively observe, capture, control, or extract rent from the operation or use of a function" ([IETF](https://www.ietf.org/archive/id/draft-nottingham-avoiding-internet-centralization-05.html), 2022).
+
+[Decentralization makes ecosystems resilient](https://subconscious.substack.com/p/decentralization-enables-permissionless) and enables many of the other values we embrace, including evolvability, pluralism, user-ownership, and subsidiarity.
 
 #### ...and aims to mitigate downside where centralization emerges
 
