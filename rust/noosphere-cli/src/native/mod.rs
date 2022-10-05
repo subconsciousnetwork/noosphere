@@ -19,6 +19,8 @@ use commands::sphere::join_sphere;
 use workspace::Workspace;
 
 use self::commands::auth::auth_add;
+use self::commands::auth::auth_list;
+use self::commands::auth::auth_revoke;
 
 // orb config set <key> <value> -> Set local configuration
 // orb config get <key> -> Read local configuration
@@ -239,13 +241,13 @@ pub enum AuthCommand {
     /// Print the name and DID for all keys that the owner has authorized
     /// to work on this sphere
     List {
-        /// Output the list of available keys as formatted JSON
+        /// Output the list of authorized keys as formatted JSON
         #[clap(short = 'j', long)]
         as_json: bool,
     },
 
     /// Revoke authorization to work on the sphere from a specified key
-    Remove {
+    Revoke {
         /// The name of a key to revoke authorization for
         name: String,
     },
@@ -305,8 +307,8 @@ pub async fn main() -> Result<()> {
         OrbCommand::Publish { version: _ } => todo!(),
         OrbCommand::Auth { command } => match command {
             AuthCommand::Add { did, name } => auth_add(&did, name, &workspace).await?,
-            AuthCommand::List { as_json: _ } => todo!(),
-            AuthCommand::Remove { name: _ } => todo!(),
+            AuthCommand::List { as_json } => auth_list(as_json, &workspace).await?,
+            AuthCommand::Revoke { name } => auth_revoke(&name, &workspace).await?,
         },
     };
 

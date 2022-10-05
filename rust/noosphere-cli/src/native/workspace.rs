@@ -1,9 +1,13 @@
 use anyhow::{anyhow, Result};
-use noosphere::authority::{restore_ed25519_key};
+use noosphere::authority::restore_ed25519_key;
+use noosphere_storage::{
+    db::SphereDb,
+    native::{NativeStorageInit, NativeStorageProvider, NativeStore},
+};
 use path_absolutize::Absolutize;
 use std::{collections::BTreeMap, path::PathBuf};
 use tokio::fs;
-use ucan::{Ucan};
+use ucan::Ucan;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 const NOOSPHERE_DIRECTORY: &str = ".noosphere";
@@ -12,6 +16,7 @@ const BLOCKS_DIRECTORY: &str = "blocks";
 const KEYS_DIRECTORY: &str = "keys";
 const AUTHORIZATION_FILE: &str = "AUTHORIZATION";
 const KEY_FILE: &str = "KEY";
+const IDENTITY_FILE: &str = "IDENTITY";
 
 /// A utility for discovering and initializing the well-known paths for a
 /// working copy of a sphere and relevant global Noosphere configuration
@@ -24,6 +29,7 @@ pub struct Workspace {
     keys: PathBuf,
     authorization: PathBuf,
     key: PathBuf,
+    identity: PathBuf,
 }
 
 impl Workspace {
@@ -65,6 +71,10 @@ impl Workspace {
         &self.key
     }
 
+    pub fn identity_path(&self) -> &PathBuf {
+        &self.identity
+    }
+
     /// Attempts to read the locally stored authorization that enables the key
     /// to operate on this sphere, and returns it as a UCAN
     pub async fn get_local_authorization(&self) -> Result<Ucan> {
@@ -74,6 +84,14 @@ impl Workspace {
         let ucan = Ucan::try_from_token_string(&authorization_jwt)?;
 
         Ok(ucan)
+    }
+
+    pub async fn get_local_db(&self) -> Result<SphereDb<NativeStore>> {
+        self.expect_local_directories()?;
+
+        let storage_provider =
+            NativeStorageProvider::new(NativeStorageInit::Path(self.blocks_path().clone()))?;
+        SphereDb::new(&storage_provider).await
     }
 
     pub async fn get_local_key(&self) -> Result<Ed25519KeyMaterial> {
@@ -94,6 +112,12 @@ impl Workspace {
             "Could not resolve private key material for {:?}",
             local_key_did
         ))
+    }
+
+    pub async fn get_local_identity(&self) -> Result<String> {
+        self.expect_local_directories()?;
+
+        Ok(fs::read_to_string(&self.identity).await?)
     }
 
     /// Look up the DID for the key by its name
@@ -242,6 +266,7 @@ Unexpected things will happen if you try to nest spheres this way!"#,
         let blocks = sphere.join(BLOCKS_DIRECTORY);
         let authorization = sphere.join(AUTHORIZATION_FILE);
         let key = sphere.join(KEY_FILE);
+        let identity = sphere.join(IDENTITY_FILE);
         let noosphere = home::home_dir()
             .ok_or_else(|| {
                 anyhow!(
@@ -258,6 +283,7 @@ Unexpected things will happen if you try to nest spheres this way!"#,
             blocks,
             authorization,
             key,
+            identity,
             noosphere,
             keys,
         })

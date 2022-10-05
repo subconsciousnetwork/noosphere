@@ -1689,6 +1689,7 @@ dependencies = [
  "path-absolutize",
  "serde_json",
  "tokio",
+ "tokio-stream",
  "ucan",
  "ucan-key-support",
  "url",
