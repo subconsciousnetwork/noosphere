@@ -24,11 +24,11 @@ These are some of the values that have inspired and guided aspects of Noosphere'
 
 ### Noosphere supports credible exit
 
+[Credible exit](https://subconscious.substack.com/p/credible-exit) means the ability to leave an app or service without losing access to what you've created. For us, credible exit is closely related to the value of user ownership. Users in Noosphere have autonomy over their data, and over their own privacy, and [legibility](https://subconscious.substack.com/p/soulbinding-like-a-state).
+
 > To avoid lock-in you need the ability for the user to credibly exit. ([cdixon](https://twitter.com/cdixon/status/1444457003439443973?s=20&t=-mwTiFugTSLJhvVuujKhpA))
 
 > DNS is the unsung hero of web1. A mapping between network layer (domain name) and physical layer (IP), controlled fully by users, enabling them to keep centralized services in check with a credible ability to exit. ([cdixon](https://twitter.com/cdixon/status/1485323247755448331?s=20&t=M3gNBPIOU-QZHUg9jCyPng))
-
-[Credible exit](https://subconscious.substack.com/p/credible-exit) means the ability to leave an app or service without losing access to what you've created. For us, credible exit is closely related to the value of user ownership. Users in Noosphere have autonomy over their data, and over their own privacy, and [legibility](https://subconscious.substack.com/p/soulbinding-like-a-state).
 
 Noosphere aims to support three core kinds of exit at the protocol layer:
 
