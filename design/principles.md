@@ -12,7 +12,7 @@ Noosphere builds on the foundations of [content-addressing](https://web3.storage
 - Change history, like a lightweight Git
 - Security, through self-sovereign public key-based authorization ([UCAN](https://ucan.xyz/))
 
-The result is a hypertext protocol for user-owned data that is open-ended like http, versioned like git, and decentralized through content addressing. Sort of like a worldwide wiki that any app can use as a backend.
+The result is a hypertext protocol for user-owned data that is general-purpose like http, versioned like git, and decentralized through p2p content addressing. Sort of like a worldwide wiki that any app can use as a backend.
 
 More background:
 - [Noosphere announcement](https://subconscious.substack.com/p/noosphere-a-protocol-for-thought)
