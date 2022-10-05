@@ -52,7 +52,7 @@ Where centralization is likely to emerge, or where decentralized approaches are 
 
 Following [Elinor Ostrom](https://subconscious.substack.com/p/wiki-as-a-commons), we think the most effective way to manage a commons is through locally-situated community. 
 
-We value self-determination and local governance, beginning with individuals and small [Dunbar-scale communities](Dunbar-scale communities) (the [Cozyweb](https://studio.ribbonfarm.com/p/the-extended-internet-universe)), before working our way up.
+We value self-determination and local governance, beginning with individuals and small [Dunbar-scale communities](https://subconscious.substack.com/p/dunbar-scale-social) (the [Cozyweb](https://studio.ribbonfarm.com/p/the-extended-internet-universe)), before working our way up.
 
 This principle is called "subsidiarity". Governance decisions are made from the bottom-up, at the lowest practical level. It is similar in spirit to the [principle of least authority](https://en.wikipedia.org/wiki/Principle_of_least_privilege). Subsidiarity makes space for pluralism and self-determination. We value it as an alternative to top-down, totalizing, and centralized modes of governance and moderation.
 
