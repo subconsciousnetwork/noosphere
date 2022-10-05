@@ -2,11 +2,25 @@ This document outlines values and motivations that have influenced the Noosphere
 
 ## Purpose
 
-Unstoppable tools for thinking together.
+Mission: unstoppable tools for thinking together.
+
+Noosphere is a protocol for thought. Its goal is to offer an open, decentralized, shared commons for knowledge.
+
+Noosphere builds on the foundation [content-addressing](https://web3.storage/docs/concepts/content-addressing/) and [IPLD data structures](https://ipld.io/), layering in:
+
+- Naming, through a hyperlocal p2p petname system
+- Change history, like a lightweight Git
+- Security, through self-sovereign public key-based authorization ([UCAN](https://ucan.xyz/))
+
+The result is a hypertext protocol for user-owned data that is open-ended like http, versioned like git, and decentralized through content addressing. Sort of like a worldwide wiki that any app can use as a backend.
+
+More background:
+- [Noosphere announcement](https://subconscious.substack.com/p/noosphere-a-protocol-for-thought)
+- [Redecentralizing the web](https://subconscious.substack.com/p/redecentralization)
 
 ## Principles
 
-These are some of the values that have become important to Noosphere's design.
+These are some of the values that have inspired or guided aspects of Noosphere's design.
 
 ### Noosphere supports credible exit
 
