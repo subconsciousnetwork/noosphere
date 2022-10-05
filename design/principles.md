@@ -46,7 +46,7 @@ We value decentralization in protocol design, and avoid centralization. Centrali
 
 [Centralization emerges organically in all evolving systems](https://subconscious.substack.com/p/centralization-is-inevitable). You can never fully escape it, but you can sometimes mitigate it.
 
-Where centralization is likely to emerge, or where decentralized approaches are infeasible, we look for pragmatic ways to mitigate downsides and uphold Noosphere's other values (credible exit, permissionlessness, etc). We are inspired by the way the internet created consortiums and other open goverance structures to distribute responsibility for infrastructure (such as DNS), that has strong centralizing tendencies.
+Where centralization is likely to emerge, or where decentralized approaches are infeasible, we look for pragmatic ways that the protocol can mitigate downsides and uphold Noosphere's other values (credible exit, permissionlessness, etc). We are inspired by the way the internet created consortiums and other open goverance structures to distribute responsibility for infrastructure (such as DNS), that has strong centralizing tendencies.
 
 ### Noosphere is a commons
 
