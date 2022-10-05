@@ -20,7 +20,7 @@ More background:
 
 ## Principles
 
-These are some of the values that have inspired or guided aspects of Noosphere's design.
+These are some of the values that have inspired and guided aspects of Noosphere's design.
 
 ### Noosphere supports credible exit
 
