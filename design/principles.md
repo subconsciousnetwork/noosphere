@@ -6,7 +6,7 @@ Unstoppable tools for thinking together.
 
 ## Principles
 
-These are some of the values that have become important to Noosphere’s design.
+These are some of the values that have become important to Noosphere's design.
 
 ### Noosphere supports credible exit
 
@@ -24,11 +24,11 @@ Noosphere aims to support three core kinds of exit at the protocol layer:
 
 ### Noosphere is evolvable
 
-> “I argue that much of the Internet's success can be attributed to its users' ability to shape the network to meet their own objectives.” (Abbate, 1999. Inventing the Internet)
+> "I argue that much of the Internet's success can be attributed to its users' ability to shape the network to meet their own objectives." (Abbate, 1999. Inventing the Internet)
 
 > Only that which can change can continue. (James Carse)
 
-Noosphere is designed for open-ended evolution, to be adapted and evolved in directions we can’t yet imagine.
+Noosphere is designed for open-ended evolution, to be adapted and evolved in directions we can't yet imagine.
 
 ### Noosphere is permissionless
 
@@ -40,7 +40,7 @@ We aim to build protocols that provoke permissionless innovation—the ability t
 
 Decentralization makes ecosystems resilient and enables many of the other values we embrace, including evolvability, pluralism, user-ownership, and subsidiarity.
 
-We value decentralization in protocol design, and avoid centralization. Centralization can be usefully defined as “the ability of a single entity or a small group of them to exclusively observe, capture, control, or extract rent from the operation or use of a function” ([IETF](https://www.ietf.org/archive/id/draft-nottingham-avoiding-internet-centralization-05.html), 2022).
+We value decentralization in protocol design, and avoid centralization. Centralization can be usefully defined as "the ability of a single entity or a small group of them to exclusively observe, capture, control, or extract rent from the operation or use of a function" ([IETF](https://www.ietf.org/archive/id/draft-nottingham-avoiding-internet-centralization-05.html), 2022).
 
 #### ...and aims to mitigate downside where centralization emerges
 
@@ -64,7 +64,7 @@ Pluralism is a core value for Noosphere. We want Noosphere to be accessible to a
 
 ### Design is navigating tradeoffs by values
 
-Design is the practice of navigating [wicked problems](https://en.wikipedia.org/wiki/Wicked_problem)—problems for which there is no one optimal solution. The values that guide Noosphere’s design aren’t absolutes, but they do frame a design space that is meaningful for the particular goals of this protocol.
+Design is the practice of navigating [wicked problems](https://en.wikipedia.org/wiki/Wicked_problem)—problems for which there is no one optimal solution. The values that guide Noosphere's design aren't absolutes, but they do frame a design space that is meaningful for the particular goals of this protocol.
 
 These values will not always be fully realizable, and will sometimes be in tension. When this happens, we embrace pragmatic trade-offs and aim for continual improvement. Like the IETF, we move forward through rough consensus and running code.
 
