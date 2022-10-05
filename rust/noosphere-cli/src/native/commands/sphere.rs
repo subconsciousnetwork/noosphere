@@ -2,9 +2,8 @@ use crate::native::workspace::Workspace;
 use anyhow::{anyhow, Result};
 use noosphere::view::Sphere;
 use noosphere_storage::{
-    interface::StorageProvider,
+    db::SphereDb,
     native::{NativeStorageInit, NativeStorageProvider},
-    BLOCK_STORE,
 };
 use tokio::fs;
 
@@ -25,12 +24,17 @@ pub async fn initialize_sphere(owner_key: &str, working_paths: &Workspace) -> Re
 
     let storage_provider =
         NativeStorageProvider::new(NativeStorageInit::Path(working_paths.blocks_path().clone()))?;
-    let mut block_store = storage_provider.get_store(BLOCK_STORE).await?;
+    let mut db = SphereDb::new(&storage_provider).await?;
 
-    let (sphere, ucan, mnemonic) = Sphere::try_generate(&owner_did, &mut block_store).await?;
+    let (sphere, ucan, mnemonic) = Sphere::try_generate(&owner_did, &mut db).await?;
+
+    let sphere_identity = sphere.try_get_identity().await?;
+
+    db.set_version(&sphere_identity, sphere.cid()).await?;
 
     fs::write(working_paths.authorization_path(), ucan.encode()?).await?;
     fs::write(working_paths.key_path(), owner_did).await?;
+    fs::write(working_paths.identity_path(), sphere_identity).await?;
 
     println!(
         r#"A new sphere has been created in {:?}
@@ -73,16 +77,16 @@ pub async fn join_sphere(
     let _token = match token {
         None => {
             println!(
-                r#"In order to join the sphere, its owner must first authorize your key
-This is your key's ID; share it with the owner of the sphere:
+                r#"In order to join the sphere, another client must authorize your local key
+This is the local key's ID; share it with an authorized client:
 
   {0}
 
-Hint: if the owner is using the Noosphere CLI, they can use this command from the sphere root directory to authorize your key:
+Hint: if the authorized client is also using the "orb" CLI, you can use this command from the existing workspace to authorize the new key:
 
   orb auth add {0}
   
-Once authorized, the owner will give you a code.
+Once authorized, you will get a code.
 Type or paste the code here and press enter:"#,
                 did
             );
@@ -95,7 +99,8 @@ Type or paste the code here and press enter:"#,
         }
         Some(token) => token,
     };
-    // working_paths.initialize_local_directories().await?;
+
+    todo!();
 
     Ok(())
 }

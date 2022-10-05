@@ -2,9 +2,12 @@ use anyhow::Result;
 use async_trait::async_trait;
 use cid::Cid;
 use libipld_core::{
-    codec::{Codec, References},
+    codec::{Codec, Decode, Encode, References},
     ipld::Ipld,
+    raw::RawCodec,
 };
+use std::fmt::Debug;
+use ucan::store::{UcanStore, UcanStoreConditionalSend};
 
 use crate::interface::{BlockStore, KeyValueStore, StorageProvider, Store};
 
@@ -92,6 +95,24 @@ where
 
     async fn get_block(&self, cid: &cid::Cid) -> Result<Option<Vec<u8>>> {
         self.block_store.get_block(cid).await
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<S> UcanStore for SphereDb<S>
+where
+    S: Store,
+{
+    async fn read<T: Decode<RawCodec>>(&self, cid: &Cid) -> Result<Option<T>> {
+        self.get::<RawCodec, T>(cid).await
+    }
+
+    async fn write<T: Encode<RawCodec> + UcanStoreConditionalSend + Debug>(
+        &mut self,
+        token: T,
+    ) -> Result<Cid> {
+        self.put::<RawCodec, T>(token).await
     }
 }
 

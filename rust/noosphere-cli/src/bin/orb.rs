@@ -1,5 +1,3 @@
-// pub use noosphere_cli::native::main;
-
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 pub async fn main() -> anyhow::Result<()> {
