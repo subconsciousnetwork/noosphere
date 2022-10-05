@@ -6,7 +6,7 @@ Mission: unstoppable tools for thinking together.
 
 Noosphere is a protocol for thought. Its goal is to offer an open, decentralized, shared commons for knowledge.
 
-Noosphere builds on the foundation [content-addressing](https://web3.storage/docs/concepts/content-addressing/) and [IPLD data structures](https://ipld.io/), layering in:
+Noosphere builds on the foundations of [content-addressing](https://web3.storage/docs/concepts/content-addressing/) and [IPLD data structures](https://ipld.io/), layering in:
 
 - Naming, through a hyperlocal p2p petname system
 - Change history, like a lightweight Git
