@@ -1,12 +1,28 @@
 use anyhow::{anyhow, Result};
-use noosphere::authority::restore_ed25519_key;
+use cid::Cid;
+use globset::{Glob, GlobMatcher, GlobSet, GlobSetBuilder};
+use libipld_cbor::DagCborCodec;
+use noosphere::{
+    authority::restore_ed25519_key,
+    data::{BodyChunkIpld, ContentType, MemoIpld},
+    view::Sphere,
+};
+use noosphere_fs::SphereFs;
 use noosphere_storage::{
     db::SphereDb,
+    interface::{BlockStore, Store},
     native::{NativeStorageInit, NativeStorageProvider, NativeStore},
 };
 use path_absolutize::Absolutize;
-use std::{collections::BTreeMap, path::PathBuf};
+use pathdiff::diff_paths;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::PathBuf,
+    str::FromStr,
+};
+use subtext::util::to_slug;
 use tokio::fs;
+use tokio_stream::StreamExt;
 use ucan::Ucan;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
@@ -17,6 +33,32 @@ const KEYS_DIRECTORY: &str = "keys";
 const AUTHORIZATION_FILE: &str = "AUTHORIZATION";
 const KEY_FILE: &str = "KEY";
 const IDENTITY_FILE: &str = "IDENTITY";
+
+#[derive(Default)]
+pub struct ContentChanges {
+    pub new: BTreeMap<String, Option<ContentType>>,
+    pub updated: BTreeMap<String, Option<ContentType>>,
+    pub unchanged: BTreeSet<String>,
+    pub removed: BTreeMap<String, Option<ContentType>>,
+}
+
+impl ContentChanges {
+    pub fn is_empty(&self) -> bool {
+        self.new.is_empty() && self.updated.is_empty() && self.removed.is_empty()
+    }
+}
+
+#[derive(Default)]
+pub struct Content {
+    pub matched: BTreeMap<String, (ContentType, Cid)>,
+    pub ignored: BTreeSet<String>,
+}
+
+impl Content {
+    pub fn is_empty(&self) -> bool {
+        self.matched.is_empty()
+    }
+}
 
 /// A utility for discovering and initializing the well-known paths for a
 /// working copy of a sphere and relevant global Noosphere configuration
@@ -33,6 +75,191 @@ pub struct Workspace {
 }
 
 impl Workspace {
+    pub async fn read_local_content<S: BlockStore>(
+        &self,
+        pattern: Option<GlobMatcher>,
+        store: &mut S,
+    ) -> Result<Content> {
+        self.expect_local_directories()?;
+
+        let root_path = self.root_path();
+        let mut directories = vec![(None, tokio::fs::read_dir(root_path).await?)];
+
+        let ignore_patterns = self.get_ignored_patterns().await?;
+
+        let mut content = Content::default();
+
+        while let Some((slug_prefix, mut directory)) = directories.pop() {
+            while let Some(entry) = directory.next_entry().await? {
+                let path = entry.path();
+                let relative_path = diff_paths(&path, root_path)
+                    .ok_or_else(|| anyhow!("Could not determine relative path to {:?}", path))?;
+
+                if ignore_patterns.is_match(&relative_path) {
+                    continue;
+                }
+
+                if path.is_dir() {
+                    let slug_prefix = relative_path.to_string_lossy().to_string();
+
+                    directories.push((Some(slug_prefix), tokio::fs::read_dir(path).await?));
+
+                    // TODO: Limit the depth of the directory traversal to some reasonable number
+
+                    continue;
+                }
+
+                let mut ignored = false;
+
+                // Ignore files that don't match an optional pattern
+                if let Some(pattern) = &pattern {
+                    if !pattern.is_match(&relative_path) {
+                        ignored = true;
+                    }
+                }
+
+                let name = match path.file_stem() {
+                    Some(name) => name.to_string_lossy(),
+                    None => continue,
+                };
+
+                let name = match &slug_prefix {
+                    Some(prefix) => format!("{}/{}", prefix, name),
+                    None => name.to_string(),
+                };
+
+                let slug = match to_slug(&name) {
+                    Ok(slug) if slug == name => slug,
+                    _ => continue,
+                };
+
+                if ignored {
+                    content.ignored.insert(slug);
+                    continue;
+                }
+
+                let extension = match path.extension() {
+                    Some(extension) => extension.to_string_lossy(),
+                    None => continue,
+                };
+
+                let content_type = self.infer_content_type(&extension).await?;
+
+                let file_bytes = fs::read(path).await?;
+                let body_cid = BodyChunkIpld::store_bytes(&file_bytes, store).await?;
+
+                content.matched.insert(slug, (content_type, body_cid));
+            }
+        }
+        Ok(content)
+    }
+
+    pub async fn get_local_content_changes<Sa: Store, Sb: Store>(
+        &self,
+        pattern: Option<GlobMatcher>,
+        db: &SphereDb<Sa>,
+        new_blocks: &mut Sb,
+    ) -> Result<(Content, ContentChanges)> {
+        let sphere_did = self.get_local_identity().await?;
+        let sphere_cid = db.require_version(&sphere_did).await?;
+
+        let content = self.read_local_content(pattern, new_blocks).await?;
+
+        let sphere_fs = SphereFs::at(&sphere_did, &sphere_cid, None, &db);
+        let sphere = Sphere::at(&sphere_cid, db);
+        let links = sphere.try_get_links().await?;
+
+        let mut stream = links.stream().await?;
+
+        let mut changes = ContentChanges::default();
+
+        while let Some(Ok((slug, cid))) = stream.next().await {
+            if content.ignored.contains(slug) {
+                continue;
+            }
+
+            match content.matched.get(slug) {
+                Some((content_type, body_cid)) => {
+                    let sphere_file = sphere_fs.read(slug).await?.ok_or_else(|| {
+                        anyhow!(
+                            "Expected sphere file at slug {:?} but it was missing!",
+                            slug
+                        )
+                    })?;
+
+                    if &sphere_file.memo.body == body_cid {
+                        changes.unchanged.insert(slug.clone());
+                        continue;
+                    }
+
+                    changes
+                        .updated
+                        .insert(slug.clone(), Some(content_type.clone()));
+                }
+                None => {
+                    let memo = db.load::<DagCborCodec, MemoIpld>(cid).await?;
+
+                    changes.removed.insert(slug.clone(), memo.content_type());
+                }
+            }
+        }
+
+        for (slug, (content_type, _)) in &content.matched {
+            if changes.updated.contains_key(slug)
+                || changes.removed.contains_key(slug)
+                || changes.unchanged.contains(slug)
+            {
+                continue;
+            }
+
+            changes.new.insert(slug.clone(), Some(content_type.clone()));
+        }
+
+        Ok((content, changes))
+    }
+
+    pub async fn infer_content_type(&self, extension: &str) -> Result<ContentType> {
+        // TODO: User-specified extension->mime mapping
+        Ok(match extension {
+            "subtext" => ContentType::Subtext,
+            "sphere" => ContentType::Sphere,
+            _ => ContentType::from_str(
+                mime_guess::from_ext(extension)
+                    .first_raw()
+                    .unwrap_or_else(|| "raw/bytes"),
+            )?,
+        })
+    }
+
+    pub async fn infer_file_extension(&self, content_type: ContentType) -> Option<String> {
+        match content_type {
+            ContentType::Subtext => Some("subtext".into()),
+            ContentType::Sphere => Some("sphere".into()),
+            ContentType::Bytes => None,
+            ContentType::Unknown(content_type) => {
+                match mime_guess::get_mime_extensions_str(&content_type.to_string()) {
+                    Some(extensions) => extensions.first().map(|str| String::from(*str)),
+                    None => None,
+                }
+            }
+        }
+    }
+
+    pub async fn get_ignored_patterns(&self) -> Result<GlobSet> {
+        self.expect_local_directories()?;
+
+        // TODO(#82): User-specified ignore patterns
+        let ignored_patterns = vec!["@*", ".*"];
+
+        let mut builder = GlobSetBuilder::new();
+
+        for pattern in ignored_patterns {
+            builder.add(Glob::new(pattern)?);
+        }
+
+        Ok(builder.build()?)
+    }
+
     /// The root directory containing the working copy of sphere files on
     /// disk, as well as the local sphere data
     pub fn root_path(&self) -> &PathBuf {

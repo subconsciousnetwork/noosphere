@@ -1,5 +1,6 @@
 use std::{convert::Infallible, fmt::Display, str::FromStr};
 
+#[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Debug)]
 pub enum ContentType {
     Subtext,
     Sphere,
