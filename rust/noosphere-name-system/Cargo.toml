@@ -7,25 +7,19 @@ rust-version = "1.60.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-noosphere = { path = "../noosphere" }
 anyhow = "^1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+noosphere = { path = "../noosphere" }
 futures = "0.3.1"
 async-trait = "~0.1"
 clap = { version = "^4", features = ["derive"], optional = true }
 toml = { version = "0.5.9", optional = true }
 noosphere-cli = { path = "../noosphere-cli", optional = true }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1.15", features = ["io-util", "io-std", "macros", "rt", "rt-multi-thread"] }
 ucan = { version = "0.7.0-alpha.1" }
 ucan-key-support = { version = "0.7.0-alpha.1" }
-
-[dependencies.libp2p]
-version = "0.48.0"
-default-features = true 
-features = [
-  "dns-tokio", "tcp-tokio", "websocket", "noise", "mplex", "yamux", "kad"
-]
+libp2p = { version = "0.48.0", default-features = true, features = [ "dns-tokio", "tcp-tokio", "websocket", "noise", "mplex", "yamux", "kad" ] }
 
 [features]
 default = ["cli"]
