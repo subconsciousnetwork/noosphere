@@ -2,12 +2,9 @@ use std::{collections::BTreeSet, io::Cursor, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere::{view::Sphere};
+use noosphere::view::Sphere;
 use noosphere_fs::SphereFs;
-use noosphere_storage::{
-    db::SphereDb,
-    interface::{Store},
-};
+use noosphere_storage::{db::SphereDb, interface::Store};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 
@@ -97,14 +94,7 @@ where
                         }
                     }
 
-                    let fs =
-                        SphereFs::at(&sphere_identity, &sphere_cid, &db)?.ok_or_else(|| {
-                            anyhow!(
-                                "Unable to find revision for sphere {}: {}",
-                                sphere_identity,
-                                sphere_cid
-                            )
-                        })?;
+                    let fs = SphereFs::at(&sphere_identity, &sphere_cid, None, &db);
 
                     let transformer = SubtextToHtmlTransformer::new(&fs);
 
@@ -133,13 +123,7 @@ where
         // cases where writing content may fail
         futures::future::try_join_all(tasks).await?;
 
-        let fs = SphereFs::at(sphere_identity, &sphere_cid, db)?.ok_or_else(|| {
-            anyhow!(
-                "Unable to find revision for sphere {}: {}",
-                sphere_identity,
-                sphere_cid
-            )
-        })?;
+        let fs = SphereFs::at(sphere_identity, &sphere_cid, None, db);
         let sphere_transformer = SphereToHtmlTransformer::new(&fs);
 
         if let Some(read) = sphere_transformer.transform().await? {
@@ -187,10 +171,7 @@ pub mod tests {
         view::Sphere,
     };
     use noosphere_fs::SphereFs;
-    use noosphere_storage::{
-        db::SphereDb,
-        memory::{MemoryStorageProvider},
-    };
+    use noosphere_storage::{db::SphereDb, memory::MemoryStorageProvider};
     use ucan::crypto::KeyMaterial;
 
     #[cfg(target_arch = "wasm32")]
@@ -222,16 +203,16 @@ pub mod tests {
             .await
             .unwrap();
 
-        let mut fs = SphereFs::latest(&sphere_identity, &db).await.unwrap();
+        let mut fs = SphereFs::latest(&sphere_identity, Some(&owner_did), &db)
+            .await
+            .unwrap();
 
         let cats_cid = fs
             .write(
                 "cats",
                 &ContentType::Subtext.to_string(),
                 b"# Cats\n\n> It is said that cats are /divine creatures\n\nCats [[are]] great\n\n/animals".as_ref(),
-                &owner_key,
-                Some(&proof),
-                None,
+                None
             )
             .await
             .unwrap();
@@ -241,12 +222,12 @@ pub mod tests {
             &ContentType::Subtext.to_string(),
             b"Animals are multicellular, eukaryotic organisms in the biological kingdom Animalia."
                 .as_ref(),
-            &owner_key,
-            Some(&proof),
             Some(vec![(Header::Title.to_string(), "Animals".into())]),
         )
         .await
         .unwrap();
+
+        fs.save(&owner_key, Some(&proof), None).await.unwrap();
 
         let write_target = MemoryWriteTarget::default();
 
@@ -303,15 +284,15 @@ pub mod tests {
             .await
             .unwrap();
 
-        let mut fs = SphereFs::latest(&sphere_identity, &db).await.unwrap();
+        let mut fs = SphereFs::latest(&sphere_identity, Some(&owner_did), &db)
+            .await
+            .unwrap();
 
         let _cats_cid = fs
             .write(
                 "cats",
                 &ContentType::Subtext.to_string(),
                 b"# Cats\n\n> It is said that cats are /divine creatures\n\nCats [[are]] great\n\n/animals".as_ref(),
-                &owner_key,
-                Some(&proof),
                 None,
             )
             .await
@@ -322,12 +303,12 @@ pub mod tests {
                 "cats",
                 &ContentType::Subtext.to_string(),
                 b"Nevermind, I don't like cats".as_ref(),
-                &owner_key,
-                Some(&proof),
                 None,
             )
             .await
             .unwrap();
+
+        fs.save(&owner_key, Some(&proof), None).await.unwrap();
 
         let write_target = MemoryWriteTarget::default();
 

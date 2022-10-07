@@ -43,10 +43,7 @@ pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) ->
     let my_key = workspace.get_local_key().await?;
     let my_did = my_key.get_did().await?;
     let sphere_did = workspace.get_local_identity().await?;
-    let latest_sphere_cid = db
-        .get_version(&sphere_did)
-        .await?
-        .ok_or_else(|| anyhow!("Sphere version pointer is missing or corrupted"))?;
+    let latest_sphere_cid = db.require_version(&sphere_did).await?;
     let authorization = workspace.get_local_authorization().await?;
 
     let jwt = UcanBuilder::default()

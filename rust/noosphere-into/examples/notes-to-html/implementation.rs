@@ -12,10 +12,7 @@ use noosphere::{
     data::{ContentType, Header},
     view::Sphere,
 };
-use noosphere_storage::{
-    db::SphereDb,
-    memory::{MemoryStorageProvider},
-};
+use noosphere_storage::{db::SphereDb, memory::MemoryStorageProvider};
 use ucan::crypto::KeyMaterial;
 
 pub async fn main() -> Result<()> {
@@ -37,7 +34,7 @@ pub async fn main() -> Result<()> {
     println!("Content root: {:?}", content_root);
     println!("HTML root: {:?}", html_root.path());
 
-    let mut sphere_fs = SphereFs::latest(&sphere_identity, &db).await?;
+    let mut sphere_fs = SphereFs::latest(&sphere_identity, Some(&owner_did), &db).await?;
 
     let mut read_dir = fs::read_dir(content_root).await?;
 
@@ -64,12 +61,12 @@ pub async fn main() -> Result<()> {
                 slug,
                 &ContentType::Subtext.to_string(),
                 file,
-                &owner_key,
-                Some(&proof),
                 Some(vec![(Header::Title.to_string(), title)]),
             )
             .await?;
     }
+
+    sphere_fs.save(&owner_key, Some(&proof), None).await?;
 
     let native_fs = NativeFs {
         root: html_root.path().to_path_buf(),

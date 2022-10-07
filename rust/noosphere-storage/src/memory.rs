@@ -44,12 +44,12 @@ impl StorageProvider<MemoryStore> for MemoryStorageProvider {
 
 #[derive(Clone, Default, Debug)]
 pub struct MemoryStore {
-    dags: Arc<Mutex<HashMap<Vec<u8>, Vec<u8>>>>,
+    pub entries: Arc<Mutex<HashMap<Vec<u8>, Vec<u8>>>>,
 }
 
 impl MemoryStore {
     pub async fn get_stored_cids(&self) -> Vec<Cid> {
-        self.dags
+        self.entries
             .lock()
             .await
             .keys()
@@ -88,7 +88,7 @@ impl MemoryStore {
 
     pub async fn fork(&self) -> Self {
         MemoryStore {
-            dags: Arc::new(Mutex::new(self.dags.lock().await.clone())),
+            entries: Arc::new(Mutex::new(self.entries.lock().await.clone())),
         }
     }
 }
@@ -97,12 +97,12 @@ impl MemoryStore {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl Store for MemoryStore {
     async fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        let dags = self.dags.lock().await;
+        let dags = self.entries.lock().await;
         Ok(dags.get(key).cloned())
     }
 
     async fn write(&mut self, key: &[u8], bytes: &[u8]) -> Result<Option<Vec<u8>>> {
-        let mut dags = self.dags.lock().await;
+        let mut dags = self.entries.lock().await;
         let old_value = dags.get(key).cloned();
 
         dags.insert(key.to_vec(), bytes.to_vec());
@@ -111,7 +111,7 @@ impl Store for MemoryStore {
     }
 
     async fn remove(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        let mut dags = self.dags.lock().await;
+        let mut dags = self.entries.lock().await;
         Ok(dags.remove(key))
     }
 }

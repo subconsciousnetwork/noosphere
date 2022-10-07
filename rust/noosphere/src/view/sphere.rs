@@ -1,7 +1,5 @@
 use anyhow::{anyhow, Result};
-use cid::{
-    Cid,
-};
+use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use libipld_core::{codec::Codec, ipld::Ipld, raw::RawCodec};
 use ucan::{

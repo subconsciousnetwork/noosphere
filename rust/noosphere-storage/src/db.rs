@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use cid::Cid;
 use libipld_core::{
@@ -59,7 +59,14 @@ where
         self.version_store.get_key(identity).await
     }
 
-    pub async fn get_links(&self, cid: &Cid) -> Result<Option<Vec<Cid>>> {
+    pub async fn require_version(&self, identity: &str) -> Result<Cid> {
+        self.version_store
+            .get_key(identity)
+            .await?
+            .ok_or_else(|| anyhow!("No version was found for sphere {}", identity))
+    }
+
+    pub async fn get_block_links(&self, cid: &Cid) -> Result<Option<Vec<Cid>>> {
         self.link_store.get_key(&cid.to_string()).await
     }
 
@@ -146,7 +153,7 @@ mod tests {
 
         let cid3 = db.save::<DagCborCodec, _>(&list3).await.unwrap();
 
-        let links = db.get_links(&cid3).await.unwrap();
+        let links = db.get_block_links(&cid3).await.unwrap();
 
         assert_eq!(Some(list3), links);
     }

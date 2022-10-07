@@ -2,6 +2,7 @@ pub mod commands;
 pub mod workspace;
 
 use anyhow::Result;
+use globset::Glob;
 use std::ffi::OsString;
 
 use std::path::PathBuf;
@@ -21,6 +22,8 @@ use workspace::Workspace;
 use self::commands::auth::auth_add;
 use self::commands::auth::auth_list;
 use self::commands::auth::auth_revoke;
+use self::commands::save::save;
+use self::commands::status::status;
 
 // orb config set <key> <value> -> Set local configuration
 // orb config get <key> -> Read local configuration
@@ -94,7 +97,10 @@ pub enum OrbCommand {
     /// Saves changed files to a sphere, creating and signing a new revision in
     /// the process; does nothing if there have been no changes to the files
     /// since the last revision
-    Save,
+    Save {
+        #[clap(short = 'm', long)]
+        matching: Option<Glob>,
+    },
 
     /// Synchronizes the local sphere with the copy in a configured gateway;
     /// note that this is a "conflict-free" sync that may cause local changes
@@ -300,9 +306,9 @@ pub async fn main() -> Result<()> {
             }
             SphereCommand::Transfer { new_owner_key: _ } => todo!(),
         },
-        OrbCommand::Status => todo!(),
+        OrbCommand::Status => status(&workspace).await?,
         OrbCommand::Diff { paths: _, base: _ } => todo!(),
-        OrbCommand::Save => todo!(),
+        OrbCommand::Save { matching } => save(matching, &workspace).await?,
         OrbCommand::Sync => todo!(),
         OrbCommand::Publish { version: _ } => todo!(),
         OrbCommand::Auth { command } => match command {
