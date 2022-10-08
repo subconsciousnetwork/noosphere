@@ -72,6 +72,12 @@ impl<'a> SphereMutation {
     pub fn revoked_ucans(&self) -> &RevokedUcansMutation {
         &self.revoked_ucans
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.links.changes.len() == 0
+        && self.allowed_ucans.changes.len() == 0
+        && self.revoked_ucans.changes.len() == 0
+    }
 }
 
 pub type LinksMutation = VersionedMapMutation<String, Cid>;
