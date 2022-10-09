@@ -1714,10 +1714,12 @@ dependencies = [
  "noosphere-storage",
  "path-absolutize",
  "pathdiff",
+ "serde",
  "serde_json",
  "subtext",
  "tokio",
  "tokio-stream",
+ "toml_edit",
  "ucan",
  "ucan-key-support",
  "url",
@@ -3230,6 +3232,7 @@ dependencies = [
  "combine",
  "indexmap",
  "itertools",
+ "serde",
 ]
 
 [[package]]
@@ -3472,6 +3475,7 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]
