@@ -1,7 +1,10 @@
 //use async_std::task;
-use crate::dht::channel::message_channel;
-use crate::dht::node::DHTNode;
-use crate::dht::types::{DHTConfig, DHTMessageClient, DHTRequest, DHTResponse};
+use crate::dht::{
+    channel::message_channel,
+    node::DHTNode,
+    types::{DHTMessageClient, DHTRequest, DHTResponse},
+    DHTConfig,
+};
 use anyhow::{anyhow, Result};
 use tokio;
 

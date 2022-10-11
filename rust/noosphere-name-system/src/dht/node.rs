@@ -1,27 +1,35 @@
-use crate::dht::behaviour::DHTEvent;
-use crate::dht::swarm::{build_swarm, DHTSwarm};
-use crate::dht::types::{DHTConfig, DHTMessage, DHTMessageProcessor, DHTRequest, DHTResponse};
+use crate::dht::{
+    behaviour::DHTEvent,
+    swarm::{build_swarm, DHTSwarm},
+    types::{DHTMessage, DHTMessageProcessor, DHTRequest, DHTResponse},
+    utils, DHTConfig,
+};
 use anyhow::{anyhow, Result};
 use libp2p::futures::StreamExt;
 use libp2p::kad;
 use libp2p::kad::{record::Key, KademliaEvent, PeerRecord, QueryResult, Quorum, Record};
 use libp2p::{swarm::SwarmEvent, Multiaddr, PeerId};
 use std::collections::HashMap;
+use std::fmt;
 use tokio;
-const BOOTNODES: [&str; 4] = [
-    "QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
-    "QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
-    "QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb",
-    "QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt",
-];
 
 /// The processing component of a [DHTClient]/[DHTNode] pair. Consumers
 /// should only interface with a [DHTNode] via [DHTClient].
 pub struct DHTNode {
+    peer_id: PeerId,
     config: DHTConfig,
     processor: DHTMessageProcessor,
     swarm: DHTSwarm,
     queries: HashMap<kad::QueryId, DHTMessage>,
+}
+
+impl fmt::Debug for DHTNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DHTNode")
+            .field("peer_id", &self.peer_id)
+            .field("config", &self.config)
+            .finish()
+    }
 }
 
 impl DHTNode {
@@ -30,13 +38,17 @@ impl DHTNode {
         config: DHTConfig,
         processor: DHTMessageProcessor,
     ) -> Result<tokio::task::JoinHandle<Result<()>>> {
-        let swarm = build_swarm(&config)?;
+        let peer_id = utils::peer_id_from_key_with_sha256(&config.keypair.public())?;
+        let swarm = build_swarm(&peer_id, &config)?;
         let mut node = DHTNode {
+            peer_id,
             config,
             processor,
             swarm,
             queries: HashMap::new(),
         };
+
+        debug!("Spawning DHTNode {:#?}", node);
         Ok(tokio::spawn(async move { node.process().await }))
     }
 
@@ -44,7 +56,6 @@ impl DHTNode {
     /// in the current thread. Executes until the loop is broken, via
     /// either an unhandlable error or a terminate message (not yet implemented).
     async fn process(&mut self) -> Result<()> {
-        println!("running process loop...");
         //self.swarm.listen_on("/ip4/127.0.0.1".parse().unwrap())?;
 
         Ok(loop {

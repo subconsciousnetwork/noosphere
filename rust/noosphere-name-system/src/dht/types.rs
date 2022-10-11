@@ -1,4 +1,9 @@
-use crate::dht::channel::{Message, MessageClient, MessageProcessor};
+use crate::dht::{
+    channel::{Message, MessageClient, MessageProcessor},
+    utils,
+};
+use crate::NameSystemConfig;
+use anyhow::{Error, Result};
 use libp2p;
 
 pub enum DHTRequest {
@@ -16,9 +21,3 @@ pub enum DHTResponse {
 pub type DHTMessage = Message<DHTRequest, DHTResponse>;
 pub type DHTMessageProcessor = MessageProcessor<DHTRequest, DHTResponse>;
 pub type DHTMessageClient = MessageClient<DHTRequest, DHTResponse>;
-
-#[derive(Clone)]
-pub struct DHTConfig {
-    pub keypair: libp2p::identity::Keypair,
-    pub query_timeout: u32,
-}

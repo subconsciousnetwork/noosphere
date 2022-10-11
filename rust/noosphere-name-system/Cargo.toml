@@ -8,6 +8,7 @@ rust-version = "1.60.0"
 
 [dependencies]
 anyhow = "^1"
+tracing = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 noosphere = { path = "../noosphere" }
@@ -19,8 +20,9 @@ noosphere-cli = { path = "../noosphere-cli", optional = true }
 tokio = { version = "1.15", features = ["io-util", "io-std", "macros", "rt", "rt-multi-thread"] }
 ucan = { version = "0.7.0-alpha.1" }
 ucan-key-support = { version = "0.7.0-alpha.1" }
+tracing-subscriber = { version = "~0.3", features = ["env-filter"], optional = true }
 libp2p = { version = "0.48.0", default-features = true, features = [ "dns-tokio", "tcp-tokio", "websocket", "noise", "mplex", "yamux", "kad" ] }
 
 [features]
 default = ["cli"]
-cli = ["dep:clap", "dep:toml", "dep:noosphere-cli"]
+cli = ["dep:clap", "dep:toml", "dep:noosphere-cli", "dep:tracing-subscriber"]

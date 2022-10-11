@@ -1,8 +1,69 @@
 use crate::dht::{DHTClient, DHTConfig};
-use crate::utils;
 use anyhow::Result;
 /// @TODO these materials should be exposed in noosphere::authority?
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
+
+pub struct NameSystemConfig<'a> {
+    /// ed25519 key material containing public and private keys.
+    pub key_material: Option<&'a Ed25519KeyMaterial>,
+    /// Set query timeout in seconds.
+    pub query_timeout: u32,
+    /// Port to listen for incoming connections when running as a server.
+    /// `Some(0)` will automatically choose an appropriate port.
+    /// `None` will indicate client-only usage.
+    pub server_port: Option<u16>,
+    /// List of bootstrap nodes to connect to in [libp2p::Multiaddr] form.
+    pub bootstrap_peers: Option<Vec<String>>,
+}
+
+impl<'a> Default for NameSystemConfig<'a> {
+    fn default() -> Self {
+        Self {
+            key_material: None,
+            query_timeout: 5 * 60,
+            server_port: None,
+            bootstrap_peers: None,
+        }
+    }
+}
+
+/// See [NameSystemConfig] for details on fields.
+pub struct NameSystemBuilder<'a> {
+    config: NameSystemConfig<'a>,
+}
+
+impl<'a> NameSystemBuilder<'a> {
+    pub fn new() -> Self {
+        NameSystemBuilder {
+            config: NameSystemConfig::default(),
+        }
+    }
+
+    pub fn key_material(mut self, key_material: &'a Ed25519KeyMaterial) -> Self {
+        self.config.key_material = Some(key_material);
+        self
+    }
+
+    pub fn query_timeout(mut self, query_timeout: u32) -> Self {
+        self.config.query_timeout = query_timeout;
+        self
+    }
+
+    pub fn server_port(mut self, server_port: u16) -> Self {
+        self.config.server_port = Some(server_port);
+        self
+    }
+
+    pub fn bootstrap_peers(mut self, bootstrap_peers: Vec<String>) -> Self {
+        self.config.bootstrap_peers = Some(bootstrap_peers);
+        self
+    }
+
+    pub fn build(mut self) -> Result<NameSystem> {
+        let ns = NameSystem::new(self.config)?;
+        Ok(ns)
+    }
+}
 
 pub struct NameSystem {
     dht: DHTClient,
@@ -12,12 +73,8 @@ impl NameSystem {
     /// Creates a new NameSystem for resolving Sphere DIDs into the most
     /// recent, verifiable CID for that sphere.
     /// Method can fail if [Ed25519KeyMaterial] cannot be decoded.
-    pub fn new(key_material: &Ed25519KeyMaterial, query_timeout: u32) -> Result<Self> {
-        let keypair = utils::key_material_to_libp2p_keypair(key_material)?;
-        let dht = DHTClient::new(DHTConfig {
-            keypair,
-            query_timeout,
-        });
+    pub fn new(mut config: NameSystemConfig) -> Result<Self> {
+        let dht = DHTClient::new(DHTConfig::try_from(config)?);
         Ok(NameSystem { dht })
     }
 

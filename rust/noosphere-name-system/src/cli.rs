@@ -4,15 +4,14 @@ use futures::future::try_join_all;
 use noosphere::authority::generate_ed25519_key;
 use noosphere::authority::restore_ed25519_key;
 use noosphere_cli::native::workspace::Workspace;
-use noosphere_name_system::NameSystem;
+use noosphere_name_system::NameSystemBuilder;
 use std::fs;
 use tokio;
 use tokio::signal;
 use toml;
+use ucan::crypto::KeyMaterial;
 /// @TODO these materials should be exposed in noosphere::authority
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
-
-const QUERY_TIMEOUT: u32 = 5 * 60;
 
 #[derive(Debug, Parser)]
 #[clap(name = "orb-ns")]
@@ -28,8 +27,11 @@ pub enum CLICommand {
         #[clap(short, long)]
         keyname: String,
         /// The path to a TOML file of key/value pairs to maintain on the DHT.
-        #[clap(short, long)]
+        #[clap(long)]
         pinned: Option<std::path::PathBuf>,
+        /// The listening port to use.
+        #[clap(short, long)]
+        port: Option<u16>,
     },
 
     Query {
@@ -96,11 +98,18 @@ pub async fn run_cli_main() -> Result<()> {
     workspace.initialize_global_directories().await?;
 
     match cli.command {
-        CLICommand::Daemon { keyname, pinned } => {
-            println!("Using keyname {}", keyname);
+        CLICommand::Daemon {
+            keyname,
+            pinned,
+            port,
+        } => {
             let key_material = keyname_to_keymaterial(&workspace, &keyname).await?;
+            debug!("Using public key: {}", key_material.get_did().await?);
             let pinned_list = read_pinned_file(&pinned)?;
-            let mut ns = NameSystem::new(&key_material, QUERY_TIMEOUT)?;
+            let mut ns = NameSystemBuilder::new()
+                .key_material(&key_material)
+                .server_port(port.unwrap_or(0))
+                .build()?;
             ns.connect().await?;
 
             if let Some(pinned) = pinned_list {
@@ -108,7 +117,7 @@ pub async fn run_cli_main() -> Result<()> {
                 let pending_responses: Vec<_> = pinned
                     .iter()
                     .map(|record| {
-                        println!("Pinning {} key {}...", record.0, record.1);
+                        debug!("Pinning {} key {}...", record.0, record.1);
                         ns_ref.set_record(
                             record.1.clone().into_bytes(),
                             record.2.clone().into_bytes(),
@@ -129,7 +138,9 @@ pub async fn run_cli_main() -> Result<()> {
             QueryCommand::Get { name } => {
                 // Just querying, use an ephemeral key
                 let key_material = generate_ed25519_key();
-                let mut ns = NameSystem::new(&key_material, QUERY_TIMEOUT)?;
+                let mut ns = NameSystemBuilder::new()
+                    .key_material(&key_material)
+                    .build()?;
                 ns.connect().await?;
                 let result = ns.get_record(name.clone().into_bytes()).await?;
                 match result {

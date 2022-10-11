@@ -1,10 +1,11 @@
 mod behaviour;
 mod channel;
 mod client;
+mod config;
 mod node;
 mod swarm;
 mod types;
+mod utils;
 
 pub use client::DHTClient;
-pub use node::DHTNode;
-pub use types::DHTConfig;
+pub use config::DHTConfig;

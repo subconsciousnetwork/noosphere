@@ -1,17 +1,9 @@
-use crate::dht::behaviour::{DHTBehaviour, DHTEvent};
-use crate::dht::types::DHTConfig;
+use crate::dht::behaviour::DHTBehaviour;
+use crate::dht::DHTConfig;
 use anyhow::Result;
-use libp2p::kad;
-use libp2p::kad::{Kademlia, KademliaConfig};
-use libp2p::{swarm::SwarmBuilder, tokio_development_transport, Multiaddr, PeerId};
-use std::{boxed::Box, future::Future, pin::Pin, str::FromStr, time::Duration};
+use libp2p::{swarm::SwarmBuilder, tokio_development_transport, PeerId};
+use std::{boxed::Box, future::Future, pin::Pin};
 use tokio;
-const BOOTNODES: [&str; 4] = [
-    "QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
-    "QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
-    "QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb",
-    "QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt",
-];
 
 pub type DHTSwarm = libp2p::swarm::Swarm<DHTBehaviour>;
 
@@ -30,28 +22,16 @@ impl libp2p::core::Executor for ExecutorHandle {
     }
 }
 
-pub fn build_swarm(config: &DHTConfig) -> Result<DHTSwarm> {
-    let local_peer_id = PeerId::from(config.keypair.public());
-
+pub fn build_swarm(local_peer_id: &PeerId, config: &DHTConfig) -> Result<DHTSwarm> {
     // Set up a an encrypted DNS-enabled TCP Transport over the Mplex protocol
     // @TODO `tokio_development_transport` is not fit for production. Disect implementation
     // to determine what transports are appropriate.
     let transport = tokio_development_transport(config.keypair.clone())?;
-    let mut behaviour = DHTBehaviour::new(&config, local_peer_id);
-
-    // Add the bootnodes to the local routing table. `libp2p-dns` built
-    // into the `transport` resolves the `dnsaddr` when Kademlia tries
-    // to dial these nodes.
-    let bootaddr = Multiaddr::from_str("/dnsaddr/bootstrap.libp2p.io")?;
-    for peer in &BOOTNODES {
-        behaviour
-            .kad
-            .add_address(&PeerId::from_str(peer)?, bootaddr.clone());
-    }
+    let behaviour = DHTBehaviour::new(&config, local_peer_id.to_owned())?;
 
     let handle = tokio::runtime::Handle::current();
     let executor_handle = Box::new(ExecutorHandle { handle });
-    let swarm = SwarmBuilder::new(transport, behaviour, local_peer_id)
+    let swarm = SwarmBuilder::new(transport, behaviour, local_peer_id.to_owned())
         .executor(executor_handle)
         .build();
     Ok(swarm)

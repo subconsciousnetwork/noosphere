@@ -2967,6 +2967,8 @@ dependencies = [
  "noosphere-cli",
  "tokio",
  "toml",
+ "tracing",
+ "tracing-subscriber",
  "ucan",
  "ucan-key-support",
 ]
