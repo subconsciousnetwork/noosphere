@@ -276,13 +276,17 @@ where
         additional_headers: Option<Vec<(String, String)>>,
     ) -> Result<Cid> {
         let sphere = Sphere::at(&self.sphere_revision, &self.db);
-
-        // TODO(#85): Error result if mutation is empty and also additional headers are empty
-
-        let mut revision = sphere.try_apply_mutation(self.require_mutation()?).await?;
+        let mutation = self.require_mutation()?;
+        let mut revision = sphere.try_apply_mutation(mutation).await?;
 
         if let Some(mut headers) = additional_headers {
-            revision.memo.headers.append(&mut headers);
+            if headers.len() > 0 {
+                revision.memo.headers.append(&mut headers);
+            } else if mutation.is_empty() {
+                return Err(anyhow!("No changes to save"))
+            }
+        } else if mutation.is_empty() {
+            return Err(anyhow!("No changes to save"))
         }
 
         let new_sphere_revision = revision.try_sign(credential, proof).await?;
@@ -506,5 +510,59 @@ pub mod tests {
         file.contents.read_to_string(&mut value).await.unwrap();
 
         assert_eq!("Cats are great", value.as_str());
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_throws_an_error_when_saving_without_changes() {
+        let storage_provider = MemoryStorageProvider::default();
+        let mut db = SphereDb::new(&storage_provider).await.unwrap();
+
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await.unwrap();
+
+        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
+
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
+
+        db.set_version(&sphere_identity, sphere.cid())
+            .await
+            .unwrap();
+
+        let mut fs = SphereFs::latest(&sphere_identity, Some(&owner_did), &db)
+            .await
+            .unwrap();
+
+        let result = fs.save(&owner_key, Some(&proof), None).await;
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "No changes to save");
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_throws_an_error_when_saving_with_empty_mutation_and_empty_headers() {
+        let storage_provider = MemoryStorageProvider::default();
+        let mut db = SphereDb::new(&storage_provider).await.unwrap();
+
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await.unwrap();
+
+        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
+
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
+
+        db.set_version(&sphere_identity, sphere.cid())
+            .await
+            .unwrap();
+
+        let mut fs = SphereFs::latest(&sphere_identity, Some(&owner_did), &db)
+            .await
+            .unwrap();
+
+        let result = fs.save(&owner_key, Some(&proof), Some(vec![])).await;
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "No changes to save");
     }
 }
