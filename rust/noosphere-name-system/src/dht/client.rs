@@ -1,6 +1,6 @@
 //use async_std::task;
 use crate::dht::channel::message_channel;
-use crate::dht::swarm::DHTSwarm;
+use crate::dht::node::DHTNode;
 use crate::dht::types::{DHTConfig, DHTMessageClient, DHTRequest, DHTResponse};
 use anyhow::{anyhow, Result};
 use tokio;
@@ -34,7 +34,7 @@ impl DHTClient {
     pub async fn connect(&mut self) -> Result<()> {
         let (client, processor) = message_channel::<DHTRequest, DHTResponse>();
         self.client = Some(client);
-        self.handle = Some(DHTSwarm::spawn(self.config.clone(), processor));
+        self.handle = Some(DHTNode::spawn(self.config.clone(), processor)?);
         self.state = DHTState::Connected;
         Ok(())
     }
@@ -59,7 +59,7 @@ impl DHTClient {
     }
 
     pub async fn get_record(&self, name: Vec<u8>) -> Result<Option<Vec<u8>>> {
-        let request = DHTRequest::GetRecord(name);
+        let request = DHTRequest::GetRecord { name };
         let response = self.send_request(request).await?;
         match response {
             DHTResponse::GetRecord { value, .. } => Ok(Some(value)),
