@@ -279,14 +279,14 @@ where
         let mutation = self.require_mutation()?;
         let mut revision = sphere.try_apply_mutation(mutation).await?;
 
-        if let Some(mut headers) = additional_headers {
-            if headers.len() > 0 {
-                revision.memo.headers.append(&mut headers);
-            } else if mutation.is_empty() {
+        match additional_headers {
+            Some(mut headers) if headers.len() > 0 => {
+                revision.memo.headers.append(&mut headers)
+            },
+            _ if mutation.is_empty() => {
                 return Err(anyhow!("No changes to save"))
-            }
-        } else if mutation.is_empty() {
-            return Err(anyhow!("No changes to save"))
+            },
+            _ => ()
         }
 
         let new_sphere_revision = revision.try_sign(credential, proof).await?;
