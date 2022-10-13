@@ -3,15 +3,32 @@ use axum::{
     body::{Bytes, HttpBody},
     extract::{FromRequest, RequestParts},
     http::{header, StatusCode},
+    response::IntoResponse,
+    response::Response,
     BoxError,
 };
 use libipld_cbor::DagCborCodec;
 use mime_guess::mime;
-use noosphere_storage::encoding::block_deserialize;
+use noosphere_storage::encoding::{block_deserialize, block_serialize};
 use serde::{de::DeserializeOwned, Serialize};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Cbor<T: Serialize + DeserializeOwned>(pub T);
+
+impl<T> IntoResponse for Cbor<T>
+where
+    T: Serialize + DeserializeOwned,
+{
+    fn into_response(self) -> axum::response::Response {
+        match block_serialize::<DagCborCodec, _>(self.0) {
+            Ok((_, bytes)) => bytes.into_response(),
+            Err(error) => {
+                error!("{:?}", error);
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+        }
+    }
+}
 
 #[async_trait]
 impl<T, B> FromRequest<B> for Cbor<T>

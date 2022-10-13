@@ -30,13 +30,15 @@ impl AsQuery for () {
 // Fetch
 #[derive(Debug, Deserialize)]
 pub struct FetchParameters {
-    pub since: String,
-    pub sphere: String,
+    pub since: Option<String>,
 }
 
 impl AsQuery for FetchParameters {
     fn as_query(&self) -> Option<String> {
-        Some(format!("since={}", self.since))
+        match &self.since {
+            Some(since) => Some(format!("since={}", since)),
+            None => None,
+        }
     }
 }
 

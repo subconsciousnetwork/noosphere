@@ -21,7 +21,6 @@ async-recursion = "^1"
 libipld-core = "~0.14"
 libipld-cbor = "~0.14"
 noosphere-storage = { path = "../noosphere-storage" }
-noosphere-cbor = { path = "../noosphere-cbor" }
 
 tokio = { version = "^1", features = ["sync", "io-util"] }
 # tokio-util = { version = "~0.7", features = ["io"] }

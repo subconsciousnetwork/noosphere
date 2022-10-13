@@ -1,14 +1,12 @@
 use anyhow::Result;
 use axum::Json;
-use axum::{debug_handler, extract::ContentLengthLimit, http::StatusCode, Extension};
+use axum::{extract::ContentLengthLimit, http::StatusCode, Extension};
 
 use noosphere::authority::{SphereAction, SphereReference};
 use noosphere::view::{Sphere, Timeline};
 use noosphere_api::data::{PushBody, PushResponse};
-use noosphere_storage::{db::SphereDb, interface::BlockStore, native::NativeStore};
+use noosphere_storage::{db::SphereDb, native::NativeStore};
 use ucan::capability::{Capability, Resource, With};
-
-use libipld_cbor::DagCborCodec;
 
 use crate::native::commands::serve::gateway::GatewayScope;
 use crate::native::commands::serve::{authority::GatewayAuthority, extractor::Cbor};
@@ -85,12 +83,6 @@ async fn incorporate_lineage(
     push_body: &PushBody,
 ) -> Result<()> {
     push_body.blocks.load_into(db).await?;
-    // for (cid_string, block) in push_body.blocks.map() {
-    //     debug!("Saving pushed block {}", cid);
-
-    //     db.put_block(cid, block).await?;
-    //     db.put_links::<DagCborCodec>(cid, block).await?;
-    // }
 
     let PushBody { base, tip, .. } = push_body;
 
@@ -103,7 +95,7 @@ async fn incorporate_lineage(
         Sphere::at(&cid, db).try_hydrate().await?;
     }
 
-    db.set_version(&scope.identity, &push_body.tip).await?;
+    db.set_version(&scope.counterpart, &push_body.tip).await?;
 
     Ok(())
 }

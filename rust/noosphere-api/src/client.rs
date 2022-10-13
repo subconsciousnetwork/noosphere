@@ -9,8 +9,7 @@ use anyhow::Result;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere::authority::{SphereAction, SphereReference};
-use noosphere_cbor::TryDagCbor;
-use noosphere_storage::encoding::block_serialize;
+use noosphere_storage::encoding::{block_deserialize, block_serialize};
 use reqwest::{header::HeaderMap, Body};
 use ucan::{
     builder::UcanBuilder,
@@ -123,7 +122,7 @@ where
         Ok((ucan.encode()?, ucan_headers))
     }
 
-    async fn fetch(&self, params: &FetchParameters) -> Result<FetchResponse> {
+    pub async fn fetch(&self, params: &FetchParameters) -> Result<FetchResponse> {
         let url = Url::try_from(RouteUrl(&self.api_base, Route::Fetch, Some(params)))?;
         debug!("Client fetching blocks from {}", url);
         let capability = Capability {
@@ -147,7 +146,7 @@ where
             .bytes()
             .await?;
 
-        FetchResponse::try_from_dag_cbor(&bytes)
+        block_deserialize::<DagCborCodec, _>(&bytes)
     }
 
     pub async fn push(&self, push_body: &PushBody) -> Result<PushResponse> {

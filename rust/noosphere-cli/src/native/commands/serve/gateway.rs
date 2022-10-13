@@ -15,7 +15,7 @@ use noosphere_storage::{db::SphereDb, native::NativeStore};
 use ucan::crypto::did::DidParser;
 use url::Url;
 
-use crate::native::commands::serve::route::{identify_route, push_route};
+use crate::native::commands::serve::route::{fetch_route, identify_route, push_route};
 
 #[derive(Clone, Debug)]
 pub struct GatewayScope {
@@ -63,6 +63,7 @@ where
             get(identify_route::<K>),
         )
         .route(&GatewayRoute::Push.to_string(), put(push_route))
+        .route(&GatewayRoute::Fetch.to_string(), get(fetch_route))
         .layer(Extension(gateway_db))
         .layer(Extension(gateway_scope.clone()))
         .layer(Extension(gateway_authority))
@@ -101,7 +102,7 @@ mod tests {
     };
     use noosphere_api::{
         client::Client,
-        data::{PushBody, PushResponse},
+        data::{FetchParameters, PushBody, PushResponse},
     };
 
     use noosphere_storage::interface::BlockStore;
@@ -317,6 +318,8 @@ mod tests {
 
     #[tokio::test]
     async fn it_can_update_an_existing_sphere_with_changes_from_the_client() {
+        // initialize_tracing();
+
         let gateway_workspace = Workspace::temporary().unwrap();
         let client_workspace = Workspace::temporary().unwrap();
 
@@ -399,7 +402,7 @@ mod tests {
                 .await
                 .unwrap()
                 .unwrap();
-            let sphere = Sphere::at(&sphere_cid, &client_db);
+            let mut sphere = Sphere::at(&sphere_cid, &client_db);
             let bundle = sphere.try_bundle_until_ancestor(None).await.unwrap();
 
             let push_result = client
@@ -430,9 +433,10 @@ mod tests {
                     .try_sign(&client_key, Some(&client_authorization))
                     .await
                     .unwrap();
+
+                sphere = Sphere::at(&final_cid, &client_db);
             }
 
-            let sphere = Sphere::at(&final_cid, &client_db);
             let bundle = sphere
                 .try_bundle_until_ancestor(Some(&sphere_cid))
                 .await
@@ -441,7 +445,7 @@ mod tests {
             let push_result = client
                 .push(&PushBody {
                     sphere: client_sphere_identity,
-                    base: None,
+                    base: Some(sphere_cid),
                     tip: *sphere.cid(),
                     blocks: bundle,
                 })
@@ -466,6 +470,140 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "TODO"]
-    async fn it_can_serve_subspace_revisions_to_a_client() {}
+    async fn it_can_serve_sphere_revisions_to_a_client() {
+        // initialize_tracing();
+
+        let gateway_workspace = Workspace::temporary().unwrap();
+        let client_workspace = Workspace::temporary().unwrap();
+
+        let gateway_key_name = "GATEWAY_KEY";
+        let client_key_name = "CLIENT_KEY";
+
+        key_create(client_key_name, &client_workspace)
+            .await
+            .unwrap();
+        key_create(gateway_key_name, &gateway_workspace)
+            .await
+            .unwrap();
+
+        sphere_create(client_key_name, &client_workspace)
+            .await
+            .unwrap();
+        sphere_create(gateway_key_name, &gateway_workspace)
+            .await
+            .unwrap();
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let gateway_address = listener.local_addr().unwrap();
+
+        let client_key = client_workspace.get_local_key().await.unwrap();
+        let gateway_key = gateway_workspace.get_local_key().await.unwrap();
+        let gateway_identity = gateway_key.get_did().await.unwrap();
+        let gateway_authority = gateway_workspace.get_local_authorization().await.unwrap();
+
+        let gateway_sphere_identity = gateway_workspace.get_local_identity().await.unwrap();
+        let client_sphere_identity = client_workspace.get_local_identity().await.unwrap();
+
+        let gateway_db = gateway_workspace.get_local_db().await.unwrap();
+        let mut client_db = client_workspace.get_local_db().await.unwrap();
+
+        let server_task = {
+            let gateway_db = gateway_db.clone();
+            tokio::spawn(async move {
+                start_gateway(
+                    listener,
+                    gateway_key,
+                    GatewayScope {
+                        identity: gateway_sphere_identity,
+                        counterpart: client_sphere_identity,
+                    },
+                    gateway_authority,
+                    gateway_db,
+                    None,
+                )
+                .await
+                .unwrap()
+            })
+        };
+
+        let client_sphere_identity = client_workspace.get_local_identity().await.unwrap();
+        let client_authorization = client_workspace.get_local_authorization().await.unwrap();
+        let client_did = client_key.get_did().await.unwrap();
+
+        let client_task = tokio::spawn(async move {
+            let api_base: Url =
+                format!("http://{}:{}", gateway_address.ip(), gateway_address.port())
+                    .parse()
+                    .unwrap();
+            let mut did_parser = DidParser::new(&SUPPORTED_KEYS);
+
+            let client = Client::identify(
+                &client_sphere_identity,
+                &api_base,
+                &client_key,
+                client_authorization.clone(),
+                &mut did_parser,
+                client_db.clone(),
+            )
+            .await
+            .unwrap();
+
+            assert_eq!(client.session.gateway_identity, gateway_identity);
+
+            let sphere_cid = client_db
+                .get_version(&client_sphere_identity)
+                .await
+                .unwrap()
+                .unwrap();
+            let mut sphere = Sphere::at(&sphere_cid, &client_db);
+
+            let mut final_cid = sphere_cid;
+
+            for value in ["one", "two", "three"] {
+                let memo = MemoIpld::for_body(&mut client_db, vec![value])
+                    .await
+                    .unwrap();
+                let memo_cid = client_db.save::<DagCborCodec, _>(&memo).await.unwrap();
+
+                let mut mutation = SphereMutation::new(&client_did);
+                mutation.links_mut().set(&value.into(), &memo_cid);
+
+                let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+
+                final_cid = revision
+                    .try_sign(&client_key, Some(&client_authorization))
+                    .await
+                    .unwrap();
+
+                sphere = Sphere::at(&final_cid, &client_db);
+            }
+
+            let sphere = Sphere::at(&final_cid, &client_db);
+            let bundle = sphere.try_bundle_until_ancestor(None).await.unwrap();
+
+            let push_result = client
+                .push(&PushBody {
+                    sphere: client_sphere_identity,
+                    base: None,
+                    tip: *sphere.cid(),
+                    blocks: bundle.clone(),
+                })
+                .await
+                .unwrap();
+
+            assert_eq!(push_result, PushResponse::Ok);
+
+            let fetch_result = client
+                .fetch(&FetchParameters { since: None })
+                .await
+                .unwrap();
+
+            assert_eq!(fetch_result.blocks.map(), bundle.map());
+
+            server_task.abort();
+            let _ = server_task.await;
+        });
+
+        client_task.await.unwrap();
+    }
 }
