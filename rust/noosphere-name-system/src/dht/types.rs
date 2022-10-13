@@ -10,7 +10,7 @@ pub enum DHTStatus {
     Error(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct DHTNetworkInfo {
     pub num_peers: usize,
     pub num_connections: u32,
@@ -66,7 +66,7 @@ impl fmt::Display for DHTRequest {
 
 #[derive(Debug)]
 pub enum DHTResponse {
-    Bootstrap(DHTNetworkInfo),
+    Success,
     GetNetworkInfo(DHTNetworkInfo),
     GetRecord { name: Vec<u8>, value: Vec<u8> },
     SetRecord { name: Vec<u8> },
@@ -76,7 +76,7 @@ pub enum DHTResponse {
 impl fmt::Display for DHTResponse {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DHTResponse::Bootstrap(info) => write!(fmt, "DHTResponse::Bootstrap {:?}", info),
+            DHTResponse::Success => write!(fmt, "DHTResponse::Success"),
             DHTResponse::GetNetworkInfo(info) => {
                 write!(fmt, "DHTResponse::GetNetworkInfo {:?}", info)
             }

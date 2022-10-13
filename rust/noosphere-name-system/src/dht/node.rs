@@ -14,8 +14,8 @@ use libp2p::kad::{
     KademliaEvent, PeerRecord, QueryResult, Quorum, Record,
 };
 use libp2p::{swarm::SwarmEvent, PeerId};
-use std::collections::HashMap;
 use std::fmt;
+use std::{collections::HashMap, time::Duration};
 use tokio;
 use tracing;
 
@@ -27,7 +27,6 @@ pub struct DHTNode {
     processor: DHTMessageProcessor,
     swarm: DHTSwarm,
     requests: HashMap<kad::QueryId, DHTMessage>,
-    bootstrapped: bool,
 }
 
 impl fmt::Debug for DHTNode {
@@ -35,7 +34,6 @@ impl fmt::Debug for DHTNode {
         f.debug_struct("DHTNode")
             .field("peer_id", &self.peer_id)
             .field("config", &self.config)
-            .field("bootstrapped", &self.bootstrapped)
             .finish()
     }
 }
@@ -73,7 +71,6 @@ impl DHTNode {
             config,
             processor,
             swarm,
-            bootstrapped: false,
             requests: HashMap::new(),
         };
 
@@ -96,6 +93,9 @@ impl DHTNode {
             }
         }
 
+        let mut bootstrap_tick =
+            tokio::time::interval(Duration::from_secs(self.config.bootstrap_interval));
+
         Ok(loop {
             tokio::select! {
                 message = self.processor.pull_message() => {
@@ -111,6 +111,9 @@ impl DHTNode {
                 }
                 event = self.swarm.select_next_some() => {
                     self.process_swarm_event(event)
+                }
+                _ = bootstrap_tick.tick() => {
+                    self.execute_bootstrap();
                 }
             }
         })
@@ -134,22 +137,10 @@ impl DHTNode {
         // Process client requests.
         match message.request {
             DHTRequest::Bootstrap => {
-                if self.bootstrapped {
-                    let info = self.swarm.network_info();
-                    message.respond(Ok(DHTResponse::Bootstrap(info.into())));
-                } else {
-                    if !self.config.bootstrap_peers.is_empty() {
-                        // `kad::behaviour::NoKnownPeers` is hidden inside a private module.
-                        // Map it to our own error here.
-                        let result = behaviour
-                            .kad
-                            .bootstrap()
-                            .map_err(|_| DHTError::NoKnownPeers);
-                        dht_map_request!(self, message, result);
-                    } else {
-                        message.respond(Err(DHTError::NoKnownPeers));
-                    }
-                }
+                message.respond(
+                    self.execute_bootstrap()
+                        .and_then(|_| Ok(DHTResponse::Success)),
+                );
             }
             DHTRequest::GetNetworkInfo => {
                 span.record("message", "DHTRequest::GetNetworkInfo");
@@ -349,21 +340,16 @@ impl DHTNode {
                     num_remaining,
                 })) => {
                     trace!("QueryResult::Bootstrap OK: {:?} {};;", peer, num_remaining);
-                    // If there are more bootstrap peers to connect to, wait for them
-                    // to resolve before responding with a success.
-                    if num_remaining == 0 {
-                        self.bootstrapped = true;
-                        if let Some(message) = self.requests.remove(&id) {
-                            let info = self.swarm.network_info();
-                            message.respond(Ok(DHTResponse::Bootstrap(info.into())));
-                        }
-                    }
                 }
-                QueryResult::Bootstrap(Err(e)) => {
-                    trace!("QueryResult::Bootstrap Err:");
-                    if let Some(message) = self.requests.remove(&id) {
-                        message.respond(Err(DHTError::from(e)));
-                    }
+                QueryResult::Bootstrap(Err(kad::BootstrapError::Timeout {
+                    peer,
+                    num_remaining,
+                })) => {
+                    trace!(
+                        "QueryResult::Bootstrap Err: {:?} {:?};;",
+                        peer,
+                        num_remaining
+                    );
                 }
                 _ => {}
             },
@@ -430,6 +416,19 @@ impl DHTNode {
                 trace!("PendingRoutablePeer : {:?}:{:?}", peer, address);
             }
         }
+    }
+
+    fn execute_bootstrap(&mut self) -> Result<(), DHTError> {
+        if self.config.bootstrap_peers.is_empty() {
+            // Bootstrapping can't occur without bootstrap nodes
+            return Ok(());
+        }
+        self.swarm
+            .behaviour_mut()
+            .kad
+            .bootstrap()
+            .and_then(|_| Ok(()))
+            .map_err(|_| DHTError::NoKnownPeers)
     }
 }
 

@@ -27,16 +27,21 @@ pub(crate) enum DHTBaseProtocol {
 pub struct DHTConfig {
     pub keypair: libp2p::identity::Keypair,
     pub query_timeout: u32,
+    /// Address to listen for incoming connections.
+    /// Only for server-nodes/peers.
+    pub listening_address: Option<libp2p::Multiaddr>,
     /// Peer addresses to query to update routing tables
     /// during bootstrap. A standalone bootstrap node would
     /// have this field empty.
     pub bootstrap_peers: Vec<libp2p::Multiaddr>,
-    /// Address to listen for incoming connections.
-    /// Only for server-nodes/peers.
-    pub listening_address: Option<libp2p::Multiaddr>,
+    /// If bootstrap peers are provided, how often,
+    /// in seconds, should the bootstrap process execute
+    /// to keep routing tables fresh.
+    pub bootstrap_interval: u64,
 }
 
 impl DHTConfig {
+    // @TODO Cache this
     pub fn peer_id(&self) -> libp2p::PeerId {
         //utils::peer_id_from_key_with_sha256(&config.keypair.public())?
         libp2p::PeerId::from(self.keypair.public())
@@ -44,6 +49,18 @@ impl DHTConfig {
 
     pub fn is_server(self) -> bool {
         self.listening_address.is_some()
+    }
+
+    /// Computes the remote multiaddress of this node.
+    /// Takes the listener address and appends the PeerId
+    /// via the "p2p" protocol.
+    /// Used only in tests for now.
+    pub fn p2p_address(&self) -> Option<libp2p::Multiaddr> {
+        self.listening_address.as_ref().map(|addr| {
+            let mut p2p_address = addr.to_owned();
+            p2p_address.push(libp2p::multiaddr::Protocol::P2p(self.peer_id().into()));
+            p2p_address
+        })
     }
 
     /// Returns the base protocol used in listening address, e.g.
@@ -107,12 +124,11 @@ impl<'a> TryFrom<NameSystemConfig<'a>> for DHTConfig {
 impl Default for DHTConfig {
     fn default() -> Self {
         Self {
-            keypair: libp2p::identity::Keypair::Ed25519(
-                libp2p::identity::ed25519::Keypair::generate(),
-            ),
+            keypair: libp2p::identity::Keypair::generate_ed25519(),
             query_timeout: 5 * 60,
             listening_address: None,
             bootstrap_peers: vec![],
+            bootstrap_interval: 5 * 60,
         }
     }
 }
@@ -120,7 +136,10 @@ impl Default for DHTConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use libp2p::multiaddr::Protocol;
     use std::str::FromStr;
+    use std::{error::Error, net::Ipv4Addr};
+
     #[test]
     fn test_dhtconfig_get_listening_base_transfer_protocol() -> Result<(), DHTError> {
         let expectations: Vec<(Option<&str>, Option<DHTBaseProtocol>)> = vec![
@@ -175,6 +194,25 @@ mod tests {
                 ),
             }
         }
+        Ok(())
+    }
+
+    #[test]
+    fn test_dhtconfig_p2p_address() -> Result<(), Box<dyn Error>> {
+        let config = DHTConfig {
+            listening_address: Some("/ip4/127.0.0.1/tcp/4444".parse::<libp2p::Multiaddr>()?),
+            ..Default::default()
+        };
+        let mut address = config.p2p_address().unwrap();
+        assert_eq!(
+            address.pop().unwrap(),
+            Protocol::P2p(config.peer_id().into())
+        );
+        assert_eq!(address.pop().unwrap(), Protocol::Tcp(4444));
+        assert_eq!(
+            address.pop().unwrap(),
+            Protocol::Ip4("127.0.0.1".parse().unwrap())
+        );
         Ok(())
     }
 }

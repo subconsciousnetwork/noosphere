@@ -39,8 +39,8 @@ impl DHTClient {
     /// network requests.
     pub async fn start(&mut self) -> Result<(), DHTError> {
         let (client, processor) = message_channel::<DHTRequest, DHTResponse, DHTError>();
-        self.client = Some(client);
         self.handle = Some(DHTNode::spawn(self.config.clone(), processor)?);
+        self.client = Some(client);
         self.state = DHTStatus::Active;
         Ok(())
     }
@@ -63,10 +63,10 @@ impl DHTClient {
         self.state.clone()
     }
 
-    pub async fn bootstrap(&self) -> Result<DHTNetworkInfo, DHTError> {
+    pub async fn bootstrap(&self) -> Result<(), DHTError> {
         let request = DHTRequest::Bootstrap;
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::Bootstrap(info) => Ok(info))
+        ensure_response!(response, DHTResponse::Success => Ok(()))
     }
 
     pub async fn network_info(&self) -> Result<DHTNetworkInfo, DHTError> {
