@@ -1,17 +1,23 @@
 use crate::dht::{
     behaviour::DHTEvent,
+    errors::DHTError,
     swarm::{build_swarm, DHTSwarm},
     types::{DHTMessage, DHTMessageProcessor, DHTRequest, DHTResponse},
-    utils, DHTConfig,
+    DHTConfig,
 };
-use anyhow::{anyhow, Result};
+use anyhow::anyhow;
 use libp2p::futures::StreamExt;
 use libp2p::kad;
-use libp2p::kad::{record::Key, KademliaEvent, PeerRecord, QueryResult, Quorum, Record};
-use libp2p::{swarm::SwarmEvent, Multiaddr, PeerId};
+use libp2p::kad::{
+    record,
+    record::{store::RecordStore, Key},
+    KademliaEvent, PeerRecord, QueryResult, Quorum, Record,
+};
+use libp2p::{swarm::SwarmEvent, PeerId};
 use std::collections::HashMap;
 use std::fmt;
 use tokio;
+use tracing;
 
 /// The processing component of a [DHTClient]/[DHTNode] pair. Consumers
 /// should only interface with a [DHTNode] via [DHTClient].
@@ -20,7 +26,8 @@ pub struct DHTNode {
     config: DHTConfig,
     processor: DHTMessageProcessor,
     swarm: DHTSwarm,
-    queries: HashMap<kad::QueryId, DHTMessage>,
+    requests: HashMap<kad::QueryId, DHTMessage>,
+    bootstrapped: bool,
 }
 
 impl fmt::Debug for DHTNode {
@@ -28,8 +35,29 @@ impl fmt::Debug for DHTNode {
         f.debug_struct("DHTNode")
             .field("peer_id", &self.peer_id)
             .field("config", &self.config)
+            .field("bootstrapped", &self.bootstrapped)
             .finish()
     }
+}
+
+macro_rules! dht_trace {
+    ($self:expr, $event:expr) => {
+        trace!("{:#?}::{:#?}", $self.peer_id.to_base58(), $event);
+    };
+}
+
+macro_rules! dht_map_request {
+    ($self:expr, $message:expr, $result:expr) => {
+        let result: Result<kad::QueryId, DHTError> = $result.map_err(|e| e.into());
+        match result {
+            Ok(query_id) => {
+                $self.requests.insert(query_id, $message);
+            }
+            Err(e) => {
+                $message.respond(Err(e));
+            }
+        };
+    };
 }
 
 impl DHTNode {
@@ -37,15 +65,16 @@ impl DHTNode {
     pub fn spawn(
         config: DHTConfig,
         processor: DHTMessageProcessor,
-    ) -> Result<tokio::task::JoinHandle<Result<()>>> {
-        let peer_id = utils::peer_id_from_key_with_sha256(&config.keypair.public())?;
+    ) -> Result<tokio::task::JoinHandle<Result<(), DHTError>>, DHTError> {
+        let peer_id = config.peer_id();
         let swarm = build_swarm(&peer_id, &config)?;
         let mut node = DHTNode {
             peer_id,
             config,
             processor,
             swarm,
-            queries: HashMap::new(),
+            bootstrapped: false,
+            requests: HashMap::new(),
         };
 
         debug!("Spawning DHTNode {:#?}", node);
@@ -55,8 +84,17 @@ impl DHTNode {
     /// Begin processing requests and connections on the DHT network
     /// in the current thread. Executes until the loop is broken, via
     /// either an unhandlable error or a terminate message (not yet implemented).
-    async fn process(&mut self) -> Result<()> {
-        //self.swarm.listen_on("/ip4/127.0.0.1".parse().unwrap())?;
+    async fn process(&mut self) -> Result<(), DHTError> {
+        if let Some(address) = self.config.listening_address.as_ref() {
+            trace!("Listening on {}", address);
+            if let Err(e) = self.swarm.listen_on(address.to_owned()) {
+                error!("Listening Error! {:#?}", e);
+                return Err(DHTError::Error(format!(
+                    "Failed to listen on address {:#?}",
+                    address
+                )));
+            }
+        }
 
         Ok(loop {
             tokio::select! {
@@ -65,7 +103,10 @@ impl DHTNode {
                         Some(m) => self.process_message(m),
                         // This occurs when sender is closed (client dropped).
                         // Exit the process loop for thread clean up.
-                        None => break,
+                        None => {
+                            error!("DHT processing loop unexpectedly closed.");
+                            break
+                        },
                     }
                 }
                 event = self.swarm.select_next_some() => {
@@ -77,78 +118,103 @@ impl DHTNode {
 
     /// Processes an incoming DHTMessage. Will attempt to respond
     /// immediately if possible (synchronous error or pulling value from cache),
-    /// otherwise, a DHTQuery will be added to pending queries to handle
-    /// after querying the swarm.
+    /// otherwise, the message will be mapped to a query, where it can be fulfilled
+    /// later, most likely in `process_kad_result()`.
     fn process_message(&mut self, message: DHTMessage) {
+        let span = trace_span!(
+            "process_message",
+            message = tracing::field::Empty,
+            input = tracing::field::Empty,
+            success = true
+        )
+        .entered();
+
         let behaviour = self.swarm.behaviour_mut();
-        // Process request. Result is `Ok(Some(query_id))` when a subsequent query
-        // to the swarm needs to complete to resolve the request. Result is
-        // `Ok(None)` when request can be processed immediately. Result is `Err()`
-        // during synchronous failures.
-        let result: Result<Option<kad::QueryId>> = match message.request {
-            DHTRequest::StartProviding { ref name } => {
-                match behaviour.kad.start_providing(Key::new(name)) {
-                    Ok(query_id) => Ok(Some(query_id)),
-                    Err(e) => Err(anyhow!(e.to_string())),
+
+        // Process client requests.
+        match message.request {
+            DHTRequest::Bootstrap => {
+                if self.bootstrapped {
+                    let info = self.swarm.network_info();
+                    message.respond(Ok(DHTResponse::Bootstrap(info.into())));
+                } else {
+                    if !self.config.bootstrap_peers.is_empty() {
+                        // `kad::behaviour::NoKnownPeers` is hidden inside a private module.
+                        // Map it to our own error here.
+                        let result = behaviour
+                            .kad
+                            .bootstrap()
+                            .map_err(|_| DHTError::NoKnownPeers);
+                        dht_map_request!(self, message, result);
+                    } else {
+                        message.respond(Err(DHTError::NoKnownPeers));
+                    }
                 }
             }
+            DHTRequest::GetNetworkInfo => {
+                span.record("message", "DHTRequest::GetNetworkInfo");
+                let info = self.swarm.network_info();
+                message.respond(Ok(DHTResponse::GetNetworkInfo(info.into())));
+            }
+            DHTRequest::StartProviding { ref name } => {
+                span.record("message", "DHTRequest::StartProviding");
+                span.record("input", format!("name={:?}", name));
+                dht_map_request!(self, message, behaviour.kad.start_providing(Key::new(name)));
+            }
             DHTRequest::GetRecord { ref name } => {
-                Ok(Some(behaviour.kad.get_record(Key::new(name), Quorum::One)))
+                span.record("message", "DHTRequest::GetRecord");
+                span.record("input", format!("name={:?}", name));
+                dht_map_request!(
+                    self,
+                    message,
+                    Ok::<kad::QueryId, DHTError>(
+                        behaviour.kad.get_record(Key::new(name), Quorum::One)
+                    )
+                );
             }
             DHTRequest::SetRecord {
                 ref name,
                 ref value,
             } => {
+                trace!("SetRecord");
+                span.record("message", "DHTRequest::SetRecord");
+                span.record("input", format!("name={:?}, value={:?}", name, value));
                 let record = Record {
                     key: Key::new(name),
                     value: value.clone(),
                     publisher: None,
                     expires: None,
                 };
-                behaviour
-                    .kad
-                    .put_record(record, Quorum::One)
-                    .and_then(|q| Ok(Some(q)))
-                    .map_err(|e| anyhow!(e.to_string()))
+                dht_map_request!(self, message, behaviour.kad.put_record(record, Quorum::One));
             }
         };
-
-        match result {
-            Ok(Some(query_id)) => {
-                self.queries.insert(query_id, message);
-            }
-            Ok(None) => {}
-            Err(e) => {
-                message.respond(Err(anyhow!(e.to_string())));
-            }
-        }
     }
 
     /// Processes an incoming SwarmEvent, triggered from swarm activity or
     /// a swarm query. If a SwarmEvent has an associated DHTQuery,
     /// the pending query will be fulfilled.
     fn process_swarm_event(&mut self, event: SwarmEvent<DHTEvent, std::io::Error>) {
+        dht_trace!(self, event);
         match event {
             SwarmEvent::Behaviour(dht_event) => match dht_event {
                 DHTEvent::Kademlia(e) => self.process_kad_event(e),
             },
             // The following events are currently handled only for debug logging.
-            SwarmEvent::NewListenAddr { address, .. } => {
-                println!("NewListenAddr: {:?}", address);
-            }
+            SwarmEvent::NewListenAddr { address, .. } => {}
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                println!("ConnectionEstablished: {:?}", peer_id);
+                trace!("ConnectionEstablished: {:?}", peer_id);
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
-                println!("ConnectionClosed: {:?}, {:?}", peer_id, cause);
+                trace!("ConnectionClosed: {:?}, {:?}", peer_id, cause);
             }
             SwarmEvent::IncomingConnection {
                 local_addr,
                 send_back_addr,
             } => {
-                println!(
+                trace!(
                     "IncomingConnection: to {:?}, from {:?}",
-                    local_addr, send_back_addr
+                    local_addr,
+                    send_back_addr
                 );
             }
             SwarmEvent::IncomingConnectionError {
@@ -156,102 +222,151 @@ impl DHTNode {
                 send_back_addr,
                 error,
             } => {
-                println!(
+                trace!(
                     "IncomingConnectionError: {:?} to {:?}, from {:?}",
-                    error, local_addr, send_back_addr
+                    error,
+                    local_addr,
+                    send_back_addr
                 );
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error } => {
-                println!("OutgoingConnectionError: {:?} {:?}", error, peer_id);
+                trace!("OutgoingConnectionError: {:?} {:?}", error, peer_id);
             }
             SwarmEvent::BannedPeer { peer_id, .. } => {
-                println!("BannedPeer: {:?}", peer_id);
+                trace!("BannedPeer: {:?}", peer_id);
             }
             SwarmEvent::ExpiredListenAddr {
                 listener_id,
                 address,
             } => {
-                println!("ExpiredListenAddr: {:?}, {:?}", listener_id, address);
+                trace!("ExpiredListenAddr: {:?}, {:?}", listener_id, address);
             }
             SwarmEvent::ListenerClosed {
                 listener_id,
                 addresses,
                 reason,
             } => {
-                println!(
+                trace!(
                     "ExpiredListenAddr: {:?}, {:?}, {:?}",
-                    reason, listener_id, addresses
+                    reason,
+                    listener_id,
+                    addresses
                 );
             }
             SwarmEvent::ListenerError { listener_id, error } => {
-                println!("ListenerError: {:?}, {:?}", error, listener_id);
+                trace!("ListenerError: {:?}, {:?}", error, listener_id);
             }
             SwarmEvent::Dialing(peer_id) => {
-                println!("Dialing: {:?}", peer_id);
+                trace!("Dialing: {:?}", peer_id);
             }
         }
     }
 
     fn process_kad_event(&mut self, event: KademliaEvent) {
         match event {
-            KademliaEvent::OutboundQueryCompleted { id, result, .. } => {
-                match result {
-                    QueryResult::GetRecord(Ok(ok)) => {
-                        for PeerRecord {
-                            record: Record { key, value, .. },
-                            ..
-                        } in ok.records
-                        {
-                            if let Some(message) = self.queries.remove(&id) {
-                                message.respond(Ok(DHTResponse::GetRecord {
-                                    name: key.to_vec(),
-                                    value,
-                                }));
-                            }
+            KademliaEvent::OutboundQueryCompleted { id, result, .. } => match result {
+                QueryResult::GetRecord(Ok(ok)) => {
+                    for PeerRecord {
+                        record: Record { key, value, .. },
+                        ..
+                    } in ok.records
+                    {
+                        if let Some(message) = self.requests.remove(&id) {
+                            message.respond(Ok(DHTResponse::GetRecord {
+                                name: key.to_vec(),
+                                value,
+                            }));
                         }
                     }
-                    QueryResult::GetRecord(Err(e)) => {
-                        if let Some(message) = self.queries.remove(&id) {
-                            message.respond(Err(anyhow!(e.to_string())));
-                        }
-                    }
-                    QueryResult::PutRecord(Ok(kad::PutRecordOk { key })) => {
-                        if let Some(message) = self.queries.remove(&id) {
-                            message.respond(Ok(DHTResponse::SetRecord { name: key.to_vec() }));
-                        }
-                    }
-                    QueryResult::PutRecord(Err(e)) => {
-                        if let Some(message) = self.queries.remove(&id) {
-                            message.respond(Err(anyhow!(e.to_string())));
-                        }
-                    }
-                    QueryResult::StartProviding(Ok(kad::AddProviderOk { key })) => {
-                        if let Some(message) = self.queries.remove(&id) {
-                            message.respond(Ok(DHTResponse::StartProviding { name: key.to_vec() }));
-                        }
-                    }
-                    QueryResult::StartProviding(Err(e)) => {
-                        if let Some(message) = self.queries.remove(&id) {
-                            message.respond(Err(anyhow!(e.to_string())));
-                        }
-                    }
-                    /*
-                    QueryResult::GetProviders(Ok(ok)) => {
-                        for peer in ok.providers {
-                            println!(
-                                "Peer {:?} provides key {:?}",
-                                peer,
-                                std::str::from_utf8(ok.key.as_ref()).unwrap()
-                            );
-                        }
-                    }
-                    QueryResult::GetProviders(Err(err)) => {
-                        eprintln!("Failed to get providers: {:?}", err);
-                    }
-                    */
-                    _ => {}
                 }
-            }
+                QueryResult::GetRecord(Err(e)) => {
+                    if let Some(message) = self.requests.remove(&id) {
+                        message.respond(Err(DHTError::from(e)));
+                    }
+                }
+                QueryResult::PutRecord(Ok(kad::PutRecordOk { key })) => {
+                    trace!(
+                        "QueryResult::PutRecord Ok: {}",
+                        String::from_utf8(key.to_vec()).unwrap()
+                    );
+                    if let Some(message) = self.requests.remove(&id) {
+                        message.respond(Ok(DHTResponse::SetRecord { name: key.to_vec() }));
+                    }
+                }
+                QueryResult::PutRecord(Err(e)) => {
+                    trace!("QueryResult::PutRecord Err: {:#?}", e);
+                    match e.clone() {
+                        kad::PutRecordError::Timeout {
+                            ref key,
+                            quorum: _,
+                            success: _,
+                        }
+                        | kad::PutRecordError::QuorumFailed {
+                            ref key,
+                            quorum: _,
+                            success: _,
+                        } => {
+                            let record = self.swarm.behaviour_mut().kad.store_mut().get(key);
+                            trace!("Has internal record? {:?}", record);
+                        }
+                    }
+                    if let Some(message) = self.requests.remove(&id) {
+                        message.respond(Err(DHTError::from(e)));
+                    }
+                }
+                QueryResult::StartProviding(Ok(kad::AddProviderOk { key })) => {
+                    trace!(
+                        "QueryResult::StartProviding Ok: {} ;;",
+                        String::from_utf8(key.to_vec()).unwrap()
+                    );
+                    if let Some(message) = self.requests.remove(&id) {
+                        message.respond(Ok(DHTResponse::StartProviding { name: key.to_vec() }));
+                    }
+                }
+                QueryResult::StartProviding(Err(e)) => {
+                    trace!("QueryResult::StartProviding Err: {} ;;", e.to_string());
+                    if let Some(message) = self.requests.remove(&id) {
+                        message.respond(Err(DHTError::from(e)));
+                    }
+                }
+                QueryResult::GetProviders(Ok(kad::GetProvidersOk {
+                    providers,
+                    key,
+                    closest_peers,
+                })) => {
+                    trace!(
+                        "QueryResult::GetProviders OK: {:?} {:?} {:?};;",
+                        providers,
+                        key,
+                        closest_peers
+                    );
+                }
+                QueryResult::GetProviders(Err(e)) => {
+                    trace!("QueryResult::GetProviders Err: {} ;;", e.to_string());
+                }
+                QueryResult::Bootstrap(Ok(kad::BootstrapOk {
+                    peer,
+                    num_remaining,
+                })) => {
+                    trace!("QueryResult::Bootstrap OK: {:?} {};;", peer, num_remaining);
+                    // If there are more bootstrap peers to connect to, wait for them
+                    // to resolve before responding with a success.
+                    if num_remaining == 0 {
+                        self.bootstrapped = true;
+                        if let Some(message) = self.requests.remove(&id) {
+                            let info = self.swarm.network_info();
+                            message.respond(Ok(DHTResponse::Bootstrap(info.into())));
+                        }
+                    }
+                }
+                QueryResult::Bootstrap(Err(e)) => {
+                    trace!("QueryResult::Bootstrap Err:");
+                    if let Some(message) = self.requests.remove(&id) {
+                        message.respond(Err(DHTError::from(e)));
+                    }
+                }
+                _ => {}
+            },
             KademliaEvent::InboundRequest { request } => {
                 let debug_str = match request {
                     kad::InboundRequest::FindNode { num_closer_peers } => {
@@ -275,10 +390,23 @@ impl DHTNode {
                         num_closer_peers, present_locally
                     ),
                     kad::InboundRequest::PutRecord { source, record, .. } => {
-                        format!("PutRecord: {:?} {:?}", source, record)
+                        match record {
+                            None => warn!("InboundRequest::PutRecord failed; empty record"),
+                            Some(rec) => {
+                                if let Err(e) =
+                                    self.swarm.behaviour_mut().kad.store_mut().put(rec.clone())
+                                {
+                                    warn!(
+                                        "InboundRequest::PutRecord failed: {:?} {:?}",
+                                        rec, source
+                                    );
+                                }
+                            }
+                        }
+                        format!("PutRecord: {:?}", source)
                     }
                 };
-                println!("InboundRequest::{:?}", debug_str);
+                trace!("InboundRequest::{:?}", debug_str);
             }
             KademliaEvent::RoutingUpdated {
                 peer,
@@ -287,19 +415,19 @@ impl DHTNode {
                 ..
             } => {
                 if is_new_peer {
-                    println!("RoutingUpdated: (new peer) {:?}:{:?}", peer, addresses);
+                    trace!("RoutingUpdated: (new peer) {:?}:{:?}", peer, addresses);
                 } else {
-                    println!("RoutingUpdated: (old peer) {:?}:{:?}", peer, addresses);
+                    trace!("RoutingUpdated: (old peer) {:?}:{:?}", peer, addresses);
                 }
             }
             KademliaEvent::UnroutablePeer { peer } => {
-                println!("UnroutablePeer: {:?}", peer);
+                trace!("UnroutablePeer: {:?}", peer);
             }
             KademliaEvent::RoutablePeer { peer, address } => {
-                println!("RoutablePeer: {:?}:{:?}", peer, address);
+                trace!("RoutablePeer: {:?}:{:?}", peer, address);
             }
             KademliaEvent::PendingRoutablePeer { peer, address } => {
-                println!("PendingRoutablePeer : {:?}:{:?}", peer, address);
+                trace!("PendingRoutablePeer : {:?}:{:?}", peer, address);
             }
         }
     }

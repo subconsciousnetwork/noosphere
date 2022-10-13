@@ -1,15 +1,16 @@
-use anyhow::{anyhow, Result};
+use anyhow;
 use libp2p::multihash::MultihashDigest;
 use noosphere::authority::ed25519_key_to_bytes;
+use std::result::Result;
 /// @TODO these materials should be exposed in noosphere::authority
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 pub fn key_material_to_libp2p_keypair(
     key_material: &Ed25519KeyMaterial,
-) -> Result<libp2p::identity::Keypair> {
+) -> Result<libp2p::identity::Keypair, anyhow::Error> {
     let mut bytes = ed25519_key_to_bytes(key_material)?;
     let kp = libp2p::identity::ed25519::Keypair::decode(&mut bytes)
-        .map_err(|_| anyhow!("Could not decode ED25519 key."))?;
+        .map_err(|_| anyhow::anyhow!("Could not decode ED25519 key."))?;
     Ok(libp2p::identity::Keypair::Ed25519(kp))
 }
 
@@ -24,10 +25,10 @@ pub fn key_material_to_libp2p_keypair(
 /// https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
 pub fn peer_id_from_key_with_sha256(
     public_key: &libp2p::identity::PublicKey,
-) -> Result<libp2p::PeerId> {
+) -> Result<libp2p::PeerId, anyhow::Error> {
     let encoded = public_key.to_protobuf_encoding();
     let mh = libp2p::multihash::Code::Sha2_256.digest(&encoded);
-    libp2p::PeerId::from_multihash(mh).map_err(|_| anyhow!("nope"))
+    libp2p::PeerId::from_multihash(mh).map_err(|_| anyhow::anyhow!("nope"))
 }
 
 #[cfg(test)]
@@ -35,13 +36,13 @@ mod tests {
     use super::*;
     use noosphere::authority::generate_ed25519_key;
     #[test]
-    fn testkey_material_to_libp2p_keypair() -> Result<()> {
+    fn testkey_material_to_libp2p_keypair() -> Result<(), anyhow::Error> {
         let zebra_keys = generate_ed25519_key();
         let keypair: libp2p::identity::ed25519::Keypair =
             match key_material_to_libp2p_keypair(&zebra_keys) {
                 Ok(kp) => match kp {
                     libp2p::identity::Keypair::Ed25519(keypair) => Ok(keypair),
-                    _ => Err(anyhow!("Invalid keypair variant")),
+                    _ => Err(anyhow::anyhow!("Invalid keypair variant")),
                 },
                 Err(e) => Err(e),
             }?;

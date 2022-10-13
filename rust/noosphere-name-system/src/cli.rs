@@ -113,11 +113,29 @@ pub async fn run_cli_main() -> Result<()> {
             ns.connect().await?;
 
             if let Some(pinned) = pinned_list {
+                /*
                 let ns_ref = &ns;
                 let pending_responses: Vec<_> = pinned
                     .iter()
                     .map(|record| {
                         debug!("Pinning {} key {}...", record.0, record.1);
+                        ns_ref.start_providing(
+                            record.1.clone().into_bytes(),
+                            //record.2.clone().into_bytes(),
+                        )
+                    })
+                    .collect();
+
+                let pinned_names = try_join_all(pending_responses).await?;
+                for pinned_name in pinned_names {
+                    debug!("Pinned {:#?}", pinned_name);
+                }
+                */
+                let ns_ref = &ns;
+                let pending_responses: Vec<_> = pinned
+                    .iter()
+                    .map(|record| {
+                        debug!("Setting {} key {}...", record.0, record.1);
                         ns_ref.set_record(
                             record.1.clone().into_bytes(),
                             record.2.clone().into_bytes(),
@@ -125,11 +143,17 @@ pub async fn run_cli_main() -> Result<()> {
                     })
                     .collect();
 
-                let pinned_names = try_join_all(pending_responses).await?;
-                for pinned_name in pinned_names {
-                    println!("Pinned {:#?}", pinned_name);
+                trace!("AWAITING PENDING");
+                match try_join_all(pending_responses).await {
+                    Ok(pinned_names) => {
+                        for pinned_name in pinned_names {
+                            debug!("Set {:#?}", pinned_name);
+                        }
+                    }
+                    Err(e) => warn!("Could not put record"),
                 }
             }
+            debug!("Awaiting for ctrl+c...");
             signal::ctrl_c().await?;
             ns.disconnect().await?;
             Ok(())
@@ -142,6 +166,8 @@ pub async fn run_cli_main() -> Result<()> {
                     .key_material(&key_material)
                     .build()?;
                 ns.connect().await?;
+                debug!("Awaiting for ctrl+c...");
+                signal::ctrl_c().await?;
                 let result = ns.get_record(name.clone().into_bytes()).await?;
                 match result {
                     Some(value) => {

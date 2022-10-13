@@ -1,7 +1,9 @@
 use crate::dht::behaviour::DHTBehaviour;
+use crate::dht::config::DHTBaseProtocol;
+use crate::dht::errors::DHTError;
+use crate::dht::transport::{build_memory_transport, build_transport};
 use crate::dht::DHTConfig;
-use anyhow::Result;
-use libp2p::{swarm::SwarmBuilder, tokio_development_transport, PeerId};
+use libp2p::{swarm::SwarmBuilder, PeerId};
 use std::{boxed::Box, future::Future, pin::Pin};
 use tokio;
 
@@ -22,12 +24,17 @@ impl libp2p::core::Executor for ExecutorHandle {
     }
 }
 
-pub fn build_swarm(local_peer_id: &PeerId, config: &DHTConfig) -> Result<DHTSwarm> {
-    // Set up a an encrypted DNS-enabled TCP Transport over the Mplex protocol
-    // @TODO `tokio_development_transport` is not fit for production. Disect implementation
-    // to determine what transports are appropriate.
-    let transport = tokio_development_transport(config.keypair.clone())?;
-    let behaviour = DHTBehaviour::new(&config, local_peer_id.to_owned())?;
+pub fn build_swarm(local_peer_id: &PeerId, config: &DHTConfig) -> Result<DHTSwarm, DHTError> {
+    let transport = match config.get_listening_base_transfer_protocol() {
+        Some(p) => match p {
+            DHTBaseProtocol::Memory => {
+                build_memory_transport(&config.keypair).map_err(|e| DHTError::from(e))?
+            }
+            _ => build_transport(&config.keypair).map_err(|e| DHTError::from(e))?,
+        },
+        None => build_transport(&config.keypair).map_err(|e| DHTError::from(e))?,
+    };
+    let behaviour = DHTBehaviour::new(&config, local_peer_id.to_owned());
 
     let handle = tokio::runtime::Handle::current();
     let executor_handle = Box::new(ExecutorHandle { handle });

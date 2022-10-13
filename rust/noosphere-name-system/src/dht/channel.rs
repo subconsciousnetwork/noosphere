@@ -1,16 +1,46 @@
-use anyhow::{anyhow, Result};
+use core::{fmt, result::Result};
 use tokio;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, mpsc::error::SendError, oneshot, oneshot::error::RecvError};
+
+/// Error type to wrap the potential tokio sync errors,
+/// and distinguish between user-land respond errors.
+#[derive(Debug)]
+pub enum ChannelError {
+    SendError,
+    RecvError,
+}
+
+impl std::error::Error for ChannelError {}
+impl fmt::Display for ChannelError {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ChannelError::SendError => write!(fmt, "channel send error"),
+            ChannelError::RecvError => write!(fmt, "channel receiver error"),
+        }
+    }
+}
+
+impl<Q, S, E> From<SendError<Message<Q, S, E>>> for ChannelError {
+    fn from(e: SendError<Message<Q, S, E>>) -> Self {
+        ChannelError::SendError
+    }
+}
+
+impl From<RecvError> for ChannelError {
+    fn from(e: RecvError) -> Self {
+        ChannelError::RecvError
+    }
+}
 
 /// Represents a request to be processed in `MessageProcessor`,
 /// sent from the associated `MessageClient`.
-pub struct Message<Q, S> {
+pub struct Message<Q, S, E> {
     pub request: Q,
-    sender: oneshot::Sender<Result<S>>,
+    sender: oneshot::Sender<Result<S, E>>,
 }
 
-impl<Q, S> Message<Q, S> {
-    pub fn respond(self, response: Result<S>) -> bool {
+impl<Q, S, E> Message<Q, S, E> {
+    pub fn respond(self, response: Result<S, E>) -> bool {
         self.sender.send(response).map_or_else(|_| false, |_| true)
     }
 }
@@ -19,38 +49,37 @@ impl<Q, S> Message<Q, S> {
 ///
 /// Instances are created by the
 /// [`message_channel`](message_channel) function.
-pub struct MessageClient<Q, S> {
-    tx: mpsc::UnboundedSender<Message<Q, S>>,
+pub struct MessageClient<Q, S, E> {
+    tx: mpsc::UnboundedSender<Message<Q, S, E>>,
 }
 
-impl<Q, S> MessageClient<Q, S> {
+impl<Q, S, E> MessageClient<Q, S, E> {
     // TBD if/how "synchronous" requests will work.
     #[allow(dead_code)]
-    pub fn send_request(&self, request: Q) -> Result<()> {
-        self.send_request_impl(request).map(|_| Ok(()))?
+    pub fn send_request(&self, request: Q) -> Result<(), ChannelError> {
+        self.send_request_impl(request)
+            .map(|_| Ok(()))
+            .map_err(|e| ChannelError::from(e))?
     }
 
-    pub async fn send_request_async(&self, request: Q) -> Result<S> {
-        let rx = self.send_request_impl(request)?;
-        let outer_result = rx.await;
-        // Unwrap the outer Result, potentially containing communication
-        // errors (RecvError), like the sender prematurely dropping
-        // the connection.
-        let inner_result = outer_result.map_err(|e| anyhow!(e.to_string()))?;
-        inner_result
+    pub async fn send_request_async(&self, request: Q) -> Result<Result<S, E>, ChannelError> {
+        let rx = self
+            .send_request_impl(request)
+            .map_err(|e| ChannelError::from(e))?;
+        rx.await.map_err(|e| e.into())
     }
 
-    fn send_request_impl(&self, request: Q) -> Result<oneshot::Receiver<Result<S>>> {
-        let (tx, rx) = oneshot::channel::<Result<S>>();
+    fn send_request_impl(
+        &self,
+        request: Q,
+    ) -> Result<oneshot::Receiver<Result<S, E>>, SendError<Message<Q, S, E>>> {
+        let (tx, rx) = oneshot::channel::<Result<S, E>>();
         let message = Message {
             sender: tx,
             request,
         };
 
-        if let Err(e) = self.tx.send(message) {
-            return Err(anyhow!(e.to_string()));
-        }
-        Ok(rx)
+        self.tx.send(message).and_then(|_| Ok(rx))
     }
 }
 
@@ -59,41 +88,44 @@ impl<Q, S> MessageClient<Q, S> {
 ///
 /// Instances are created by the
 /// [`message_channel`](message_channel) function.
-pub struct MessageProcessor<Q, S> {
-    rx: mpsc::UnboundedReceiver<Message<Q, S>>,
+pub struct MessageProcessor<Q, S, E> {
+    rx: mpsc::UnboundedReceiver<Message<Q, S, E>>,
 }
 
-impl<Q, S> MessageProcessor<Q, S> {
-    pub async fn pull_message(&mut self) -> Option<Message<Q, S>> {
+impl<Q, S, E> MessageProcessor<Q, S, E> {
+    pub async fn pull_message(&mut self) -> Option<Message<Q, S, E>> {
         self.rx.recv().await
     }
 }
 
 /// Creates a pair of bound `MessageClient` and `MessageProcessor`.
-pub fn message_channel<Q, S>() -> (MessageClient<Q, S>, MessageProcessor<Q, S>) {
-    let (tx, rx) = mpsc::unbounded_channel::<Message<Q, S>>();
-    let processor = MessageProcessor::<Q, S> { rx };
-    let client = MessageClient::<Q, S> { tx };
+pub fn message_channel<Q, S, E>() -> (MessageClient<Q, S, E>, MessageProcessor<Q, S, E>) {
+    let (tx, rx) = mpsc::unbounded_channel::<Message<Q, S, E>>();
+    let processor = MessageProcessor::<Q, S, E> { rx };
+    let client = MessageClient::<Q, S, E> { tx };
     (client, processor)
 }
 
 #[cfg(test)]
 mod tests {
-    pub enum Request {
+    enum Request {
         Ping(),
         SetFlag(u32),
         Shutdown(),
         Throw(),
     }
 
-    pub enum Response {
+    enum Response {
         Pong(),
         GenericResult(bool),
     }
+    struct TestError {
+        pub message: String,
+    }
     use super::*;
     #[tokio::test]
-    async fn test_message_channel() -> Result<()> {
-        let (mut client, mut processor) = message_channel();
+    async fn test_message_channel() -> Result<(), Box<dyn std::error::Error>> {
+        let (mut client, mut processor) = message_channel::<Request, Response, TestError>();
 
         tokio::spawn(async move {
             let mut set_flags: usize = 0;
@@ -107,7 +139,9 @@ mod tests {
                             assert!(success, "receiver not closed");
                         }
                         Request::Throw() => {
-                            m.respond(Err(anyhow!("MyError!")));
+                            m.respond(Err(TestError {
+                                message: String::from("thrown!"),
+                            }));
                         }
                         Request::SetFlag(_) => {
                             set_flags += 1;
@@ -132,7 +166,7 @@ mod tests {
 
         let res = client.send_request_async(Request::Ping()).await?;
         assert!(match res {
-            Response::Pong() => true,
+            Ok(Response::Pong()) => true,
             _ => false,
         });
 
@@ -140,13 +174,22 @@ mod tests {
             client.send_request(Request::SetFlag(n))?;
         }
 
-        let res = client.send_request_async(Request::Throw()).await;
-        assert!(res.is_err(), "Error propagates to client.");
+        let res = client.send_request_async(Request::Throw()).await?;
+        assert!(
+            match res {
+                Ok(_) => false,
+                Err(TestError { message }) => {
+                    assert_eq!(message, String::from("thrown!"));
+                    true
+                }
+            },
+            "User Error propagates to client."
+        );
 
         let res = client.send_request_async(Request::Shutdown()).await?;
         assert!(
             match res {
-                Response::GenericResult(success) => success,
+                Ok(Response::GenericResult(success)) => success,
                 _ => false,
             },
             "successfully shutdown processing thread."

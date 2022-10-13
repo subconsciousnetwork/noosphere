@@ -1,5 +1,4 @@
 use crate::dht::DHTConfig;
-use anyhow::Result;
 use libp2p::kad::{Kademlia, KademliaConfig, KademliaEvent};
 use libp2p::{kad, multiaddr};
 use libp2p::{NetworkBehaviour, PeerId};
@@ -25,7 +24,7 @@ pub struct DHTBehaviour {
 }
 
 impl DHTBehaviour {
-    pub fn new(config: &DHTConfig, local_peer_id: PeerId) -> Result<Self> {
+    pub fn new(config: &DHTConfig, local_peer_id: PeerId) -> Self {
         let kad = {
             let mut cfg = KademliaConfig::default();
             cfg.set_query_timeout(Duration::from_secs(config.query_timeout.into()));
@@ -47,6 +46,6 @@ impl DHTBehaviour {
             }
             kad
         };
-        Ok(DHTBehaviour { kad })
+        DHTBehaviour { kad }
     }
 }
