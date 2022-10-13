@@ -2,18 +2,16 @@ use anyhow::Result;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use std::hash::Hash;
-use ucan::{
-    crypto::KeyMaterial,
-    store::{UcanJwtStore},
-};
+use ucan::{crypto::KeyMaterial, store::UcanJwtStore};
 
-use noosphere_storage::{interface::BlockStore, ucan::UcanStore};
+use noosphere_storage::{
+    encoding::{base64_decode, base64_encode},
+    interface::BlockStore,
+    ucan::UcanStore,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    data::{CidKey, VersionedMapIpld},
-    encoding::{base64_decode, base64_encode},
-};
+use crate::data::{CidKey, VersionedMapIpld};
 
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct AuthorizationIpld {

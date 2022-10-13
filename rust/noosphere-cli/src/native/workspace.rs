@@ -489,7 +489,7 @@ The available keys are:
         // we aren't initializing a sphere within a sphere
         while let Some(parent) = root.clone().parent() {
             root = parent.to_path_buf();
-            let working_paths = Workspace::new(&root)?;
+            let working_paths = Workspace::new(&root, None)?;
             if let Ok(_) = working_paths.expect_local_directories() {
                 return Err(anyhow!(
                     r#"Tried to initialize sphere directories in {:?}
@@ -514,7 +514,7 @@ Unexpected things will happen if you try to nest spheres this way!"#,
         Ok(())
     }
 
-    pub fn new(root: &PathBuf) -> Result<Self> {
+    pub fn new(root: &PathBuf, noosphere_global_root: Option<&PathBuf>) -> Result<Self> {
         if !root.is_absolute() {
             return Err(anyhow!("Ambiguous path to sphere root: {:?}", root));
         }
@@ -526,14 +526,17 @@ Unexpected things will happen if you try to nest spheres this way!"#,
         let key = sphere.join(KEY_FILE);
         let identity = sphere.join(IDENTITY_FILE);
         let config = sphere.join(CONFIG_FILE);
-        let noosphere = home::home_dir()
-            .ok_or_else(|| {
-                anyhow!(
-                    "Could not discover home directory for {}",
-                    whoami::username()
-                )
-            })?
-            .join(NOOSPHERE_DIRECTORY);
+        let noosphere = match noosphere_global_root {
+            Some(custom_root) => custom_root.clone(),
+            None => home::home_dir()
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Could not discover home directory for {}",
+                        whoami::username()
+                    )
+                })?
+                .join(NOOSPHERE_DIRECTORY),
+        };
         let keys = noosphere.join(KEYS_DIRECTORY);
 
         Ok(Workspace {
@@ -547,5 +550,18 @@ Unexpected things will happen if you try to nest spheres this way!"#,
             keys,
             config,
         })
+    }
+
+    #[cfg(test)]
+    pub fn temporary() -> Result<Self> {
+        use temp_dir::TempDir;
+
+        let root = TempDir::new()?;
+        let global_root = TempDir::new()?;
+
+        Workspace::new(
+            &root.path().to_path_buf(),
+            Some(&global_root.path().to_path_buf()),
+        )
     }
 }

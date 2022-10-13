@@ -10,7 +10,7 @@ use cid::Cid;
 use noosphere_storage::ucan::UcanStore;
 use noosphere_storage::{interface::BlockStore, native::NativeStore};
 use serde_bytes::Bytes;
-use std::ops::{Deref};
+use std::ops::Deref;
 use std::sync::Arc;
 use ucan::{
     capability::{Capability, Resource, With},
@@ -23,7 +23,7 @@ use crate::gateway::{
     AuthzError,
 };
 
-use noosphere_api::authority::{GatewayAction, GatewayIdentity, GATEWAY_SEMANTICS};
+use noosphere_api::authority::{GatewayAction, SphereReference, GATEWAY_SEMANTICS};
 
 pub struct GatewayAuthority {
     proof_chain: ProofChain,
@@ -60,7 +60,7 @@ impl GatewayAuthority {
 
         let desired_capability = Capability {
             with: With::Resource {
-                kind: Resource::Scoped(GatewayIdentity {
+                kind: Resource::Scoped(SphereReference {
                     did: gateway_identity,
                 }),
             },

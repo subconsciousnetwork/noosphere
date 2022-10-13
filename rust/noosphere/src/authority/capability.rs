@@ -4,9 +4,14 @@ use url::Url;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub enum SphereAction {
-    Authorize,
+    /// May read information about a sphere from a counterpart
+    Fetch,
+    /// May push an updated sphere lineage to a counterpart
+    Push,
+    /// May publish a canonical revision to the Noosphere Name System
     Publish,
-    Sign,
+    /// May transfer the authority delegated by a sphere to another key
+    Authorize,
 }
 
 impl Action for SphereAction {}
@@ -16,7 +21,8 @@ impl ToString for SphereAction {
         match self {
             SphereAction::Authorize => "sphere/authorize",
             SphereAction::Publish => "sphere/publish",
-            SphereAction::Sign => "sphere/sign",
+            SphereAction::Push => "sphere/push",
+            SphereAction::Fetch => "sphere/fetch",
         }
         .into()
     }
@@ -29,7 +35,8 @@ impl TryFrom<String> for SphereAction {
         Ok(match value.as_str() {
             "sphere/authorize" => SphereAction::Authorize,
             "sphere/publish" => SphereAction::Publish,
-            "sphere/sign" => SphereAction::Sign,
+            "sphere/push" => SphereAction::Push,
+            "sphere/fetch" => SphereAction::Fetch,
             _ => return Err(anyhow!("Unrecognized action: {:?}", value)),
         })
     }

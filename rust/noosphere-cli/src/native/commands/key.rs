@@ -9,7 +9,7 @@ use crate::native::workspace::Workspace;
 
 pub static SERVICE_NAME: &str = "noosphere";
 
-pub async fn key_create(name: String, working_paths: &Workspace) -> Result<()> {
+pub async fn key_create(name: &str, working_paths: &Workspace) -> Result<()> {
     working_paths.initialize_global_directories().await?;
 
     let key_base_path = working_paths.keys_path().join(&name);

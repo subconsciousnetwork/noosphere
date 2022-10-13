@@ -16,6 +16,8 @@ pub struct ConfigContents {
     pub difftool: Option<String>,
 }
 
+// TODO: This construct should have the user sign the new config when it is
+// written, and verify the signature when it the config is read
 pub struct Config<'a> {
     workspace: &'a Workspace,
     contents: OnceCell<ConfigContents>,

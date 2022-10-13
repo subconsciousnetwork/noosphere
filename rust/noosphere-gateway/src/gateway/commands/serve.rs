@@ -103,10 +103,7 @@ mod tests {
         gateway::GatewayReference,
     };
 
-    use noosphere_storage::{
-        memory::{MemoryStore},
-        ucan::UcanStore,
-    };
+    use noosphere_storage::{memory::MemoryStore, ucan::UcanStore};
     use temp_dir::TempDir;
 
     use ucan::{crypto::KeyMaterial, store::UcanJwtStore};
@@ -155,7 +152,7 @@ mod tests {
                 .await
                 .unwrap();
 
-            assert_eq!(client.gateway.require_identity().unwrap().did, gateway_did);
+            assert_eq!(client.session.require_identity().unwrap().did, gateway_did);
 
             server_task.abort();
             let _ = server_task.await;

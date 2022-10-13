@@ -6,9 +6,12 @@ use cid::Cid;
 
 use futures::{pin_mut, StreamExt};
 use libipld_cbor::DagCborCodec;
-use libipld_core::{serde::to_ipld};
+use libipld_core::{ipld::Ipld, raw::RawCodec, serde::to_ipld};
 use noosphere_cbor::{TryDagCbor, TryDagCborSendSync};
-use noosphere_storage::interface::BlockStore;
+use noosphere_storage::{
+    encoding::{block_deserialize, block_serialize},
+    interface::BlockStore,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -16,7 +19,6 @@ use crate::{
         BodyChunkIpld, ChangelogIpld, ContentType, Header, LinksIpld, MapOperation, MemoIpld,
         SphereIpld, VersionedMapIpld,
     },
-    encoding::{block_deserialize, block_serialize},
     view::Timeslice,
 };
 
@@ -25,15 +27,35 @@ use super::{AllowedIpld, AuthorizationIpld, RevokedIpld, VersionedMapKey, Versio
 // TODO: This should maybe only collect CIDs, and then streaming-serialize to
 // a CAR (https://ipld.io/specs/transport/car/carv2/)
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Bundle(BTreeMap<Cid, Vec<u8>>);
+pub struct Bundle(BTreeMap<String, Vec<u8>>);
 
 impl Bundle {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn contains(&self, cid: &Cid) -> bool {
+        self.0.contains_key(&cid.to_string())
+    }
+
     pub async fn load_into<S: BlockStore>(&self, store: &mut S) -> Result<()> {
         // TODO: Parrallelize this
-        for (cid, cbor_bytes) in self.0.iter() {
-            // TODO: Verify CID is correct
-            store.put_block(cid, cbor_bytes).await?;
-            store.put_links::<DagCborCodec>(cid, cbor_bytes).await?;
+        for (cid_string, block_bytes) in self.0.iter() {
+            let cid = Cid::from_str(cid_string)?;
+
+            store.put_block(&cid, block_bytes).await?;
+
+            match cid.codec() {
+                codec_id if codec_id == u64::from(DagCborCodec) => {
+                    store.put_links::<DagCborCodec>(&cid, &block_bytes).await?;
+                }
+                codec_id if codec_id == u64::from(RawCodec) => {
+                    store.put_links::<RawCodec>(&cid, &block_bytes).await?;
+                }
+                codec_id => warn!("Unrecognized codec {}; skipping...", codec_id),
+            }
+
+            // TODO: Verify CID is correct, maybe?
         }
 
         Ok(())
@@ -57,10 +79,11 @@ impl Bundle {
     }
 
     pub fn add(&mut self, cid: Cid, bytes: Vec<u8>) -> bool {
-        match self.0.contains_key(&cid) {
+        let cid_string = cid.to_string();
+        match self.0.contains_key(&cid_string) {
             true => false,
             false => {
-                self.0.insert(cid, bytes);
+                self.0.insert(cid_string, bytes);
                 true
             }
         }
@@ -70,7 +93,7 @@ impl Bundle {
         self.0.append(&mut other.0);
     }
 
-    pub fn map(&self) -> &BTreeMap<Cid, Vec<u8>> {
+    pub fn map(&self) -> &BTreeMap<String, Vec<u8>> {
         &self.0
     }
 
@@ -141,36 +164,6 @@ impl TryBundle for BodyChunkIpld {
         Ok(())
     }
 }
-
-// #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-// #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-// impl<K, Cid> TryBundle for ChangelogIpld<MapOperation<K, Cid>>
-// where
-//     K: VersionedMapKey,
-// {
-//     async fn try_extend_bundle_with_cid<S: BlockStore>(
-//         cid: &Cid,
-//         bundle: &mut Bundle,
-//         store: &S,
-//     ) -> Result<()> {
-//         let bytes = store.require_block(cid).await?;
-//         let changelog = Self::try_from_dag_cbor(&bytes)?;
-
-//         bundle.add(*cid, bytes);
-
-//         for op in changelog.changes {
-//             match op {
-//                 MapOperation::<_, Cid>::Add { value, .. } => {
-//                     let bytes = store.require_block(&cid).await?;
-//                     bundle.add(cid, bytes);
-//                 }
-//                 _ => (),
-//             };
-//         }
-
-//         Ok(())
-//     }
-// }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -365,11 +358,11 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(bundle.map().contains_key(sphere.cid()));
+        assert!(bundle.contains(sphere.cid()));
 
         let memo = sphere.try_as_memo().await.unwrap();
 
-        assert!(bundle.map().contains_key(&memo.body));
+        assert!(bundle.contains(&memo.body));
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
@@ -397,24 +390,24 @@ mod tests {
 
         let sphere = Sphere::at(&new_cid, &store);
 
-        assert!(bundle.map().contains_key(sphere.cid()));
+        assert!(bundle.contains(sphere.cid()));
 
         let memo = sphere.try_as_memo().await.unwrap();
 
-        assert!(bundle.map().contains_key(&memo.body));
+        assert!(bundle.contains(&memo.body));
 
         let sphere_ipld = sphere.try_as_body().await.unwrap();
         let links_cid = sphere_ipld.links.unwrap();
 
-        assert!(bundle.map().contains_key(&links_cid));
+        assert!(bundle.contains(&links_cid));
 
         let links_ipld = store
             .load::<DagCborCodec, LinksIpld>(&links_cid)
             .await
             .unwrap();
 
-        assert!(bundle.map().contains_key(&links_ipld.changelog));
-        assert!(bundle.map().contains_key(&foo_cid));
+        assert!(bundle.contains(&links_ipld.changelog));
+        assert!(bundle.contains(&foo_cid));
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
@@ -449,8 +442,8 @@ mod tests {
             .unwrap();
 
         assert_eq!(bundle.map().keys().len(), 11);
-        assert!(!bundle.map().contains_key(&foo_cid));
-        assert!(bundle.map().contains_key(&bar_cid));
+        assert!(!bundle.contains(&foo_cid));
+        assert!(bundle.contains(&bar_cid));
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
@@ -491,10 +484,10 @@ mod tests {
 
         assert_eq!(bundle.map().keys().len(), 16);
 
-        assert!(bundle.map().contains_key(&foo_cid));
-        assert!(bundle.map().contains_key(&bar_cid));
-        assert!(bundle.map().contains_key(&final_cid));
-        assert!(bundle.map().contains_key(&second_cid));
-        assert!(!bundle.map().contains_key(&original_cid));
+        assert!(bundle.contains(&foo_cid));
+        assert!(bundle.contains(&bar_cid));
+        assert!(bundle.contains(&final_cid));
+        assert!(bundle.contains(&second_cid));
+        assert!(!bundle.contains(&original_cid));
     }
 }

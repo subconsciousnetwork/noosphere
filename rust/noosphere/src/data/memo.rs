@@ -6,9 +6,12 @@ use libipld_cbor::DagCborCodec;
 use serde::{Deserialize, Serialize};
 use ucan::{crypto::KeyMaterial, ucan::Ucan};
 
-use crate::{data::Header, encoding::base64_encode};
+use crate::data::Header;
 
-use noosphere_storage::interface::{BlockStore, BlockStoreSend};
+use noosphere_storage::{
+    encoding::base64_encode,
+    interface::{BlockStore, BlockStoreSend},
+};
 
 use super::ContentType;
 
@@ -232,12 +235,13 @@ mod test {
         Cid::new_v1(0x55, Code::Blake2b256.digest(bytes.as_ref()))
     }
 
-    use crate::{
-        data::MemoIpld,
-        encoding::{block_deserialize, block_serialize},
-    };
+    use crate::data::MemoIpld;
 
-    use noosphere_storage::{interface::BlockStore, memory::MemoryStore};
+    use noosphere_storage::{
+        encoding::{block_deserialize, block_serialize},
+        interface::BlockStore,
+        memory::MemoryStore,
+    };
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]

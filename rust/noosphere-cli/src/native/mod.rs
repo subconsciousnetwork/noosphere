@@ -5,6 +5,7 @@ use anyhow::Result;
 use globset::Glob;
 use std::ffi::OsString;
 
+use std::net::IpAddr;
 use std::path::PathBuf;
 
 use cid::Cid;
@@ -15,8 +16,8 @@ use url::Url;
 
 use commands::key::key_create;
 use commands::key::key_list;
-use commands::sphere::initialize_sphere;
-use commands::sphere::join_sphere;
+use commands::sphere::sphere_create;
+use commands::sphere::sphere_join;
 use workspace::Workspace;
 
 use self::commands::auth::auth_add;
@@ -25,6 +26,7 @@ use self::commands::auth::auth_revoke;
 use self::commands::config::config_get;
 use self::commands::config::config_set;
 use self::commands::save::save;
+use self::commands::serve::serve;
 use self::commands::status::status;
 
 // On client:
@@ -64,11 +66,6 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum OrbCommand {
-    Config {
-        #[clap(subcommand)]
-        command: ConfigCommand,
-    },
-
     Key {
         #[clap(subcommand)]
         command: KeyCommand,
@@ -79,9 +76,35 @@ pub enum OrbCommand {
         command: SphereCommand,
     },
 
+    Config {
+        #[clap(subcommand)]
+        command: ConfigCommand,
+    },
+
     Auth {
         #[clap(subcommand)]
         command: AuthCommand,
+    },
+
+    /// Summon a gateway geist to manage the local sphere; it will accept
+    /// push, fetch and other REST actions from any clients that are authorized
+    /// to operate on its counterpart sphere. When it receives changes to its
+    /// counterpart sphere, it will perform various actions such as publishing
+    /// and/or querying the Noosphere Name System, generating static HTML and/or
+    /// updating its own sphere with various related information of interest to
+    /// the counterpart sphere
+    Serve {
+        /// Optional origin to allow CORS for
+        #[clap(short, long)]
+        cors_origin: Option<Url>,
+
+        /// The IP address of the interface that the gateway should bind to
+        #[clap(short, long, default_value = "127.0.0.1")]
+        interface: IpAddr,
+
+        /// The port that the gateway should listen on
+        #[clap(short, long, default_value = "4433")]
+        port: u16,
     },
 
     /// Show details about files in the sphere directory that have changed since
@@ -264,7 +287,7 @@ pub async fn main() -> Result<()> {
     // println!("Hello, Orb!");
     let args = Cli::parse();
 
-    let mut workspace = Workspace::new(&std::env::current_dir()?)?;
+    let mut workspace = Workspace::new(&std::env::current_dir()?, None)?;
 
     // println!("{:#?}", args);
     // println!("{:#?}", working_paths);
@@ -275,13 +298,13 @@ pub async fn main() -> Result<()> {
             ConfigCommand::Get { command } => config_get(command, &workspace).await?,
         },
         OrbCommand::Key { command } => match command {
-            KeyCommand::Create { name } => key_create(name, &workspace).await?,
+            KeyCommand::Create { name } => key_create(&name, &workspace).await?,
             KeyCommand::List { as_json } => key_list(as_json, &workspace).await?,
         },
         OrbCommand::Sphere { command } => match command {
             SphereCommand::Create { owner_key, path } => {
                 if let Some(path) = path {
-                    workspace = Workspace::new(&workspace.root_path().join(path))?;
+                    workspace = Workspace::new(&workspace.root_path().join(path), None)?;
                 }
 
                 let owner_key = match owner_key {
@@ -289,7 +312,7 @@ pub async fn main() -> Result<()> {
                     None => workspace.unambiguous_default_key_name().await?,
                 };
 
-                initialize_sphere(&owner_key, &workspace).await?;
+                sphere_create(&owner_key, &workspace).await?;
             }
             SphereCommand::Join {
                 local_key,
@@ -298,7 +321,7 @@ pub async fn main() -> Result<()> {
                 path,
             } => {
                 if let Some(path) = path {
-                    workspace = Workspace::new(&workspace.root_path().join(path))?;
+                    workspace = Workspace::new(&workspace.root_path().join(path), None)?;
                 }
 
                 let local_key = match local_key {
@@ -306,7 +329,7 @@ pub async fn main() -> Result<()> {
                     None => workspace.unambiguous_default_key_name().await?,
                 };
 
-                join_sphere(&local_key, token, &id, &workspace).await?;
+                sphere_join(&local_key, token, &id, &workspace).await?;
             }
         },
         OrbCommand::Status => status(&workspace).await?,
@@ -320,6 +343,11 @@ pub async fn main() -> Result<()> {
             AuthCommand::Revoke { name } => auth_revoke(&name, &workspace).await?,
             AuthCommand::Rotate {} => todo!(),
         },
+        OrbCommand::Serve {
+            cors_origin,
+            interface,
+            port,
+        } => serve(interface, port, cors_origin, &workspace).await?,
     };
 
     Ok(())

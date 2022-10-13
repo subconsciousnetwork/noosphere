@@ -19,11 +19,10 @@ use crate::{
         AuthorizationIpld, Bundle, CidKey, ContentType, DelegationIpld, Header, MemoIpld,
         RevocationIpld, SphereIpld, TryBundle,
     },
-    encoding::block_encode,
     view::{Links, SphereMutation, SphereRevision, Timeline},
 };
 
-use noosphere_storage::{interface::BlockStore, ucan::UcanStore};
+use noosphere_storage::{encoding::block_encode, interface::BlockStore, ucan::UcanStore};
 
 use super::{AllowedUcans, Authorization, RevokedUcans};
 
@@ -486,11 +485,11 @@ mod tests {
             SUPPORTED_KEYS,
         },
         data::{Bundle, CidKey, DelegationIpld, RevocationIpld},
-        encoding::block_encode,
         view::{Sphere, SphereMutation, Timeline, SPHERE_LIFETIME},
     };
 
     use noosphere_storage::{
+        encoding::block_encode,
         interface::{BlockStore, Store},
         memory::MemoryStore,
     };
@@ -863,9 +862,7 @@ mod tests {
         let bundle = sphere.try_bundle_until_ancestor(None).await.unwrap();
         let mut other_store = MemoryStore::default();
 
-        for (cid, block) in bundle.map() {
-            other_store.put_block(cid, block).await.unwrap();
-        }
+        bundle.load_into(&mut other_store).await.unwrap();
 
         let timeline = Timeline::new(&other_store);
         let timeslice = timeline.slice(sphere.cid(), None);
@@ -919,9 +916,7 @@ mod tests {
         let bundle = sphere.try_bundle_until_ancestor(None).await.unwrap();
         let mut other_store = MemoryStore::default();
 
-        for (cid, block) in bundle.map() {
-            other_store.put_block(cid, block).await.unwrap();
-        }
+        bundle.load_into(&mut other_store).await.unwrap();
 
         let timeline = Timeline::new(&other_store);
         let timeslice = timeline.slice(sphere.cid(), None);

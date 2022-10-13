@@ -7,33 +7,45 @@ edition = "2021"
 
 [dependencies]
 
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+temp-dir = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+clap = { version = "^4", features = ["derive", "cargo"] }
+anyhow = "^1"
+
 tokio = { version = "^1", features = ["full"] }
 tokio-stream = "~0.1"
+axum = { version = "~0.5", features = ["headers", "macros"] }
+tower = "~0.4"
+tower-http = { version = "~0.3", features = ["cors", "trace"] }
+async-trait = "~0.1"
+tracing = "~0.1"
+tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
+
+url = { version = "^2", features = [ "serde" ] }
+whoami = "^1"
 home = "~0.5"
-clap = { version = "^4", features = ["derive", "cargo"] }
+pathdiff = "~0.2"
 path-absolutize = "^3"
+mime_guess = "^2"
+witty-phrase-generator = "~0.2"
+toml_edit = { version = "~0.14", features = [ "serde" ] }
+globset = "~0.4"
+
 noosphere = { path = "../noosphere" }
 noosphere-fs = { path = "../noosphere-fs" }
 noosphere-storage = { path = "../noosphere-storage" }
 noosphere-api = { path = "../noosphere-api" }
 ucan = { version = "0.7.0-alpha.1" }
 ucan-key-support = { version = "0.7.0-alpha.1" }
-witty-phrase-generator = "~0.2"
-anyhow = "^1"
-url = { version = "^2", features = [ "serde" ] }
-whoami = "^1"
 cid = "~0.8"
+subtext = "~0.3"
+
 serde = "^1"
 serde_json = "^1"
-globset = "~0.4"
-pathdiff = "~0.2"
-subtext = "~0.3"
-mime_guess = "^2"
 libipld-core = "~0.14"
 libipld-cbor = "~0.14"
-toml_edit = { version = "~0.14", features = [ "serde" ] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "~0.2"

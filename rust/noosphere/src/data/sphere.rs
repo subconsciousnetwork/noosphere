@@ -80,7 +80,7 @@ mod tests {
                     did: identity_did.clone(),
                 }),
             },
-            can: SphereAction::Sign,
+            can: SphereAction::Authorize,
         };
 
         let proof = UcanBuilder::default()
@@ -140,7 +140,7 @@ mod tests {
                     did: identity_did.clone(),
                 }),
             },
-            can: SphereAction::Sign,
+            can: SphereAction::Authorize,
         };
 
         let proof = UcanBuilder::default()

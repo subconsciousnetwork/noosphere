@@ -2,6 +2,7 @@
 extern crate tracing;
 
 pub mod db;
+pub mod encoding;
 pub mod interface;
 pub mod memory;
 pub mod tracking;

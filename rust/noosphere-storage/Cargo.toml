@@ -9,6 +9,8 @@ edition = "2021"
 anyhow = "^1"
 async-std = "^1"
 async-trait = "~0.1"
+async-stream = "~0.3"
+tokio-stream = "~0.1"
 cid = "~0.8"
 noosphere-cbor = { path = "../noosphere-cbor" }
 tracing = "~0.1"
@@ -16,6 +18,7 @@ ucan = { version = "0.7.0-alpha.1" }
 libipld-core = "~0.14"
 libipld-cbor = "~0.14"
 serde = "^1"
+base64 = "~0.13"
 
 [dev-dependencies]
 witty-phrase-generator = "~0.2"
