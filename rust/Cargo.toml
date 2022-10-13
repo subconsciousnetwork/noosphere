@@ -9,7 +9,8 @@ members = [
   "noosphere-gateway",
   "noosphere-into",
   "noosphere-cli",
-  "noosphere-name-system",
+  "noosphere-p2p",
+#  "noosphere-name-system",
 ]
 
 # See: https://github.com/rust-lang/rust/issues/90148#issuecomment-949194352
