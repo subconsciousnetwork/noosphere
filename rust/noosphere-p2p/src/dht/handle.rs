@@ -53,6 +53,11 @@ impl DHTNodeHandle {
         Ok(())
     }
 
+    /// Returns the [libp2p::PeerId] of the current node.
+    pub fn peer_id(&self) -> libp2p::PeerId {
+        self.config.peer_id()
+    }
+
     /// Returns the public address of this node.
     /// @TODO Need to untangle how libp2p manages
     /// local vs remote address representation.
@@ -67,11 +72,10 @@ impl DHTNodeHandle {
     /// Resolves once there are at least `requested_peers` peers
     /// in the network.
     pub async fn wait_for_peers(&self, requested_peers: usize) -> Result<(), DHTError> {
-        // Need to add a mechanism for non-Query based requests,
+        // @TODO Need to add a mechanism for non-Query based requests,
         // like sending events, or triggering a peer check on
         // new connection established.
         // For now, we poll here.
-        warn!("WAIT FOR PEERS: {:#?}", requested_peers);
         loop {
             let info = self.network_info().await?;
             if info.num_peers >= requested_peers {

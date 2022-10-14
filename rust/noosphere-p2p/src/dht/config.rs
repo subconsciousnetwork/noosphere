@@ -21,6 +21,10 @@ pub struct DHTConfig {
     pub keypair: libp2p::identity::Keypair,
     /// Address to listen for incoming connections.
     pub listening_address: libp2p::Multiaddr,
+    /// How frequently, in seconds, the DHT attempts to
+    /// dial peers found in its kbucket. Outside of tests,
+    /// should not be lower than 5 seconds.
+    pub peer_dialing_interval: u64,
     pub query_timeout: u32,
 }
 
@@ -42,6 +46,11 @@ impl DHTConfig {
 
     pub fn listening_address(mut self, address: libp2p::Multiaddr) -> Self {
         self.listening_address = address;
+        self
+    }
+
+    pub fn peer_dialing_interval(mut self, interval: u64) -> Self {
+        self.peer_dialing_interval = interval;
         self
     }
 
@@ -96,6 +105,7 @@ impl Default for DHTConfig {
             listening_address: "/ip4/127.0.0.1/tcp/0"
                 .parse::<libp2p::Multiaddr>()
                 .expect("default listening address is parseable."),
+            peer_dialing_interval: 5,
             query_timeout: 5 * 60,
         }
     }

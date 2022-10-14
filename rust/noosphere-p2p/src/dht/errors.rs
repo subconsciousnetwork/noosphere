@@ -14,6 +14,7 @@ pub enum DHTError {
     LibP2PBootstrapError(kad::BootstrapError),
     LibP2PPutRecordError(kad::PutRecordError),
     LibP2PAddProviderError(kad::AddProviderError),
+    LibP2PGetProvidersError(kad::GetProvidersError),
     NotConnected,
     NoKnownPeers,
 }
@@ -30,6 +31,7 @@ impl fmt::Display for DHTError {
             DHTError::LibP2PPutRecordError(e) => write!(fmt, "{:#?}", e),
             DHTError::LibP2PBootstrapError(e) => write!(fmt, "{:#?}", e),
             DHTError::LibP2PAddProviderError(e) => write!(fmt, "{:#?}", e),
+            DHTError::LibP2PGetProvidersError(e) => write!(fmt, "{:#?}", e),
             DHTError::IO(k) => write!(fmt, "{:#?}", k),
             DHTError::Error(m) => write!(fmt, "{:#?}", m),
         }
@@ -95,5 +97,11 @@ impl From<kad::BootstrapError> for DHTError {
 impl From<kad::AddProviderError> for DHTError {
     fn from(e: kad::AddProviderError) -> Self {
         DHTError::LibP2PAddProviderError(e)
+    }
+}
+
+impl From<kad::GetProvidersError> for DHTError {
+    fn from(e: kad::GetProvidersError) -> Self {
+        DHTError::LibP2PGetProvidersError(e)
     }
 }

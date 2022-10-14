@@ -1,5 +1,13 @@
 use crate::dht::DHTConfig;
-use libp2p::kad::{Kademlia, KademliaConfig, KademliaEvent};
+use libp2p::{
+    // In the next version of libp2p-identify 0.40.0 (the subpackage), these values
+    // should be imported like:
+    //identify::{Behaviour as Identify, Config as IdentifyConfig, Event as IdentifyEvent},
+    identify::{Identify, IdentifyConfig, IdentifyEvent},
+    kad::{Kademlia, KademliaConfig, KademliaEvent},
+    swarm,
+    swarm::{ConnectionHandler, IntoConnectionHandler, SwarmEvent},
+};
 use libp2p::{kad, multiaddr};
 use libp2p::{NetworkBehaviour, PeerId};
 use std::time::Duration;
@@ -7,7 +15,7 @@ use std::time::Duration;
 #[derive(Debug)]
 pub enum DHTEvent {
     Kademlia(KademliaEvent),
-    //Identify(Box<IdentifyEvent>),
+    Identify(IdentifyEvent),
 }
 
 impl From<KademliaEvent> for DHTEvent {
@@ -16,10 +24,20 @@ impl From<KademliaEvent> for DHTEvent {
     }
 }
 
+impl From<IdentifyEvent> for DHTEvent {
+    fn from(event: IdentifyEvent) -> Self {
+        DHTEvent::Identify(event)
+    }
+}
+
+pub type DHTSwarmEvent = SwarmEvent<
+            <DHTBehaviour as swarm::NetworkBehaviour>::OutEvent,
+            <<<DHTBehaviour as swarm::NetworkBehaviour>::ConnectionHandler as IntoConnectionHandler>::Handler as ConnectionHandler>::Error>;
+
 #[derive(NetworkBehaviour)]
-#[behaviour(out_event = "DHTEvent")]
+#[behaviour(out_event = "DHTEvent", event_process = false)]
 pub struct DHTBehaviour {
-    //identify: Identify,
+    pub identify: Identify,
     pub kad: Kademlia<kad::record::store::MemoryStore>,
 }
 
@@ -46,6 +64,13 @@ impl DHTBehaviour {
             }
             kad
         };
-        DHTBehaviour { kad }
+
+        let identify = {
+            let config = IdentifyConfig::new("ipfs/1.0.0".into(), config.keypair.public())
+                .with_agent_version(format!("noosphere-p2p/{}", env!("CARGO_PKG_VERSION")));
+            Identify::new(config)
+        };
+
+        DHTBehaviour { kad, identify }
     }
 }

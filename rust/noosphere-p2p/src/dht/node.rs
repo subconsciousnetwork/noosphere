@@ -1,5 +1,5 @@
 use crate::dht::{
-    behaviour::DHTEvent,
+    behaviour::{DHTEvent, DHTSwarmEvent},
     errors::DHTError,
     swarm::{build_swarm, DHTSwarm},
     types::{DHTMessage, DHTMessageProcessor, DHTRequest, DHTResponse},
@@ -7,11 +7,19 @@ use crate::dht::{
 };
 use libp2p::futures::StreamExt;
 use libp2p::kad;
-use libp2p::kad::{
-    record::{store::RecordStore, Key},
-    KademliaEvent, PeerRecord, QueryResult, Quorum, Record,
+use libp2p::{
+    identify::IdentifyEvent,
+    kad::{
+        kbucket::{Distance, NodeStatus},
+        record::{store::RecordStore, Key},
+        KademliaEvent, PeerRecord, QueryResult, Quorum, Record,
+    },
+    swarm::{
+        dial_opts::{DialOpts, PeerCondition},
+        SwarmEvent,
+    },
+    PeerId,
 };
-use libp2p::{swarm::SwarmEvent, PeerId};
 use std::fmt;
 use std::{collections::HashMap, time::Duration};
 use tokio;
@@ -26,6 +34,7 @@ pub struct DHTNode {
     swarm: DHTSwarm,
     //requests: Vec<OutstandingHandleRequest>,
     requests: HashMap<kad::QueryId, DHTMessage>,
+    kad_last_range: Option<(Distance, Distance)>,
 }
 
 impl fmt::Debug for DHTNode {
@@ -107,6 +116,7 @@ impl DHTNode {
             processor,
             swarm,
             requests: HashMap::default(),
+            kad_last_range: None,
         };
 
         Ok(tokio::spawn(async move { node.process().await }))
@@ -122,6 +132,9 @@ impl DHTNode {
         // `bootstrap_interval` seconds.
         let mut bootstrap_tick =
             tokio::time::interval(Duration::from_secs(self.config.bootstrap_interval));
+
+        let mut peer_dialing_tick =
+            tokio::time::interval(Duration::from_secs(self.config.peer_dialing_interval));
 
         Ok(loop {
             tokio::select! {
@@ -139,9 +152,8 @@ impl DHTNode {
                 event = self.swarm.select_next_some() => {
                     self.process_swarm_event(event)
                 }
-                _ = bootstrap_tick.tick() => {
-                    self.execute_bootstrap()?;
-                }
+                _ = bootstrap_tick.tick() => self.execute_bootstrap()?,
+                _ = peer_dialing_tick.tick() => self.dial_next_peer(),
             }
         })
     }
@@ -163,8 +175,14 @@ impl DHTNode {
 
         // Process client requests.
         match message.request {
-            DHTRequest::GetProviders { name: _ } => {
-                // @TODO
+            DHTRequest::GetProviders { ref name } => {
+                span.record("message", "DHTRequest::GetProviders");
+                span.record("input", format!("name={:?}", name));
+                store_request!(
+                    self,
+                    message,
+                    Ok::<kad::QueryId, DHTError>(behaviour.kad.get_providers(Key::new(name)))
+                );
             }
             /*
             DHTRequest::WaitForPeers(peers) => {
@@ -225,12 +243,12 @@ impl DHTNode {
     /// Processes an incoming SwarmEvent, triggered from swarm activity or
     /// a swarm query. If a SwarmEvent has an associated DHTQuery,
     /// the pending query will be fulfilled.
-    fn process_swarm_event(&mut self, event: SwarmEvent<DHTEvent, std::io::Error>) {
+    //fn process_swarm_event(&mut self, event: SwarmEvent<DHTEvent, std::io::Error>) {
+    fn process_swarm_event(&mut self, event: DHTSwarmEvent) {
         dht_trace!(self, event);
         match event {
-            SwarmEvent::Behaviour(dht_event) => match dht_event {
-                DHTEvent::Kademlia(e) => self.process_kad_event(e),
-            },
+            SwarmEvent::Behaviour(DHTEvent::Kademlia(e)) => self.process_kad_event(e),
+            SwarmEvent::Behaviour(DHTEvent::Identify(e)) => self.process_identify_event(e),
             // The following events are currently handled only for debug logging.
             SwarmEvent::NewListenAddr { address: _, .. } => {}
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
@@ -372,9 +390,18 @@ impl DHTNode {
                         key,
                         closest_peers
                     );
+                    if let Some(message) = self.requests.remove(&id) {
+                        message.respond(Ok(DHTResponse::GetProviders {
+                            providers: providers.into_iter().collect(),
+                            name: key.to_vec(),
+                        }));
+                    }
                 }
                 QueryResult::GetProviders(Err(e)) => {
                     trace!("QueryResult::GetProviders Err: {} ;;", e.to_string());
+                    if let Some(message) = self.requests.remove(&id) {
+                        message.respond(Err(DHTError::from(e)));
+                    }
                 }
                 QueryResult::Bootstrap(Ok(kad::BootstrapOk {
                     peer,
@@ -456,6 +483,78 @@ impl DHTNode {
             KademliaEvent::PendingRoutablePeer { peer, address } => {
                 trace!("PendingRoutablePeer : {:?}:{:?}", peer, address);
             }
+        }
+    }
+
+    fn process_identify_event(&mut self, event: IdentifyEvent) {
+        match event {
+            IdentifyEvent::Received { peer_id, info } => {
+                trace!(
+                    "IdentifyEvent::Received: {:#?} {:#?}",
+                    peer_id,
+                    info.listen_addrs
+                );
+                if info
+                    .protocols
+                    .iter()
+                    .any(|p| p.as_bytes() == kad::protocol::DEFAULT_PROTO_NAME)
+                {
+                    trace!("matching protocol!");
+                    for addr in &info.listen_addrs {
+                        trace!("adding addr {:#?}", addr);
+                        self.swarm
+                            .behaviour_mut()
+                            .kad
+                            .add_address(&peer_id, addr.clone());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Traverses the kbuckets to dial potential peers that
+    /// are not yet connected. Implementation inspired by iroh:
+    /// https://github.com/n0-computer/iroh/blob/main/iroh-p2p/src/node.rs
+    fn dial_next_peer(&mut self) {
+        trace!("dial next peer");
+        let mut to_dial = None;
+        for kbucket in self.swarm.behaviour_mut().kad.kbuckets() {
+            if let Some(range) = self.kad_last_range {
+                if kbucket.range() == range {
+                    continue;
+                }
+            }
+
+            // find the first disconnected node
+            for entry in kbucket.iter() {
+                if entry.status == NodeStatus::Disconnected {
+                    let peer_id = entry.node.key.preimage();
+
+                    let dial_opts = DialOpts::peer_id(*peer_id)
+                        .condition(PeerCondition::Disconnected)
+                        .addresses(entry.node.value.clone().into_vec())
+                        .extend_addresses_through_behaviour()
+                        .build();
+                    to_dial = Some((dial_opts, kbucket.range()));
+                    break;
+                }
+            }
+        }
+
+        if let Some((dial_opts, range)) = to_dial {
+            debug!(
+                "checking node {:?} in bucket range ({:?})",
+                dial_opts.get_peer_id().unwrap(),
+                range
+            );
+
+            if let Err(e) = self.swarm.dial(dial_opts) {
+                warn!("failed to dial: {:?}", e);
+            } else {
+                warn!("success dial!");
+            }
+            self.kad_last_range = Some(range);
         }
     }
 

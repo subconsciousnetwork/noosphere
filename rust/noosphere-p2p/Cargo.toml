@@ -4,8 +4,6 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.60.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 anyhow = "^1"
 tracing = "0.1"
@@ -21,7 +19,7 @@ tokio = { version = "1.15", features = ["io-util", "io-std", "macros", "rt", "rt
 ucan = { version = "0.7.0-alpha.1" }
 ucan-key-support = { version = "0.7.0-alpha.1" }
 tracing-subscriber = { version = "~0.3", features = ["env-filter"], optional = true }
-libp2p = { version = "0.48.0", default-features = true, features = [ "dns-tokio", "tcp-tokio", "websocket", "noise", "mplex", "yamux", "kad" ] }
+libp2p = { version = "0.48.0", default-features = true, features = [ "identify", "dns-tokio", "tcp-tokio", "websocket", "noise", "mplex", "yamux", "kad" ] }
 
 [dev-dependencies]
 rand = { version = "0.8.5" }
