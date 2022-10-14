@@ -165,11 +165,16 @@ where
 mod tests {
 
     use libipld_cbor::DagCborCodec;
+    use libipld_core::{ipld::Ipld, raw::RawCodec};
+    use ucan::store::UcanJwtStore;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
     use crate::{
-        db::SphereDb, encoding::derive_cid, interface::BlockStore, memory::MemoryStorageProvider,
+        db::SphereDb,
+        encoding::{block_encode, derive_cid},
+        interface::BlockStore,
+        memory::MemoryStorageProvider,
     };
 
     use tokio_stream::StreamExt;
@@ -231,5 +236,20 @@ mod tests {
         for cid in [cid1, cid2, cid3] {
             assert!(cids.contains(&cid));
         }
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    pub async fn it_can_put_a_raw_block_and_read_it_as_a_token() {
+        let storage_provider = MemoryStorageProvider::default();
+        let mut db = SphereDb::new(&storage_provider).await.unwrap();
+
+        let (cid, block) = block_encode::<RawCodec, _>(&Ipld::Bytes(b"foobar".to_vec())).unwrap();
+
+        db.put_block(&cid, &block).await.unwrap();
+
+        let token = db.read_token(&cid).await.unwrap();
+
+        assert_eq!(token, Some("foobar".into()));
     }
 }

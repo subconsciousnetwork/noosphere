@@ -14,7 +14,7 @@ pub(crate) fn build_transport(
     ))?;
 
     let noise_keys = noise::Keypair::<noise::X25519Spec>::new()
-        .into_authentic(&keypair)
+        .into_authentic(keypair)
         .expect("Noise key generation failed.");
 
     Ok(transport

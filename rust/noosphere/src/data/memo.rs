@@ -4,9 +4,9 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use serde::{Deserialize, Serialize};
-use ucan::{crypto::KeyMaterial, ucan::Ucan};
+use ucan::crypto::KeyMaterial;
 
-use crate::data::Header;
+use crate::{authority::Authorization, data::Header};
 
 use noosphere_storage::{
     encoding::base64_encode,
@@ -99,14 +99,17 @@ impl MemoIpld {
     pub async fn sign<Credential: KeyMaterial>(
         &mut self,
         credential: &Credential,
-        proof: Option<&Ucan>,
+        authorization: Option<&Authorization>,
     ) -> Result<()> {
         let signature = base64_encode(&credential.sign(&self.body.to_bytes()).await?)?;
 
         self.replace_header(&Header::Signature.to_string(), &signature);
 
-        if let Some(proof) = proof {
-            self.replace_header(&Header::Proof.to_string(), &proof.encode()?);
+        if let Some(authorization) = authorization {
+            self.replace_header(
+                &Header::Proof.to_string(),
+                &Cid::try_from(authorization)?.to_string(),
+            );
         } else {
             self.remove_header(&Header::Proof.to_string())
         }
@@ -222,23 +225,16 @@ impl MemoIpld {
 #[cfg(test)]
 mod test {
     use libipld_cbor::DagCborCodec;
+    use libipld_core::{ipld::Ipld, raw::RawCodec};
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use cid::{
-        multihash::{Code, MultihashDigest},
-        Cid,
-    };
     use serde::{Deserialize, Serialize};
-
-    pub fn make_raw_cid<B: AsRef<[u8]>>(bytes: B) -> Cid {
-        Cid::new_v1(0x55, Code::Blake2b256.digest(bytes.as_ref()))
-    }
 
     use crate::data::MemoIpld;
 
     use noosphere_storage::{
-        encoding::{block_deserialize, block_serialize},
+        encoding::{block_deserialize, block_encode, block_serialize},
         interface::BlockStore,
         memory::MemoryStore,
     };
@@ -246,7 +242,7 @@ mod test {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_round_trips_as_cbor() {
-        let body_cid = make_raw_cid(b"foobar");
+        let (body_cid, _) = block_encode::<RawCodec, _>(&Ipld::Bytes(b"foobar".to_vec())).unwrap();
         let mut store = MemoryStore::default();
 
         let memo = MemoIpld {

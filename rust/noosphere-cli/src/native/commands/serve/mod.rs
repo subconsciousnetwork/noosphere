@@ -25,7 +25,7 @@ pub async fn serve(
     workspace.expect_local_directories()?;
 
     let gateway_key = workspace.get_local_key().await?;
-    let gateway_authority = workspace.get_local_authorization().await?;
+    let gateway_authorization = workspace.get_local_authorization().await?;
     let listener = TcpListener::bind(&(interface, port))?;
     let gateway_db = workspace.get_local_db().await?;
 
@@ -47,7 +47,7 @@ pub async fn serve(
         listener,
         gateway_key,
         gateway_scope,
-        gateway_authority,
+        gateway_authorization,
         gateway_db,
         cors_origin,
     )

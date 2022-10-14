@@ -19,8 +19,8 @@ impl libp2p::core::Executor for ExecutorHandle {
 }
 
 pub fn build_swarm(local_peer_id: &PeerId, config: &DHTConfig) -> Result<DHTSwarm, DHTError> {
-    let transport = build_transport(&config.keypair).map_err(|e| DHTError::from(e))?;
-    let behaviour = DHTBehaviour::new(&config, local_peer_id.to_owned());
+    let transport = build_transport(&config.keypair).map_err(DHTError::from)?;
+    let behaviour = DHTBehaviour::new(config, local_peer_id.to_owned());
 
     let handle = tokio::runtime::Handle::current();
     let executor_handle = Box::new(ExecutorHandle { handle });

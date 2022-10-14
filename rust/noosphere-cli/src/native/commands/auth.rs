@@ -1,3 +1,5 @@
+use std::convert::TryFrom;
+
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere::{
@@ -21,6 +23,38 @@ use crate::native::workspace::Workspace;
 pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) -> Result<()> {
     workspace.expect_local_directories()?;
 
+    let mut db = workspace.get_local_db().await?;
+    let sphere_did = workspace.get_local_identity().await?;
+    let latest_sphere_cid = db.require_version(&sphere_did).await?;
+    let sphere = Sphere::at(&latest_sphere_cid, &db);
+
+    let authority = sphere.try_get_authority().await?;
+    let allowed_ucans = authority.try_get_allowed_ucans().await?;
+    let mut allowed_stream = allowed_ucans.stream().await?;
+
+    while let Some((CidKey(cid), delegation)) = allowed_stream.try_next().await? {
+        let ucan = delegation.resolve_ucan(&db).await?;
+        let authorized_did = ucan.audience();
+
+        if authorized_did == did {
+            return Err(anyhow!(
+                r#"{} is already authorized to access the sphere
+Here is the identity of the authorization:
+
+  {}
+
+If you want to change it to something new, revoke the current one first:
+
+  orb auth revoke {}
+
+You will be able to add a new one after the old one is revoked"#,
+                did,
+                cid,
+                delegation.name
+            ));
+        }
+    }
+
     let name = match name {
         Some(name) => name,
         None => {
@@ -39,14 +73,13 @@ pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) ->
         }
     };
 
-    let mut db = workspace.get_local_db().await?;
     let my_key = workspace.get_local_key().await?;
     let my_did = my_key.get_did().await?;
     let sphere_did = workspace.get_local_identity().await?;
     let latest_sphere_cid = db.require_version(&sphere_did).await?;
     let authorization = workspace.get_local_authorization().await?;
 
-    let jwt = UcanBuilder::default()
+    let mut signable = UcanBuilder::default()
         .issued_by(&my_key)
         .for_audience(did)
         .claiming_capability(&Capability {
@@ -58,11 +91,16 @@ pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) ->
             can: SphereAction::Authorize,
         })
         .with_expiration(SPHERE_LIFETIME)
-        .witnessed_by(&authorization)
-        .build()?
-        .sign()
-        .await?
-        .encode()?;
+        .with_nonce()
+        // TODO(ucan-wg/rs-ucan#32): Clean this up when we can use a CID as an authorization
+        // .witnessed_by(&authorization)
+        .build()?;
+
+    signable
+        .proofs
+        .push(Cid::try_from(&authorization)?.to_string());
+
+    let jwt = signable.sign().await?.encode()?;
 
     let delegation = DelegationIpld::try_register(&name, &jwt, &mut db).await?;
 
@@ -82,11 +120,15 @@ pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) ->
     println!(
         r#"Successfully authorized {did} to access your sphere.
 
-NOTE: You *must* run `orb sync` before the other client can access the sphere!
+IMPORTANT: You MUST sync to enable your gateway to recognize the authorization:
 
-Use the following code to complete authorization in the other client:
+  orb sync
 
-  {}"#,
+This is the authorization's identity:
+
+  {}
+  
+Use this identity when joining the sphere on the other client"#,
         delegation.jwt
     );
 
@@ -105,7 +147,7 @@ pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {
 
     let sphere = Sphere::at(&latest_sphere_cid, &db);
 
-    let authorization = sphere.try_get_authorization().await?;
+    let authorization = sphere.try_get_authority().await?;
 
     let allowed_ucans = authorization.try_get_allowed_ucans().await?;
 
@@ -122,7 +164,7 @@ pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {
         authorizations.push((
             delegation.name.clone(),
             ucan.audience().into(),
-            delegation.jwt.clone(),
+            delegation.jwt,
         ));
     }
 
@@ -163,7 +205,7 @@ pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
 
     let sphere = Sphere::at(&latest_sphere_cid, &db);
 
-    let authorization = sphere.try_get_authorization().await?;
+    let authorization = sphere.try_get_authority().await?;
 
     let allowed_ucans = authorization.try_get_allowed_ucans().await?;
 
@@ -171,11 +213,11 @@ pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
 
     while let Some(Ok((CidKey(cid), delegation))) = delegation_stream.next().await {
         if delegation.name == name {
-            let revocation = RevocationIpld::try_revoke(&cid, &my_key).await?;
+            let revocation = RevocationIpld::try_revoke(cid, &my_key).await?;
 
             let mut mutation = SphereMutation::new(&my_did);
 
-            let key = CidKey(cid.clone());
+            let key = CidKey(*cid);
 
             mutation.allowed_ucans_mut().remove(&key);
             mutation.revoked_ucans_mut().set(&key, &revocation);

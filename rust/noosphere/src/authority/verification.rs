@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
@@ -5,20 +7,26 @@ use ucan::{
     capability::{Capability, Resource, With},
     chain::ProofChain,
     crypto::did::DidParser,
+    store::UcanJwtStore,
     ucan::Ucan,
 };
 
 use crate::data::{ContentType, Header, MemoIpld, SphereIpld};
 
-use noosphere_storage::{encoding::base64_decode, interface::BlockStore, ucan::UcanStore};
+use noosphere_storage::{
+    db::SphereDb,
+    encoding::base64_decode,
+    interface::{BlockStore, Store},
+    ucan::UcanStore,
+};
 
 use crate::authority::SPHERE_SEMANTICS;
 
 use super::{SphereAction, SphereReference};
 
-pub async fn verify_sphere_cid<S: BlockStore>(
+pub async fn verify_sphere_cid<S: Store>(
     cid: &Cid,
-    store: &S,
+    store: &SphereDb<S>,
     did_parser: &mut DidParser,
 ) -> Result<()> {
     let memo = store.load::<DagCborCodec, MemoIpld>(cid).await?;
@@ -46,7 +54,9 @@ pub async fn verify_sphere_cid<S: BlockStore>(
         let ucan_store = UcanStore(store.clone());
 
         // Extract a UCAN from the proof header, or...
-        let ucan = Ucan::try_from_token_string(proof_header)?;
+        let ucan_cid = Cid::from_str(proof_header)?;
+        let ucan_jwt = store.require_token(&ucan_cid).await?;
+        let ucan = Ucan::try_from_token_string(&ucan_jwt)?;
 
         // Discover the intended audience of the UCAN
         let credential = did_parser.parse(ucan.audience())?;

@@ -2,7 +2,7 @@ use anyhow::Result;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use std::hash::Hash;
-use ucan::{crypto::KeyMaterial, store::UcanJwtStore};
+use ucan::{crypto::KeyMaterial, store::UcanJwtStore, Ucan};
 
 use noosphere_storage::{
     encoding::{base64_decode, base64_encode},
@@ -14,19 +14,19 @@ use serde::{Deserialize, Serialize};
 use crate::data::{CidKey, VersionedMapIpld};
 
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub struct AuthorizationIpld {
+pub struct AuthorityIpld {
     pub allowed: Cid,
     pub revoked: Cid,
 }
 
-impl AuthorizationIpld {
+impl AuthorityIpld {
     pub async fn try_empty<S: BlockStore>(store: &mut S) -> Result<Self> {
         let allowed_ipld = AllowedIpld::try_empty(store).await?;
         let allowed = store.save::<DagCborCodec, _>(allowed_ipld).await?;
         let revoked_ipld = RevokedIpld::try_empty(store).await?;
         let revoked = store.save::<DagCborCodec, _>(revoked_ipld).await?;
 
-        Ok(AuthorizationIpld { allowed, revoked })
+        Ok(AuthorityIpld { allowed, revoked })
     }
 }
 
@@ -49,6 +49,13 @@ impl DelegationIpld {
             name: name.to_string(),
             jwt: cid,
         })
+    }
+
+    pub async fn resolve_ucan<S: BlockStore>(&self, store: &S) -> Result<Ucan> {
+        let store = UcanStore(store.clone());
+        let jwt = store.require_token(&self.jwt).await?;
+
+        Ucan::try_from_token_string(&jwt)
     }
 }
 
@@ -98,3 +105,78 @@ pub type AllowedIpld = VersionedMapIpld<CidKey, DelegationIpld>;
 /// The key is the CID of the original UCAN JWT, and the value is the revocation
 /// order by the UCAN issuer
 pub type RevokedIpld = VersionedMapIpld<CidKey, RevocationIpld>;
+
+#[cfg(test)]
+mod tests {
+    use noosphere_storage::{memory::MemoryStore, ucan::UcanStore};
+    use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
+
+    use crate::authority::generate_ed25519_key;
+
+    use super::{DelegationIpld, RevocationIpld};
+
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_stores_a_registerd_jwt() {
+        let store = MemoryStore::default();
+        let key = generate_ed25519_key();
+
+        let ucan_jwt = UcanBuilder::default()
+            .issued_by(&key)
+            .for_audience(&key.get_did().await.unwrap())
+            .with_lifetime(128)
+            .build()
+            .unwrap()
+            .sign()
+            .await
+            .unwrap()
+            .encode()
+            .unwrap();
+
+        let delegation = DelegationIpld::try_register("foobar", &ucan_jwt, &store)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            UcanStore(store).read_token(&delegation.jwt).await.unwrap(),
+            Some(ucan_jwt)
+        );
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_verify_that_a_key_issued_a_revocation() {
+        let store = MemoryStore::default();
+        let key = generate_ed25519_key();
+        let other_key = generate_ed25519_key();
+
+        let ucan_jwt = UcanBuilder::default()
+            .issued_by(&key)
+            .for_audience(&key.get_did().await.unwrap())
+            .with_lifetime(128)
+            .build()
+            .unwrap()
+            .sign()
+            .await
+            .unwrap()
+            .encode()
+            .unwrap();
+
+        let delegation = DelegationIpld::try_register("foobar", &ucan_jwt, &store)
+            .await
+            .unwrap();
+
+        let revocation = RevocationIpld::try_revoke(&delegation.jwt, &key)
+            .await
+            .unwrap();
+
+        assert!(revocation.try_verify(&key).await.is_ok());
+        assert!(revocation.try_verify(&other_key).await.is_err());
+    }
+}

@@ -1,11 +1,14 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
-use ucan::{crypto::KeyMaterial, ucan::Ucan};
+use ucan::{crypto::KeyMaterial};
 
-use crate::data::{
-    ChangelogIpld, CidKey, DelegationIpld, MapOperation, MemoIpld, RevocationIpld, VersionedMapKey,
-    VersionedMapValue,
+use crate::{
+    authority::Authorization,
+    data::{
+        ChangelogIpld, CidKey, DelegationIpld, MapOperation, MemoIpld, RevocationIpld,
+        VersionedMapKey, VersionedMapValue,
+    },
 };
 
 use noosphere_storage::interface::BlockStore;
@@ -20,9 +23,9 @@ impl<S: BlockStore> SphereRevision<S> {
     pub async fn try_sign<Credential: KeyMaterial>(
         &mut self,
         credential: &Credential,
-        proof: Option<&Ucan>,
+        authorization: Option<&Authorization>,
     ) -> Result<Cid> {
-        self.memo.sign(credential, proof).await?;
+        self.memo.sign(credential, authorization).await?;
         self.store.save::<DagCborCodec, _>(&self.memo).await
     }
 }
@@ -75,8 +78,8 @@ impl<'a> SphereMutation {
 
     pub fn is_empty(&self) -> bool {
         self.links.changes.len() == 0
-        && self.allowed_ucans.changes.len() == 0
-        && self.revoked_ucans.changes.len() == 0
+            && self.allowed_ucans.changes.len() == 0
+            && self.revoked_ucans.changes.len() == 0
     }
 }
 

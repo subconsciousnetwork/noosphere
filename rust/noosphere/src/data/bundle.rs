@@ -1,18 +1,17 @@
 use std::{collections::BTreeMap, str::FromStr};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use cid::Cid;
 
 use futures::{pin_mut, StreamExt};
 use libipld_cbor::DagCborCodec;
 use libipld_core::{raw::RawCodec, serde::to_ipld};
-use noosphere_cbor::{TryDagCbor, TryDagCborSendSync};
 use noosphere_storage::{
     encoding::{block_deserialize, block_serialize},
     interface::BlockStore,
 };
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
     data::{
@@ -22,11 +21,11 @@ use crate::{
     view::Timeslice,
 };
 
-use super::{AllowedIpld, AuthorizationIpld, RevokedIpld, VersionedMapKey, VersionedMapValue};
+use super::{AllowedIpld, AuthorityIpld, RevokedIpld, VersionedMapKey, VersionedMapValue};
 
 // TODO: This should maybe only collect CIDs, and then streaming-serialize to
 // a CAR (https://ipld.io/specs/transport/car/carv2/)
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Bundle(BTreeMap<String, Vec<u8>>);
 
 impl Bundle {
@@ -47,10 +46,10 @@ impl Bundle {
 
             match cid.codec() {
                 codec_id if codec_id == u64::from(DagCborCodec) => {
-                    store.put_links::<DagCborCodec>(&cid, &block_bytes).await?;
+                    store.put_links::<DagCborCodec>(&cid, block_bytes).await?;
                 }
                 codec_id if codec_id == u64::from(RawCodec) => {
-                    store.put_links::<RawCodec>(&cid, &block_bytes).await?;
+                    store.put_links::<RawCodec>(&cid, block_bytes).await?;
                 }
                 codec_id => warn!("Unrecognized codec {}; skipping...", codec_id),
             }
@@ -107,9 +106,21 @@ impl Bundle {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub trait TryBundleSendSync: Send + Sync {}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<T> TryBundleSendSync for T where T: Send + Sync {}
+
+#[cfg(target_arch = "wasm32")]
+pub trait TryBundleSendSync {}
+
+#[cfg(target_arch = "wasm32")]
+impl<T> TryBundleSendSync for T {}
+
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait TryBundle: TryDagCborSendSync {
+pub trait TryBundle: TryBundleSendSync + Serialize + DeserializeOwned {
     async fn try_extend_bundle<S: BlockStore>(
         &self,
         bundle: &mut Bundle,
@@ -156,7 +167,7 @@ impl TryBundle for BodyChunkIpld {
 
         while let Some(cid) = next_cid {
             let bytes = store.require_block(&cid).await?;
-            let chunk = BodyChunkIpld::try_from_dag_cbor(&bytes)?;
+            let chunk = block_deserialize::<DagCborCodec, BodyChunkIpld>(&bytes)?;
             bundle.add(cid, bytes);
             next_cid = chunk.next;
         }
@@ -179,7 +190,7 @@ where
     ) -> Result<()> {
         let bytes = store.require_block(cid).await?;
         let mut cids = Vec::new();
-        let changelog = Self::try_from_dag_cbor(&bytes)?;
+        let changelog = block_deserialize::<DagCborCodec, Self>(&bytes)?;
 
         bundle.add(*cid, bytes);
 
@@ -191,6 +202,25 @@ where
         }
 
         for cid in cids {
+            match cid.codec() {
+                codec_id if codec_id == u64::from(DagCborCodec) => {
+                    let block_bytes = store.require_block(&cid).await?;
+
+                    match block_deserialize::<DagCborCodec, _>(&block_bytes) {
+                        Ok(memo @ MemoIpld { .. }) => {
+                            memo.try_extend_bundle(bundle, store).await?;
+                        }
+                        _ => {
+                            bundle.add(cid, block_bytes);
+                        }
+                    };
+                }
+                codec_id if codec_id == u64::from(RawCodec) => {
+                    bundle.add(cid, store.require_block(&cid).await?);
+                }
+                codec_id => warn!("Unrecognized codec {}; skipping...", codec_id),
+            };
+
             bundle.add(cid, store.require_block(&cid).await?);
         }
 
@@ -207,17 +237,32 @@ impl TryBundle for MemoIpld {
         bundle.add(self_cid, self_bytes);
 
         match self.get_first_header(&Header::ContentType.to_string()) {
-            Some(value) => match ContentType::from_str(&value)? {
-                ContentType::Subtext | ContentType::Bytes => {
-                    bundle.extend::<BodyChunkIpld, _>(&self.body, store).await?;
+            Some(value) => {
+                match ContentType::from_str(&value)? {
+                    ContentType::Subtext | ContentType::Bytes => {
+                        bundle.extend::<BodyChunkIpld, _>(&self.body, store).await?;
+                    }
+                    ContentType::Sphere => {
+                        bundle.extend::<SphereIpld, _>(&self.body, store).await?;
+                    }
+                    ContentType::Unknown(content_type) => {
+                        warn!("Unrecognized content type {:?}; attempting to bundle as body chunks...", content_type);
+                        // Fallback to body chunks....
+                        bundle.extend::<BodyChunkIpld, _>(&self.body, store).await?;
+                    }
                 }
-                ContentType::Sphere => {
-                    bundle.extend::<SphereIpld, _>(&self.body, store).await?;
-                }
-                ContentType::Unknown(_) => todo!(),
-            },
-            None => todo!(),
-        }
+            }
+            None => {
+                warn!("No content type specified; only bundling a single block");
+                bundle.add(
+                    self.body,
+                    store
+                        .get_block(&self.body)
+                        .await?
+                        .ok_or_else(|| anyhow!("Unable to find block for {}", self.body))?,
+                );
+            }
+        };
 
         Ok(())
     }
@@ -227,8 +272,6 @@ impl TryBundle for MemoIpld {
         bundle: &mut Bundle,
         store: &S,
     ) -> Result<()> {
-        let memo = store.load::<DagCborCodec, MemoIpld>(cid).await?;
-        println!("BUNDLING MEMO {} {:?}", cid, memo);
         store
             .load::<DagCborCodec, MemoIpld>(cid)
             .await?
@@ -280,7 +323,7 @@ impl TryBundle for SphereIpld {
         store: &S,
     ) -> Result<()> {
         let self_bytes = store.require_block(cid).await?;
-        let sphere = SphereIpld::try_from_dag_cbor(&self_bytes)?;
+        let sphere = block_deserialize::<DagCborCodec, Self>(&self_bytes)?;
 
         bundle.add(*cid, self_bytes);
 
@@ -293,7 +336,7 @@ impl TryBundle for SphereIpld {
 
         match sphere.authorization {
             Some(cid) => {
-                AuthorizationIpld::try_extend_bundle_with_cid(&cid, bundle, store).await?;
+                AuthorityIpld::try_extend_bundle_with_cid(&cid, bundle, store).await?;
             }
             _ => (),
         }
@@ -311,14 +354,14 @@ impl TryBundle for SphereIpld {
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl TryBundle for AuthorizationIpld {
+impl TryBundle for AuthorityIpld {
     async fn try_extend_bundle_with_cid<S: BlockStore>(
         cid: &Cid,
         bundle: &mut Bundle,
         store: &S,
     ) -> Result<()> {
         let self_bytes = store.require_block(cid).await?;
-        let authorization_ipld = block_deserialize::<DagCborCodec, AuthorizationIpld>(&self_bytes)?;
+        let authorization_ipld = block_deserialize::<DagCborCodec, AuthorityIpld>(&self_bytes)?;
 
         AllowedIpld::try_extend_bundle_with_cid(&authorization_ipld.allowed, bundle, store).await?;
         RevokedIpld::try_extend_bundle_with_cid(&authorization_ipld.revoked, bundle, store).await?;
@@ -332,13 +375,16 @@ impl TryBundle for AuthorizationIpld {
 #[cfg(test)]
 mod tests {
     use libipld_cbor::DagCborCodec;
-    use libipld_core::raw::RawCodec;
+    use libipld_core::{ipld::Ipld, raw::RawCodec};
     use noosphere_storage::{interface::BlockStore, memory::MemoryStore};
     use serde_bytes::Bytes;
     use ucan::crypto::KeyMaterial;
 
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
     use crate::{
         authority::generate_ed25519_key,
@@ -408,6 +454,48 @@ mod tests {
 
         assert!(bundle.contains(&links_ipld.changelog));
         assert!(bundle.contains(&foo_cid));
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_bundles_memo_body_content() {
+        let mut store = MemoryStore::default();
+
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await.unwrap();
+
+        let (sphere, authorization, _) =
+            Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+
+        let body_cid = store
+            .save::<RawCodec, _>(Ipld::Bytes(b"foobar".to_vec()))
+            .await
+            .unwrap();
+
+        let memo = MemoIpld {
+            parent: None,
+            headers: Vec::new(),
+            body: body_cid,
+        };
+        let memo_cid = store.save::<DagCborCodec, _>(&memo).await.unwrap();
+        let key = "foo".to_string();
+
+        let mut mutation = SphereMutation::new(&owner_did);
+
+        mutation.links_mut().set(&key, &memo_cid);
+
+        let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+
+        let sphere_revision = revision
+            .try_sign(&owner_key, Some(&authorization))
+            .await
+            .unwrap();
+
+        let bundle = MemoIpld::try_bundle_with_cid(&sphere_revision, &store)
+            .await
+            .unwrap();
+
+        assert!(bundle.contains(&body_cid));
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]

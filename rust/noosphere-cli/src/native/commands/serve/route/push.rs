@@ -1,23 +1,34 @@
+use std::sync::Arc;
+
 use anyhow::Result;
-use axum::Json;
+
 use axum::{extract::ContentLengthLimit, http::StatusCode, Extension};
 
-use noosphere::authority::{SphereAction, SphereReference};
-use noosphere::view::{Sphere, Timeline};
+use cid::Cid;
+use noosphere::authority::{Authorization, SphereAction, SphereReference};
+use noosphere::data::Bundle;
+use noosphere::view::{Sphere, SphereMutation, Timeline};
 use noosphere_api::data::{PushBody, PushResponse};
 use noosphere_storage::{db::SphereDb, native::NativeStore};
 use ucan::capability::{Capability, Resource, With};
+use ucan::crypto::KeyMaterial;
+
 
 use crate::native::commands::serve::gateway::GatewayScope;
 use crate::native::commands::serve::{authority::GatewayAuthority, extractor::Cbor};
 
 // #[debug_handler]
-pub async fn push_route(
+pub async fn push_route<K>(
     authority: GatewayAuthority,
     ContentLengthLimit(Cbor(push_body)): ContentLengthLimit<Cbor<PushBody>, { 1024 * 5000 }>,
     Extension(mut db): Extension<SphereDb<NativeStore>>,
+    Extension(gateway_key): Extension<Arc<K>>,
+    Extension(gateway_authorization): Extension<Authorization>,
     Extension(scope): Extension<GatewayScope>,
-) -> Result<Json<PushResponse>, StatusCode> {
+) -> Result<Cbor<PushResponse>, StatusCode>
+where
+    K: KeyMaterial,
+{
     debug!("Invoking push route...");
 
     let sphere_identity = &push_body.sphere;
@@ -36,7 +47,7 @@ pub async fn push_route(
     })?;
 
     debug!("Preparing to merge sphere lineage...");
-    let local_sphere_base_cid = db.get_version(&sphere_identity).await.map_err(|error| {
+    let local_sphere_base_cid = db.get_version(sphere_identity).await.map_err(|error| {
         error!("{:?}", error);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -58,6 +69,11 @@ pub async fn push_route(
                 warn!("Conflict!");
                 return Err(StatusCode::CONFLICT);
             }
+
+            if push_body.tip == mine {
+                warn!("No new changes in push body!");
+                return Ok(Cbor(PushResponse::NoChange));
+            }
         }
         (None, Some(_)) => {
             error!("Missing local lineage!");
@@ -67,6 +83,7 @@ pub async fn push_route(
     };
 
     debug!("Merging...");
+
     incorporate_lineage(&scope, &mut db, &push_body)
         .await
         .map_err(|error| {
@@ -74,7 +91,59 @@ pub async fn push_route(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    Ok(Json(PushResponse::Ok))
+    debug!("Updating the gateway's sphere...");
+
+    let (new_gateway_tip, new_blocks) = update_gateway_sphere(
+        &push_body.tip,
+        &scope,
+        &gateway_key,
+        &gateway_authorization,
+        &mut db,
+    )
+    .await
+    .map_err(|error| {
+        error!("{:?}", error);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(Cbor(PushResponse::Accepted {
+        new_tip: new_gateway_tip,
+        blocks: new_blocks,
+    }))
+}
+
+async fn update_gateway_sphere<K>(
+    counterpart_sphere_cid: &Cid,
+    scope: &GatewayScope,
+    key: &K,
+    authority: &Authorization,
+    db: &mut SphereDb<NativeStore>,
+) -> Result<(Cid, Bundle)>
+where
+    K: KeyMaterial + Send,
+{
+    let my_sphere_cid = db.require_version(&scope.identity).await?;
+
+    let my_sphere = Sphere::at(&my_sphere_cid, db);
+    let my_did = key.get_did().await?;
+
+    let mut mutation = SphereMutation::new(&my_did);
+    mutation
+        .links_mut()
+        .set(&scope.counterpart, counterpart_sphere_cid);
+
+    let mut revision = my_sphere.try_apply_mutation(&mutation).await?;
+
+    let my_updated_sphere_cid = revision.try_sign(key, Some(authority)).await?;
+
+    db.set_version(&scope.identity, &my_updated_sphere_cid)
+        .await?;
+
+    let blocks = Sphere::at(&my_updated_sphere_cid, db)
+        .try_bundle_until_ancestor(Some(&my_sphere_cid))
+        .await?;
+
+    Ok((my_updated_sphere_cid, blocks))
 }
 
 async fn incorporate_lineage(

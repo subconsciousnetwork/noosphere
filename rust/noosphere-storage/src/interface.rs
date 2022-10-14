@@ -97,7 +97,7 @@ pub trait BlockStore: Clone + BlockStoreSendSync {
     async fn put<C, T>(&mut self, data: T) -> Result<Cid>
     where
         C: Codec + Default,
-        T: Encode<C> + BlockStoreSend + core::fmt::Debug,
+        T: Encode<C> + BlockStoreSend,
         Ipld: References<C>,
     {
         let codec = C::default();

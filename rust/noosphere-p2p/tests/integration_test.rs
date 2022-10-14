@@ -2,8 +2,8 @@
 #![cfg(test)]
 use noosphere_p2p::dht::{DHTError, DHTNetworkInfo, DHTNode, DHTStatus};
 use std::str;
-use test_log;
-use tokio;
+
+
 //use tracing::*;
 mod utils;
 use utils::{create_test_config, generate_multiaddr, initialize_network, swarm_command};

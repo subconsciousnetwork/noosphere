@@ -7,6 +7,7 @@ pub enum Header {
     Title,
     Signature,
     Version,
+    FileExtension,
     Unknown(String),
 }
 
@@ -19,6 +20,7 @@ impl Display for Header {
             Header::Title => "Title",
             Header::Signature => "Signature",
             Header::Version => "Version",
+            Header::FileExtension => "File-Extension",
             Header::Unknown(name) => name,
         };
 
@@ -32,6 +34,7 @@ impl FromStr for Header {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s.to_lowercase().as_str() {
             "content-type" => Header::ContentType,
+            "file-extension" => Header::FileExtension,
             "proof" => Header::Proof,
             "author" => Header::Author,
             "title" => Header::Title,

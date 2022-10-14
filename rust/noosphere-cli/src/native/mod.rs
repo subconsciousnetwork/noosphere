@@ -28,6 +28,7 @@ use self::commands::config::config_set;
 use self::commands::save::save;
 use self::commands::serve::serve;
 use self::commands::status::status;
+use self::commands::sync::sync;
 
 // On client:
 // orb key create cdata
@@ -236,10 +237,10 @@ pub enum SphereCommand {
         #[clap(short = 'k', long)]
         local_key: Option<String>,
 
-        /// An authorization token allowing the specified key to join the
-        /// sphere (if already known)
-        #[clap(short = 't', long)]
-        token: Option<String>,
+        /// The identity of the authorization that allows the specified key
+        /// to join the sphere (if already known)
+        #[clap(short = 'a', long)]
+        authorization: Option<String>,
 
         /// The ID (specifically: a DID) of an existing sphere to join
         id: String,
@@ -316,7 +317,7 @@ pub async fn main() -> Result<()> {
             }
             SphereCommand::Join {
                 local_key,
-                token,
+                authorization,
                 id,
                 path,
             } => {
@@ -329,13 +330,13 @@ pub async fn main() -> Result<()> {
                     None => workspace.unambiguous_default_key_name().await?,
                 };
 
-                sphere_join(&local_key, token, &id, &workspace).await?;
+                sphere_join(&local_key, authorization, &id, &workspace).await?;
             }
         },
         OrbCommand::Status => status(&workspace).await?,
         OrbCommand::Diff { paths: _, base: _ } => todo!(),
         OrbCommand::Save { matching } => save(matching, &workspace).await?,
-        OrbCommand::Sync => todo!(),
+        OrbCommand::Sync => sync(&workspace).await?,
         OrbCommand::Publish { version: _ } => todo!(),
         OrbCommand::Auth { command } => match command {
             AuthCommand::Add { did, name } => auth_add(&did, name, &workspace).await?,

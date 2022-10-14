@@ -1,10 +1,10 @@
-mod authorization;
+mod authority;
 mod mutation;
 mod sphere;
 mod timeline;
 mod versioned_map;
 
-pub use authorization::*;
+pub use authority::*;
 pub use mutation::*;
 pub use sphere::*;
 pub use timeline::*;

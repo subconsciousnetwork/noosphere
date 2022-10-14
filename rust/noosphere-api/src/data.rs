@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
@@ -7,7 +7,7 @@ use noosphere::{
     data::Bundle,
 };
 use noosphere_storage::encoding::{base64_decode, base64_encode};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use ucan::{
     capability::{Capability, Resource, With},
     chain::ProofChain,
@@ -17,71 +17,112 @@ use ucan::{
 };
 
 pub trait AsQuery {
-    fn as_query(&self) -> Option<String>;
+    fn as_query(&self) -> Result<Option<String>>;
 }
 
 impl AsQuery for () {
-    fn as_query(&self) -> Option<String> {
-        None
+    fn as_query(&self) -> Result<Option<String>> {
+        Ok(None)
     }
 }
 
-// Fetch
-#[derive(Debug, Deserialize)]
+// NOTE: Adapted from https://github.com/tokio-rs/axum/blob/7caa4a3a47a31c211d301f3afbc518ea2c07b4de/examples/query-params-with-empty-strings/src/main.rs#L42-L54
+/// Serde deserialization decorator to map empty Strings to None,
+fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: std::fmt::Display,
+{
+    let opt = Option::<String>::deserialize(de)?;
+    match opt.as_deref() {
+        None | Some("") => Ok(None),
+        Some(s) => FromStr::from_str(s)
+            .map_err(serde::de::Error::custom)
+            .map(Some),
+    }
+}
+
+/// The parameters expected for the "fetch" API route
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FetchParameters {
-    pub since: Option<String>,
+    /// This is the last revision of the "counterpart" sphere that is managed
+    /// by the API host that the client is fetching from
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub since: Option<Cid>,
 }
 
 impl AsQuery for FetchParameters {
-    fn as_query(&self) -> Option<String> {
-        match &self.since {
-            Some(since) => Some(format!("since={}", since)),
-            None => None,
-        }
+    fn as_query(&self) -> Result<Option<String>> {
+        Ok(self.since.as_ref().map(|since| format!("since={}", since)))
     }
 }
 
+/// The possible responses from the "fetch" API route
 #[derive(Debug, Serialize, Deserialize)]
-pub struct FetchResponse {
-    pub tip: Cid,
-    pub blocks: Bundle,
+pub enum FetchResponse {
+    /// There are new revisions to the local and "counterpart" spheres to sync
+    /// with local history
+    NewChanges {
+        /// The tip of the "counterpart" sphere that is managed by the API host
+        /// that the client is fetching from
+        tip: Cid,
+        /// All the new blocks of the "counterpart" sphere as well as the new
+        /// blocks of the local sphere that correspond to remote changes from
+        /// other clients
+        blocks: Bundle,
+    },
+    /// There are no new revisions since the revision specified in the initial
+    /// fetch request
+    UpToDate,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct OutOfDateResponse {
-    pub sphere: String,
-    pub presumed_base: Option<Cid>,
-    pub actual_tip: Cid,
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MissingRevisionsResponse {
-    pub sphere: String,
-    pub presumed_base: Cid,
-    pub actual_tip: Option<Cid>,
-}
-
-// Push
+/// The body payload expected by the "push" API route
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PushBody {
+    /// The DID of the local sphere whose revisions are being pushed
     pub sphere: String,
+    /// The base revision represented by the payload being pushed; if the
+    /// entire history is being pushed, then this should be None
     pub base: Option<Cid>,
+    /// The tip of the history represented by the payload being pushed
     pub tip: Cid,
+    /// A bundle of all the blocks needed to hydrate the revisions from the
+    /// base to the tip of history as represented by this payload
     pub blocks: Bundle,
 }
 
+/// The possible responses from the "push" API route
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PushResponse {
-    Ok,
-    OutOfDate(OutOfDateResponse),
-    MissingRevisions(MissingRevisionsResponse),
+    /// The new history was accepted
+    Accepted {
+        /// This is the new tip of the "counterpart" sphere after accepting
+        /// the latest history from the local sphere. This is guaranteed to be
+        /// at least one revision ahead of the latest revision being tracked
+        /// by the client (because it points to the newly received tip of the
+        /// local sphere's history)
+        new_tip: Cid,
+        /// The blocks needed to hydrate the revisions of the "counterpart"
+        /// sphere history to the tip represented in this response
+        blocks: Bundle,
+    },
+    /// The history was already known by the API host, so no changes were made
+    NoChange,
 }
 
+/// The response from the "identify" API route; this is a signed response that
+/// allows the client to verify the authority of the API host
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdentifyResponse {
+    /// The DID of the API host
     pub gateway_identity: String,
+    /// The DID of the "counterpart" sphere
     pub sphere_identity: String,
+    /// The signature of the API host over this payload, as base64-encoded bytes
     pub signature: String,
+    /// The proof that the API host was authorized by the "counterpart" sphere
+    /// in the form of a UCAN JWT
     pub proof: String,
 }
 

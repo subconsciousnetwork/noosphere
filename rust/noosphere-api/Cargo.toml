@@ -10,6 +10,7 @@ anyhow = "^1"
 cid = "~0.8"
 url = "^2"
 serde = "^1"
+serde_urlencoded = "~0.7"
 tracing = "~0.1"
 noosphere = { path = "../noosphere" }
 noosphere-storage = { path = "../noosphere-storage" }

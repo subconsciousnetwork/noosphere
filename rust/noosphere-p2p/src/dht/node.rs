@@ -158,7 +158,7 @@ impl DHTNode {
         self.client
             .send_request_async(request)
             .await
-            .map_err(|e| DHTError::from(e))
+            .map_err(DHTError::from)
             .and_then(|res| res)
     }
 

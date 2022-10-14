@@ -7,15 +7,16 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use ucan::{crypto::KeyMaterial, Ucan};
+use ucan::{crypto::KeyMaterial};
 
-use noosphere::authority::SUPPORTED_KEYS;
+use noosphere::authority::{Authorization, SUPPORTED_KEYS};
 use noosphere_api::route::Route as GatewayRoute;
 use noosphere_storage::{db::SphereDb, native::NativeStore};
 use ucan::crypto::did::DidParser;
 use url::Url;
 
-use crate::native::commands::serve::route::{fetch_route, identify_route, push_route};
+use crate::native::commands::serve::route::{did_route, fetch_route, identify_route, push_route};
+use crate::native::commands::serve::tracing::initialize_tracing;
 
 #[derive(Clone, Debug)]
 pub struct GatewayScope {
@@ -27,13 +28,14 @@ pub async fn start_gateway<K>(
     listener: TcpListener,
     gateway_key: K,
     gateway_scope: GatewayScope,
-    gateway_authority: Ucan,
+    gateway_authorization: Authorization,
     gateway_db: SphereDb<NativeStore>,
     cors_origin: Option<Url>,
 ) -> Result<()>
 where
     K: KeyMaterial + 'static,
 {
+    initialize_tracing();
     let did_parser = DidParser::new(SUPPORTED_KEYS);
 
     let mut cors = CorsLayer::new();
@@ -58,15 +60,16 @@ where
     }
 
     let app = Router::new()
+        .route(&GatewayRoute::Did.to_string(), get(did_route::<K>))
         .route(
             &GatewayRoute::Identify.to_string(),
             get(identify_route::<K>),
         )
-        .route(&GatewayRoute::Push.to_string(), put(push_route))
+        .route(&GatewayRoute::Push.to_string(), put(push_route::<K>))
         .route(&GatewayRoute::Fetch.to_string(), get(fetch_route))
         .layer(Extension(gateway_db))
         .layer(Extension(gateway_scope.clone()))
-        .layer(Extension(gateway_authority))
+        .layer(Extension(gateway_authorization))
         .layer(Extension(Arc::new(Mutex::new(did_parser))))
         .layer(Extension(Arc::new(gateway_key)))
         .layer(cors)
@@ -93,6 +96,7 @@ It awaits updates from sphere {}..."#,
 
 #[cfg(test)]
 mod tests {
+    use anyhow::anyhow;
     use std::net::TcpListener;
 
     use noosphere::{
@@ -102,7 +106,7 @@ mod tests {
     };
     use noosphere_api::{
         client::Client,
-        data::{FetchParameters, PushBody, PushResponse},
+        data::{FetchParameters, FetchResponse, PushBody, PushResponse},
     };
 
     use noosphere_storage::interface::BlockStore;
@@ -121,7 +125,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_can_be_identified_by_the_client_of_its_owner() {
-        // initialize_tracing();
+        initialize_tracing();
 
         let gateway_workspace = Workspace::temporary().unwrap();
         let client_workspace = Workspace::temporary().unwrap();
@@ -181,13 +185,13 @@ mod tests {
                 format!("http://{}:{}", gateway_address.ip(), gateway_address.port())
                     .parse()
                     .unwrap();
-            let mut did_parser = DidParser::new(&SUPPORTED_KEYS);
+            let mut did_parser = DidParser::new(SUPPORTED_KEYS);
 
             let client = Client::identify(
                 &client_sphere_identity,
                 &api_base,
                 &client_key,
-                client_authorization,
+                &client_authorization,
                 &mut did_parser,
                 client_db,
             )
@@ -267,13 +271,13 @@ mod tests {
                 format!("http://{}:{}", gateway_address.ip(), gateway_address.port())
                     .parse()
                     .unwrap();
-            let mut did_parser = DidParser::new(&SUPPORTED_KEYS);
+            let mut did_parser = DidParser::new(SUPPORTED_KEYS);
 
             let client = Client::identify(
                 &client_sphere_identity,
                 &api_base,
                 &client_key,
-                client_authorization,
+                &client_authorization,
                 &mut did_parser,
                 client_db.clone(),
             )
@@ -298,7 +302,11 @@ mod tests {
                 .await
                 .unwrap();
 
-            assert_eq!(push_result, PushResponse::Ok);
+            match push_result {
+                PushResponse::Accepted { .. } => Ok(()),
+                _ => Err(anyhow!("Unexpected push result")),
+            }
+            .unwrap();
 
             let block_stream = client_db.stream_links(&sphere_cid);
 
@@ -346,7 +354,7 @@ mod tests {
         let client_key = client_workspace.get_local_key().await.unwrap();
         let gateway_key = gateway_workspace.get_local_key().await.unwrap();
         let gateway_identity = gateway_key.get_did().await.unwrap();
-        let gateway_authority = gateway_workspace.get_local_authorization().await.unwrap();
+        let gateway_authorization = gateway_workspace.get_local_authorization().await.unwrap();
 
         let gateway_sphere_identity = gateway_workspace.get_local_identity().await.unwrap();
         let client_sphere_identity = client_workspace.get_local_identity().await.unwrap();
@@ -364,7 +372,7 @@ mod tests {
                         identity: gateway_sphere_identity,
                         counterpart: client_sphere_identity,
                     },
-                    gateway_authority,
+                    gateway_authorization,
                     gateway_db,
                     None,
                 )
@@ -382,13 +390,13 @@ mod tests {
                 format!("http://{}:{}", gateway_address.ip(), gateway_address.port())
                     .parse()
                     .unwrap();
-            let mut did_parser = DidParser::new(&SUPPORTED_KEYS);
+            let mut did_parser = DidParser::new(SUPPORTED_KEYS);
 
             let client = Client::identify(
                 &client_sphere_identity,
                 &api_base,
                 &client_key,
-                client_authorization.clone(),
+                &client_authorization,
                 &mut did_parser,
                 client_db.clone(),
             )
@@ -415,9 +423,13 @@ mod tests {
                 .await
                 .unwrap();
 
-            assert_eq!(push_result, PushResponse::Ok);
+            match push_result {
+                PushResponse::Accepted { .. } => Ok(()),
+                _ => Err(anyhow!("Unexpected push result")),
+            }
+            .unwrap();
 
-            let mut final_cid = sphere_cid;
+            let mut final_cid;
 
             for value in ["one", "two", "three"] {
                 let memo = MemoIpld::for_body(&mut client_db, vec![value])
@@ -452,7 +464,11 @@ mod tests {
                 .await
                 .unwrap();
 
-            assert_eq!(push_result, PushResponse::Ok);
+            match push_result {
+                PushResponse::Accepted { .. } => Ok(()),
+                _ => Err(anyhow!("Unexpected push result")),
+            }
+            .unwrap();
 
             let block_stream = client_db.stream_links(&sphere_cid);
 
@@ -535,13 +551,13 @@ mod tests {
                 format!("http://{}:{}", gateway_address.ip(), gateway_address.port())
                     .parse()
                     .unwrap();
-            let mut did_parser = DidParser::new(&SUPPORTED_KEYS);
+            let mut did_parser = DidParser::new(SUPPORTED_KEYS);
 
             let client = Client::identify(
                 &client_sphere_identity,
                 &api_base,
                 &client_key,
-                client_authorization.clone(),
+                &client_authorization,
                 &mut did_parser,
                 client_db.clone(),
             )
@@ -591,14 +607,22 @@ mod tests {
                 .await
                 .unwrap();
 
-            assert_eq!(push_result, PushResponse::Ok);
+            match push_result {
+                PushResponse::Accepted { .. } => Ok(()),
+                _ => Err(anyhow!("Unexpected push result")),
+            }
+            .unwrap();
 
             let fetch_result = client
                 .fetch(&FetchParameters { since: None })
                 .await
                 .unwrap();
 
-            assert_eq!(fetch_result.blocks.map(), bundle.map());
+            match fetch_result {
+                FetchResponse::NewChanges { .. } => Ok(()),
+                _ => Err(anyhow!("Unexpected fetch result")),
+            }
+            .unwrap();
 
             server_task.abort();
             let _ = server_task.await;

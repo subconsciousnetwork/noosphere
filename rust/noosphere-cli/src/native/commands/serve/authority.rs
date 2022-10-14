@@ -11,6 +11,7 @@ use axum::{
 use libipld_core::cid::Cid;
 use noosphere::authority::{SphereAction, SphereReference, SPHERE_SEMANTICS};
 use noosphere_storage::{db::SphereDb, native::NativeStore};
+
 use tokio::sync::Mutex;
 use ucan::{
     capability::Capability, chain::ProofChain, crypto::did::DidParser, store::UcanJwtStore,
@@ -48,7 +49,7 @@ impl GatewayAuthority {
             if capability_info
                 .originators
                 .contains(&self.scope.counterpart)
-                && capability_info.capability.enables(&capability)
+                && capability_info.capability.enables(capability)
             {
                 debug!("Authorized!");
                 return Ok(());
@@ -71,21 +72,30 @@ where
         let did_parser = req
             .extensions()
             .get::<Arc<Mutex<DidParser>>>()
-            .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
+            .ok_or_else(|| {
+                error!("Could not find DidParser in extensions");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
             .clone();
 
         // Look for the SphereDb
         let mut db = req
             .extensions()
             .get::<SphereDb<NativeStore>>()
-            .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
+            .ok_or_else(|| {
+                error!("Could not find SphereDb in extensions");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
             .clone();
 
         // Get the scope of this gateway
         let gateway_scope = req
             .extensions()
             .get::<GatewayScope>()
-            .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
+            .ok_or_else(|| {
+                error!("Could not find GatewayScope in extensions");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
             .clone();
 
         // Extract the bearer token

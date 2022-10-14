@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use libipld_cbor::DagCborCodec;
 use noosphere::{
+    authority::Authorization,
     data::{BodyChunkIpld, ContentType, Header, MemoIpld},
     view::{Sphere, SphereMutation},
 };
@@ -9,9 +10,9 @@ use noosphere_storage::{
     interface::{BlockStore, Store},
 };
 use once_cell::sync::OnceCell;
-use std::{str::FromStr};
+use std::str::FromStr;
 use tokio_util::io::StreamReader;
-use ucan::{crypto::KeyMaterial, ucan::Ucan};
+use ucan::crypto::KeyMaterial;
 
 use cid::Cid;
 use tokio::io::{AsyncRead, AsyncReadExt};
@@ -272,7 +273,7 @@ where
     pub async fn save<K: KeyMaterial>(
         &mut self,
         credential: &K,
-        proof: Option<&Ucan>,
+        authorization: Option<&Authorization>,
         additional_headers: Option<Vec<(String, String)>>,
     ) -> Result<Cid> {
         let sphere = Sphere::at(&self.sphere_revision, &self.db);
@@ -280,21 +281,17 @@ where
         let mut revision = sphere.try_apply_mutation(mutation).await?;
 
         match additional_headers {
-            Some(mut headers) if headers.len() > 0 => {
-                revision.memo.headers.append(&mut headers)
-            },
-            _ if mutation.is_empty() => {
-                return Err(anyhow!("No changes to save"))
-            },
-            _ => ()
+            Some(mut headers) if !headers.is_empty() => revision.memo.headers.append(&mut headers),
+            _ if mutation.is_empty() => return Err(anyhow!("No changes to save")),
+            _ => (),
         }
 
-        let new_sphere_revision = revision.try_sign(credential, proof).await?;
+        let new_sphere_revision = revision.try_sign(credential, authorization).await?;
 
         self.db
             .set_version(&self.sphere_identity, &new_sphere_revision)
             .await?;
-        self.sphere_revision = new_sphere_revision.clone();
+        self.sphere_revision = new_sphere_revision;
         self.mutation = OnceCell::new();
 
         Ok(new_sphere_revision)
@@ -369,7 +366,7 @@ pub mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
+        let (sphere, _, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
         let sphere_identity = sphere.try_get_identity().await.unwrap();
 
@@ -447,7 +444,7 @@ pub mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
+        let (sphere, authorization, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
         let sphere_identity = sphere.try_get_identity().await.unwrap();
 
@@ -468,7 +465,9 @@ pub mod tests {
         .await
         .unwrap();
 
-        fs.save(&owner_key, Some(&proof), None).await.unwrap();
+        fs.save(&owner_key, Some(&authorization), None)
+            .await
+            .unwrap();
 
         fs.write(
             "cats",
@@ -479,7 +478,9 @@ pub mod tests {
         .await
         .unwrap();
 
-        fs.save(&owner_key, Some(&proof), None).await.unwrap();
+        fs.save(&owner_key, Some(&authorization), None)
+            .await
+            .unwrap();
 
         let mut file = fs.read("cats").await.unwrap().unwrap();
 
@@ -521,7 +522,7 @@ pub mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
+        let (sphere, authorization, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
         let sphere_identity = sphere.try_get_identity().await.unwrap();
 
@@ -533,7 +534,7 @@ pub mod tests {
             .await
             .unwrap();
 
-        let result = fs.save(&owner_key, Some(&proof), None).await;
+        let result = fs.save(&owner_key, Some(&authorization), None).await;
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "No changes to save");
@@ -548,7 +549,7 @@ pub mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
+        let (sphere, authorization, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
         let sphere_identity = sphere.try_get_identity().await.unwrap();
 
@@ -560,7 +561,9 @@ pub mod tests {
             .await
             .unwrap();
 
-        let result = fs.save(&owner_key, Some(&proof), Some(vec![])).await;
+        let result = fs
+            .save(&owner_key, Some(&authorization), Some(vec![]))
+            .await;
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "No changes to save");
