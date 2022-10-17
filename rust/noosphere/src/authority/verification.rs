@@ -8,12 +8,9 @@ use ucan::{
     ucan::Ucan,
 };
 
-use crate::{
-    data::{ContentType, Header, MemoIpld, SphereIpld},
-    encoding::base64_decode,
-};
+use crate::data::{ContentType, Header, MemoIpld, SphereIpld};
 
-use noosphere_storage::{interface::BlockStore, ucan::UcanStore};
+use noosphere_storage::{encoding::base64_decode, interface::BlockStore, ucan::UcanStore};
 
 use crate::authority::SPHERE_SEMANTICS;
 
@@ -66,7 +63,7 @@ pub async fn verify_sphere_cid<S: BlockStore>(
                     did: sphere.identity.clone(),
                 }),
             },
-            can: SphereAction::Sign,
+            can: SphereAction::Push,
         };
 
         for capability_info in proof.reduce_capabilities(&SPHERE_SEMANTICS) {

@@ -33,13 +33,14 @@ const KEYS_DIRECTORY: &str = "keys";
 const AUTHORIZATION_FILE: &str = "AUTHORIZATION";
 const KEY_FILE: &str = "KEY";
 const IDENTITY_FILE: &str = "IDENTITY";
+const CONFIG_FILE: &str = "config.toml";
 
 #[derive(Default)]
 pub struct ContentChanges {
     pub new: BTreeMap<String, Option<ContentType>>,
     pub updated: BTreeMap<String, Option<ContentType>>,
-    pub unchanged: BTreeSet<String>,
     pub removed: BTreeMap<String, Option<ContentType>>,
+    pub unchanged: BTreeSet<String>,
 }
 
 impl ContentChanges {
@@ -72,9 +73,15 @@ pub struct Workspace {
     authorization: PathBuf,
     key: PathBuf,
     identity: PathBuf,
+    config: PathBuf,
 }
 
 impl Workspace {
+    /// Read the local content of the workspace in its entirety, filtered by an
+    /// optional glob pattern. The glob pattern is applied to the file path
+    /// relative to the workspace.
+    /// TODO: We may want to change this to take an optional list of paths to
+    /// consider, and allow the user to rely on their shell for glob filtering
     pub async fn read_local_content<S: BlockStore>(
         &self,
         pattern: Option<GlobMatcher>,
@@ -154,6 +161,8 @@ impl Workspace {
         Ok(content)
     }
 
+    /// Produces a manifest of changes (added, updated and removed) derived from
+    /// the current state of the workspace
     pub async fn get_local_content_changes<Sa: Store, Sb: Store>(
         &self,
         pattern: Option<GlobMatcher>,
@@ -218,6 +227,7 @@ impl Workspace {
         Ok((content, changes))
     }
 
+    /// Given a file extension, infer its mime
     pub async fn infer_content_type(&self, extension: &str) -> Result<ContentType> {
         // TODO: User-specified extension->mime mapping
         Ok(match extension {
@@ -231,6 +241,7 @@ impl Workspace {
         })
     }
 
+    /// Given a mime, infer its file extension
     pub async fn infer_file_extension(&self, content_type: ContentType) -> Option<String> {
         match content_type {
             ContentType::Subtext => Some("subtext".into()),
@@ -245,6 +256,8 @@ impl Workspace {
         }
     }
 
+    /// Produce a matcher that will match any path that should be ignored when
+    /// considering the files that make up the local workspace
     pub async fn get_ignored_patterns(&self) -> Result<GlobSet> {
         self.expect_local_directories()?;
 
@@ -294,12 +307,20 @@ impl Workspace {
         &self.authorization
     }
 
+    /// The path to the file containing the DID of the local key used to operate
+    /// on the local sphere
     pub fn key_path(&self) -> &PathBuf {
         &self.key
     }
 
+    /// The path to the file containing the DID of the sphere that is being
+    /// worked on in this local workspace
     pub fn identity_path(&self) -> &PathBuf {
         &self.identity
+    }
+
+    pub fn config_path(&self) -> &PathBuf {
+        &self.config
     }
 
     /// Attempts to read the locally stored authorization that enables the key
@@ -313,6 +334,8 @@ impl Workspace {
         Ok(ucan)
     }
 
+    /// Produces a `SphereDb<NativeStore>` referring to the block storage
+    /// backing the sphere in the local workspace
     pub async fn get_local_db(&self) -> Result<SphereDb<NativeStore>> {
         self.expect_local_directories()?;
 
@@ -321,6 +344,8 @@ impl Workspace {
         SphereDb::new(&storage_provider).await
     }
 
+    /// Get the key material (with both verification and signing capabilities)
+    /// for the locally configured author key.
     pub async fn get_local_key(&self) -> Result<Ed25519KeyMaterial> {
         self.expect_global_directories()?;
         self.expect_local_directories()?;
@@ -341,6 +366,8 @@ impl Workspace {
         ))
     }
 
+    /// Get the identity of the sphere being worked on in the local workspace as
+    /// a DID string
     pub async fn get_local_identity(&self) -> Result<String> {
         self.expect_local_directories()?;
 
@@ -352,7 +379,8 @@ impl Workspace {
         Ok(fs::read_to_string(self.keys.join(name).with_extension("public")).await?)
     }
 
-    pub async fn get_key_mnemonic(&self, name: &str) -> Result<String> {
+    /// Get a mnemonic corresponding to the private portion of a give key by name
+    async fn get_key_mnemonic(&self, name: &str) -> Result<String> {
         Ok(fs::read_to_string(self.keys.join(name).with_extension("private")).await?)
     }
 
@@ -457,9 +485,11 @@ The available keys are:
     pub async fn initialize_local_directories(&self) -> Result<()> {
         let mut root = self.root.clone();
 
+        // Crawl up the directories to the root of the filesystem and make sure
+        // we aren't initializing a sphere within a sphere
         while let Some(parent) = root.clone().parent() {
             root = parent.to_path_buf();
-            let working_paths = Workspace::new(&root)?;
+            let working_paths = Workspace::new(&root, None)?;
             if let Ok(_) = working_paths.expect_local_directories() {
                 return Err(anyhow!(
                     r#"Tried to initialize sphere directories in {:?}
@@ -472,6 +502,7 @@ Unexpected things will happen if you try to nest spheres this way!"#,
         }
 
         fs::create_dir_all(&self.sphere).await?;
+        fs::write(self.config_path(), "").await?;
 
         Ok(())
     }
@@ -483,7 +514,7 @@ Unexpected things will happen if you try to nest spheres this way!"#,
         Ok(())
     }
 
-    pub fn new(root: &PathBuf) -> Result<Self> {
+    pub fn new(root: &PathBuf, noosphere_global_root: Option<&PathBuf>) -> Result<Self> {
         if !root.is_absolute() {
             return Err(anyhow!("Ambiguous path to sphere root: {:?}", root));
         }
@@ -494,14 +525,18 @@ Unexpected things will happen if you try to nest spheres this way!"#,
         let authorization = sphere.join(AUTHORIZATION_FILE);
         let key = sphere.join(KEY_FILE);
         let identity = sphere.join(IDENTITY_FILE);
-        let noosphere = home::home_dir()
-            .ok_or_else(|| {
-                anyhow!(
-                    "Could not discover home directory for {}",
-                    whoami::username()
-                )
-            })?
-            .join(NOOSPHERE_DIRECTORY);
+        let config = sphere.join(CONFIG_FILE);
+        let noosphere = match noosphere_global_root {
+            Some(custom_root) => custom_root.clone(),
+            None => home::home_dir()
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Could not discover home directory for {}",
+                        whoami::username()
+                    )
+                })?
+                .join(NOOSPHERE_DIRECTORY),
+        };
         let keys = noosphere.join(KEYS_DIRECTORY);
 
         Ok(Workspace {
@@ -513,6 +548,20 @@ Unexpected things will happen if you try to nest spheres this way!"#,
             identity,
             noosphere,
             keys,
+            config,
         })
+    }
+
+    #[cfg(test)]
+    pub fn temporary() -> Result<Self> {
+        use temp_dir::TempDir;
+
+        let root = TempDir::new()?;
+        let global_root = TempDir::new()?;
+
+        Workspace::new(
+            &root.path().to_path_buf(),
+            Some(&global_root.path().to_path_buf()),
+        )
     }
 }

@@ -7,7 +7,7 @@ use noosphere_storage::{
 };
 use tokio::fs;
 
-pub async fn initialize_sphere(owner_key: &str, working_paths: &Workspace) -> Result<()> {
+pub async fn sphere_create(owner_key: &str, working_paths: &Workspace) -> Result<()> {
     if working_paths.expect_local_directories().is_ok() {
         return Err(anyhow!(
             "A sphere is already initialized in {:?}",
@@ -57,7 +57,7 @@ You will be asked to enter them if you ever need to transfer ownership of the sp
     Ok(())
 }
 
-pub async fn join_sphere(
+pub async fn sphere_join(
     local_key: &str,
     token: Option<String>,
     sphere_did: &str,

@@ -1,7 +1,6 @@
-// pub mod commands;
-// pub mod native;
-
-// pub mod env;
+#[cfg(not(target_arch = "wasm32"))]
+#[macro_use]
+extern crate tracing;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native;

@@ -5,6 +5,7 @@ use anyhow::Result;
 use globset::Glob;
 use std::ffi::OsString;
 
+use std::net::IpAddr;
 use std::path::PathBuf;
 
 use cid::Cid;
@@ -13,38 +14,43 @@ use clap::Parser;
 use clap::Subcommand;
 use url::Url;
 
-use commands::key::create_key;
-use commands::key::list_keys;
-use commands::sphere::initialize_sphere;
-use commands::sphere::join_sphere;
+use commands::key::key_create;
+use commands::key::key_list;
+use commands::sphere::sphere_create;
+use commands::sphere::sphere_join;
 use workspace::Workspace;
 
 use self::commands::auth::auth_add;
 use self::commands::auth::auth_list;
 use self::commands::auth::auth_revoke;
+use self::commands::config::config_get;
+use self::commands::config::config_set;
 use self::commands::save::save;
+use self::commands::serve::serve;
 use self::commands::status::status;
 
-// orb config set <key> <value> -> Set local configuration
-// orb config get <key> -> Read local configuration
-// orb config import [--replace] <toml file> -> Import settings from toml
-// orb config export -> Export settings as toml
+// On client:
+// orb key create cdata
+// orb sphere create --owner-key cdata
+// << client sphere DID is shown here >>
 
-// orb sphere initialize
-// orb sphere join
+// On gateway:
+// orb key create cdata-gateway
+// orb sphere create --owner-key cdata-gateway
+// << gateway sphere DID is shown here >>
+// orb config set counterpart $CLIENT_SPHERE_DID
+// orb serve
+// << gateway URL is shown here >>
 
-// orb auth add <did> [--as <name>]
-// orb auth list
-// orb auth revoke <did-or-name>
+// On client:
+// orb config set gateway-url $GATEWAY_URL
+// orb config set counterpart $GATEWAY_SPHERE_DID
 
-// orb history -> Show the history of changes to the sphere (like git log)
-// orb history <file> -> Show the history of a file in the working tree
-
-// orb status -> Show the list of things that have changed since last save (like git status)
-// orb diff [<file>] -> If a difftool is configured, show a text diff (as appropriate) between the latest sphere revision and files in the working tree
-// orb save -> Save all changes to the working tree as a revision to the sphere
-// orb sync -> Bi-directionally sync with a configured gateway (if any); like get fetch + rebase + push
-// orb publish [<cid>] -> Instruct the gateway to publish a version of the sphere to the DHT
+// configs go in .sphere/config.toml
+//
+// gateway does not syndicate its sphere to IPFS, preserving a sort of privacy.
+// But: sphere content may still "leak" to public IPFS if it is linked to from
+// the user's sphere
 
 #[derive(Debug, Parser)]
 #[clap(name = "orb")]
@@ -60,11 +66,6 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum OrbCommand {
-    Config {
-        #[clap(subcommand)]
-        command: ConfigCommand,
-    },
-
     Key {
         #[clap(subcommand)]
         command: KeyCommand,
@@ -75,9 +76,35 @@ pub enum OrbCommand {
         command: SphereCommand,
     },
 
+    Config {
+        #[clap(subcommand)]
+        command: ConfigCommand,
+    },
+
     Auth {
         #[clap(subcommand)]
         command: AuthCommand,
+    },
+
+    /// Summon a gateway geist to manage the local sphere; it will accept
+    /// push, fetch and other REST actions from any clients that are authorized
+    /// to operate on its counterpart sphere. When it receives changes to its
+    /// counterpart sphere, it will perform various actions such as publishing
+    /// and/or querying the Noosphere Name System, generating static HTML and/or
+    /// updating its own sphere with various related information of interest to
+    /// the counterpart sphere
+    Serve {
+        /// Optional origin to allow CORS for
+        #[clap(short, long)]
+        cors_origin: Option<Url>,
+
+        /// The IP address of the interface that the gateway should bind to
+        #[clap(short, long, default_value = "127.0.0.1")]
+        interface: IpAddr,
+
+        /// The port that the gateway should listen on
+        #[clap(short, long, default_value = "4433")]
+        port: u16,
     },
 
     /// Show details about files in the sphere directory that have changed since
@@ -119,6 +146,7 @@ pub enum OrbCommand {
 }
 
 /// Read and manage configuration values for a local sphere
+/// TODO: Consider adding `config import` / `config export`
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommand {
     /// Set a configuration value for the local sphere
@@ -131,39 +159,38 @@ pub enum ConfigCommand {
         #[clap(subcommand)]
         command: ConfigGetCommand,
     },
-    /// Import configuration settings from a TOML file
-    Import {
-        /// A TOML file containing key-value configuration entries to set
-        file: PathBuf,
-
-        /// Replace all configurations with the values in the specified file
-        #[clap(short, long)]
-        replace: bool,
-    },
-
-    /// Print all current configuration values and exit
-    Export,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum ConfigSetCommand {
-    /// Configure the Noosphere gateway to use for publishing and sync
-    Gateway {
+    /// Configure the URL of the gateway to use for publishing and sync
+    GatewayUrl {
         /// The URL for a gateway API host that the owner key of this sphere is authorized to use
         url: Url,
+    },
+
+    /// If you are configuring your local sphere, the "counterpart" is the
+    /// gateway's sphere DID. If you are configuring a gateway's sphere, the
+    /// "counterpart" is the DID of your local sphere.
+    Counterpart {
+        /// The sphere identity (as a DID) of the counterpart
+        did: String,
     },
 
     /// Configure a command to be used when diffing files
     Difftool {
         /// A command that can be used when diffing files
-        command: OsString,
+        tool: String,
     },
 }
 
 #[derive(Debug, Subcommand)]
 pub enum ConfigGetCommand {
     /// Read the configured gateway URL
-    Gateway,
+    GatewayUrl,
+
+    /// Read the configured counterpart DID
+    Counterpart,
 
     /// Read the configured difftool command
     Difftool,
@@ -188,11 +215,11 @@ pub enum KeyCommand {
     },
 }
 
-/// Create, join or share access to a sphere
+/// Create a new sphere or connect another device to an existing one
 #[derive(Debug, Subcommand)]
 pub enum SphereCommand {
     /// Initialize a new sphere and assign a key as its owner
-    Initialize {
+    Create {
         /// The pet name of a key to assign as the owner of the sphere
         #[clap(short = 'k', long)]
         owner_key: Option<String>,
@@ -221,12 +248,6 @@ pub enum SphereCommand {
         /// initialized; by default, the current working directory will
         /// be used
         path: Option<OsString>,
-    },
-
-    /// Transfer ownership of the sphere in the current directory to another key
-    Transfer {
-        /// The pet name of the key to transfer ownership to
-        new_owner_key: String,
     },
 }
 
@@ -257,27 +278,33 @@ pub enum AuthCommand {
         /// The name of a key to revoke authorization for
         name: String,
     },
+
+    /// Rotate key authority from one key to another
+    Rotate {},
 }
 
 pub async fn main() -> Result<()> {
     // println!("Hello, Orb!");
     let args = Cli::parse();
 
-    let mut workspace = Workspace::new(&std::env::current_dir()?)?;
+    let mut workspace = Workspace::new(&std::env::current_dir()?, None)?;
 
     // println!("{:#?}", args);
     // println!("{:#?}", working_paths);
 
     match args.command {
-        OrbCommand::Config { command: _ } => todo!(),
+        OrbCommand::Config { command } => match command {
+            ConfigCommand::Set { command } => config_set(command, &workspace).await?,
+            ConfigCommand::Get { command } => config_get(command, &workspace).await?,
+        },
         OrbCommand::Key { command } => match command {
-            KeyCommand::Create { name } => create_key(name, &workspace).await?,
-            KeyCommand::List { as_json } => list_keys(as_json, &workspace).await?,
+            KeyCommand::Create { name } => key_create(&name, &workspace).await?,
+            KeyCommand::List { as_json } => key_list(as_json, &workspace).await?,
         },
         OrbCommand::Sphere { command } => match command {
-            SphereCommand::Initialize { owner_key, path } => {
+            SphereCommand::Create { owner_key, path } => {
                 if let Some(path) = path {
-                    workspace = Workspace::new(&workspace.root_path().join(path))?;
+                    workspace = Workspace::new(&workspace.root_path().join(path), None)?;
                 }
 
                 let owner_key = match owner_key {
@@ -285,7 +312,7 @@ pub async fn main() -> Result<()> {
                     None => workspace.unambiguous_default_key_name().await?,
                 };
 
-                initialize_sphere(&owner_key, &workspace).await?;
+                sphere_create(&owner_key, &workspace).await?;
             }
             SphereCommand::Join {
                 local_key,
@@ -294,7 +321,7 @@ pub async fn main() -> Result<()> {
                 path,
             } => {
                 if let Some(path) = path {
-                    workspace = Workspace::new(&workspace.root_path().join(path))?;
+                    workspace = Workspace::new(&workspace.root_path().join(path), None)?;
                 }
 
                 let local_key = match local_key {
@@ -302,9 +329,8 @@ pub async fn main() -> Result<()> {
                     None => workspace.unambiguous_default_key_name().await?,
                 };
 
-                join_sphere(&local_key, token, &id, &workspace).await?;
+                sphere_join(&local_key, token, &id, &workspace).await?;
             }
-            SphereCommand::Transfer { new_owner_key: _ } => todo!(),
         },
         OrbCommand::Status => status(&workspace).await?,
         OrbCommand::Diff { paths: _, base: _ } => todo!(),
@@ -315,7 +341,13 @@ pub async fn main() -> Result<()> {
             AuthCommand::Add { did, name } => auth_add(&did, name, &workspace).await?,
             AuthCommand::List { as_json } => auth_list(as_json, &workspace).await?,
             AuthCommand::Revoke { name } => auth_revoke(&name, &workspace).await?,
+            AuthCommand::Rotate {} => todo!(),
         },
+        OrbCommand::Serve {
+            cors_origin,
+            interface,
+            port,
+        } => serve(interface, port, cors_origin, &workspace).await?,
     };
 
     Ok(())

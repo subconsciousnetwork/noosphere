@@ -6,7 +6,6 @@ members = [
   "noosphere",
   "noosphere-api",
   "noosphere-fs",
-  "noosphere-gateway",
   "noosphere-into",
   "noosphere-cli"
 ]

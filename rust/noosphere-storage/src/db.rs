@@ -6,10 +6,13 @@ use libipld_core::{
     ipld::Ipld,
     raw::RawCodec,
 };
-use std::fmt::Debug;
+use std::{collections::BTreeSet, fmt::Debug};
+use tokio_stream::{Stream, StreamExt};
 use ucan::store::{UcanStore, UcanStoreConditionalSend};
 
 use crate::interface::{BlockStore, KeyValueStore, StorageProvider, Store};
+
+use async_stream::try_stream;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub trait SphereDbSendSync: Send + Sync {}
@@ -68,6 +71,41 @@ where
 
     pub async fn get_block_links(&self, cid: &Cid) -> Result<Option<Vec<Cid>>> {
         self.link_store.get_key(&cid.to_string()).await
+    }
+
+    pub fn stream_links<'a>(&'a self, cid: &'a Cid) -> impl Stream<Item = Result<Cid>> + 'a {
+        try_stream! {
+            let mut visited_links = BTreeSet::new();
+            let mut remaining_links = vec![cid.clone()];
+
+            while let Some(cid) = remaining_links.pop() {
+                if visited_links.contains(&cid) {
+                    continue;
+                }
+
+                if let Some(mut links) = self.get_block_links(&cid).await? {
+                    remaining_links.append(&mut links);
+                }
+
+                visited_links.insert(cid.clone());
+
+                yield cid;
+            }
+        }
+    }
+
+    pub fn stream_blocks<'a>(
+        &'a self,
+        cid: &'a Cid,
+    ) -> impl Stream<Item = Result<(Cid, Vec<u8>)>> + 'a {
+        try_stream! {
+            for await cid in self.stream_links(cid) {
+                let cid = cid?;
+                if let Some(block) = self.block_store.get_block(&cid).await? {
+                    yield (cid, block);
+                }
+            }
+        }
     }
 
     pub fn to_block_store(&self) -> S {
@@ -130,9 +168,11 @@ mod tests {
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
-    use crate::{interface::BlockStore, memory::MemoryStorageProvider};
+    use crate::{
+        db::SphereDb, encoding::derive_cid, interface::BlockStore, memory::MemoryStorageProvider,
+    };
 
-    use super::SphereDb;
+    use tokio_stream::StreamExt;
 
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test_configure!(run_in_browser);
@@ -156,5 +196,40 @@ mod tests {
         let links = db.get_block_links(&cid3).await.unwrap();
 
         assert_eq!(Some(list3), links);
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    pub async fn it_can_stream_all_blocks_in_a_dag() {
+        let storage_provider = MemoryStorageProvider::default();
+        let mut db = SphereDb::new(&storage_provider).await.unwrap();
+
+        let list1 = vec!["cats", "dogs", "pigeons"];
+        let list2 = vec!["apples", "oranges", "starfruit"];
+
+        let cid1 = db.save::<DagCborCodec, _>(&list1).await.unwrap();
+        let cid2 = db.save::<DagCborCodec, _>(&list2).await.unwrap();
+
+        let list3 = vec![cid1, cid2];
+
+        let cid3 = db.save::<DagCborCodec, _>(&list3).await.unwrap();
+
+        let stream = db.stream_blocks(&cid3);
+
+        tokio::pin!(stream);
+
+        let mut cids = Vec::new();
+
+        while let Some((cid, block)) = stream.try_next().await.unwrap() {
+            let derived_cid = derive_cid::<DagCborCodec>(&block);
+            assert_eq!(cid, derived_cid);
+            cids.push(cid);
+        }
+
+        assert_eq!(cids.len(), 3);
+
+        for cid in [cid1, cid2, cid3] {
+            assert!(cids.contains(&cid));
+        }
     }
 }
