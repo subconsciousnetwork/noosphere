@@ -9,7 +9,7 @@ use noosphere_storage::{
     interface::{BlockStore, Store},
 };
 use once_cell::sync::OnceCell;
-use std::{str::FromStr, sync::Once};
+use std::{str::FromStr};
 use tokio_util::io::StreamReader;
 use ucan::{crypto::KeyMaterial, ucan::Ucan};
 

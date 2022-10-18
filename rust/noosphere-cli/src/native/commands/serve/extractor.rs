@@ -4,7 +4,6 @@ use axum::{
     extract::{FromRequest, RequestParts},
     http::{header, StatusCode},
     response::IntoResponse,
-    response::Response,
     BoxError,
 };
 use libipld_cbor::DagCborCodec;

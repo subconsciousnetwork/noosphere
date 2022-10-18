@@ -6,7 +6,7 @@ use cid::Cid;
 
 use futures::{pin_mut, StreamExt};
 use libipld_cbor::DagCborCodec;
-use libipld_core::{ipld::Ipld, raw::RawCodec, serde::to_ipld};
+use libipld_core::{raw::RawCodec, serde::to_ipld};
 use noosphere_cbor::{TryDagCbor, TryDagCborSendSync};
 use noosphere_storage::{
     encoding::{block_deserialize, block_serialize},

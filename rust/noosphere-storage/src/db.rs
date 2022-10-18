@@ -7,7 +7,7 @@ use libipld_core::{
     raw::RawCodec,
 };
 use std::{collections::BTreeSet, fmt::Debug};
-use tokio_stream::{Stream, StreamExt};
+use tokio_stream::{Stream};
 use ucan::store::{UcanStore, UcanStoreConditionalSend};
 
 use crate::interface::{BlockStore, KeyValueStore, StorageProvider, Store};

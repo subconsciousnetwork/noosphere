@@ -5,7 +5,7 @@ use tokio::sync::OnceCell;
 use url::Url;
 
 use crate::native::{
-    workspace::{self, Workspace},
+    workspace::Workspace,
     ConfigGetCommand, ConfigSetCommand,
 };
 
