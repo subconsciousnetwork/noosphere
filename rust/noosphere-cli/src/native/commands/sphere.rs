@@ -100,9 +100,7 @@ Type or paste the code here and press enter:"#,
         Some(token) => token,
     };
 
-    // TODO: ...
-
-    Ok(())
+    todo!();
 }
 
 pub async fn authorize(_key_did: &str, working_paths: &Workspace) -> Result<()> {
