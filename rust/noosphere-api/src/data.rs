@@ -12,7 +12,6 @@ use ucan::{
     capability::{Capability, Resource, With},
     chain::ProofChain,
     crypto::{did::DidParser, KeyMaterial},
-    serde::Base64Encode,
     store::UcanStore,
     Ucan,
 };

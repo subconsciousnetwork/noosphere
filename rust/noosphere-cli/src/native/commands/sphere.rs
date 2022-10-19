@@ -101,8 +101,6 @@ Type or paste the code here and press enter:"#,
     };
 
     todo!();
-
-    Ok(())
 }
 
 pub async fn authorize(_key_did: &str, working_paths: &Workspace) -> Result<()> {
