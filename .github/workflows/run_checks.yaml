@@ -1,0 +1,46 @@
+name: Run Checks
+
+on:
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  run-checks:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust-toolchain:
+          - stable
+          - nightly
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Cache Project
+        uses: Swatinem/rust-cache@v2
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          components: rustfmt, clippy
+          toolchain: ${{ matrix.rust-toolchain }}
+      - name: Check Format
+        uses: actions-rs/cargo@v1
+        with:
+          args: --all -- --check
+          command: fmt
+          toolchain: ${{ matrix.rust-toolchain }}
+      - name: Lint
+        uses: actions-rs/cargo@v1
+        with:
+          args: --all -- -D warnings
+          command: clippy
+          toolchain: ${{ matrix.rust-toolchain }}
+      - name: Install Cargo Audit
+        uses: "actions-rs/cargo@v1"
+        with:
+          args: "--force cargo-audit"
+          command: install
+      - name: Run Audit on Deps
+        run: cargo-audit audit
