@@ -12,10 +12,10 @@ temp-dir = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 clap = { version = "^4", features = ["derive", "cargo"] }
-anyhow = "^1"
+anyhow.workspace = true
 
-tokio = { version = "^1", features = ["full"] }
-tokio-stream = "~0.1"
+tokio = { workspace = true, features = ["full"] }
+tokio-stream.workspace = true
 axum = { version = "~0.5", features = ["headers", "macros"] }
 tower = "~0.4"
 tower-http = { version = "~0.3", features = ["cors", "trace"] }
@@ -39,7 +39,7 @@ noosphere-storage = { path = "../noosphere-storage" }
 noosphere-api = { path = "../noosphere-api" }
 ucan = { version = "0.7.0-alpha.1" }
 ucan-key-support = { version = "0.7.0-alpha.1" }
-cid = "~0.8"
+cid.workspace = true
 subtext = "~0.3"
 
 serde = "^1"

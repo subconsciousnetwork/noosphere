@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "^1"
+anyhow.workspace = true
 sha2 = "0.10"
-cid = "0.8"
+cid.workspace = true
 forest_hash_utils = "0.1.0"
 serde = "^1"
 serde_bytes = "0.11"
@@ -22,9 +22,9 @@ libipld-core = "~0.14"
 libipld-cbor = "~0.14"
 noosphere-storage = { path = "../noosphere-storage" }
 
-tokio = { version = "^1", features = ["sync", "io-util"] }
+tokio = { workspace = true, features = ["sync", "io-util"] }
 # tokio-util = { version = "~0.7", features = ["io"] }
-tokio-stream = "~0.1"
+tokio-stream.workspace = true
 async-stream = "~0.3"
 
 [dev-dependencies]
@@ -32,7 +32,7 @@ async-std = "^1"
 unsigned-varint = "0.7"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-tokio = { version = "^1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "0.3"

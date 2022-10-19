@@ -6,12 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "^1"
+anyhow.workspace = true
 async-std = "^1"
 async-trait = "~0.1"
 async-stream = "~0.3"
-tokio-stream = "~0.1"
-cid = "~0.8"
+tokio-stream.workspace = true
+cid.workspace = true
 tracing = "~0.1"
 ucan = { version = "0.7.0-alpha.1" }
 libipld-core = "~0.14"
@@ -25,10 +25,10 @@ wasm-bindgen-test = "~0.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sled = "~0.34"
-tokio = { version = "^1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-tokio = { version = "^1", features = [] }
+tokio = { workspace = true }
 wasm-bindgen = "~0.2"
 rexie = { git = "https://github.com/cdata/rexie" }
 js-sys = "~0.3"
