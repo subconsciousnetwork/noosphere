@@ -7,8 +7,10 @@ members = [
   "noosphere-api",
   "noosphere-fs",
   "noosphere-into",
-  "noosphere-cli"
+  "noosphere-cli",
+  "noosphere-p2p",
 ]
+
 # See: https://github.com/rust-lang/rust/issues/90148#issuecomment-949194352
 resolver = "2"
 

@@ -17,7 +17,7 @@ jobs:
       - name: 'Install environment packages'
         run: |
           sudo apt-get update -qqy
-          sudo apt-get install jq
+          sudo apt-get install jq protobuf-compiler cmake
       - name: 'Run Rust native target tests'
         working-directory: ./rust
         run: cargo test

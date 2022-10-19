@@ -2,13 +2,14 @@
 
 Core implementation.
 
+## Setup
+
+Several dependencies are needed to build Noosphere: OpenSSL, Protobufs, and Cmake.
+
+* Linux apt: `sudo apt install libssl-dev protobuf-compiler cmake`
+* MacOS Homebrew: `brew install openssl protobuf cmake`
+
 ## Build notes
-
-You may need OpenSSL development files to be installed locally:
-
-```sh
-sudo apt install libssl-dev
-```
 
 1. To build, make sure you have the latest rust build environment:
    https://rustup.rs/
