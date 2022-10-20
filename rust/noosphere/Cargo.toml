@@ -23,14 +23,38 @@ lto = true
 headers = ["safer-ffi/headers"]
 
 [dependencies]
-anyhow = "^1"
 thiserror = "^1"
 lazy_static = "^1"
-cid = "~0.8"
 async-trait = "~0.1"
 tracing = "~0.1"
 url = { version = "^2", features = ["serde"] }
 subtext = { version = "~0.3" }
+log = "~0.4"
+cid.workspace = true
+async-recursion = "^1"
+async-std = "^1"
+# NOTE: async-once-cell 0.4.0 shipped unstable feature usage
+async-once-cell = "~0.3"
+anyhow.workspace = true
+fastcdc = "^1"
+futures = "~0.3"
+fvm_ipld_amt = "~0.4"
+serde = "^1"
+byteorder = "^1.4"
+base64 = "~0.13"
+ed25519-zebra = "^3"
+rand = "~0.8"
+once_cell = "^1"
+serde_ipld_dagcbor = "~0.2"
+tiny-bip39 = "^1"
+crdts = "^7"
+tokio-stream.workspace = true
+libipld-core = "~0.14"
+libipld-cbor = "~0.14"
+
+noosphere-storage = { path = "../noosphere-storage" }
+noosphere-cbor = { path = "../noosphere-cbor" }
+noosphere-collections = { path = "../noosphere-collections" }
 
 noosphere-core = { version = "0.2.0", path = "../noosphere-core" }
 noosphere-fs = { version = "0.1.0", path = "../noosphere-fs" }
@@ -41,6 +65,11 @@ ucan-key-support = { version = "0.7.0-alpha.1" }
 
 [dev-dependencies]
 libipld-core = "~0.14"
+wasm-bindgen-test = "~0.3"
+serde_bytes = "~0.11"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { workspace = true, features = ["full"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tokio = { version = "^1", features = ["sync"] }

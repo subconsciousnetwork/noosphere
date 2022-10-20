@@ -22,16 +22,16 @@ noosphere-storage = { version = "0.1.0", path = "../noosphere-storage" }
 noosphere-fs = { version = "0.1.0", path = "../noosphere-fs" }
 subtext = { version = "~0.3", features = ["stream"] }
 
-anyhow = "^1"
+anyhow.workspace = true
 async-trait = "~0.1"
 
 horrorshow = "~0.8"
-cid = "~0.8"
+cid.workspace = true
 
 bytes = "^1"
-tokio-stream = "~0.1"
+tokio-stream.workspace = true
 tokio-util = "~0.7"
-tokio = { version = "^1", features = ["io-util", "macros", "test-util"] }
+tokio = { workspace = true, features = ["io-util", "macros", "test-util"] }
 
 async-stream = { version = "~0.3" }
 futures = { version = "~0.3" }
@@ -48,7 +48,7 @@ wasm-bindgen-test = "~0.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 # Mostly these dependencies are used in the examples
-tokio = { version = "^1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 temp-dir = "~0.1"
 axum = "~0.5"
 axum-extra = { version = "~0.3", features = ["spa"] }
