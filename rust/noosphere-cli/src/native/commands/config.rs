@@ -4,10 +4,7 @@ use tokio::fs;
 use tokio::sync::OnceCell;
 use url::Url;
 
-use crate::native::{
-    workspace::Workspace,
-    ConfigGetCommand, ConfigSetCommand,
-};
+use crate::native::{workspace::Workspace, ConfigGetCommand, ConfigSetCommand};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ConfigContents {

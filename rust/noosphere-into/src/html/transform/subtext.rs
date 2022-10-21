@@ -78,10 +78,8 @@ where
     async fn transform_block(&self, block: Block<Entity>) -> Result<String> {
         let mut content_html_strings = Vec::new();
         let mut transclude_html_strings = Vec::new();
-        let content_entities: Vec<Entity> = block
-            .to_content_entities()
-            .into_iter().cloned()
-            .collect();
+        let content_entities: Vec<Entity> =
+            block.to_content_entities().into_iter().cloned().collect();
         let is_solo_slashlink = if let (Some(&Entity::SlashLink(_)), 1) =
             (content_entities.first(), content_entities.len())
         {

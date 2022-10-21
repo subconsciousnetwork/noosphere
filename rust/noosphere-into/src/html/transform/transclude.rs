@@ -26,21 +26,23 @@ where
     pub async fn transform(&'a self, slug: &str) -> Result<Option<String>> {
         let transclude = self.transcluder.transclude(slug).await?;
 
-        Ok(transclude.map(|Transclude::Text(text_transclude)| html! {
-                    li(class="transclude-item") {
-                        a(class="transclude-format-text", href=&text_transclude.href) {
-                            @ if let Some(title) = &text_transclude.title {
-                                span(class="title") : title
-                            }
-
-                            @ if let Some(excerpt) = &text_transclude.excerpt {
-                                span(class="excerpt") : excerpt
-                            }
-
-                            span(class="link-text") : &text_transclude.link_text
+        Ok(transclude.map(|Transclude::Text(text_transclude)| {
+            html! {
+                li(class="transclude-item") {
+                    a(class="transclude-format-text", href=&text_transclude.href) {
+                        @ if let Some(title) = &text_transclude.title {
+                            span(class="title") : title
                         }
+
+                        @ if let Some(excerpt) = &text_transclude.excerpt {
+                            span(class="excerpt") : excerpt
+                        }
+
+                        span(class="link-text") : &text_transclude.link_text
                     }
                 }
-                .to_string()))
+            }
+            .to_string()
+        }))
     }
 }
