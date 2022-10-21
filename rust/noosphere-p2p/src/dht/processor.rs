@@ -27,8 +27,9 @@ use tokio;
 /// The processing component of a [DHTNode]/[DHTProcessor] pair. Consumers
 /// should only interface with a [DHTProcessor] via [DHTNode].
 pub struct DHTProcessor {
-    peer_id: PeerId,
     config: DHTConfig,
+    p2p_address: libp2p::Multiaddr,
+    peer_id: PeerId,
     processor: DHTMessageProcessor,
     swarm: DHTSwarm,
     requests: HashMap<kad::QueryId, DHTMessage>,
@@ -57,14 +58,16 @@ impl DHTProcessor {
     /// The processor can only be accessed through channels via the corresponding
     /// [DHTNode].
     pub(crate) fn spawn(
-        config: DHTConfig,
+        config: &DHTConfig,
+        peer_id: &PeerId,
+        p2p_address: &libp2p::Multiaddr,
         processor: DHTMessageProcessor,
     ) -> Result<tokio::task::JoinHandle<Result<(), DHTError>>, DHTError> {
-        let peer_id = config.peer_id();
-        let swarm = build_swarm(&peer_id, &config)?;
+        let swarm = build_swarm(peer_id, config)?;
         let mut node = DHTProcessor {
-            peer_id,
-            config,
+            config: config.to_owned(),
+            p2p_address: p2p_address.to_owned(),
+            peer_id: peer_id.to_owned(),
             processor,
             swarm,
             requests: HashMap::default(),
@@ -397,27 +400,15 @@ impl DHTProcessor {
         }
 
         if let Some((dial_opts, range)) = to_dial {
-            debug!(
-                "checking node {:?} in bucket range ({:?})",
-                dial_opts.get_peer_id().unwrap(),
-                range
-            );
-
             if let Err(e) = self.swarm.dial(dial_opts) {
                 warn!("failed to dial: {:?}", e);
-            } else {
-                warn!("success dial!");
             }
             self.kad_last_range = Some(range);
         }
     }
 
     fn start_listening(&mut self) -> Result<(), DHTError> {
-        // @TODO Determine if we should always listen on the "p2p" address,
-        // or root `self.config.listening_address`. The Identify protocol
-        // exchanges "observed address", and that translation is performed
-        // somewhere within libp2p.
-        let addr = self.config.p2p_address();
+        let addr = self.p2p_address.clone();
         dht_event_trace(self, &format!("Start listening on {}", addr));
         self.swarm
             .listen_on(addr)
@@ -444,6 +435,7 @@ impl fmt::Debug for DHTProcessor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DHTNode")
             .field("peer_id", &self.peer_id)
+            .field("p2p_address", &self.p2p_address)
             .field("config", &self.config)
             .finish()
     }

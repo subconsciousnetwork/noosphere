@@ -44,7 +44,7 @@ impl DHTBehaviour {
             let mut cfg = KademliaConfig::default();
             cfg.set_query_timeout(Duration::from_secs(config.query_timeout.into()));
 
-            // @TODO Use noosphere-fs instead of in-memory store.
+            // TODO(#99): Use SphereFS storage
             let store = kad::record::store::MemoryStore::new(local_peer_id);
             let mut kad = Kademlia::with_config(local_peer_id, store, cfg);
 

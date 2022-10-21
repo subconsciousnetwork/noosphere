@@ -34,7 +34,9 @@ pub async fn await_or_timeout<T>(
 }
 
 pub fn create_test_config() -> DHTConfig {
-    DHTConfig::default().peer_dialing_interval(1)
+    let mut config = DHTConfig::default();
+    config.peer_dialing_interval = 1;
+    config
 }
 
 pub async fn swarm_command<'a, TFuture, F, T, E>(
@@ -56,14 +58,14 @@ pub fn create_client_nodes_with_bootstrap_peers(
     let bootstrap_nodes = create_bootstrap_nodes(bootstrap_count)?;
     let bootstrap_addresses: Vec<libp2p::Multiaddr> = bootstrap_nodes
         .iter()
-        .map(|node| node.p2p_address())
+        .map(|node| node.p2p_address().clone())
         .collect();
 
     let mut client_nodes: Vec<DHTNode> = vec![];
     for _ in 0..client_count {
-        let config = create_test_config()
-            .listening_address(generate_multiaddr())
-            .bootstrap_peers(bootstrap_addresses.clone());
+        let mut config = create_test_config();
+        config.listening_address = generate_multiaddr();
+        config.bootstrap_peers = bootstrap_addresses.clone();
         client_nodes.push(DHTNode::new(config)?);
     }
     Ok((bootstrap_nodes, client_nodes))
@@ -72,20 +74,23 @@ pub fn create_client_nodes_with_bootstrap_peers(
 /// Creates `count` bootstrap nodes, each node using all other
 /// bootstrap nodes as bootstrap peers.
 pub fn create_bootstrap_nodes(count: usize) -> Result<Vec<DHTNode>, DHTError> {
-    let mut configs: Vec<DHTConfig> = vec![];
+    let mut configs: Vec<(DHTConfig, Multiaddr)> = vec![];
     for _ in 0..count {
-        configs.push(create_test_config().listening_address(generate_multiaddr()));
+        let mut config = create_test_config();
+        config.listening_address = generate_multiaddr();
+        let (_peer_id, p2p_address) = DHTConfig::get_peer_id_and_address(&config);
+        configs.push((config, p2p_address));
     }
 
     let mut handles: Vec<DHTNode> = vec![];
     let mut index = 0;
     for c in &configs {
-        let mut config = c.to_owned();
+        let mut config = c.0.to_owned();
         for i in 0..count {
             if i != index {
                 config
                     .bootstrap_peers
-                    .push(configs[i as usize].p2p_address());
+                    .push(configs[i as usize].1.to_owned());
             }
         }
         handles.push(DHTNode::new(config)?);

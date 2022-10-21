@@ -1,6 +1,6 @@
 use libp2p::{
     core::muxing::StreamMuxerBox, core::transport::Boxed, core::upgrade, dns, mplex, noise, tcp,
-    websocket, yamux, PeerId, Transport,
+    yamux, PeerId, Transport,
 };
 use std::{io, result::Result};
 
@@ -9,15 +9,9 @@ use std::{io, result::Result};
 pub(crate) fn build_transport(
     keypair: &libp2p::identity::Keypair,
 ) -> Result<Boxed<(PeerId, StreamMuxerBox)>, io::Error> {
-    let transport = {
-        let dns_tcp = dns::TokioDnsConfig::system(tcp::TokioTcpTransport::new(
-            tcp::GenTcpConfig::new().nodelay(true),
-        ))?;
-        let ws_dns_tcp = websocket::WsConfig::new(dns::TokioDnsConfig::system(
-            tcp::TokioTcpTransport::new(tcp::GenTcpConfig::new().nodelay(true)),
-        )?);
-        dns_tcp.or_transport(ws_dns_tcp)
-    };
+    let transport = dns::TokioDnsConfig::system(tcp::TokioTcpTransport::new(
+        tcp::GenTcpConfig::new().nodelay(true),
+    ))?;
 
     let noise_keys = noise::Keypair::<noise::X25519Spec>::new()
         .into_authentic(&keypair)

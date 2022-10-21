@@ -1,4 +1,5 @@
 use crate::dht::{
+    builder::DHTNodeBuilder,
     channel::message_channel,
     errors::DHTError,
     processor::DHTProcessor,
@@ -24,20 +25,32 @@ pub struct DHTNode {
     state: DHTStatus,
     client: DHTMessageClient,
     thread_handle: tokio::task::JoinHandle<Result<(), DHTError>>,
+    peer_id: libp2p::PeerId,
+    p2p_address: libp2p::Multiaddr,
 }
 
 impl DHTNode {
     /// Creates a new [DHTNode], spawning a networking thread.
+    /// Prefer to use [DHTNodeBuilder] to create a [DHTNode].
     pub fn new(config: DHTConfig) -> Result<Self, DHTError> {
         let (client, processor) = message_channel::<DHTRequest, DHTResponse, DHTError>();
-        let thread_handle = DHTProcessor::spawn(config.clone(), processor)?;
+        let (peer_id, p2p_address) = DHTConfig::get_peer_id_and_address(&config);
+        let thread_handle = DHTProcessor::spawn(&config, &peer_id, &p2p_address, processor)?;
 
         Ok(DHTNode {
             config,
+            peer_id,
+            p2p_address,
             state: DHTStatus::Active,
             client,
             thread_handle,
         })
+    }
+
+    /// Returns a new [DHTNodeBuilder] instance, the primary way of creating
+    /// a new [DHTNode].
+    pub fn builder<'a>() -> DHTNodeBuilder<'a> {
+        DHTNodeBuilder::default()
     }
 
     /// Teardown the network processing thread.
@@ -48,16 +61,20 @@ impl DHTNode {
         Ok(())
     }
 
-    /// Returns the [libp2p::PeerId] of the current node.
-    pub fn peer_id(&self) -> libp2p::PeerId {
-        self.config.peer_id()
+    /// Returns a reference to the [DHTConfig] used to
+    /// initialize this node.
+    pub fn config(&self) -> &DHTConfig {
+        &self.config
     }
 
-    /// Returns the public address of this node.
-    /// @TODO Need to untangle how libp2p manages
-    /// local vs remote address representation.
-    pub fn p2p_address(&self) -> libp2p::Multiaddr {
-        self.config.p2p_address()
+    /// Returns the [libp2p::PeerId] of the current node.
+    pub fn peer_id(&self) -> &libp2p::PeerId {
+        &self.peer_id
+    }
+
+    /// Returns the listening address of this node.
+    pub fn p2p_address(&self) -> &libp2p::Multiaddr {
+        &self.p2p_address
     }
 
     pub fn status(&self) -> DHTStatus {
@@ -67,10 +84,9 @@ impl DHTNode {
     /// Resolves once there are at least `requested_peers` peers
     /// in the network.
     pub async fn wait_for_peers(&self, requested_peers: usize) -> Result<(), DHTError> {
-        // @TODO Need to add a mechanism for non-Query based requests,
+        // TODO(#101) Need to add a mechanism for non-Query based requests,
         // like sending events, or triggering a peer check on
-        // new connection established.
-        // For now, we poll here.
+        // new connection established. For now, we poll here.
         loop {
             let info = self.network_info().await?;
             if info.num_peers >= requested_peers {

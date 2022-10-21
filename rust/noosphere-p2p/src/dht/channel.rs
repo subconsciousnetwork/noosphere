@@ -2,13 +2,6 @@ use core::{fmt, result::Result};
 use tokio;
 use tokio::sync::{mpsc, mpsc::error::SendError, oneshot, oneshot::error::RecvError};
 
-/// Error type to wrap the potential tokio sync errors,
-/// and distinguish between user-land respond errors.
-#[derive(Debug)]
-pub enum ChannelError {
-    SendError,
-    RecvError,
-}
 
 impl std::error::Error for ChannelError {}
 impl fmt::Display for ChannelError {
@@ -18,6 +11,13 @@ impl fmt::Display for ChannelError {
             ChannelError::RecvError => write!(fmt, "channel receiver error"),
         }
     }
+}
+/// Error type to wrap the potential tokio sync errors,
+/// and distinguish between user-land respond errors.
+#[derive(Debug)]
+pub enum ChannelError {
+    SendError,
+    RecvError,
 }
 
 impl<Q, S, E> From<SendError<Message<Q, S, E>>> for ChannelError {

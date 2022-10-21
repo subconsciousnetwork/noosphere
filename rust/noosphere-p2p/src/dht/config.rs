@@ -21,49 +21,13 @@ pub struct DHTConfig {
 }
 
 impl DHTConfig {
-    pub fn bootstrap_interval(mut self, interval: u64) -> Self {
-        self.bootstrap_interval = interval;
-        self
-    }
-
-    pub fn bootstrap_peers(mut self, peers: Vec<libp2p::Multiaddr>) -> Self {
-        self.bootstrap_peers = peers;
-        self
-    }
-
-    pub fn keypair(mut self, keypair: libp2p::identity::Keypair) -> Self {
-        self.keypair = keypair;
-        self
-    }
-
-    pub fn listening_address(mut self, address: libp2p::Multiaddr) -> Self {
-        self.listening_address = address;
-        self
-    }
-
-    pub fn peer_dialing_interval(mut self, interval: u64) -> Self {
-        self.peer_dialing_interval = interval;
-        self
-    }
-
-    pub fn query_timeout(mut self, timeout: u32) -> Self {
-        self.query_timeout = timeout;
-        self
-    }
-
-    // @TODO Cache this
-    pub fn peer_id(&self) -> libp2p::PeerId {
-        //utils::peer_id_from_key_with_sha256(&config.keypair.public())?
-        libp2p::PeerId::from(self.keypair.public())
-    }
-
-    /// Computes the remote multiaddress of this node.
-    /// Takes the listener address and appends the PeerId
-    /// via the "p2p" protocol.
-    pub fn p2p_address(&self) -> libp2p::Multiaddr {
-        let mut addr = self.listening_address.clone();
-        addr.push(libp2p::multiaddr::Protocol::P2p(self.peer_id().into()));
-        addr
+    /// Computes the [libp2p::PeerId] and [libp2p::Multiaddr]
+    /// listening address from the provided [DHTConfig].
+    pub fn get_peer_id_and_address(config: &DHTConfig) -> (libp2p::PeerId, libp2p::Multiaddr) {
+        let peer_id = libp2p::PeerId::from(config.keypair.public());
+        let mut addr = config.listening_address.clone();
+        addr.push(libp2p::multiaddr::Protocol::P2p(peer_id.clone().into()));
+        (peer_id, addr)
     }
 }
 
@@ -75,7 +39,7 @@ impl Default for DHTConfig {
             keypair: libp2p::identity::Keypair::generate_ed25519(),
             listening_address: "/ip4/127.0.0.1/tcp/0"
                 .parse::<libp2p::Multiaddr>()
-                .expect("default listening address is parseable."),
+                .expect("Default address is parseable."),
             peer_dialing_interval: 5,
             query_timeout: 5 * 60,
         }
@@ -89,18 +53,21 @@ mod tests {
     use std::error::Error;
 
     #[test]
-    fn test_dhtconfig_p2p_address() -> Result<(), Box<dyn Error>> {
-        let config = DHTConfig::default()
-            .listening_address("/ip4/127.0.0.1/tcp/0".parse::<libp2p::Multiaddr>()?);
-        let mut address = config.p2p_address();
+    fn test_dhtconfig_get_peer_id_and_address() -> Result<(), Box<dyn Error>> {
+        let mut config = DHTConfig::default();
+        config.listening_address = "/ip4/127.0.0.50/tcp/33333".parse::<libp2p::Multiaddr>()?;
+        let keypair = &config.keypair;
+        let (peer_id, mut address) = DHTConfig::get_peer_id_and_address(&config);
+
+        assert_eq!(peer_id, libp2p::PeerId::from(keypair.public()));
         assert_eq!(
             address.pop().unwrap(),
-            Protocol::P2p(config.peer_id().into())
+            Protocol::P2p(peer_id.clone().into())
         );
-        assert_eq!(address.pop().unwrap(), Protocol::Tcp(0));
+        assert_eq!(address.pop().unwrap(), Protocol::Tcp(33333));
         assert_eq!(
             address.pop().unwrap(),
-            Protocol::Ip4("127.0.0.1".parse().unwrap())
+            Protocol::Ip4("127.0.0.50".parse().unwrap())
         );
         Ok(())
     }
