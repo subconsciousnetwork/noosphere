@@ -117,7 +117,7 @@ mod tests {
     use url::Url;
 
     use crate::native::{
-        commands::{key::key_create, serve::tracing::initialize_tracing, sphere::sphere_create},
+        commands::{key::key_create, sphere::sphere_create},
         workspace::Workspace,
     };
 
@@ -125,7 +125,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_can_be_identified_by_the_client_of_its_owner() {
-        initialize_tracing();
+        // initialize_tracing();
 
         let gateway_workspace = Workspace::temporary().unwrap();
         let client_workspace = Workspace::temporary().unwrap();
@@ -429,8 +429,6 @@ mod tests {
             }
             .unwrap();
 
-            let mut final_cid;
-
             for value in ["one", "two", "three"] {
                 let memo = MemoIpld::for_body(&mut client_db, vec![value])
                     .await
@@ -441,7 +439,7 @@ mod tests {
                 mutation.links_mut().set(&value.into(), &memo_cid);
 
                 let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
-                final_cid = revision
+                let final_cid = revision
                     .try_sign(&client_key, Some(&client_authorization))
                     .await
                     .unwrap();
