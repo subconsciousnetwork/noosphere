@@ -12,7 +12,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 /// Encode some bytes as an unpadded URL-safe base64 string
 pub fn base64_encode(data: &[u8]) -> Result<String> {
-    Ok(base64::encode_config(&data, base64::URL_SAFE_NO_PAD))
+    Ok(base64::encode_config(data, base64::URL_SAFE_NO_PAD))
 }
 
 /// Decode some bytes from an unpadded URL-safe base64 string
