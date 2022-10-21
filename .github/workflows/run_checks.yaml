@@ -26,21 +26,21 @@ jobs:
           components: rustfmt, clippy
           toolchain: ${{ matrix.rust-toolchain }}
       - name: Check Format
-        working-directory: ./rust
-        uses: actions-rs/cargo@v1
+        uses: ClementTsang/cargo-action@v0.0.3
         with:
           args: --all -- --check
           command: fmt
+          directory: ./rust
           toolchain: ${{ matrix.rust-toolchain }}
       - name: Lint
-        working-directory: ./rust
-        uses: actions-rs/cargo@v1
+        uses: ClementTsang/cargo-action@v0.0.3
         with:
           args: --all -- -D warnings
           command: clippy
+          directory: ./rust
           toolchain: ${{ matrix.rust-toolchain }}
       - name: Install Cargo Audit
-        uses: "actions-rs/cargo@v1"
+        uses: ClementTsang/cargo-action@v0.0.3
         with:
           args: "--force cargo-audit"
           command: install
