@@ -35,7 +35,7 @@ jobs:
       - name: Lint
         uses: ClementTsang/cargo-action@v0.0.3
         with:
-          args: --all -- -D warnings
+          args: --all
           command: clippy
           directory: ./rust
           toolchain: ${{ matrix.rust-toolchain }}
