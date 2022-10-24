@@ -26,7 +26,7 @@ impl DHTConfig {
     pub fn get_peer_id_and_address(config: &DHTConfig) -> (libp2p::PeerId, libp2p::Multiaddr) {
         let peer_id = libp2p::PeerId::from(config.keypair.public());
         let mut addr = config.listening_address.clone();
-        addr.push(libp2p::multiaddr::Protocol::P2p(peer_id.clone().into()));
+        addr.push(libp2p::multiaddr::Protocol::P2p(peer_id.into()));
         (peer_id, addr)
     }
 }
@@ -62,7 +62,7 @@ mod tests {
         assert_eq!(peer_id, libp2p::PeerId::from(keypair.public()));
         assert_eq!(
             address.pop().unwrap(),
-            Protocol::P2p(peer_id.clone().into())
+            Protocol::P2p(peer_id.into())
         );
         assert_eq!(address.pop().unwrap(), Protocol::Tcp(33333));
         assert_eq!(

@@ -1,40 +1,48 @@
+use std::str::FromStr;
+
 use crate::native::workspace::Workspace;
 use anyhow::{anyhow, Result};
+use cid::Cid;
 use noosphere::view::Sphere;
 use noosphere_storage::{
     db::SphereDb,
     native::{NativeStorageInit, NativeStorageProvider},
 };
 use tokio::fs;
+use ucan::store::UcanJwtStore;
 
-pub async fn sphere_create(owner_key: &str, working_paths: &Workspace) -> Result<()> {
-    if working_paths.expect_local_directories().is_ok() {
+pub async fn sphere_create(owner_key: &str, workspace: &Workspace) -> Result<()> {
+    if workspace.expect_local_directories().is_ok() {
         return Err(anyhow!(
             "A sphere is already initialized in {:?}",
-            working_paths.root_path()
+            workspace.root_path()
         ));
     }
 
-    working_paths.initialize_local_directories().await?;
+    workspace.initialize_local_directories().await?;
 
-    let owner_did = working_paths
+    let owner_did = workspace
         .get_key_did(owner_key)
         .await
         .map_err(|error| anyhow!("Could not look up the key {:?}:\n{:?}", owner_key, error))?;
 
     let storage_provider =
-        NativeStorageProvider::new(NativeStorageInit::Path(working_paths.blocks_path().clone()))?;
+        NativeStorageProvider::new(NativeStorageInit::Path(workspace.blocks_path().clone()))?;
     let mut db = SphereDb::new(&storage_provider).await?;
 
-    let (sphere, ucan, mnemonic) = Sphere::try_generate(&owner_did, &mut db).await?;
+    let (sphere, authorization, mnemonic) = Sphere::try_generate(&owner_did, &mut db).await?;
 
     let sphere_identity = sphere.try_get_identity().await?;
 
-    db.set_version(&sphere_identity, sphere.cid()).await?;
+    let ucan = authorization.resolve_ucan(&db).await?;
+    let jwt = ucan.encode()?;
 
-    fs::write(working_paths.authorization_path(), ucan.encode()?).await?;
-    fs::write(working_paths.key_path(), owner_did).await?;
-    fs::write(working_paths.identity_path(), sphere_identity).await?;
+    db.set_version(&sphere_identity, sphere.cid()).await?;
+    let jwt_cid = db.write_token(&jwt).await?;
+
+    fs::write(workspace.authorization_path(), &jwt_cid.to_string()).await?;
+    fs::write(workspace.key_path(), owner_did).await?;
+    fs::write(workspace.identity_path(), sphere_identity).await?;
 
     println!(
         r#"A new sphere has been created in {:?}
@@ -48,7 +56,7 @@ IMPORTANT: Write down the following sequence of words...
 
 ...and keep it somewhere safe!
 You will be asked to enter them if you ever need to transfer ownership of the sphere to a different key."#,
-        working_paths.root_path(),
+        workspace.root_path(),
         sphere.try_get_identity().await?,
         owner_key,
         mnemonic
@@ -59,22 +67,22 @@ You will be asked to enter them if you ever need to transfer ownership of the sp
 
 pub async fn sphere_join(
     local_key: &str,
-    token: Option<String>,
+    authorization: Option<String>,
     sphere_did: &str,
-    working_paths: &Workspace,
+    workspace: &Workspace,
 ) -> Result<()> {
-    if working_paths.expect_local_directories().is_ok() {
+    if workspace.expect_local_directories().is_ok() {
         return Err(anyhow!(
             "A sphere is already initialized in {:?}",
-            working_paths.root_path()
+            workspace.root_path()
         ));
     }
 
     println!("Joining sphere {}...", sphere_did);
 
-    let did = working_paths.get_key_did(local_key).await?;
+    let did = workspace.get_key_did(local_key).await?;
 
-    let _token = match token {
+    let cid_string = match authorization {
         None => {
             println!(
                 r#"In order to join the sphere, another client must authorize your local key
@@ -91,21 +99,38 @@ Type or paste the code here and press enter:"#,
                 did
             );
 
-            let mut token = String::new();
+            let mut cid_string = String::new();
 
-            std::io::stdin().read_line(&mut token)?;
+            std::io::stdin().read_line(&mut cid_string)?;
 
-            token
+            cid_string
         }
-        Some(token) => token,
+        Some(cid_string) => cid_string,
     };
 
-    todo!();
-}
+    Cid::from_str(cid_string.trim())
+        .map_err(|_| anyhow!("Could not parse the authorization identity as a CID"))?;
 
-pub async fn authorize(_key_did: &str, working_paths: &Workspace) -> Result<()> {
-    working_paths.expect_local_directories()?;
+    workspace.initialize_local_directories().await?;
+
+    fs::write(workspace.identity_path(), sphere_did).await?;
+    fs::write(workspace.key_path(), &did).await?;
+    fs::write(workspace.authorization_path(), &cid_string).await?;
+
+    // TODO(#103): Recovery path if the auth needs to change for some reason
+
+    println!(
+        r#"The authorization has been saved.
+Make sure that you have configured the gateway's URL:
+
+  orb config set gateway-url <URL>
+  
+And then you should be able to sync:
+
+  orb sync
+  
+Happy pondering!"#
+    );
 
     Ok(())
-    // TODO: Authorize...
 }

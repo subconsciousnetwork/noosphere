@@ -3,8 +3,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::fmt::Display;
-
 use crate::hamt::Hamt;
 use forest_hash_utils::BytesKey;
 use serde_bytes::ByteBuf;
@@ -695,8 +693,4 @@ async fn clean_child_ordering() {
             bytes_removed: 0
         }
     );
-}
-
-fn tstring(v: impl Display) -> BytesKey {
-    BytesKey(v.to_string().into_bytes())
 }

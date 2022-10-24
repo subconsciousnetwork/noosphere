@@ -2263,7 +2263,6 @@ dependencies = [
  "libipld-cbor",
  "libipld-core",
  "log",
- "noosphere-cbor",
  "noosphere-collections",
  "noosphere-storage",
  "once_cell",
@@ -2292,6 +2291,7 @@ dependencies = [
  "noosphere-storage",
  "reqwest",
  "serde",
+ "serde_urlencoded",
  "tokio",
  "tracing",
  "ucan",
@@ -2299,15 +2299,6 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-test",
-]
-
-[[package]]
-name = "noosphere-cbor"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_ipld_dagcbor",
 ]
 
 [[package]]

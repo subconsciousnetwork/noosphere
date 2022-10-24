@@ -67,13 +67,13 @@ impl<Q, S, E> MessageClient<Q, S, E> {
     pub fn send_request(&self, request: Q) -> Result<(), ChannelError> {
         self.send_request_impl(request)
             .map(|_| Ok(()))
-            .map_err(|e| ChannelError::from(e))?
+            .map_err(ChannelError::from)?
     }
 
     pub async fn send_request_async(&self, request: Q) -> Result<Result<S, E>, ChannelError> {
         let rx = self
             .send_request_impl(request)
-            .map_err(|e| ChannelError::from(e))?;
+            .map_err(ChannelError::from)?;
         rx.await.map_err(|e| e.into())
     }
 
@@ -87,7 +87,7 @@ impl<Q, S, E> MessageClient<Q, S, E> {
             request,
         };
 
-        self.tx.send(message).and_then(|_| Ok(rx))
+        self.tx.send(message).map(|_| rx)
     }
 }
 

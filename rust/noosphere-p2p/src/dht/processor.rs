@@ -92,7 +92,7 @@ impl DHTProcessor {
         let mut peer_dialing_tick =
             tokio::time::interval(Duration::from_secs(self.config.peer_dialing_interval));
 
-        Ok(loop {
+        loop {
             tokio::select! {
                 message = self.processor.pull_message() => {
                     match message {
@@ -111,7 +111,8 @@ impl DHTProcessor {
                 _ = bootstrap_tick.tick() => self.execute_bootstrap()?,
                 _ = peer_dialing_tick.tick() => self.dial_next_peer(),
             }
-        })
+        };
+        Ok(())
     }
 
     /// Processes an incoming DHTMessage. Will attempt to respond
@@ -144,8 +145,7 @@ impl DHTProcessor {
             */
             DHTRequest::Bootstrap => {
                 message.respond(
-                    self.execute_bootstrap()
-                        .and_then(|_| Ok(DHTResponse::Success)),
+                    self.execute_bootstrap().map(|_| DHTResponse::Success),
                 );
             }
             DHTRequest::GetNetworkInfo => {
@@ -254,7 +254,7 @@ impl DHTProcessor {
                     }
                 }
                 QueryResult::PutRecord(Err(e)) => {
-                    match e.clone() {
+                    match e {
                         kad::PutRecordError::Timeout {
                             ref key,
                             quorum: _,
@@ -325,7 +325,7 @@ impl DHTProcessor {
                 } => {}
                 kad::InboundRequest::PutRecord { source, record, .. } => match record {
                     Some(rec) => {
-                        if let Err(_) = self.swarm.behaviour_mut().kad.store_mut().put(rec.clone())
+                        if self.swarm.behaviour_mut().kad.store_mut().put(rec.clone()).is_err()
                         {
                             warn!("InboundRequest::PutRecord failed: {:?} {:?}", rec, source);
                         }
@@ -411,9 +411,8 @@ impl DHTProcessor {
         let addr = self.p2p_address.clone();
         dht_event_trace(self, &format!("Start listening on {}", addr));
         self.swarm
-            .listen_on(addr)
-            .and_then(|_| Ok(()))
-            .map_err(|e| DHTError::from(e))
+            .listen_on(addr).map(|_| ())
+            .map_err(DHTError::from)
     }
 
     fn execute_bootstrap(&mut self) -> Result<(), DHTError> {
@@ -425,8 +424,7 @@ impl DHTProcessor {
         self.swarm
             .behaviour_mut()
             .kad
-            .bootstrap()
-            .and_then(|_| Ok(()))
+            .bootstrap().map(|_| ())
             .map_err(|_| DHTError::NoKnownPeers)
     }
 }
@@ -457,8 +455,7 @@ fn dht_event_trace<T: std::fmt::Debug>(processor: &DHTProcessor, data: &T) {
         "\nFrom ..{:#?}..\n{:#?}",
         peer_id_b58
             .get(8..14)
-            .or_else(|| Some("INVALID PEER ID"))
-            .unwrap(),
+            .unwrap_or("INVALID PEER ID"),
         data
     );
 }

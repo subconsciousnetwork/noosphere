@@ -32,7 +32,6 @@ libipld-core = "~0.14"
 libipld-cbor = "~0.14"
 
 noosphere-storage = { path = "../noosphere-storage" }
-noosphere-cbor = { path = "../noosphere-cbor" }
 noosphere-collections = { path = "../noosphere-collections" }
 
 ucan = { version = "0.7.0-alpha.1" }

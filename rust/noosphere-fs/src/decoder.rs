@@ -15,6 +15,7 @@ impl<'a, 'b, S: BlockStore> BodyChunkDecoder<'a, 'b, S> {
         let store = self.1.clone();
         Box::pin(try_stream! {
             while let Some(cid) = next {
+                println!("Unpacking block {}...", cid);
                 let chunk = store.load::<DagCborCodec, BodyChunkIpld>(&cid).await.map_err(|error| {
                     std::io::Error::new(std::io::ErrorKind::UnexpectedEof, error.to_string())
                 })?;

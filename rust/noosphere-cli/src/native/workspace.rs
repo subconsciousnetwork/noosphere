@@ -3,8 +3,8 @@ use cid::Cid;
 use globset::{Glob, GlobMatcher, GlobSet, GlobSetBuilder};
 use libipld_cbor::DagCborCodec;
 use noosphere::{
-    authority::restore_ed25519_key,
-    data::{BodyChunkIpld, ContentType, MemoIpld},
+    authority::{restore_ed25519_key, Authorization},
+    data::{BodyChunkIpld, ContentType, Header, MemoIpld},
     view::Sphere,
 };
 use noosphere_fs::SphereFs;
@@ -21,10 +21,16 @@ use std::{
     str::FromStr,
 };
 use subtext::util::to_slug;
-use tokio::fs;
+use tokio::{
+    fs::{self, File},
+    io::copy,
+};
 use tokio_stream::StreamExt;
-use ucan::Ucan;
+
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
+use url::Url;
+
+use super::commands::config::{Config, ConfigContents};
 
 const NOOSPHERE_DIRECTORY: &str = ".noosphere";
 const SPHERE_DIRECTORY: &str = ".sphere";
@@ -51,7 +57,7 @@ impl ContentChanges {
 
 #[derive(Default)]
 pub struct Content {
-    pub matched: BTreeMap<String, (ContentType, Cid)>,
+    pub matched: BTreeMap<String, FileReference>,
     pub ignored: BTreeSet<String>,
 }
 
@@ -59,6 +65,12 @@ impl Content {
     pub fn is_empty(&self) -> bool {
         self.matched.is_empty()
     }
+}
+
+pub struct FileReference {
+    pub cid: Cid,
+    pub content_type: ContentType,
+    pub extension: Option<String>,
 }
 
 /// A utility for discovering and initializing the well-known paths for a
@@ -79,8 +91,10 @@ pub struct Workspace {
 impl Workspace {
     /// Read the local content of the workspace in its entirety, filtered by an
     /// optional glob pattern. The glob pattern is applied to the file path
-    /// relative to the workspace.
-    /// TODO: We may want to change this to take an optional list of paths to
+    /// relative to the workspace. This includes files that have not yet been
+    /// saved to the sphere. All files are chunked into blocks, and those blocks
+    /// are persisted to the provided store.
+    /// TODO(#105): We may want to change this to take an optional list of paths to
     /// consider, and allow the user to rely on their shell for glob filtering
     pub async fn read_local_content<S: BlockStore>(
         &self,
@@ -145,17 +159,26 @@ impl Workspace {
                     continue;
                 }
 
-                let extension = match path.extension() {
-                    Some(extension) => extension.to_string_lossy(),
-                    None => continue,
-                };
+                let extension = path
+                    .extension()
+                    .map(|extension| String::from(extension.to_string_lossy()));
 
-                let content_type = self.infer_content_type(&extension).await?;
+                let content_type = match &extension {
+                    Some(extension) => self.infer_content_type(extension).await?,
+                    None => ContentType::Bytes,
+                };
 
                 let file_bytes = fs::read(path).await?;
                 let body_cid = BodyChunkIpld::store_bytes(&file_bytes, store).await?;
 
-                content.matched.insert(slug, (content_type, body_cid));
+                content.matched.insert(
+                    slug,
+                    FileReference {
+                        cid: body_cid,
+                        content_type,
+                        extension,
+                    },
+                );
             }
         }
         Ok(content)
@@ -168,13 +191,18 @@ impl Workspace {
         pattern: Option<GlobMatcher>,
         db: &SphereDb<Sa>,
         new_blocks: &mut Sb,
-    ) -> Result<(Content, ContentChanges)> {
+    ) -> Result<Option<(Content, ContentChanges)>> {
         let sphere_did = self.get_local_identity().await?;
-        let sphere_cid = db.require_version(&sphere_did).await?;
+        let sphere_cid = match db.get_version(&sphere_did).await? {
+            Some(cid) => cid,
+            None => {
+                return Ok(None);
+            }
+        };
 
         let content = self.read_local_content(pattern, new_blocks).await?;
 
-        let sphere_fs = SphereFs::at(&sphere_did, &sphere_cid, None, &db);
+        let sphere_fs = SphereFs::at(&sphere_did, &sphere_cid, None, db);
         let sphere = Sphere::at(&sphere_cid, db);
         let links = sphere.try_get_links().await?;
 
@@ -188,7 +216,11 @@ impl Workspace {
             }
 
             match content.matched.get(slug) {
-                Some((content_type, body_cid)) => {
+                Some(FileReference {
+                    cid: body_cid,
+                    content_type,
+                    extension: _,
+                }) => {
                     let sphere_file = sphere_fs.read(slug).await?.ok_or_else(|| {
                         anyhow!(
                             "Expected sphere file at slug {:?} but it was missing!",
@@ -213,7 +245,7 @@ impl Workspace {
             }
         }
 
-        for (slug, (content_type, _)) in &content.matched {
+        for (slug, FileReference { content_type, .. }) in &content.matched {
             if changes.updated.contains_key(slug)
                 || changes.removed.contains_key(slug)
                 || changes.unchanged.contains(slug)
@@ -224,7 +256,67 @@ impl Workspace {
             changes.new.insert(slug.clone(), Some(content_type.clone()));
         }
 
-        Ok((content, changes))
+        Ok(Some((content, changes)))
+    }
+
+    /// Reads the latest local version of the sphere and renders its contents to
+    /// files in the workspace. Note that this will overwrite any existing files
+    /// in the workspace.
+    pub async fn render<S: Store>(&self, db: &mut SphereDb<S>) -> Result<()> {
+        let sphere_did = self.get_local_identity().await?;
+        let sphere_cid = db.require_version(&sphere_did).await?;
+        let sphere_fs = SphereFs::at(&sphere_did, &sphere_cid, None, db);
+        let sphere = Sphere::at(&sphere_cid, db);
+        let links = sphere.try_get_links().await?;
+
+        let mut stream = links.stream().await?;
+
+        // TODO(#106): We render the whole sphere every time, but we should probably
+        // have a fast path where we only render the changes within a CID range
+        while let Some(Ok((slug, _cid))) = stream.next().await {
+            debug!("Rendering {}...", slug);
+
+            let mut sphere_file = match sphere_fs.read(slug).await? {
+                Some(file) => file,
+                None => {
+                    println!("Warning: could not resolve content for {}", slug);
+                    continue;
+                }
+            };
+
+            let extension = match sphere_file
+                .memo
+                .get_first_header(&Header::FileExtension.to_string())
+            {
+                Some(extension) => Some(extension),
+                None => match sphere_file.memo.content_type() {
+                    Some(content_type) => self.infer_file_extension(content_type).await,
+                    None => {
+                        println!("Warning: no content type specified for {}; it will be rendered without a file extension", slug);
+                        None
+                    }
+                },
+            };
+
+            let file_fragment = match extension {
+                Some(extension) => [slug.as_str(), &extension].join("."),
+                None => slug.into(),
+            };
+
+            let file_path = self.root.join(file_fragment);
+
+            let file_directory = file_path
+                .parent()
+                .ok_or_else(|| anyhow!("Unable to determine root directory for {}", slug))?;
+
+            fs::create_dir_all(&file_directory).await?;
+
+            let mut fs_file = File::create(file_path).await?;
+
+            copy(&mut sphere_file.contents, &mut fs_file).await?;
+        }
+
+        Ok(())
     }
 
     /// Given a file extension, infer its mime
@@ -236,7 +328,7 @@ impl Workspace {
             _ => ContentType::from_str(
                 mime_guess::from_ext(extension)
                     .first_raw()
-                    .unwrap_or_else(|| "raw/bytes"),
+                    .unwrap_or("raw/bytes"),
             )?,
         })
     }
@@ -248,7 +340,7 @@ impl Workspace {
             ContentType::Sphere => Some("sphere".into()),
             ContentType::Bytes => None,
             ContentType::Unknown(content_type) => {
-                match mime_guess::get_mime_extensions_str(&content_type.to_string()) {
+                match mime_guess::get_mime_extensions_str(&content_type) {
                     Some(extensions) => extensions.first().map(|str| String::from(*str)),
                     None => None,
                 }
@@ -323,15 +415,25 @@ impl Workspace {
         &self.config
     }
 
+    pub async fn get_local_gateway_url(&self) -> Result<Url> {
+        match Config::from(self).read().await? {
+            ConfigContents {
+                gateway_url: Some(url),
+                ..
+            } => Ok(url.clone()),
+            _ => Err(anyhow!(
+                "No gateway URL configured; set it with: orb config set gateway-url <URL>"
+            )),
+        }
+    }
+
     /// Attempts to read the locally stored authorization that enables the key
-    /// to operate on this sphere, and returns it as a UCAN
-    pub async fn get_local_authorization(&self) -> Result<Ucan> {
+    /// to operate on this sphere; the returned authorization may be represented
+    /// as either a UCAN or the CID of a UCAN
+    pub async fn get_local_authorization(&self) -> Result<Authorization> {
         self.expect_local_directories()?;
 
-        let authorization_jwt = fs::read_to_string(&self.authorization).await?;
-        let ucan = Ucan::try_from_token_string(&authorization_jwt)?;
-
-        Ok(ucan)
+        Authorization::from_str(&fs::read_to_string(&self.authorization).await?)
     }
 
     /// Produces a `SphereDb<NativeStore>` referring to the block storage
@@ -502,6 +604,7 @@ Unexpected things will happen if you try to nest spheres this way!"#,
         }
 
         fs::create_dir_all(&self.sphere).await?;
+
         fs::write(self.config_path(), "").await?;
 
         Ok(())

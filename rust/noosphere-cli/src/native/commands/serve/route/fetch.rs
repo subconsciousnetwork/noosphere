@@ -1,9 +1,11 @@
-use std::str::FromStr;
+use anyhow::Result;
+
 
 use axum::{extract::Query, http::StatusCode, response::IntoResponse, Extension};
 use cid::Cid;
 use noosphere::{
     authority::{SphereAction, SphereReference},
+    data::Bundle,
     view::Sphere,
 };
 use noosphere_api::data::{FetchParameters, FetchResponse};
@@ -29,36 +31,91 @@ pub async fn fetch_route(
         can: SphereAction::Fetch,
     })?;
 
-    let ancestor_cid = match since {
-        Some(since) => Some(Cid::from_str(&since).map_err(|_| StatusCode::BAD_REQUEST)?),
-        None => None,
+    let response = match generate_fetch_bundle(&scope, since.as_ref(), &db)
+        .await
+        .map_err(|error| {
+            error!("{:?}", error);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })? {
+        Some((tip, bundle)) => FetchResponse::NewChanges {
+            tip,
+            blocks: bundle,
+        },
+        None => FetchResponse::UpToDate,
     };
 
-    debug!("Resolving local counterpart sphere version...");
+    Ok(Cbor(response))
+}
 
-    let sphere_cid = db
-        .require_version(&scope.counterpart)
-        .await
-        .map_err(|error| {
-            error!("{:?}", error);
-            StatusCode::NOT_FOUND
-        })?;
+pub async fn generate_fetch_bundle(
+    scope: &GatewayScope,
+    since: Option<&Cid>,
+    db: &SphereDb<NativeStore>,
+) -> Result<Option<(Cid, Bundle)>> {
+    debug!("Resolving latest local sphere version...");
 
-    let sphere = Sphere::at(&sphere_cid, &db);
+    let latest_local_sphere_cid = db.require_version(&scope.identity).await?;
 
-    debug!("Bundling revisions since {:?}...", ancestor_cid);
-    let bundle = sphere
-        .try_bundle_until_ancestor(ancestor_cid.as_ref())
-        .await
-        .map_err(|error| {
-            error!("{:?}", error);
-            StatusCode::NOT_FOUND
-        })?;
+    if Some(&latest_local_sphere_cid) == since {
+        debug!(
+            "No changes since {}",
+            since
+                .map(|cid| cid.to_string())
+                .unwrap_or("the beginning...".into())
+        );
+        return Ok(None);
+    }
 
-    // TODO: Paged fetching...
+    let latest_local_sphere = Sphere::at(&latest_local_sphere_cid, db);
 
-    Ok(Cbor(FetchResponse {
-        tip: sphere_cid,
-        blocks: bundle,
-    }))
+    debug!(
+        "Bundling local sphere revisions since {:?}...",
+        since
+            .map(|cid| cid.to_string())
+            .unwrap_or("the beginning".into())
+    );
+
+    let mut bundle = latest_local_sphere.try_bundle_until_ancestor(since).await?;
+
+    debug!("Resolving latest counterpart sphere version...");
+
+    match latest_local_sphere
+        .try_get_links()
+        .await?
+        .get(&scope.counterpart)
+        .await?
+        .cloned()
+    {
+        Some(latest_counterpart_sphere_cid) => {
+            debug!("Resolving oldest counterpart sphere version...");
+
+            let since = match since {
+                Some(since_local_sphere_cid) => {
+                    let since_local_sphere = Sphere::at(since_local_sphere_cid, db);
+                    let links = since_local_sphere.try_get_links().await?;
+                    links.get(&scope.counterpart).await?.cloned()
+                }
+                None => None,
+            };
+
+            debug!(
+                "Bundling counterpart revisions from {} to {}...",
+                latest_counterpart_sphere_cid,
+                since
+                    .map(|cid| cid.to_string())
+                    .unwrap_or("the beginning".into())
+            );
+
+            bundle.merge(
+                Sphere::at(&latest_counterpart_sphere_cid, db)
+                    .try_bundle_until_ancestor(since.as_ref())
+                    .await?,
+            )
+        }
+        None => {
+            warn!("No revisions found for counterpart {}!", scope.counterpart);
+        }
+    };
+
+    Ok(Some((latest_local_sphere_cid, bundle)))
 }

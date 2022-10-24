@@ -4,16 +4,16 @@ use libipld_cbor::DagCborCodec;
 use noosphere_storage::interface::BlockStore;
 
 use crate::{
-    data::AuthorizationIpld,
+    data::AuthorityIpld,
     view::{AllowedUcans, RevokedUcans},
 };
 
-pub struct Authorization<S: BlockStore> {
+pub struct Authority<S: BlockStore> {
     cid: Cid,
     store: S,
 }
 
-impl<S> Authorization<S>
+impl<S> Authority<S>
 where
     S: BlockStore,
 {
@@ -22,13 +22,13 @@ where
     }
 
     pub fn at(cid: &Cid, store: &S) -> Self {
-        Authorization {
+        Authority {
             cid: *cid,
             store: store.clone(),
         }
     }
 
-    pub async fn try_at_or_empty(cid: Option<&Cid>, store: &mut S) -> Result<Authorization<S>> {
+    pub async fn try_at_or_empty(cid: Option<&Cid>, store: &mut S) -> Result<Authority<S>> {
         Ok(match cid {
             Some(cid) => Self::at(cid, store),
             None => Self::try_empty(store).await?,
@@ -36,10 +36,10 @@ where
     }
 
     pub async fn try_empty(store: &mut S) -> Result<Self> {
-        let ipld = AuthorizationIpld::try_empty(store).await?;
+        let ipld = AuthorityIpld::try_empty(store).await?;
         let cid = store.save::<DagCborCodec, _>(ipld).await?;
 
-        Ok(Authorization {
+        Ok(Authority {
             cid,
             store: store.clone(),
         })
@@ -48,7 +48,7 @@ where
     pub async fn try_get_allowed_ucans(&self) -> Result<AllowedUcans<S>> {
         let ipld = self
             .store
-            .load::<DagCborCodec, AuthorizationIpld>(&self.cid)
+            .load::<DagCborCodec, AuthorityIpld>(&self.cid)
             .await?;
 
         AllowedUcans::try_at_or_empty(Some(&ipld.allowed), &mut self.store.clone()).await
@@ -57,7 +57,7 @@ where
     pub async fn try_get_revoked_ucans(&self) -> Result<RevokedUcans<S>> {
         let ipld = self
             .store
-            .load::<DagCborCodec, AuthorizationIpld>(&self.cid)
+            .load::<DagCborCodec, AuthorityIpld>(&self.cid)
             .await?;
 
         RevokedUcans::try_at_or_empty(Some(&ipld.revoked), &mut self.store.clone()).await

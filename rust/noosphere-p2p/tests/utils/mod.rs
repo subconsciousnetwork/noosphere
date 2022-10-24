@@ -5,7 +5,7 @@ use noosphere_p2p::dht::{DHTConfig, DHTError, DHTNode};
 use rand::{thread_rng, Rng};
 use std::future::Future;
 use std::time::Duration;
-use tokio;
+
 //use tracing::*;
 
 pub fn generate_multiaddr() -> Multiaddr {

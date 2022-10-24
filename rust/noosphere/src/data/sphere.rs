@@ -30,17 +30,24 @@ mod tests {
         builder::UcanBuilder,
         capability::{Capability, Resource, With},
         crypto::{did::DidParser, KeyMaterial},
+        store::UcanJwtStore,
     };
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use crate::{
-        authority::{verify_sphere_cid, SphereAction, SphereReference, SUPPORTED_KEYS},
+        authority::{
+            verify_sphere_cid, Authorization, SphereAction, SphereReference, SUPPORTED_KEYS,
+        },
         data::{ContentType, Header, MemoIpld, SphereIpld},
     };
 
-    use noosphere_storage::{interface::BlockStore, memory::MemoryStore};
+    use noosphere_storage::{
+        db::SphereDb,
+        interface::BlockStore,
+        memory::{MemoryStorageProvider},
+    };
 
     fn generate_credential() -> Ed25519KeyMaterial {
         let private_key = Ed25519PrivateKey::new(rand::thread_rng());
@@ -54,7 +61,9 @@ mod tests {
         let identity_credential = generate_credential();
         let identity_did = identity_credential.get_did().await.unwrap();
 
-        let mut store = MemoryStore::default();
+        let mut store = SphereDb::new(&MemoryStorageProvider::default())
+            .await
+            .unwrap();
 
         let sphere = SphereIpld {
             identity: identity_did.clone(),
@@ -83,18 +92,34 @@ mod tests {
             can: SphereAction::Authorize,
         };
 
-        let proof = UcanBuilder::default()
-            .issued_by(&identity_credential)
-            .for_audience(&identity_did)
-            .with_lifetime(100)
-            .claiming_capability(&capability)
-            .build()
-            .unwrap()
-            .sign()
+        let authorization = Authorization::Ucan(
+            UcanBuilder::default()
+                .issued_by(&identity_credential)
+                .for_audience(&identity_did)
+                .with_lifetime(100)
+                .claiming_capability(&capability)
+                .build()
+                .unwrap()
+                .sign()
+                .await
+                .unwrap(),
+        );
+
+        memo.sign(&identity_credential, Some(&authorization))
             .await
             .unwrap();
 
-        memo.sign(&identity_credential, Some(&proof)).await.unwrap();
+        store
+            .write_token(
+                &authorization
+                    .resolve_ucan(&store)
+                    .await
+                    .unwrap()
+                    .encode()
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
         let memo_cid = store.save::<DagCborCodec, _>(&memo).await.unwrap();
 
@@ -114,7 +139,9 @@ mod tests {
         let identity_did = identity_credential.get_did().await.unwrap();
         let authorized_did = authorized_credential.get_did().await.unwrap();
 
-        let mut store = MemoryStore::default();
+        let mut store = SphereDb::new(&MemoryStorageProvider::default())
+            .await
+            .unwrap();
 
         let sphere = SphereIpld {
             identity: identity_did.clone(),
@@ -143,18 +170,32 @@ mod tests {
             can: SphereAction::Authorize,
         };
 
-        let proof = UcanBuilder::default()
-            .issued_by(&identity_credential)
-            .for_audience(&authorized_did)
-            .with_lifetime(100)
-            .claiming_capability(&capability)
-            .build()
-            .unwrap()
-            .sign()
+        let authorization = Authorization::Ucan(
+            UcanBuilder::default()
+                .issued_by(&identity_credential)
+                .for_audience(&authorized_did)
+                .with_lifetime(100)
+                .claiming_capability(&capability)
+                .build()
+                .unwrap()
+                .sign()
+                .await
+                .unwrap(),
+        );
+
+        memo.sign(&authorized_credential, Some(&authorization))
             .await
             .unwrap();
 
-        memo.sign(&authorized_credential, Some(&proof))
+        store
+            .write_token(
+                &authorization
+                    .resolve_ucan(&store)
+                    .await
+                    .unwrap()
+                    .encode()
+                    .unwrap(),
+            )
             .await
             .unwrap();
 
