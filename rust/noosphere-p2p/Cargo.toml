@@ -1,0 +1,21 @@
+[package]
+name = "noosphere-p2p"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.60.0"
+
+[dependencies]
+anyhow = "^1"
+tracing = "0.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+noosphere = { path = "../noosphere" }
+ucan-key-support = { version = "0.7.0-alpha.1" }
+futures = "0.3.1"
+tokio = { version = "1.15", features = ["io-util", "io-std", "sync", "macros", "rt", "rt-multi-thread"] }
+tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
+libp2p = { version = "0.49.0", default-features = false, features = [ "identify", "dns", "tcp", "tokio", "noise", "mplex", "yamux", "kad" ] }
+
+[dev-dependencies]
+rand = { version = "0.8.5" }
+test-log = { version = "0.2.11", default-features = false, features = ["trace"] }
