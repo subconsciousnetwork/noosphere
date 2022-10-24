@@ -119,7 +119,7 @@ Type or paste the code here and press enter:"#,
     fs::write(workspace.key_path(), &did).await?;
     fs::write(workspace.authorization_path(), &cid_string).await?;
 
-    // TODO: Recovery path if the auth needs to change for some reason
+    // TODO(#103): Recovery path if the auth needs to change for some reason
 
     println!(
         r#"The authorization has been saved.

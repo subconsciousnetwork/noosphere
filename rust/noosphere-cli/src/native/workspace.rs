@@ -94,7 +94,7 @@ impl Workspace {
     /// relative to the workspace. This includes files that have not yet been
     /// saved to the sphere. All files are chunked into blocks, and those blocks
     /// are persisted to the provided store.
-    /// TODO: We may want to change this to take an optional list of paths to
+    /// TODO(#105): We may want to change this to take an optional list of paths to
     /// consider, and allow the user to rely on their shell for glob filtering
     pub async fn read_local_content<S: BlockStore>(
         &self,
@@ -159,11 +159,12 @@ impl Workspace {
                     continue;
                 }
 
-                let extension = path.extension().map(|extension| String::from(extension.to_string_lossy()));
+                let extension = path
+                    .extension()
+                    .map(|extension| String::from(extension.to_string_lossy()));
 
                 let content_type = match &extension {
                     Some(extension) => self.infer_content_type(extension).await?,
-                    // TODO: Is this the right fallback?
                     None => ContentType::Bytes,
                 };
 
@@ -270,7 +271,7 @@ impl Workspace {
 
         let mut stream = links.stream().await?;
 
-        // TODO: We render the whole sphere every time, but we should probably
+        // TODO(#106): We render the whole sphere every time, but we should probably
         // have a fast path where we only render the changes within a CID range
         while let Some(Ok((slug, _cid))) = stream.next().await {
             debug!("Rendering {}...", slug);
@@ -435,9 +436,7 @@ impl Workspace {
     pub async fn get_local_authorization(&self) -> Result<Authorization> {
         self.expect_local_directories()?;
 
-        Authorization::from_str(
-            &fs::read_to_string(&self.authorization).await?,
-        )
+        Authorization::from_str(&fs::read_to_string(&self.authorization).await?)
     }
 
     /// Produces a `SphereDb<NativeStore>` referring to the block storage

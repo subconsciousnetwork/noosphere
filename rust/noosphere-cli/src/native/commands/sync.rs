@@ -8,16 +8,10 @@ use noosphere_api::{
     client::Client,
     data::{FetchParameters, FetchResponse, PushBody, PushResponse},
 };
-use noosphere_storage::{
-    db::SphereDb,
-    interface::Store,
-    memory::{MemoryStore},
-};
-use ucan::{
-    crypto::{did::DidParser, KeyMaterial},
-};
+use noosphere_storage::{db::SphereDb, interface::Store, memory::MemoryStore};
+use ucan::crypto::{did::DidParser, KeyMaterial};
 
-// TODO: If we fail before rendering, it will look like we have removed files
+// TODO(#104): If we fail before rendering, it will look like we have removed files
 // from the workspace; we should probably roll back in the failure case.
 pub async fn sync(workspace: &Workspace) -> Result<()> {
     initialize_tracing();

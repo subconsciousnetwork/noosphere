@@ -126,7 +126,7 @@ where
 
         match authorization.resolve_ucan(store).await {
             Ok(ucan) => {
-                // TODO: We should integrate a helper for this kind of stuff into rs-ucan
+                // TODO(ucan-wg/rs-ucan#37): We should integrate a helper for this kind of stuff into rs-ucan
                 let mut proofs_to_search: Vec<String> = ucan.proofs().clone();
 
                 debug!("Making bearer token... {:?}", proofs_to_search);
