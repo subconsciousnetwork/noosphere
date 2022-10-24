@@ -167,8 +167,6 @@ where
     }
 
     pub async fn fetch(&self, params: &FetchParameters) -> Result<FetchResponse> {
-        // println!("FOOBAR");
-        // println!("{:?}", serde_urlencoded::to_string(params)?);
         let url = Url::try_from(RouteUrl(&self.api_base, Route::Fetch, Some(params)))?;
         debug!("Client fetching blocks from {}", url);
         let capability = Capability {

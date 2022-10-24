@@ -341,10 +341,7 @@ impl Workspace {
             ContentType::Bytes => None,
             ContentType::Unknown(content_type) => {
                 match mime_guess::get_mime_extensions_str(&content_type) {
-                    Some(extensions) => {
-                        println!("markdown {:?}", extensions);
-                        extensions.first().map(|str| String::from(*str))
-                    }
+                    Some(extensions) => extensions.first().map(|str| String::from(*str)),
                     None => None,
                 }
             }

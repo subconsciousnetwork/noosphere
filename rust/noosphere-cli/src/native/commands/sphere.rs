@@ -108,8 +108,6 @@ Type or paste the code here and press enter:"#,
         Some(cid_string) => cid_string,
     };
 
-    println!("GOT: {}", cid_string);
-
     Cid::from_str(cid_string.trim())
         .map_err(|_| anyhow!("Could not parse the authorization identity as a CID"))?;
 
