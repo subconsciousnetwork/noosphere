@@ -8,6 +8,8 @@ on:
 jobs:
   run-checks:
     runs-on: ubuntu-latest
+    env:
+      PROTOC: /usr/bin/protoc
     strategy:
       fail-fast: false
       matrix:
