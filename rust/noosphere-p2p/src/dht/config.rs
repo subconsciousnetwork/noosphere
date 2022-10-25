@@ -60,10 +60,7 @@ mod tests {
         let (peer_id, mut address) = DHTConfig::get_peer_id_and_address(&config);
 
         assert_eq!(peer_id, libp2p::PeerId::from(keypair.public()));
-        assert_eq!(
-            address.pop().unwrap(),
-            Protocol::P2p(peer_id.into())
-        );
+        assert_eq!(address.pop().unwrap(), Protocol::P2p(peer_id.into()));
         assert_eq!(address.pop().unwrap(), Protocol::Tcp(33333));
         assert_eq!(
             address.pop().unwrap(),

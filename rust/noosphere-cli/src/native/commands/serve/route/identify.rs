@@ -9,10 +9,7 @@ use ucan::{
     crypto::KeyMaterial,
 };
 
-use crate::native::commands::serve::{
-    authority::GatewayAuthority,
-    gateway::{GatewayScope},
-};
+use crate::native::commands::serve::{authority::GatewayAuthority, gateway::GatewayScope};
 
 pub async fn identify_route<K: KeyMaterial>(
     authority: GatewayAuthority,

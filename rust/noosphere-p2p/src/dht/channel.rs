@@ -2,7 +2,6 @@ use core::{fmt, result::Result};
 use tokio;
 use tokio::sync::{mpsc, mpsc::error::SendError, oneshot, oneshot::error::RecvError};
 
-
 impl std::error::Error for ChannelError {}
 impl fmt::Display for ChannelError {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use ucan::{crypto::KeyMaterial};
+use ucan::crypto::KeyMaterial;
 
 use noosphere::authority::{Authorization, SUPPORTED_KEYS};
 use noosphere_api::route::Route as GatewayRoute;

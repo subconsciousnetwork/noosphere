@@ -43,11 +43,7 @@ mod tests {
         data::{ContentType, Header, MemoIpld, SphereIpld},
     };
 
-    use noosphere_storage::{
-        db::SphereDb,
-        interface::BlockStore,
-        memory::{MemoryStorageProvider},
-    };
+    use noosphere_storage::{db::SphereDb, interface::BlockStore, memory::MemoryStorageProvider};
 
     fn generate_credential() -> Ed25519KeyMaterial {
         let private_key = Ed25519PrivateKey::new(rand::thread_rng());

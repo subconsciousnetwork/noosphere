@@ -13,7 +13,6 @@ use noosphere_storage::{db::SphereDb, native::NativeStore};
 use ucan::capability::{Capability, Resource, With};
 use ucan::crypto::KeyMaterial;
 
-
 use crate::native::commands::serve::gateway::GatewayScope;
 use crate::native::commands::serve::{authority::GatewayAuthority, extractor::Cbor};
 

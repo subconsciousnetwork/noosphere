@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::fmt::Display;
-use url::{Url};
+use url::Url;
 
 use crate::data::AsQuery;
 

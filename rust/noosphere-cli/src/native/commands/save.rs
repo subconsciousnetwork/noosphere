@@ -57,7 +57,9 @@ pub async fn save(matching: Option<Glob>, workspace: &Workspace) -> Result<()> {
         }) = content.matched.get(slug)
         {
             println!("Saving {}...", slug);
-            let headers = extension.as_ref().map(|extension| vec![(Header::FileExtension.to_string(), extension.clone())]);
+            let headers = extension
+                .as_ref()
+                .map(|extension| vec![(Header::FileExtension.to_string(), extension.clone())]);
 
             fs.link(slug, &content_type.to_string(), cid, headers)
                 .await?;

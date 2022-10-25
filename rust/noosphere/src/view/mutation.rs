@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
-use ucan::{crypto::KeyMaterial};
+use ucan::crypto::KeyMaterial;
 
 use crate::{
     authority::Authorization,

@@ -111,7 +111,7 @@ impl DHTProcessor {
                 _ = bootstrap_tick.tick() => self.execute_bootstrap()?,
                 _ = peer_dialing_tick.tick() => self.dial_next_peer(),
             }
-        };
+        }
         Ok(())
     }
 
@@ -144,9 +144,7 @@ impl DHTProcessor {
             }
             */
             DHTRequest::Bootstrap => {
-                message.respond(
-                    self.execute_bootstrap().map(|_| DHTResponse::Success),
-                );
+                message.respond(self.execute_bootstrap().map(|_| DHTResponse::Success));
             }
             DHTRequest::GetNetworkInfo => {
                 let info = self.swarm.network_info();
@@ -325,7 +323,13 @@ impl DHTProcessor {
                 } => {}
                 kad::InboundRequest::PutRecord { source, record, .. } => match record {
                     Some(rec) => {
-                        if self.swarm.behaviour_mut().kad.store_mut().put(rec.clone()).is_err()
+                        if self
+                            .swarm
+                            .behaviour_mut()
+                            .kad
+                            .store_mut()
+                            .put(rec.clone())
+                            .is_err()
                         {
                             warn!("InboundRequest::PutRecord failed: {:?} {:?}", rec, source);
                         }
@@ -411,7 +415,8 @@ impl DHTProcessor {
         let addr = self.p2p_address.clone();
         dht_event_trace(self, &format!("Start listening on {}", addr));
         self.swarm
-            .listen_on(addr).map(|_| ())
+            .listen_on(addr)
+            .map(|_| ())
             .map_err(DHTError::from)
     }
 
@@ -424,7 +429,8 @@ impl DHTProcessor {
         self.swarm
             .behaviour_mut()
             .kad
-            .bootstrap().map(|_| ())
+            .bootstrap()
+            .map(|_| ())
             .map_err(|_| DHTError::NoKnownPeers)
     }
 }
@@ -453,9 +459,7 @@ fn dht_event_trace<T: std::fmt::Debug>(processor: &DHTProcessor, data: &T) {
     let peer_id_b58 = processor.peer_id.to_base58();
     trace!(
         "\nFrom ..{:#?}..\n{:#?}",
-        peer_id_b58
-            .get(8..14)
-            .unwrap_or("INVALID PEER ID"),
+        peer_id_b58.get(8..14).unwrap_or("INVALID PEER ID"),
         data
     );
 }
