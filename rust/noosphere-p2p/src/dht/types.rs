@@ -3,13 +3,6 @@ use crate::dht::errors::DHTError;
 use libp2p::swarm::NetworkInfo;
 use std::{fmt, str};
 
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum DHTStatus {
-    Active,
-    Terminated,
-    Error(String),
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct DHTNetworkInfo {
     pub num_peers: usize,

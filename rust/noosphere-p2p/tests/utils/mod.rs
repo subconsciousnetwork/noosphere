@@ -1,21 +1,18 @@
 #![cfg(test)]
 use futures::future::try_join_all;
-use libp2p::{self, Multiaddr};
+
+use noosphere::authority::generate_ed25519_key;
 use noosphere_p2p::dht::{DHTConfig, DHTError, DHTNode};
 use rand::{thread_rng, Rng};
 use std::future::Future;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
-//use tracing::*;
-
-pub fn generate_multiaddr() -> Multiaddr {
-    let mut addr = "/ip4/127.0.0.1"
-        .parse::<Multiaddr>()
-        .expect("Default IP address");
-    addr.push(libp2p::multiaddr::Protocol::Tcp(
+pub fn generate_listening_addr() -> SocketAddr {
+    SocketAddr::new(
+        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
         thread_rng().gen_range(49152..65535),
-    ));
-    addr
+    )
 }
 
 pub async fn wait_ms(ms: u64) {
@@ -56,17 +53,25 @@ pub fn create_client_nodes_with_bootstrap_peers(
     client_count: usize,
 ) -> Result<(Vec<DHTNode>, Vec<DHTNode>), DHTError> {
     let bootstrap_nodes = create_bootstrap_nodes(bootstrap_count)?;
-    let bootstrap_addresses: Vec<libp2p::Multiaddr> = bootstrap_nodes
+    let bootstrap_addresses: Vec<String> = bootstrap_nodes
         .iter()
-        .map(|node| node.p2p_address().clone())
+        // Remap Multiaddr to String for DHTNode interface
+        .map(|node| node.p2p_address().to_string())
         .collect();
 
     let mut client_nodes: Vec<DHTNode> = vec![];
     for _ in 0..client_count {
-        let mut config = create_test_config();
-        config.listening_address = generate_multiaddr();
-        config.bootstrap_peers = bootstrap_addresses.clone();
-        client_nodes.push(DHTNode::new(config)?);
+        let key_material = generate_ed25519_key();
+        let listening_address = generate_listening_addr();
+        let config = create_test_config();
+        let mut node = DHTNode::new(
+            &key_material,
+            &listening_address,
+            Some(&bootstrap_addresses),
+            &config,
+        )?;
+        node.run()?;
+        client_nodes.push(node);
     }
     Ok((bootstrap_nodes, client_nodes))
 }
@@ -74,29 +79,26 @@ pub fn create_client_nodes_with_bootstrap_peers(
 /// Creates `count` bootstrap nodes, each node using all other
 /// bootstrap nodes as bootstrap peers.
 pub fn create_bootstrap_nodes(count: usize) -> Result<Vec<DHTNode>, DHTError> {
-    let mut configs: Vec<(DHTConfig, Multiaddr)> = vec![];
+    let mut nodes: Vec<DHTNode> = vec![];
+    let mut addresses: Vec<String> = vec![];
     for _ in 0..count {
-        let mut config = create_test_config();
-        config.listening_address = generate_multiaddr();
-        let (_peer_id, p2p_address) = DHTConfig::get_peer_id_and_address(&config);
-        configs.push((config, p2p_address));
+        let key_material = generate_ed25519_key();
+        let listening_address = generate_listening_addr();
+        let config = create_test_config();
+        let node = DHTNode::new(&key_material, &listening_address, None, &config)?;
+        // Remap Multiaddr to String for DHTNode interface
+        addresses.push(node.p2p_address().to_string());
+        nodes.push(node);
     }
 
-    let mut handles: Vec<DHTNode> = vec![];
-    let mut index = 0;
-    for c in &configs {
-        let mut config = c.0.to_owned();
-        for i in 0..count {
-            if i != index {
-                config
-                    .bootstrap_peers
-                    .push(configs[i as usize].1.to_owned());
-            }
-        }
-        handles.push(DHTNode::new(config)?);
-        index += 1;
+    for (i, node) in nodes.iter_mut().enumerate() {
+        let mut peers = addresses.clone();
+        // Remove a node's own address from peers
+        peers.remove(i);
+        node.add_peers(&peers)?;
+        node.run()?;
     }
-    Ok(handles)
+    Ok(nodes)
 }
 
 pub async fn initialize_network(

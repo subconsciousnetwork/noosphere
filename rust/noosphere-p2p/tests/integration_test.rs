@@ -3,18 +3,21 @@
 use noosphere_p2p::dht::{DHTError, DHTNetworkInfo, DHTNode, DHTStatus};
 use std::str;
 
-
-//use tracing::*;
 mod utils;
-use utils::{create_test_config, generate_multiaddr, initialize_network, swarm_command};
+use noosphere::authority::generate_ed25519_key;
+use utils::{create_test_config, generate_listening_addr, initialize_network, swarm_command};
 
 /// Testing a detached DHTNode as a server with no peers.
 #[test_log::test(tokio::test)]
 async fn test_dhtnode_base_case() -> Result<(), DHTError> {
-    let mut config = create_test_config();
-    config.listening_address = generate_multiaddr();
-    let mut node = DHTNode::new(config)?;
-
+    let mut node = DHTNode::new(
+        &generate_ed25519_key(),
+        &generate_listening_addr(),
+        None,
+        &create_test_config(),
+    )?;
+    assert_eq!(node.status(), DHTStatus::Initialized, "DHT is initialized");
+    node.run()?;
     assert_eq!(node.status(), DHTStatus::Active, "DHT is active");
 
     let info = node.network_info().await?;

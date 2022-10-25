@@ -1,15 +1,14 @@
 use crate::dht::{
-    behaviour::{DHTEvent, DHTSwarmEvent},
     errors::DHTError,
-    swarm::{build_swarm, DHTSwarm},
+    swarm::{build_swarm, DHTEvent, DHTSwarm, DHTSwarmEvent},
     types::{DHTMessage, DHTMessageProcessor, DHTRequest, DHTResponse},
     DHTConfig,
 };
-use libp2p::futures::StreamExt;
-use libp2p::kad;
 use libp2p::{
+    futures::StreamExt,
     identify::Event as IdentifyEvent,
     kad::{
+        self,
         kbucket::{Distance, NodeStatus},
         record::{store::RecordStore, Key},
         KademliaEvent, PeerRecord, QueryResult, Quorum, Record,
@@ -58,23 +57,49 @@ impl DHTProcessor {
     /// The processor can only be accessed through channels via the corresponding
     /// [DHTNode].
     pub(crate) fn spawn(
-        config: &DHTConfig,
+        keypair: &libp2p::identity::Keypair,
         peer_id: &PeerId,
         p2p_address: &libp2p::Multiaddr,
+        bootstrap_peers: &Option<Vec<libp2p::Multiaddr>>,
+        config: &DHTConfig,
         processor: DHTMessageProcessor,
     ) -> Result<tokio::task::JoinHandle<Result<(), DHTError>>, DHTError> {
-        let swarm = build_swarm(peer_id, config)?;
+        let swarm = build_swarm(keypair, peer_id, config)?;
+        let peers = bootstrap_peers.to_owned();
+
         let mut node = DHTProcessor {
-            config: config.to_owned(),
-            p2p_address: p2p_address.to_owned(),
             peer_id: peer_id.to_owned(),
+            p2p_address: p2p_address.to_owned(),
+            config: config.to_owned(),
             processor,
             swarm,
             requests: HashMap::default(),
             kad_last_range: None,
         };
 
-        Ok(tokio::spawn(async move { node.process().await }))
+        Ok(tokio::spawn(async move {
+            node.initialize(peers).await;
+            node.process().await
+        }))
+    }
+
+    /// Sets up the [DHTProcessor]. Adds bootstrap peers to the routing table.
+    async fn initialize(&mut self, bootstrap_peers: Option<Vec<libp2p::Multiaddr>>) {
+        // Add the bootnodes to the local routing table.
+        if let Some(peers) = bootstrap_peers {
+            for multiaddress in peers {
+                let mut addr = multiaddress.to_owned();
+                if let Some(libp2p::multiaddr::Protocol::P2p(p2p_hash)) = addr.pop() {
+                    let peer_id = PeerId::from_multihash(p2p_hash).unwrap();
+                    // Do not add a peer with the same peer id, for example
+                    // a set of N bootstrap nodes using a static list of
+                    // N addresses/peer IDs.
+                    if peer_id != self.peer_id {
+                        self.swarm.behaviour_mut().kad.add_address(&peer_id, addr);
+                    }
+                }
+            }
+        }
     }
 
     /// Begin processing requests and connections on the DHT network
@@ -417,15 +442,13 @@ impl DHTProcessor {
 
     fn execute_bootstrap(&mut self) -> Result<(), DHTError> {
         dht_event_trace(self, &"Execute bootstrap");
-        if self.config.bootstrap_peers.is_empty() {
-            // Bootstrapping can't occur without bootstrap nodes
-            return Ok(());
+        match self.swarm.behaviour_mut().kad.bootstrap() {
+            Ok(_) => Ok(()),
+            Err(_) => {
+                // `NoKnownPeers` error is expected without any bootstrap peers.
+                Ok(())
+            }
         }
-        self.swarm
-            .behaviour_mut()
-            .kad
-            .bootstrap().map(|_| ())
-            .map_err(|_| DHTError::NoKnownPeers)
     }
 }
 
