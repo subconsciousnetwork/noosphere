@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::native::workspace::Workspace;
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere::view::Sphere;
+use noosphere_core::view::Sphere;
 use noosphere_storage::{
     db::SphereDb,
     native::{NativeStorageInit, NativeStorageProvider},

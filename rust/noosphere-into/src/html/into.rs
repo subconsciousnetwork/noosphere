@@ -2,7 +2,7 @@ use std::{collections::BTreeSet, io::Cursor, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere::view::Sphere;
+use noosphere_core::view::Sphere;
 use noosphere_fs::SphereFs;
 use noosphere_storage::{db::SphereDb, interface::Store};
 use tokio::sync::Mutex;
@@ -165,7 +165,7 @@ where
 pub mod tests {
     use std::path::PathBuf;
 
-    use noosphere::{
+    use noosphere_core::{
         authority::generate_ed25519_key,
         data::{ContentType, Header},
         view::Sphere,

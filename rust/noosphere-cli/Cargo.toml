@@ -33,7 +33,7 @@ witty-phrase-generator = "~0.2"
 toml_edit = { version = "~0.14", features = [ "serde" ] }
 globset = "~0.4"
 
-noosphere = { path = "../noosphere" }
+noosphere-core = { path = "../noosphere-core" }
 noosphere-fs = { path = "../noosphere-fs" }
 noosphere-storage = { path = "../noosphere-storage" }
 noosphere-api = { path = "../noosphere-api" }

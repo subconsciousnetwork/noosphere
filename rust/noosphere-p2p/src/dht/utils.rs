@@ -1,6 +1,6 @@
 use crate::dht::errors::DHTError;
 use libp2p;
-use noosphere::authority::ed25519_key_to_bytes;
+use noosphere_core::authority::ed25519_key_to_bytes;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 pub fn key_material_to_libp2p_keypair(
@@ -15,7 +15,7 @@ pub fn key_material_to_libp2p_keypair(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use noosphere::authority::generate_ed25519_key;
+    use noosphere_core::authority::generate_ed25519_key;
 
     #[test]
     fn test_key_material_to_libp2p_keypair() -> Result<(), DHTError> {

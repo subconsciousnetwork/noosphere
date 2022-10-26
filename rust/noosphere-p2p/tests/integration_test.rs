@@ -4,7 +4,7 @@ use noosphere_p2p::dht::{DHTError, DHTNetworkInfo, DHTNode, DHTStatus};
 use std::str;
 
 mod utils;
-use noosphere::authority::generate_ed25519_key;
+use noosphere_core::authority::generate_ed25519_key;
 use utils::{create_test_config, generate_listening_addr, initialize_network, swarm_command};
 
 /// Testing a detached DHTNode as a server with no peers.

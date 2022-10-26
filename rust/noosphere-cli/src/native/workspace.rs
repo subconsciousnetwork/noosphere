@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use globset::{Glob, GlobMatcher, GlobSet, GlobSetBuilder};
 use libipld_cbor::DagCborCodec;
-use noosphere::{
+use noosphere_core::{
     authority::{restore_ed25519_key, Authorization},
     data::{BodyChunkIpld, ContentType, Header, MemoIpld},
     view::Sphere,

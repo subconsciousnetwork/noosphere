@@ -2243,43 +2243,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
-name = "noosphere"
-version = "0.1.0-alpha.1"
-dependencies = [
- "anyhow",
- "async-once-cell",
- "async-recursion",
- "async-std",
- "async-trait",
- "base64",
- "byteorder",
- "cid",
- "crdts",
- "ed25519-zebra",
- "fastcdc",
- "futures",
- "fvm_ipld_amt",
- "getrandom 0.2.7",
- "libipld-cbor",
- "libipld-core",
- "log",
- "noosphere-collections",
- "noosphere-storage",
- "once_cell",
- "rand 0.8.5",
- "serde",
- "serde_bytes",
- "serde_ipld_dagcbor",
- "tiny-bip39",
- "tokio",
- "tokio-stream",
- "ucan",
- "ucan-key-support",
- "url",
- "wasm-bindgen-test",
-]
-
-[[package]]
 name = "noosphere-api"
 version = "0.1.0-alpha.1"
 dependencies = [
@@ -2287,7 +2250,7 @@ dependencies = [
  "cid",
  "libipld-cbor",
  "libipld-core",
- "noosphere",
+ "noosphere-core",
  "noosphere-storage",
  "reqwest",
  "serde",
@@ -2315,8 +2278,8 @@ dependencies = [
  "libipld-cbor",
  "libipld-core",
  "mime_guess",
- "noosphere",
  "noosphere-api",
+ "noosphere-core",
  "noosphere-fs",
  "noosphere-storage",
  "path-absolutize",
@@ -2367,6 +2330,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "noosphere-core"
+version = "0.1.0-alpha.1"
+dependencies = [
+ "anyhow",
+ "async-once-cell",
+ "async-recursion",
+ "async-std",
+ "async-trait",
+ "base64",
+ "byteorder",
+ "cid",
+ "crdts",
+ "ed25519-zebra",
+ "fastcdc",
+ "futures",
+ "fvm_ipld_amt",
+ "getrandom 0.2.7",
+ "libipld-cbor",
+ "libipld-core",
+ "log",
+ "noosphere-collections",
+ "noosphere-storage",
+ "once_cell",
+ "rand 0.8.5",
+ "serde",
+ "serde_bytes",
+ "serde_ipld_dagcbor",
+ "tiny-bip39",
+ "tokio",
+ "tokio-stream",
+ "ucan",
+ "ucan-key-support",
+ "url",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "noosphere-fs"
 version = "0.1.0-alpha.1"
 dependencies = [
@@ -2377,7 +2377,7 @@ dependencies = [
  "futures-util",
  "libipld-cbor",
  "libipld-core",
- "noosphere",
+ "noosphere-core",
  "noosphere-storage",
  "once_cell",
  "tokio",
@@ -2403,7 +2403,7 @@ dependencies = [
  "cid",
  "futures",
  "horrorshow",
- "noosphere",
+ "noosphere-core",
  "noosphere-fs",
  "noosphere-storage",
  "subtext",
@@ -2426,7 +2426,7 @@ dependencies = [
  "anyhow",
  "futures",
  "libp2p",
- "noosphere",
+ "noosphere-core",
  "rand 0.8.5",
  "test-log",
  "tokio",
