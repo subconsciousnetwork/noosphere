@@ -1,7 +1,7 @@
 use std::io::Cursor;
 
 use anyhow::Result;
-use noosphere::{data::MemoIpld, view::Links};
+use noosphere_core::{data::MemoIpld, view::Links};
 use noosphere_fs::SphereFs;
 use noosphere_storage::interface::Store;
 use tokio::io::AsyncRead;

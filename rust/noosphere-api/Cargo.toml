@@ -12,7 +12,7 @@ url = "^2"
 serde = "^1"
 serde_urlencoded = "~0.7"
 tracing = "~0.1"
-noosphere = { path = "../noosphere" }
+noosphere-core = { path = "../noosphere-core" }
 noosphere-storage = { path = "../noosphere-storage" }
 reqwest = { version = "~0.11", features = ["json"] }
 

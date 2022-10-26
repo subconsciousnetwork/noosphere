@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use libipld_cbor::DagCborCodec;
-use noosphere::{
+use noosphere_core::{
     authority::Authorization,
     data::{BodyChunkIpld, ContentType, Header, MemoIpld},
     view::{Sphere, SphereMutation},
@@ -300,7 +300,7 @@ where
 
 #[cfg(test)]
 pub mod tests {
-    use noosphere::{
+    use noosphere_core::{
         authority::generate_ed25519_key,
         data::{ContentType, Header},
         view::Sphere,

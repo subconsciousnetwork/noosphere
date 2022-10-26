@@ -1,5 +1,5 @@
 use cid::Cid;
-use noosphere::data::MemoIpld;
+use noosphere_core::data::MemoIpld;
 
 /// A descriptor for contents that is stored in a sphere.
 pub struct SphereFile<C> {

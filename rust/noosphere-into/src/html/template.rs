@@ -1,5 +1,5 @@
 use horrorshow::html;
-use noosphere::data::{ContentType, Header, MemoIpld};
+use noosphere_core::data::{ContentType, Header, MemoIpld};
 
 /// Generate an HTML "envelope" for content described by the given memo.
 /// Currently, only Subtext and Sphere content types are explicitly supported.

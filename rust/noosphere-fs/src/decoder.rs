@@ -2,7 +2,7 @@ use async_stream::try_stream;
 use bytes::Bytes;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
-use noosphere::data::BodyChunkIpld;
+use noosphere_core::data::BodyChunkIpld;
 use noosphere_storage::interface::BlockStore;
 use tokio_stream::Stream;
 

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use noosphere::data::Header;
+use noosphere_core::data::Header;
 use noosphere_fs::SphereFs;
 use noosphere_storage::interface::Store;
 use subtext::{block::Block, primitive::Entity};

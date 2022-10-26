@@ -7,10 +7,10 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use ucan::{crypto::KeyMaterial};
+use ucan::crypto::KeyMaterial;
 
-use noosphere::authority::{Authorization, SUPPORTED_KEYS};
 use noosphere_api::route::Route as GatewayRoute;
+use noosphere_core::authority::{Authorization, SUPPORTED_KEYS};
 use noosphere_storage::{db::SphereDb, native::NativeStore};
 use ucan::crypto::did::DidParser;
 use url::Url;
@@ -99,14 +99,14 @@ mod tests {
     use anyhow::anyhow;
     use std::net::TcpListener;
 
-    use noosphere::{
-        authority::SUPPORTED_KEYS,
-        data::MemoIpld,
-        view::{Sphere, SphereMutation},
-    };
     use noosphere_api::{
         client::Client,
         data::{FetchParameters, FetchResponse, PushBody, PushResponse},
+    };
+    use noosphere_core::{
+        authority::SUPPORTED_KEYS,
+        data::MemoIpld,
+        view::{Sphere, SphereMutation},
     };
 
     use noosphere_storage::interface::BlockStore;

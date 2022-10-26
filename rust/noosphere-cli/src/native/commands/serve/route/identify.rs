@@ -1,18 +1,15 @@
 use std::sync::Arc;
 
 use axum::{http::StatusCode, response::IntoResponse, Extension, Json};
-use noosphere::authority::{Authorization, SphereAction, SphereReference};
 use noosphere_api::data::IdentifyResponse;
+use noosphere_core::authority::{Authorization, SphereAction, SphereReference};
 use noosphere_storage::{db::SphereDb, native::NativeStore};
 use ucan::{
     capability::{Capability, Resource, With},
     crypto::KeyMaterial,
 };
 
-use crate::native::commands::serve::{
-    authority::GatewayAuthority,
-    gateway::{GatewayScope},
-};
+use crate::native::commands::serve::{authority::GatewayAuthority, gateway::GatewayScope};
 
 pub async fn identify_route<K: KeyMaterial>(
     authority: GatewayAuthority,

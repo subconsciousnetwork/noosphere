@@ -2,7 +2,7 @@
 members = [
   "noosphere-storage",
   "noosphere-collections",
-  "noosphere",
+  "noosphere-core",
   "noosphere-api",
   "noosphere-fs",
   "noosphere-into",

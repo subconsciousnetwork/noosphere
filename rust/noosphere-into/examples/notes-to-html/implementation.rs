@@ -7,7 +7,7 @@ use temp_dir::TempDir;
 use tokio::fs::{self, File};
 use tower_http::services::ServeDir;
 
-use noosphere::{
+use noosphere_core::{
     authority::generate_ed25519_key,
     data::{ContentType, Header},
     view::Sphere,

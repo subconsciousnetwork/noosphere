@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere::{
+use noosphere_core::{
     authority::{SphereAction, SphereReference},
     data::{CidKey, DelegationIpld, RevocationIpld},
     view::{Sphere, SphereMutation, SPHERE_LIFETIME},

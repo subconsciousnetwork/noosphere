@@ -1,7 +1,7 @@
 #![cfg(test)]
 use futures::future::try_join_all;
 
-use noosphere::authority::generate_ed25519_key;
+use noosphere_core::authority::generate_ed25519_key;
 use noosphere_p2p::dht::{DHTConfig, DHTError, DHTNode};
 use rand::{thread_rng, Rng};
 use std::future::Future;

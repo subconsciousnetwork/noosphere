@@ -3,7 +3,7 @@ use serde_json::json;
 use tokio::fs;
 use ucan::crypto::KeyMaterial;
 
-use noosphere::authority::{ed25519_key_to_mnemonic, generate_ed25519_key};
+use noosphere_core::authority::{ed25519_key_to_mnemonic, generate_ed25519_key};
 
 use crate::native::workspace::Workspace;
 

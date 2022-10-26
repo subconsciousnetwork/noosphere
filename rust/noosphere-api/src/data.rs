@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere::{
+use noosphere_core::{
     authority::{SphereAction, SphereReference, SPHERE_SEMANTICS},
     data::Bundle,
 };

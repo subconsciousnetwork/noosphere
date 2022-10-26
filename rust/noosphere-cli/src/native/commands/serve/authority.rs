@@ -9,7 +9,7 @@ use axum::{
     TypedHeader,
 };
 use libipld_core::cid::Cid;
-use noosphere::authority::{SphereAction, SphereReference, SPHERE_SEMANTICS};
+use noosphere_core::authority::{SphereAction, SphereReference, SPHERE_SEMANTICS};
 use noosphere_storage::{db::SphereDb, native::NativeStore};
 
 use tokio::sync::Mutex;
