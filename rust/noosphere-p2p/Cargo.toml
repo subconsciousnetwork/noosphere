@@ -13,8 +13,16 @@ noosphere = { path = "../noosphere" }
 ucan-key-support = { version = "0.7.0-alpha.1" }
 futures = "0.3.1"
 tokio = { version = "1.15", features = ["io-util", "io-std", "sync", "macros", "rt", "rt-multi-thread"] }
-tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
 libp2p = { version = "0.49.0", default-features = false, features = [ "identify", "dns", "tcp", "tokio", "noise", "mplex", "yamux", "kad" ] }
+ucan = { version = "0.7.0-alpha.1" }
+clap = { version = "^4", features = ["derive"], optional = true }
+toml = { version = "0.5.9", optional = true }
+noosphere-cli = { path = "../noosphere-cli", optional = true }
+tracing-subscriber = { version = "~0.3", features = ["env-filter"], optional = true }
+
+[features]
+default = ["cli"]
+cli = ["dep:clap", "dep:toml", "dep:noosphere-cli", "dep:tracing-subscriber"]
 
 [dev-dependencies]
 rand = { version = "0.8.5" }

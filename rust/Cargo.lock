@@ -2424,14 +2424,18 @@ name = "noosphere-p2p"
 version = "0.1.0-alpha.1"
 dependencies = [
  "anyhow",
+ "clap",
  "futures",
  "libp2p",
  "noosphere",
+ "noosphere-cli",
  "rand 0.8.5",
  "test-log",
  "tokio",
+ "toml",
  "tracing",
  "tracing-subscriber",
+ "ucan",
  "ucan-key-support",
 ]
 
