@@ -1,13 +1,14 @@
 use crate::dht::{
-    builder::DHTNodeBuilder,
     channel::message_channel,
     errors::DHTError,
     processor::DHTProcessor,
-    types::{DHTMessageClient, DHTNetworkInfo, DHTRequest, DHTResponse, DHTStatus},
+    types::{DHTMessageClient, DHTNetworkInfo, DHTRequest, DHTResponse},
+    utils::key_material_to_libp2p_keypair,
     DHTConfig,
 };
-use std::time::Duration;
+use std::{net::SocketAddr, time::Duration};
 use tokio;
+use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 macro_rules! ensure_response {
     ($response:expr, $matcher:pat => $statement:expr) => {
@@ -18,46 +19,114 @@ macro_rules! ensure_response {
     };
 }
 
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum DHTStatus {
+    Initialized,
+    Active,
+    Terminated,
+    Error(String),
+}
+
 /// Represents a DHT node running in a network thread, providing
 /// async methods for operating the node.
 pub struct DHTNode {
     config: DHTConfig,
     state: DHTStatus,
-    client: DHTMessageClient,
-    thread_handle: tokio::task::JoinHandle<Result<(), DHTError>>,
+    client: Option<DHTMessageClient>,
+    thread_handle: Option<tokio::task::JoinHandle<Result<(), DHTError>>>,
+    keypair: libp2p::identity::Keypair,
     peer_id: libp2p::PeerId,
     p2p_address: libp2p::Multiaddr,
+    bootstrap_peers: Option<Vec<libp2p::Multiaddr>>,
 }
 
 impl DHTNode {
-    /// Creates a new [DHTNode], spawning a networking thread.
-    /// Prefer to use [DHTNodeBuilder] to create a [DHTNode].
-    pub fn new(config: DHTConfig) -> Result<Self, DHTError> {
-        let (client, processor) = message_channel::<DHTRequest, DHTResponse, DHTError>();
-        let (peer_id, p2p_address) = DHTConfig::get_peer_id_and_address(&config);
-        let thread_handle = DHTProcessor::spawn(&config, &peer_id, &p2p_address, processor)?;
+    /// Creates a new [DHTNode].
+    /// `listening_address` is a [std::net::SocketAddr] that is used to listen for incoming
+    /// connections.
+    /// `bootstrap_peers` is a collection of [String]s in [libp2p::Multiaddr] form of initial
+    /// peers to connect to during bootstrapping. This collection would be empty in the
+    /// standalone bootstrap node scenario.
+    pub fn new(
+        key_material: &Ed25519KeyMaterial,
+        listening_address: &SocketAddr,
+        bootstrap_peers: Option<&Vec<String>>,
+        config: &DHTConfig,
+    ) -> Result<Self, DHTError> {
+        let keypair = key_material_to_libp2p_keypair(key_material)?;
+        let peer_id = libp2p::PeerId::from(keypair.public());
+        let p2p_address = {
+            let mut multiaddr: libp2p::Multiaddr = listening_address.ip().into();
+            multiaddr.push(libp2p::multiaddr::Protocol::Tcp(listening_address.port()));
+            multiaddr.push(libp2p::multiaddr::Protocol::P2p(peer_id.into()));
+            multiaddr
+        };
+
+        let peers: Option<Vec<libp2p::Multiaddr>> = if let Some(peers) = bootstrap_peers {
+            Some(
+                peers
+                    .iter()
+                    .map(|p| p.parse())
+                    .collect::<Result<Vec<libp2p::Multiaddr>, libp2p::multiaddr::Error>>()
+                    .map_err(|e| DHTError::Error(e.to_string()))?,
+            )
+        } else {
+            None
+        };
 
         Ok(DHTNode {
-            config,
+            keypair,
             peer_id,
             p2p_address,
-            state: DHTStatus::Active,
-            client,
-            thread_handle,
+            config: config.to_owned(),
+            bootstrap_peers: peers,
+            state: DHTStatus::Initialized,
+            client: None,
+            thread_handle: None,
         })
     }
 
-    /// Returns a new [DHTNodeBuilder] instance, the primary way of creating
-    /// a new [DHTNode].
-    pub fn builder<'a>() -> DHTNodeBuilder<'a> {
-        DHTNodeBuilder::default()
+    /// Start the DHT network.
+    pub fn run(&mut self) -> Result<(), DHTError> {
+        let (client, processor) = message_channel::<DHTRequest, DHTResponse, DHTError>();
+        self.ensure_state(DHTStatus::Initialized)?;
+        self.client = Some(client);
+        self.thread_handle = Some(DHTProcessor::spawn(
+            &self.keypair,
+            &self.peer_id,
+            &self.p2p_address,
+            &self.bootstrap_peers,
+            &self.config,
+            processor,
+        )?);
+        self.state = DHTStatus::Active;
+        Ok(())
     }
 
     /// Teardown the network processing thread.
     pub fn terminate(&mut self) -> Result<(), DHTError> {
         self.ensure_state(DHTStatus::Active)?;
+        if let Some(thread_handle) = self.thread_handle.take() {
+            thread_handle.abort();
+        }
         self.state = DHTStatus::Terminated;
-        self.thread_handle.abort();
+        Ok(())
+    }
+
+    /// Adds additional bootstrap peers. Can only be executed before calling [DHTNode::run].
+    pub fn add_peers(&mut self, new_peers: &Vec<String>) -> Result<(), DHTError> {
+        self.ensure_state(DHTStatus::Initialized)?;
+        let mut new_peers_list: Vec<libp2p::Multiaddr> = new_peers
+            .iter()
+            .map(|p| p.parse())
+            .collect::<Result<Vec<libp2p::Multiaddr>, libp2p::multiaddr::Error>>()
+            .map_err(|e| DHTError::Error(e.to_string()))?;
+
+        if let Some(ref mut peers) = self.bootstrap_peers {
+            peers.append(&mut new_peers_list);
+        } else {
+            self.bootstrap_peers = Some(new_peers_list);
+        }
         Ok(())
     }
 
@@ -156,6 +225,8 @@ impl DHTNode {
     async fn send_request(&self, request: DHTRequest) -> Result<DHTResponse, DHTError> {
         self.ensure_state(DHTStatus::Active)?;
         self.client
+            .as_ref()
+            .expect("active DHT has client")
             .send_request_async(request)
             .await
             .map_err(DHTError::from)
