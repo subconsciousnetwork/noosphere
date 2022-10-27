@@ -25,8 +25,8 @@ url = "^2"
 serde = "^1"
 serde_urlencoded = "~0.7"
 tracing = "~0.1"
-noosphere-core = { path = "../noosphere-core" }
-noosphere-storage = { path = "../noosphere-storage" }
+noosphere-core = { version = "0.1.0-alpha.1", path = "../noosphere-core" }
+noosphere-storage = { version = "0.1.0-alpha.1", path = "../noosphere-storage" }
 reqwest = { version = "~0.11", features = ["json"] }
 
 ucan = { version = "0.7.0-alpha.1" }

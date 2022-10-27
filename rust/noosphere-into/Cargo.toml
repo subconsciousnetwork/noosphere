@@ -17,9 +17,9 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [dependencies]
-noosphere-core = { path = "../noosphere-core" }
-noosphere-storage = { path = "../noosphere-storage" }
-noosphere-fs = { path = "../noosphere-fs" }
+noosphere-core = { version = "0.1.0-alpha.1", path = "../noosphere-core" }
+noosphere-storage = { version = "0.1.0-alpha.1", path = "../noosphere-storage" }
+noosphere-fs = { version = "0.1.0-alpha.1", path = "../noosphere-fs" }
 subtext = { version = "~0.3", features = ["stream"] }
 
 anyhow = "^1"

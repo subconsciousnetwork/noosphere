@@ -44,8 +44,8 @@ tokio-stream = "~0.1"
 libipld-core = "~0.14"
 libipld-cbor = "~0.14"
 
-noosphere-storage = { path = "../noosphere-storage" }
-noosphere-collections = { path = "../noosphere-collections" }
+noosphere-storage = { version = "0.1.0-alpha.1", path = "../noosphere-storage" }
+noosphere-collections = { version = "0.1.0-alpha.1", path = "../noosphere-collections" }
 
 ucan = { version = "0.7.0-alpha.1" }
 ucan-key-support = { version = "0.7.0-alpha.1" }
