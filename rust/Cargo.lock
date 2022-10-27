@@ -2420,7 +2420,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "noosphere-p2p"
+name = "noosphere-ns"
 version = "0.1.0-alpha.1"
 dependencies = [
  "anyhow",

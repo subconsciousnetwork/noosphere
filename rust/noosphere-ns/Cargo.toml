@@ -1,8 +1,24 @@
 [package]
-name = "noosphere-p2p"
+name = "noosphere-ns"
 version = "0.1.0-alpha.1"
 edition = "2021"
+keywords = [
+  "name-system",
+  "noosphere",
+  "p2p",
+  "dht",
+  "distributed",
+]
+categories = [
+  "network-programming",
+  "asynchronous",
+]
 rust-version = "1.60.0"
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/noosphere-ns"
+repository = "https://github.com/subconsciousnetwork/noosphere"
+homepage = "https://github.com/subconsciousnetwork/noosphere"
+readme = "README.md"
 
 [dependencies]
 anyhow = "^1"

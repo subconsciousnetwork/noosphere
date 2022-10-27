@@ -1,6 +1,6 @@
 #![cfg(not(target_arch = "wasm32"))]
 #![cfg(test)]
-use noosphere_p2p::dht::{DHTError, DHTNetworkInfo, DHTNode, DHTStatus};
+use noosphere_ns::dht::{DHTError, DHTNetworkInfo, DHTNode, DHTStatus};
 use std::str;
 
 mod utils;
