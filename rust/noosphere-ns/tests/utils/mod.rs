@@ -2,7 +2,7 @@
 use futures::future::try_join_all;
 
 use noosphere_core::authority::generate_ed25519_key;
-use noosphere_p2p::dht::{DHTConfig, DHTError, DHTNode};
+use noosphere_ns::dht::{DHTConfig, DHTError, DHTNode};
 use rand::{thread_rng, Rng};
 use std::future::Future;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
