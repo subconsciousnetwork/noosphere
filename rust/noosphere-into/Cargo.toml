@@ -2,6 +2,7 @@
 name = "noosphere-into"
 version = "0.1.0-alpha.1"
 edition = "2021"
+description = "Transformations of Noosphere content into various target formats"
 keywords = ["html", "ipld", "noosphere", "subtext", "transcode"]
 categories = [
   "asynchronous",

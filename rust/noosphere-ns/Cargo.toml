@@ -2,6 +2,7 @@
 name = "noosphere-ns"
 version = "0.1.0-alpha.1"
 edition = "2021"
+description = "A P2P name system for Noosphere"
 keywords = [
   "name-system",
   "noosphere",

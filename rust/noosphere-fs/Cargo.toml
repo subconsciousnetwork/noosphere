@@ -2,6 +2,7 @@
 name = "noosphere-fs"
 version = "0.1.0-alpha.1"
 edition = "2021"
+description = "A high-level, FS-like view over Noosphere content"
 keywords = ["fs", "ipld", "noosphere", "p2p", "async"]
 categories = [
   "asynchronous",

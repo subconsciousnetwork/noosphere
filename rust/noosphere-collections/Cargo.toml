@@ -2,6 +2,7 @@
 name = "noosphere-collections"
 version = "0.1.0-alpha.1"
 edition = "2021"
+description = "Collection data types that are needed by an efficient implementation of Noosphere's IPLD data structures"
 keywords = ["hamt", "ipld", "noosphere", "p2p", "async"]
 categories = [
   "data structures",

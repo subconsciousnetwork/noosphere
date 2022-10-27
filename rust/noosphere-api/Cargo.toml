@@ -2,6 +2,7 @@
 name = "noosphere-api"
 version = "0.1.0-alpha.1"
 edition = "2021"
+description = "Type information pertinent to the REST API of the gateway server that is a part of the Noosphere CLI"
 keywords = ["rest", "api", "noosphere", "p2p"]
 categories = [
   "web-programming",

@@ -2,6 +2,7 @@
 name = "noosphere-core"
 version = "0.1.0-alpha.1"
 edition = "2021"
+description = "Core data types of the Rust Noosphere implementation"
 keywords = ["hamt", "ipld", "noosphere", "p2p", "async"]
 categories = [
   "data-structures",
