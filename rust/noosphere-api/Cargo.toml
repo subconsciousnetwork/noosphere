@@ -2,8 +2,20 @@
 name = "noosphere-api"
 version = "0.1.0-alpha.1"
 edition = "2021"
+keywords = ["rest", "api", "noosphere", "p2p"]
+categories = [
+  "web-programming",
+  "http-client",
+  "authentication",
+  "web-assembly"
+]
+rust-version = "1.60.0"
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/noosphere-api"
+repository = "https://github.com/subconsciousnetwork/noosphere"
+homepage = "https://github.com/subconsciousnetwork/noosphere"
+readme = "README.md"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "^1"

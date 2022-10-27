@@ -2,8 +2,20 @@
 name = "noosphere-fs"
 version = "0.1.0-alpha.1"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+keywords = ["fs", "ipld", "noosphere", "p2p", "async"]
+categories = [
+  "asynchronous",
+  "encoding",
+  "web-programming",
+  "file-system",
+  "web-assembly"
+]
+rust-version = "1.60.0"
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/noosphere-fs"
+repository = "https://github.com/subconsciousnetwork/noosphere"
+homepage = "https://github.com/subconsciousnetwork/noosphere"
+readme = "README.md"
 
 [dependencies]
 noosphere-core = { path = "../noosphere-core" }

@@ -2,8 +2,18 @@
 name = "noosphere-collections"
 version = "0.1.0-alpha.1"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+keywords = ["hamt", "ipld", "noosphere", "p2p", "async"]
+categories = [
+  "data structures",
+  "asynchronous",
+  "web-assembly"
+]
+rust-version = "1.60.0"
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/noosphere-collections"
+repository = "https://github.com/subconsciousnetwork/noosphere"
+homepage = "https://github.com/subconsciousnetwork/noosphere"
+readme = "README.md"
 
 [dependencies]
 anyhow = "^1"

@@ -2,6 +2,18 @@
 name = "noosphere-cli"
 version = "0.1.0-alpha.1"
 edition = "2021"
+keywords = ["cli", "sync", "noosphere", "p2p", "ucan"]
+categories = [
+  "authentication",
+  "filesystem",
+  "command-line interface"
+]
+rust-version = "1.60.0"
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/noosphere-cli"
+repository = "https://github.com/subconsciousnetwork/noosphere"
+homepage = "https://github.com/subconsciousnetwork/noosphere"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
