@@ -3,7 +3,7 @@ name = "noosphere-storage"
 version = "0.1.0-alpha.1"
 edition = "2021"
 description = "Pluggable backing storage for the Rust Noosphere implementation"
-keywords = ["storage", "web", "noosphere", "sled", "ipld", "indexeddb"]
+keywords = ["storage", "noosphere", "sled", "ipld", "indexeddb"]
 categories = [
   "asynchronous",
   "file-system",
