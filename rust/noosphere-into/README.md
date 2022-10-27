@@ -3,5 +3,6 @@
 # noosphere-into
 
 This crate implements transformations of Noosphere content into various target
-formats. Currently, only transformation into HTML has been implemented. In
-time, we will also support rendering raw Noosphere content to a disk and possibly even transformation to other note formats.
+formats. Currently, only transformation into HTML has been implemented. In time,
+we will also support rendering raw Noosphere content to a disk and possibly
+even transformation to other note formats.
