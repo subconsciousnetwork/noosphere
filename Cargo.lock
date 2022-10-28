@@ -2455,14 +2455,18 @@ name = "noosphere-ns"
 version = "0.1.0-alpha.1"
 dependencies = [
  "anyhow",
+ "cid",
  "futures",
  "libp2p",
  "noosphere-core",
  "rand 0.8.5",
+ "serde",
+ "serde_json",
  "test-log",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "ucan",
  "ucan-key-support",
 ]
 
@@ -3332,6 +3336,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4501abdff3ae82a1c1b477a17252eb69cee9e66eb915c1abaa4f44d873df9f09"
 
 [[package]]
+<<<<<<< HEAD
 name = "safer-ffi"
 version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3358,6 +3363,8 @@ dependencies = [
 ]
 
 [[package]]
+=======
+>>>>>>> dev: initial work on NameSystem, wrapping the underlying DHT network.
 name = "scoped-tls"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

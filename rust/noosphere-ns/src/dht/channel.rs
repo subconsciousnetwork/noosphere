@@ -2,7 +2,6 @@ use core::{fmt, result::Result};
 use tokio;
 use tokio::sync::{mpsc, mpsc::error::SendError, oneshot, oneshot::error::RecvError};
 
-
 impl std::error::Error for ChannelError {}
 impl fmt::Display for ChannelError {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -77,6 +76,7 @@ impl<Q, S, E> MessageClient<Q, S, E> {
         rx.await.map_err(|e| e.into())
     }
 
+    #[allow(clippy::type_complexity)]
     fn send_request_impl(
         &self,
         request: Q,

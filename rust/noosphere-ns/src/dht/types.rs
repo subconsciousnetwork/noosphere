@@ -71,7 +71,7 @@ pub enum DHTResponse {
     GetNetworkInfo(DHTNetworkInfo),
     GetRecord {
         name: Vec<u8>,
-        value: Vec<u8>,
+        value: Option<Vec<u8>>,
     },
     SetRecord {
         name: Vec<u8>,
@@ -96,7 +96,11 @@ impl fmt::Display for DHTResponse {
                 fmt,
                 "DHTResponse::GetRecord {{ name={:?}, value={:?} }}",
                 str::from_utf8(name),
-                str::from_utf8(value)
+                if value.is_some() {
+                    str::from_utf8(value.as_ref().unwrap())
+                } else {
+                    Ok("None")
+                }
             ),
             DHTResponse::SetRecord { name } => write!(
                 fmt,
