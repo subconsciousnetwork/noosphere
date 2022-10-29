@@ -1,0 +1,127 @@
+on:
+  push:
+    branches:
+      - main
+
+name: 'Perform a release'
+
+jobs:
+  # NOTE: This step is stateful. When there are unreleased changes on main, it
+  # generates a candidate PR for the next release based on all the unreleased
+  # changes and their implications for the versions of our packages. If such a
+  # PR already exists, it will detect it and update in place. These PRs are
+  # intended to stick around and update until a release is ready to be made.
+  # Once merged, this step will detect the merge and generate Git tags and
+  # corresponding Github releases for each package being released. Only at that
+  # time will the rest of the steps in this workflow run.
+  release-please:
+    name: 'Prepare a release'
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.repository_owner == 'subconsciousnetwork'
+    outputs:
+      any_noosphere_release: ${{ steps.release.outputs.release_created }}
+      noosphere_cli_released: ${{ steps.release.outputs['rust/noosphere-cli--release_created'] }}
+      noosphere_cli_release_tag_name: ${{ steps.release.outputs['rust/noosphere-cli--tag_name'] }}
+    steps:
+      - uses: chainguard-dev/actions/setup-gitsign@main
+      - name: 'Run release-please'
+        id: release
+        uses: cdata/release-please-action@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          default-branch: main
+          command: manifest
+          release-type: rust
+          extra-files: |
+            Cargo.toml
+
+  noosphere-cli-build:
+    name: 'Run a build for supported targets'
+    needs: ['release-please']
+    if: ${{ needs['release-please'].outputs.noosphere_cli_released }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Add additional targets here as we are ready to support them
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: orb-x86_64-unknown-linux-gnu.tar.gz
+    runs-on: ${{matrix.os}}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+          target: ${{ matrix.target }}
+      - name: 'Install environment packages'
+        run: |
+          sudo apt-get update -qqy
+          sudo apt-get install jq protobuf-compiler cmake libssl-dev pkg-config
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: build
+          args: --release --locked --target ${{ matrix.target }}
+
+      - name: 'Generate build tarball (*nix)'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czvf ../../../${{ matrix.name }} orb
+          cd -
+      - name: 'Upload build artifact'
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}
+
+  upload-release-artifacts:
+    name: 'Add build artifacts to release'
+    needs: ['release-please', 'noosphere-cli-build']
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Download build artifacts'
+        uses: actions/download-artifact@v3
+
+      - name: 'Generate checksums'
+        run: for file in orb-*/orb-*; do openssl dgst -sha256 -r "$file" | awk '{print $1}' > "${file}.sha256"; done
+
+      # NOTE: The release has to be published before adding build artifacts,
+      # otherwise the upload causes a different release to be made (???)
+      - name: 'Publish release'
+        run: gh release edit ${{ needs['release-please'].outputs.noosphere_cli_release_tag_name }} --draft=false --repo=cdata/noosphere
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 'Add build artifacts to release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: orb-*/orb-*
+          tag_name: ${{ needs['release-please'].outputs.noosphere_cli_release_tag_name }}
+
+  publish-crates:
+    name: 'Publish to crates.io'
+    needs: ['release-please', 'noosphere-cli-build']
+    runs-on: ubuntu-latest
+    if: ${{ needs['release-please'].outputs.any_noosphere_release }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: stable
+      - name: 'Install cargo-workspaces'
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --force cargo-workspaces
+      - name: 'Publish crates'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: cargo workspaces publish --from-git

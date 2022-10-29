@@ -1,0 +1,15 @@
+[workspace]
+members = [
+  "rust/noosphere-storage",
+  "rust/noosphere-collections",
+  "rust/noosphere-core",
+  "rust/noosphere-api",
+  "rust/noosphere-fs",
+  "rust/noosphere-into",
+  "rust/noosphere-cli",
+  "rust/noosphere-ns",
+]
+
+# See: https://github.com/rust-lang/rust/issues/90148#issuecomment-949194352
+resolver = "2"
+

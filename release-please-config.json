@@ -1,0 +1,35 @@
+{
+  "plugins": ["cargo-workspace"],
+  "changelog-path": "CHANGELOG.md",
+  "release-type": "rust",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "packages": {
+    "rust/noosphere-api": {
+      "release-as": "0.1.0"
+    },
+    "rust/noosphere-cli": {
+      "release-as": "0.1.0",
+      "draft": true
+    },
+    "rust/noosphere-collections": {
+      "release-as": "0.1.0"
+    },
+    "rust/noosphere-core": {
+      "release-as": "0.1.0"
+    },
+    "rust/noosphere-fs": {
+      "release-as": "0.1.0"
+    },
+    "rust/noosphere-into": {
+      "release-as": "0.1.0"
+    },
+    "rust/noosphere-ns": {
+      "release-as": "0.1.0"
+    },
+    "rust/noosphere-storage": {
+      "release-as": "0.1.0"
+    }
+  },
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
+}
