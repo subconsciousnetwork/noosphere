@@ -2,3 +2,4 @@ target
 optimized_wasm
 dist
 .DS_Store
+noosphere.h

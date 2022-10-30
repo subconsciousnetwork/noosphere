@@ -1,0 +1,48 @@
+on:
+  - workflow_call
+  - workflow_dispatch
+
+name: 'Build Noosphere CLI'
+
+jobs:
+  # Build the orb binary for supported targets
+  noosphere-cli-build:
+    name: 'Build Noosphere CLI for supported targets'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Add additional targets here as we are ready to support them
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: orb-x86_64-unknown-linux-gnu.tar.gz
+    runs-on: ${{matrix.os}}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+          target: ${{ matrix.target }}
+      - name: 'Install environment packages'
+        run: |
+          sudo apt-get update -qqy
+          sudo apt-get install protobuf-compiler cmake libssl-dev pkg-config
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: build
+          args: --release --locked --target ${{ matrix.target }}
+
+      - name: 'Generate build tarball (*nix)'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czvf ../../../${{ matrix.name }} orb
+          cd -
+      - name: 'Upload build artifact'
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}

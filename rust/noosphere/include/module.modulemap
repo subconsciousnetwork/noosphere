@@ -1,0 +1,4 @@
+module Noosphere {
+    header "noosphere.h"
+    export *
+}

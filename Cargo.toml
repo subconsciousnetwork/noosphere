@@ -8,6 +8,7 @@ members = [
   "rust/noosphere-into",
   "rust/noosphere-cli",
   "rust/noosphere-ns",
+  "rust/noosphere"
 ]
 
 # See: https://github.com/rust-lang/rust/issues/90148#issuecomment-949194352
