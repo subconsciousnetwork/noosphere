@@ -13,7 +13,6 @@ use noosphere_storage::{
     interface::{BlockStore, Store},
     native::{NativeStorageInit, NativeStorageProvider, NativeStore},
 };
-use path_absolutize::Absolutize;
 use pathdiff::diff_paths;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -590,8 +589,6 @@ The available keys are:
     /// Creates all the directories needed to start rendering a sphere in the
     /// configured working file tree root
     pub async fn initialize_local_directories(&self) -> Result<()> {
-        let mut root = self.root.clone();
-
         if let Ok(_) = self.expect_local_directories() {
             return Err(anyhow!(
                 r#"Cannot initialize the sphere; a sphere is already initialized in {:?}
