@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-cli"
-version = "0.1.0-alpha.1"
+version = "0.1.0"
 edition = "2021"
 description = "Reference client and pedagogical tool to demonstrate the principles of the Noosphere protocol"
 keywords = ["cli", "sync", "noosphere", "p2p", "ucan"]
