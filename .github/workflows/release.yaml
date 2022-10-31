@@ -92,7 +92,7 @@ jobs:
       # NOTE: The release has to be published before adding build artifacts,
       # otherwise the upload causes a different release to be made (???)
       - name: 'Publish release'
-        run: gh release edit ${{ needs['release-please'].outputs.noosphere_cli_release_tag_name }} --draft=false --repo=cdata/noosphere
+        run: gh release edit ${{ needs['release-please'].outputs.noosphere_cli_release_tag_name }} --draft=false --repo=subconsciousnetwork/noosphere
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
