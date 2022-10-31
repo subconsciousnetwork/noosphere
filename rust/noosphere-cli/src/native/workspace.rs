@@ -13,11 +13,10 @@ use noosphere_storage::{
     interface::{BlockStore, Store},
     native::{NativeStorageInit, NativeStorageProvider, NativeStore},
 };
-use path_absolutize::Absolutize;
 use pathdiff::diff_paths;
 use std::{
     collections::{BTreeMap, BTreeSet},
-    path::PathBuf,
+    path::{Path, PathBuf},
     str::FromStr,
 };
 use subtext::util::to_slug;
@@ -549,6 +548,11 @@ The available keys are:
         Err(anyhow!("No keys found; have you created any yet?"))
     }
 
+    /// Returns true if the given path has a .sphere folder in it
+    fn has_sphere_directory(path: &Path) -> bool {
+        path.is_absolute() && path.join(SPHERE_DIRECTORY).is_dir()
+    }
+
     /// Asserts that all related directories for the suggested working file
     /// tree root are present
     pub fn expect_local_directories(&self) -> Result<()> {
@@ -559,7 +563,7 @@ The available keys are:
             ));
         }
 
-        if !self.sphere.is_dir() {
+        if !Workspace::has_sphere_directory(&self.root) {
             return Err(anyhow!(
                 "The {:?} folder within {:?} is missing or corrupted",
                 SPHERE_DIRECTORY,
@@ -585,22 +589,12 @@ The available keys are:
     /// Creates all the directories needed to start rendering a sphere in the
     /// configured working file tree root
     pub async fn initialize_local_directories(&self) -> Result<()> {
-        let mut root = self.root.clone();
-
-        // Crawl up the directories to the root of the filesystem and make sure
-        // we aren't initializing a sphere within a sphere
-        while let Some(parent) = root.clone().parent() {
-            root = parent.to_path_buf();
-            let working_paths = Workspace::new(&root, None)?;
-            if let Ok(_) = working_paths.expect_local_directories() {
-                return Err(anyhow!(
-                    r#"Tried to initialize sphere directories in {:?}
-...but a sphere is already initialized in {:?}
-Unexpected things will happen if you try to nest spheres this way!"#,
-                    self.root,
-                    parent
-                ))?;
-            }
+        if let Ok(_) = self.expect_local_directories() {
+            return Err(anyhow!(
+                r#"Cannot initialize the sphere; a sphere is already initialized in {:?}
+Unexpected (bad) things will happen if you try to nest spheres this way!"#,
+                self.root,
+            ))?;
         }
 
         fs::create_dir_all(&self.sphere).await?;
@@ -617,12 +611,38 @@ Unexpected things will happen if you try to nest spheres this way!"#,
         Ok(())
     }
 
-    pub fn new(root: &PathBuf, noosphere_global_root: Option<&PathBuf>) -> Result<Self> {
-        if !root.is_absolute() {
-            return Err(anyhow!("Ambiguous path to sphere root: {:?}", root));
+    pub fn new(
+        current_working_directory: &PathBuf,
+        noosphere_global_root: Option<&PathBuf>,
+    ) -> Result<Self> {
+        if !current_working_directory.is_absolute() {
+            return Err(anyhow!(
+                "Ambiguous working directory: {:?} (must be an absolute path)",
+                current_working_directory
+            ));
         }
 
-        let root = root.absolutize()?.to_path_buf();
+        let mut root = current_working_directory.clone();
+
+        // Crawl up the directories to the root of the filesystem and use an
+        // existing `.sphere` directory to determine the root. If none are
+        // found, instead use the current working directory.
+        loop {
+            match root.parent() {
+                Some(parent) => {
+                    root = parent.to_path_buf();
+
+                    if Workspace::has_sphere_directory(&root) {
+                        break;
+                    }
+                }
+                None => {
+                    root = current_working_directory.clone();
+                    break;
+                }
+            }
+        }
+
         let sphere = root.join(SPHERE_DIRECTORY);
         let blocks = sphere.join(BLOCKS_DIRECTORY);
         let authorization = sphere.join(AUTHORIZATION_FILE);
@@ -666,5 +686,31 @@ Unexpected things will happen if you try to nest spheres this way!"#,
             &root.path().to_path_buf(),
             Some(&global_root.path().to_path_buf()),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::native::commands::{key, sphere};
+    use tokio::fs;
+
+    use super::Workspace;
+
+    #[tokio::test]
+    async fn it_chooses_an_ancestor_sphere_directory_as_root_if_one_exists() {
+        let workspace = Workspace::temporary().unwrap();
+
+        key::key_create("FOO", &workspace).await.unwrap();
+
+        sphere::sphere_create("FOO", &workspace).await.unwrap();
+
+        let subdirectory = workspace.root_path().join("foo/bar");
+
+        fs::create_dir_all(&subdirectory).await.unwrap();
+
+        let new_workspace =
+            Workspace::new(&subdirectory, Some(workspace.noosphere_path())).unwrap();
+
+        assert_eq!(workspace.root_path(), new_workspace.root_path());
     }
 }
