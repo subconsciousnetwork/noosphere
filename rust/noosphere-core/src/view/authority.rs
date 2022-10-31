@@ -8,6 +8,8 @@ use crate::{
     view::{AllowedUcans, RevokedUcans},
 };
 
+/// A view in to the authorizations (and associated revocations) that pertain
+/// to sphere access
 pub struct Authority<S: BlockStore> {
     cid: Cid,
     store: S,
