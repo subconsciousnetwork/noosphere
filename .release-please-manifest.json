@@ -1,6 +1,6 @@
 {
   "rust/noosphere-api": "0.1.0-alpha.1",
-  "rust/noosphere-cli": "0.1.0-alpha.1",
+  "rust/noosphere-cli": "0.1.0",
   "rust/noosphere-collections": "0.1.0-alpha.1",
   "rust/noosphere-core": "0.1.0-alpha.1",
   "rust/noosphere-into": "0.1.0-alpha.1",
