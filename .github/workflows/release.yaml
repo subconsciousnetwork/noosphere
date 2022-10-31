@@ -19,7 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.repository_owner == 'subconsciousnetwork'
     outputs:
-      any_noosphere_release: ${{ steps.release.outputs.release_created }}
+      any_noosphere_release: ${{
+        steps.release.outputs['rust/noosphere-cli--release_created'] ||
+        steps.release.outputs['rust/noosphere-core--release_created'] ||
+        steps.release.outputs['rust/noosphere-api--release_created'] ||
+        steps.release.outputs['rust/noosphere-ns--release_created'] ||
+        steps.release.outputs['rust/noosphere-storage--release_created'] ||
+        steps.release.outputs['rust/noosphere-fs--release_created'] ||
+        steps.release.outputs['rust/noosphere-into--release_created'] }}
       noosphere_cli_released: ${{ steps.release.outputs['rust/noosphere-cli--release_created'] }}
       noosphere_cli_release_tag_name: ${{ steps.release.outputs['rust/noosphere-cli--tag_name'] }}
     steps:
