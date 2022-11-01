@@ -13,7 +13,7 @@ use std::{
 };
 
 /// An [NSRecord] is a struct representing a record stored in the
-/// Noosphere Name System's DHT containing a [cid::Cid] of the
+/// Noosphere Name System's DHT containing a [Cid] of the
 /// result, as well as a TTL expiration as seconds from Unix epoch.
 ///
 /// # Serialization
@@ -23,17 +23,16 @@ use std::{
 /// and [NSRecord::from_bytes] methods respectively handle the
 /// serialization and deserialization in this format.
 ///
-/// Fields are mapped by:
+/// Fields are mapped to the corresponding properties and JSON types:
 ///
-/// `cid` => `"cid": String`
-/// `expires` => `"exp": Number`
+/// * `cid` => `"cid" as String`
+/// * `expires` => `"exp" as Number`
 ///
 /// An example of the serialized payload structure and
 /// conversion looks like:
 ///  
 /// ```
-/// use noosphere_ns::NSRecord;
-/// use cid::{Cid, multihash::{Code, MultihashDigest}};
+/// use noosphere_ns::{Cid, NSRecord};
 /// use std::str::FromStr;
 ///
 /// let cid_str = "bafkreibme22gw2h7y2h7tg2fhqotaqjucnbc24deqo72b6mkl2egezxhvy";
@@ -44,12 +43,15 @@ use std::{
 /// assert_eq!(record.expires, expires);
 ///
 /// let bytes = record.to_bytes().unwrap();
-/// assert_eq!(&String::from_utf8(bytes.clone()).unwrap(), "{\"cid\":\"bafkreibme22gw2h7y2h7tg2fhqotaqjucnbc24deqo72b6mkl2egezxhvy\",\"exp\":1667262626}");
+/// let record_str = "{\"cid\":\"bafkreibme22gw2h7y2h7tg2fhqotaqjucnbc24deqo72b6mkl2egezxhvy\",\"exp\":1667262626}";
+/// assert_eq!(&String::from_utf8(bytes.clone()).unwrap(), record_str);
 /// assert_eq!(NSRecord::from_bytes(bytes).unwrap(), record);
 /// ```
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct NSRecord {
+    /// The link to the resolved sphere's content.
     pub cid: Cid,
+    /// TTL expiration time as seconds from Unix epoch.
     pub expires: u64,
 }
 
@@ -103,7 +105,7 @@ impl fmt::Display for NSRecord {
     }
 }
 
-/// Serialization for NSRecords. While [cid::Cid] has built-in serde
+/// Serialization for NSRecords. While [Cid] has built-in serde
 /// support under a feature flag, we roll our own to store the Cid
 /// as a string rather than bytes.
 impl Serialize for NSRecord {
@@ -118,10 +120,10 @@ impl Serialize for NSRecord {
     }
 }
 
-/// Deserialization for NSRecords. While [cid::Cid] has built-in serde
+/// Deserialization for NSRecords. While [Cid] has built-in serde
 /// support under a feature flag, we roll our own to store the Cid
 /// as a string rather than bytes.
-/// For more details on custom deserialization: https://serde.rs/deserialize-struct.html
+/// For more details on custom deserialization: <https://serde.rs/deserialize-struct.html>
 impl<'de> Deserialize<'de> for NSRecord {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

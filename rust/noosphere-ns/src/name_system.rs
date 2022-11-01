@@ -9,10 +9,17 @@ use libp2p::Multiaddr;
 use std::collections::HashMap;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
-/// The [NameSystem] is responsible for both propagating and resolving address records
-/// in the Noosphere DHT. Hosted records can be set via `set_record(identity, link)`, propagating the
-/// record immediately, and repropagated every `propagation_interval` seconds. Records
-/// can be resolved via `get_record(identity)`.
+/// The [NameSystem] is responsible for both propagating and resolving Sphere DIDs
+/// into [NSRecord]s, containing data to find an authenticated [Cid] link to the
+/// sphere's content. These records are propagated and resolved via the
+/// Noosphere NS distributed network, built on [libp2p](https://libp2p.io)'s
+/// [Kademlia DHT specification](https://github.com/libp2p/specs/blob/master/kad-dht/README.md).
+///
+/// Hosted records can be set via [NameSystem::set_record], propagating the
+/// record immediately, and repropagated every `ttl` seconds. Records
+/// can be resolved via [NameSystem::get_record].
+///
+/// New [NameSystem] instances can be created via [crate::NameSystemBuilder].
 pub struct NameSystem<'a> {
     /// Bootstrap peers for the DHT network.
     pub(crate) bootstrap_peers: Option<&'a Vec<Multiaddr>>,

@@ -197,7 +197,6 @@ impl DHTProcessor {
                     publisher: None,
                     expires: None,
                 };
-                info!("PUTTING RECORD {:#?}", record);
                 store_request!(self, message, behaviour.kad.put_record(record, Quorum::One));
             }
         };
