@@ -1,10 +1,11 @@
 {
-  "rust/noosphere-api": "0.1.0-alpha.1",
-  "rust/noosphere-cli": "0.1.0",
+  "rust/noosphere-api": "0.1.0",
+  "rust/noosphere-cli": "0.1.1",
   "rust/noosphere-collections": "0.1.0-alpha.1",
   "rust/noosphere-core": "0.1.0-alpha.1",
   "rust/noosphere-into": "0.1.0-alpha.1",
   "rust/noosphere-ns": "0.1.0-alpha.1",
   "rust/noosphere-storage": "0.1.0-alpha.1",
-  "rust/noosphere-fs": "0.1.0-alpha.1"
+  "rust/noosphere-fs": "0.1.0-alpha.1",
+  "rust/noosphere": "0.1.0-alpha.1"
 }
