@@ -65,7 +65,7 @@ jobs:
           brew: protobuf cmake
       - name: 'Generate the header'
         run: |
-          cd rust/noosphere/include
+          cd rust/noosphere/include/noosphere
           cargo run --example generate_header --features headers --locked
           cd -
       - uses: actions/upload-artifact@v3

@@ -18,7 +18,10 @@ pub struct NativeStorageProvider {
 impl NativeStorageProvider {
     pub fn new(init: NativeStorageInit) -> Result<Self> {
         let db: Db = match init {
-            NativeStorageInit::Path(path) => sled::open(path)?,
+            NativeStorageInit::Path(path) => {
+                std::fs::create_dir_all(&path)?;
+                sled::open(path)?
+            }
             NativeStorageInit::Db(db) => db,
         };
 

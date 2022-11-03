@@ -1,16 +1,21 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use cid::Cid;
+use libipld_cbor::DagCborCodec;
 use libipld_core::{
     codec::{Codec, Decode, Encode, References},
     ipld::Ipld,
     raw::RawCodec,
 };
+use serde::{de::DeserializeOwned, Serialize};
 use std::{collections::BTreeSet, fmt::Debug};
-use tokio_stream::{Stream};
+use tokio_stream::Stream;
 use ucan::store::{UcanStore, UcanStoreConditionalSend};
 
-use crate::interface::{BlockStore, KeyValueStore, StorageProvider, Store};
+use crate::{
+    interface::{BlockStore, BlockStoreSend, KeyValueStore, StorageProvider, Store},
+    memory::MemoryStore,
+};
 
 use async_stream::try_stream;
 
@@ -29,6 +34,10 @@ impl<T> SphereDbSendSync for T {}
 pub const BLOCK_STORE: &str = "blocks";
 pub const LINK_STORE: &str = "links";
 pub const VERSION_STORE: &str = "versions";
+pub const METADATA_STORE: &str = "metadata";
+
+pub const SPHERE_DB_STORE_NAMES: &[&str] =
+    &[BLOCK_STORE, LINK_STORE, VERSION_STORE, METADATA_STORE];
 
 #[derive(Clone)]
 pub struct SphereDb<S>
@@ -38,6 +47,7 @@ where
     block_store: S,
     link_store: S,
     version_store: S,
+    metadata_store: S,
 }
 
 impl<S> SphereDb<S>
@@ -49,7 +59,29 @@ where
             block_store: storage_provider.get_store(BLOCK_STORE).await?,
             link_store: storage_provider.get_store(LINK_STORE).await?,
             version_store: storage_provider.get_store(VERSION_STORE).await?,
+            metadata_store: storage_provider.get_store(METADATA_STORE).await?,
         })
+    }
+
+    pub async fn persist(&mut self, memory_store: &MemoryStore) -> Result<()> {
+        let cids = memory_store.get_stored_cids().await;
+
+        for cid in &cids {
+            let block = memory_store.require_block(cid).await?;
+
+            self.put_block(cid, &block).await?;
+
+            match cid.codec() {
+                codec_id if codec_id == u64::from(DagCborCodec) => {
+                    self.put_links::<DagCborCodec>(cid, &block).await?;
+                }
+                codec_id if codec_id == u64::from(RawCodec) => {
+                    self.put_links::<RawCodec>(cid, &block).await?;
+                }
+                codec_id => warn!("Unrecognized codec {}; skipping...", codec_id),
+            }
+        }
+        Ok(())
     }
 
     pub async fn set_version(&mut self, identity: &str, version: &Cid) -> Result<()> {
@@ -140,6 +172,30 @@ where
 
     async fn get_block(&self, cid: &cid::Cid) -> Result<Option<Vec<u8>>> {
         self.block_store.get_block(cid).await
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<S> KeyValueStore for SphereDb<S>
+where
+    S: Store,
+{
+    async fn set_key<K, V>(&mut self, key: K, value: V) -> Result<()>
+    where
+        K: AsRef<[u8]> + BlockStoreSend,
+        V: Serialize + BlockStoreSend,
+    {
+        self.metadata_store.set_key(key, value).await?;
+        Ok(())
+    }
+
+    async fn get_key<K, V>(&self, key: K) -> Result<Option<V>>
+    where
+        K: AsRef<[u8]> + BlockStoreSend,
+        V: DeserializeOwned + BlockStoreSend,
+    {
+        self.metadata_store.get_key(key).await
     }
 }
 

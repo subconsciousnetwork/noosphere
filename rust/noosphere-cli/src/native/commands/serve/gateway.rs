@@ -190,7 +190,7 @@ mod tests {
             let client = Client::identify(
                 &client_sphere_identity,
                 &api_base,
-                &client_key,
+                client_key.clone(),
                 &client_authorization,
                 &mut did_parser,
                 client_db,
@@ -276,7 +276,7 @@ mod tests {
             let client = Client::identify(
                 &client_sphere_identity,
                 &api_base,
-                &client_key,
+                client_key.clone(),
                 &client_authorization,
                 &mut did_parser,
                 client_db.clone(),
@@ -395,7 +395,7 @@ mod tests {
             let client = Client::identify(
                 &client_sphere_identity,
                 &api_base,
-                &client_key,
+                client_key.clone(),
                 &client_authorization,
                 &mut did_parser,
                 client_db.clone(),
@@ -556,7 +556,7 @@ mod tests {
             let client = Client::identify(
                 &client_sphere_identity,
                 &api_base,
-                &client_key,
+                client_key.clone(),
                 &client_authorization,
                 &mut did_parser,
                 client_db.clone(),
