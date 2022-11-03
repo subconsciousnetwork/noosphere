@@ -19,16 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.repository_owner == 'subconsciousnetwork'
     outputs:
-      any_noosphere_release: ${{
-        steps.release.outputs['rust/noosphere-cli--release_created'] ||
-        steps.release.outputs['rust/noosphere-core--release_created'] ||
-        steps.release.outputs['rust/noosphere-api--release_created'] ||
-        steps.release.outputs['rust/noosphere-ns--release_created'] ||
-        steps.release.outputs['rust/noosphere-storage--release_created'] ||
-        steps.release.outputs['rust/noosphere-fs--release_created'] ||
-        steps.release.outputs['rust/noosphere-into--release_created'] }}
       noosphere_cli_released: ${{ steps.release.outputs['rust/noosphere-cli--release_created'] }}
       noosphere_cli_release_tag_name: ${{ steps.release.outputs['rust/noosphere-cli--tag_name'] }}
+      noosphere_released: ${{ steps.release.outputs['rust/noosphere--release_created'] }}
+      noosphere_release_tag_name: ${{ steps.release.outputs['rust/noosphere--tag_name'] }}
     steps:
       - uses: chainguard-dev/actions/setup-gitsign@main
       - name: 'Run release-please'
@@ -43,50 +37,12 @@ jobs:
             Cargo.toml
 
   noosphere-cli-build:
-    name: 'Run a build for supported targets'
     needs: ['release-please']
     if: ${{ needs['release-please'].outputs.noosphere_cli_released }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Add additional targets here as we are ready to support them
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            name: orb-x86_64-unknown-linux-gnu.tar.gz
-    runs-on: ${{matrix.os}}
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          toolchain: stable
-          override: true
-          profile: minimal
-          target: ${{ matrix.target }}
-      - name: 'Install environment packages'
-        run: |
-          sudo apt-get update -qqy
-          sudo apt-get install jq protobuf-compiler cmake libssl-dev pkg-config
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: build
-          args: --release --locked --target ${{ matrix.target }}
+    uses: ./.github/workflows/noosphere_cli_build.yaml
 
-      - name: 'Generate build tarball (*nix)'
-        run: |
-          cd target/${{ matrix.target }}/release
-          tar czvf ../../../${{ matrix.name }} orb
-          cd -
-      - name: 'Upload build artifact'
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.name }}
-          path: ${{ matrix.name }}
-
-  upload-release-artifacts:
-    name: 'Add build artifacts to release'
+  noosphere-cli-release-artifacts:
+    name: 'Add Noosphere CLI artifacts to release'
     needs: ['release-please', 'noosphere-cli-build']
     runs-on: ubuntu-latest
     steps:
@@ -109,11 +65,52 @@ jobs:
           files: orb-*/orb-*
           tag_name: ${{ needs['release-please'].outputs.noosphere_cli_release_tag_name }}
 
+  noosphere-apple-build:
+    name: 'Build Noosphere artifacts (Apple)'
+    needs: ['release-please']
+    if: ${{ needs['release-please'].outputs.noosphere_released }}
+    uses: ./.github/workflows/noosphere_apple_build.yaml
+
+  noosphere-release-artifacts:
+    name: 'Add Noosphere artifacts to release'
+    needs: ['release-please', 'noosphere-apple-build']
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Download XCode Framework artifact'
+        uses: actions/download-artifact@v3
+        with:
+          name: libnoosphere_apple_framework
+
+      - name: 'Generate checksum'
+        run: openssl dgst -sha256 ./libnoosphere.zip > ./CHECKSUM
+
+      # NOTE: The release has to be published before adding build artifacts,
+      # otherwise the upload causes a different release to be made (???)
+      - name: 'Publish release'
+        run: gh release edit ${{ needs['release-please'].outputs.noosphere_release_tag_name }} --draft=false --repo=subconsciousnetwork/noosphere
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 'Add build artifacts to release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            libnoosphere.zip
+            CHECKSUM
+          tag_name: ${{ needs['release-please'].outputs.noosphere_release_tag_name }}
+
+  # Publishes crates to crates.io in dependency order. This command is
+  # idempotent and won't re-publish crates that are already published, so it's
+  # safe for us to run it indiscriminately
   publish-crates:
     name: 'Publish to crates.io'
-    needs: ['release-please', 'noosphere-cli-build']
+    needs:
+      [
+        'release-please',
+        'noosphere-cli-release-artifacts',
+        'noosphere-release-artifacts',
+      ]
     runs-on: ubuntu-latest
-    if: ${{ needs['release-please'].outputs.any_noosphere_release }}
 
     steps:
       - uses: actions/checkout@v3

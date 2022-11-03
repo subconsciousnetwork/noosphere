@@ -1,0 +1,39 @@
+[package]
+name = "noosphere"
+version = "0.1.0"
+edition = "2021"
+description = "A high-level package for dealing with accessing the Noosphere"
+keywords = ["noosphere"]
+categories = ["filesystem"]
+rust-version = "1.60.0"
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/noosphere"
+repository = "https://github.com/subconsciousnetwork/noosphere"
+homepage = "https://github.com/subconsciousnetwork/noosphere"
+readme = "README.md"
+
+[lib]
+crate-type = ["rlib", "staticlib", "cdylib"]
+
+[profile.release]
+opt-level = 'z'
+lto = true
+
+[features]
+headers = ["safer-ffi/headers"]
+
+[dependencies]
+anyhow = "^1"
+thiserror = "^1"
+lazy_static = "^1"
+
+
+noosphere-core = { version = "0.1.0-alpha.1", path = "../noosphere-core" }
+noosphere-fs = { version = "0.1.0-alpha.1", path = "../noosphere-fs" }
+noosphere-storage = { version = "0.1.0-alpha.1", path = "../noosphere-storage" }
+noosphere-api = { version = "0.1.0-alpha.1", path = "../noosphere-api" }
+ucan = { version = "0.7.0-alpha.1" }
+ucan-key-support = { version = "0.7.0-alpha.1" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+safer-ffi = { version = "~0.0.10", features = ["proc_macros"] }

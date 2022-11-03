@@ -1,0 +1,129 @@
+on:
+  - workflow_call
+  - workflow_dispatch
+
+name: 'Build Noosphere artifacts (Apple)'
+
+jobs:
+  # Build Noosphere out of the noosphere crate for Apple targets
+  noosphere-apple-build:
+    name: 'Build Noosphere libraries (Apple)'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # iOS
+          - target: aarch64-apple-ios
+          # iOS Simulator
+          - target: x86_64-apple-ios
+          - target: aarch64-apple-ios-sim
+          # Mac OS
+          - target: x86_64-apple-darwin
+          - target: aarch64-apple-darwin
+
+    runs-on: macos-12
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ matrix.target }}
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+          target: ${{ matrix.target }}
+      - uses: ConorMacBride/install-package@v1
+        with:
+          brew: protobuf cmake
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: build
+          args: --package noosphere --release --locked --target ${{ matrix.target }}
+      - run: |
+          cd target/${{ matrix.target }}/release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: lib_${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/libnoosphere.a
+
+  # Generates the FFI C header for Noosphere and bundles it with a
+  # modulemap for Apple use cases
+  noosphere-header-generation:
+    name: 'Generate Noosphere C header'
+    runs-on: macos-12
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+      - uses: ConorMacBride/install-package@v1
+        with:
+          brew: protobuf cmake
+      - name: 'Generate the header'
+        run: |
+          cd rust/noosphere/include
+          cargo run --example generate_header --features headers --locked
+          cd -
+      - uses: actions/upload-artifact@v3
+        with:
+          name: include
+          path: rust/noosphere/include
+
+  # Generate Apple "universal" libraries for Noosphere for supported targets
+  noosphere-apple-lipo:
+    name: 'Generate Noosphere universal libraries (Apple)'
+    needs: ['noosphere-apple-build']
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # iOS Simulator
+          - legacy_target: x86_64-apple-ios
+            future_target: aarch64-apple-ios-sim
+            platform: ios-simulator
+          # Mac OS
+          - legacy_target: x86_64-apple-darwin
+            future_target: aarch64-apple-darwin
+            platform: macos
+    runs-on: macos-12
+    steps:
+      - uses: actions/download-artifact@v3
+      - name: 'Make a universal library'
+        run: |
+          lipo -create \
+            ./lib_${{ matrix.legacy_target }}/libnoosphere.a \
+            ./lib_${{ matrix.future_target }}/libnoosphere.a \
+            -output ./libnoosphere.a
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: lib_${{ matrix.platform }}-universal
+          path: libnoosphere.a
+
+  # Generates an Apple XCode Framework for Noosphere from all the built
+  # Apple libraries
+  noosphere-apple-xcframework:
+    name: 'Generate Noosphere XCFramework'
+    needs: ['noosphere-apple-lipo', 'noosphere-header-generation']
+    runs-on: macos-12
+    steps:
+      - uses: actions/download-artifact@v3
+      - name: 'Generate XCFramework'
+        run: |
+          xcodebuild -create-xcframework \
+            -library ./lib_macos-universal/libnoosphere.a \
+            -headers ./include/ \
+            -library ./lib_ios-simulator-universal/libnoosphere.a \
+            -headers ./include/ \
+            -library ./lib_aarch64-apple-ios/libnoosphere.a \
+            -headers ./include/ \
+            -output ./LibNoosphere.xcframework
+          zip -r ./libnoosphere.zip ./LibNoosphere.xcframework
+      - uses: actions/upload-artifact@v3
+        with:
+          name: libnoosphere_apple_framework
+          path: ./libnoosphere.zip
