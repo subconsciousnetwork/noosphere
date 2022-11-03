@@ -26,7 +26,7 @@ headers = ["safer-ffi/headers"]
 anyhow = "^1"
 thiserror = "^1"
 lazy_static = "^1"
-safer-ffi = { version = "~0.0.10", features = ["proc_macros"] }
+
 
 noosphere-core = { version = "0.1.0-alpha.1", path = "../noosphere-core" }
 noosphere-fs = { version = "0.1.0-alpha.1", path = "../noosphere-fs" }
@@ -34,3 +34,6 @@ noosphere-storage = { version = "0.1.0-alpha.1", path = "../noosphere-storage" }
 noosphere-api = { version = "0.1.0-alpha.1", path = "../noosphere-api" }
 ucan = { version = "0.7.0-alpha.1" }
 ucan-key-support = { version = "0.7.0-alpha.1" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+safer-ffi = { version = "~0.0.10", features = ["proc_macros"] }

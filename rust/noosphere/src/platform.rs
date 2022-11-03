@@ -17,7 +17,7 @@ mod inner {
 #[cfg(target_arch = "wasm32")]
 mod inner {
     use noosphere_storage::web::WebStore;
-    use ucan_key_support::WebCryptoRsaKeyMaterial;
+    use ucan_key_support::web_crypto::WebCryptoRsaKeyMaterial;
 
     pub type PlatformKeyMaterial = WebCryptoRsaKeyMaterial;
     pub type PlatformStore = WebStore;
