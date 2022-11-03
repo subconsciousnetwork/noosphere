@@ -268,7 +268,17 @@ impl DHTProcessor {
                 }
                 QueryResult::GetRecord(Err(e)) => {
                     if let Some(message) = self.requests.remove(&id) {
-                        message.respond(Err(DHTError::from(e)));
+                        match e {
+                            kad::GetRecordError::NotFound { key, .. } => {
+                                // Not finding a record is not an `Err` response,
+                                // but simply a successful query with a `None` result.
+                                message.respond(Ok(DHTResponse::GetRecord {
+                                    name: key.to_vec(),
+                                    value: None,
+                                }))
+                            }
+                            e => message.respond(Err(DHTError::from(e))),
+                        };
                     }
                 }
                 QueryResult::PutRecord(Ok(kad::PutRecordOk { key })) => {
@@ -348,15 +358,12 @@ impl DHTProcessor {
                 } => {}
                 kad::InboundRequest::PutRecord { source, record, .. } => match record {
                     Some(rec) => {
-                        if self
-                            .swarm
-                            .behaviour_mut()
-                            .kad
-                            .store_mut()
-                            .put(rec.clone())
-                            .is_err()
+                        if let Err(e) = self.swarm.behaviour_mut().kad.store_mut().put(rec.clone())
                         {
-                            warn!("InboundRequest::PutRecord failed: {:?} {:?}", rec, source);
+                            warn!(
+                                "InboundRequest::PutRecord failed: {:?} {:?}, {}",
+                                rec, source, e
+                            );
                         }
                     }
                     None => warn!("InboundRequest::PutRecord failed; empty record"),

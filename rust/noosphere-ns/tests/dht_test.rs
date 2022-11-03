@@ -26,11 +26,10 @@ async fn test_dhtnode_base_case() -> Result<(), DHTError> {
             num_pending: 0,
         }
     );
-    assert_eq!(
-        node.bootstrap().await?,
-        (),
-        "bootstrap() should succeed, even without peers to bootstrap."
-    );
+
+    if node.bootstrap().await.is_err() {
+        panic!("bootstrap() should succeed, even without peers to bootstrap.");
+    }
 
     node.terminate()?;
     assert_eq!(node.status(), DHTStatus::Terminated, "DHT is terminated");

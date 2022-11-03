@@ -6,41 +6,76 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use futures::future::try_join_all;
 use libp2p::Multiaddr;
+use noosphere_core::authority::SUPPORTED_KEYS;
+use noosphere_storage::{db::SphereDb, interface::Store};
 use std::collections::HashMap;
+use ucan::{crypto::did::DidParser, Ucan};
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 /// The [NameSystem] is responsible for both propagating and resolving Sphere DIDs
-/// into [NSRecord]s, containing data to find an authenticated [Cid] link to the
-/// sphere's content. These records are propagated and resolved via the
+/// into an authorized UCAN publish token, resolving into a [cid::Cid] address for
+/// a sphere's content. These records are propagated and resolved via the
 /// Noosphere NS distributed network, built on [libp2p](https://libp2p.io)'s
 /// [Kademlia DHT specification](https://github.com/libp2p/specs/blob/master/kad-dht/README.md).
 ///
 /// Hosted records can be set via [NameSystem::set_record], propagating the
-/// record immediately, and repropagated every `ttl` seconds. Records
+/// record immediately, and repropagated every `propagation_interval` seconds. Records
 /// can be resolved via [NameSystem::get_record].
 ///
 /// New [NameSystem] instances can be created via [crate::NameSystemBuilder].
-pub struct NameSystem<'a> {
+pub struct NameSystem<S>
+where
+    S: Store,
+{
     /// Bootstrap peers for the DHT network.
-    pub(crate) bootstrap_peers: Option<&'a Vec<Multiaddr>>,
+    pub(crate) bootstrap_peers: Option<Vec<Multiaddr>>,
     pub(crate) dht: Option<DHTNode>,
     pub(crate) dht_config: DHTConfig,
     /// Key of the NameSystem's sphere.
-    pub(crate) key_material: &'a Ed25519KeyMaterial,
-    /// In seconds, the Time-To-Live (TTL) duration of records set
-    /// in the network, and implicitly, how often the records are
-    /// propagated.
-    pub(crate) ttl: u64,
+    pub(crate) key_material: Ed25519KeyMaterial,
+    /// In seconds, the interval that hosted records are propagated on the network.
+    pub(crate) _propagation_interval: u64,
+    pub(crate) store: SphereDb<S>,
     /// Map of sphere DIDs to [NSRecord] hosted/propagated by this name system.
-    pub(crate) hosted_records: HashMap<String, NSRecord>,
+    hosted_records: HashMap<String, NSRecord>,
     /// Map of resolved sphere DIDs to resolved [NSRecord].
-    pub(crate) resolved_records: HashMap<String, NSRecord>,
+    resolved_records: HashMap<String, NSRecord>,
+    /// Cached DidParser.
+    did_parser: DidParser,
 }
 
-impl<'a> NameSystem<'a> {
+impl<S> NameSystem<S>
+where
+    S: Store,
+{
+    /// Internal instantiation function invoked by [crate::NameSystemBuilder].
+    pub(crate) fn new(
+        key_material: Ed25519KeyMaterial,
+        store: SphereDb<S>,
+        bootstrap_peers: Option<Vec<Multiaddr>>,
+        dht_config: DHTConfig,
+        _propagation_interval: u64,
+    ) -> Self {
+        NameSystem {
+            key_material,
+            store,
+            bootstrap_peers,
+            dht_config,
+            _propagation_interval,
+            dht: None,
+            hosted_records: HashMap::new(),
+            resolved_records: HashMap::new(),
+            did_parser: DidParser::new(SUPPORTED_KEYS),
+        }
+    }
+
     /// Initializes and attempts to connect to the network.
     pub async fn connect(&mut self) -> Result<()> {
-        let mut dht = DHTNode::new(self.key_material, self.bootstrap_peers, &self.dht_config)?;
+        let mut dht = DHTNode::new(
+            &self.key_material,
+            self.bootstrap_peers.as_ref(),
+            &self.dht_config,
+        )?;
         dht.run().map_err(|e| anyhow!(e.to_string()))?;
         dht.bootstrap().await.map_err(|e| anyhow!(e.to_string()))?;
         dht.wait_for_peers(1)
@@ -59,14 +94,13 @@ impl<'a> NameSystem<'a> {
     }
 
     /// Propagates all hosted records on nearby peers in the DHT network.
-    /// in the DHT network. Automatically called every `ttl` seconds (TBD),
-    /// but can be manually called push updated records to the network.
+    /// Automatically called every `crate::NameSystemBuilder::propagation_interval` seconds (TBD),
+    /// but can be manually called to republish records to the network.
     ///
     /// Can fail if NameSystem is not connected or if no peers can be found.
     pub async fn propagate_records(&self) -> Result<()> {
-        if self.dht.is_none() {
-            return Err(anyhow!("not connected"));
-        }
+        let _ = self.require_dht()?;
+
         if self.hosted_records.is_empty() {
             return Ok(());
         }
@@ -84,19 +118,26 @@ impl<'a> NameSystem<'a> {
     /// in the DHT network.
     ///
     /// Can fail if NameSystem is not connected or if no peers can be found.
-    pub async fn set_record(&mut self, identity: &String, link: &Cid) -> Result<()> {
-        if self.dht.is_none() {
-            return Err(anyhow!("not connected"));
-        }
+    pub async fn set_record(&mut self, token: Ucan) -> Result<()> {
+        let _ = self.require_dht()?;
 
-        let record = NSRecord::new_from_ttl(link.to_owned(), self.ttl)?;
+        let mut record = NSRecord::new(token);
+        record.validate(&self.store, &mut self.did_parser).await?;
+        let identity = record.identity();
+
         self.dht_set_record(identity, &record).await?;
         self.hosted_records.insert(identity.to_owned(), record);
         Ok(())
     }
 
     /// Gets the content Cid for the provided sphere identity.
-    pub async fn get_record(&mut self, identity: &String) -> Option<&Cid> {
+    ///
+    /// Reads from local cache if a valid token is found; otherwise,
+    /// queries the network for a valid record.
+    /// Returns `Ok(None)` if no records were found from the network or local cache.
+    /// Returns `Err` if no valid cached record found and unable to query
+    /// the network.
+    pub async fn get_record(&mut self, identity: &str) -> Result<Option<&Cid>> {
         // Round about way of checking for local valid record before
         // querying the DHT network due to the borrow checker.
         // https://stackoverflow.com/questions/70779967/rust-borrow-checker-and-early-returns#
@@ -110,17 +151,16 @@ impl<'a> NameSystem<'a> {
 
         // No non-expired record found locally, query the network.
         if !has_valid_record {
-            match self.dht_get_record(identity).await {
-                Ok((_, Some(record))) => {
+            match self.dht_get_record(identity).await? {
+                (_, Some(record)) => {
                     self.resolved_records.insert(identity.to_owned(), record);
                 }
-                Ok((_, None)) => {}
-                Err(_) => {}
+                (_, None) => {}
             }
         }
         match self.resolved_records.get(identity) {
-            Some(record) => Some(&record.cid),
-            None => None,
+            Some(record) => Ok(record.address()),
+            None => Ok(None),
         }
     }
 
@@ -136,6 +176,16 @@ impl<'a> NameSystem<'a> {
         self.resolved_records.remove(identity).is_some()
     }
 
+    /// Access the record cache of the name system.
+    pub fn get_cache(&self) -> &HashMap<String, NSRecord> {
+        &self.resolved_records
+    }
+
+    /// Access the record cache as mutable of the name system.
+    pub fn get_cache_mut(&mut self) -> &mut HashMap<String, NSRecord> {
+        &mut self.resolved_records
+    }
+
     pub fn p2p_address(&self) -> Option<&Multiaddr> {
         if let Some(dht) = &self.dht {
             dht.p2p_address()
@@ -148,15 +198,22 @@ impl<'a> NameSystem<'a> {
     /// If no record is found, no error is returned.
     ///
     /// Returns an error if not connected to the DHT network.
-    async fn dht_get_record(&self, identity: &String) -> Result<(String, Option<NSRecord>)> {
-        let dht = self.dht.as_ref().ok_or_else(|| anyhow!("not connected"))?;
+    async fn dht_get_record(&self, identity: &str) -> Result<(String, Option<NSRecord>)> {
+        let dht = self.require_dht()?;
+
         match dht.get_record(identity.to_owned().into_bytes()).await {
             Ok((_, result)) => match result {
                 Some(value) => {
                     // Validation/correctness and filtering through
                     // the most recent values can be performed here
-                    let record = NSRecord::from_bytes(value)?;
-                    info!("NameSystem: GetRecord: {} {}", identity, &record.cid);
+                    let record = NSRecord::try_from(value)?;
+                    info!(
+                        "NameSystem: GetRecord: {} {}",
+                        identity,
+                        record
+                            .address()
+                            .map_or_else(|| String::from("None"), |cid| cid.to_string())
+                    );
                     Ok((identity.to_owned(), Some(record)))
                 }
                 None => {
@@ -173,12 +230,13 @@ impl<'a> NameSystem<'a> {
 
     /// Propagates and serializes the record on peers in the DHT network.
     ///
-    /// Can fail if NameSystem is not connected or if no peers can be found.
-    async fn dht_set_record(&self, identity: &String, record: &NSRecord) -> Result<()> {
-        let dht = self.dht.as_ref().ok_or_else(|| anyhow!("not connected"))?;
+    /// Can fail if record is invalid, NameSystem is not connected or
+    /// if no peers can be found.
+    async fn dht_set_record(&self, identity: &str, record: &NSRecord) -> Result<()> {
+        let dht = self.require_dht()?;
 
         match dht
-            .set_record(identity.to_owned().into_bytes(), record.to_bytes()?)
+            .set_record(String::from(identity).into_bytes(), record.try_into()?)
             .await
         {
             Ok(_) => {
@@ -191,9 +249,16 @@ impl<'a> NameSystem<'a> {
             }
         }
     }
+
+    fn require_dht(&self) -> Result<&DHTNode> {
+        self.dht.as_ref().ok_or_else(|| anyhow!("not connected"))
+    }
 }
 
-impl<'a> Drop for NameSystem<'a> {
+impl<S> Drop for NameSystem<S>
+where
+    S: Store,
+{
     fn drop(&mut self) {
         if let Err(e) = self.disconnect() {
             error!("{}", e.to_string());

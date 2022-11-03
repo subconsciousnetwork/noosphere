@@ -52,6 +52,10 @@ impl DHTBehaviour {
         let kad = {
             let mut cfg = KademliaConfig::default();
             cfg.set_query_timeout(Duration::from_secs(config.query_timeout.into()));
+            // By default, all records from peers are automatically stored.
+            // `FilterBoth` means it's the Kademlia behaviour handler's responsibility
+            // to determine whether or not Provider records and KV records ("both") get stored,
+            // where we implement logic to validate/prune incoming records.
             cfg.set_record_filtering(KademliaStoreInserts::FilterBoth);
 
             // TODO(#99): Use SphereFS storage

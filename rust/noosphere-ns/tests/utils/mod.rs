@@ -32,14 +32,15 @@ async fn await_or_timeout<T>(
 }
 
 pub fn create_test_config() -> DHTConfig {
-    let mut config = DHTConfig::default();
-    config.peer_dialing_interval = 1;
-    config.listening_address = Some(generate_listening_addr());
-    config
+    DHTConfig {
+        listening_address: Some(generate_listening_addr()),
+        peer_dialing_interval: 1,
+        ..Default::default()
+    }
 }
 
 pub async fn swarm_command<'a, TFuture, F, T, E>(
-    nodes: &'a mut Vec<DHTNode>,
+    nodes: &'a mut [DHTNode],
     func: F,
 ) -> Result<Vec<T>, E>
 where
