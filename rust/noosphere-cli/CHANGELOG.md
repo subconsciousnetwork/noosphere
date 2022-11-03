@@ -1,5 +1,9 @@
 # Changelog
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-api bumped from 0.1.0-alpha.1 to 0.1.0
+
 ## [0.1.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.1.0-alpha.1...noosphere-cli-v0.1.0) (2022-10-31)
 
 
