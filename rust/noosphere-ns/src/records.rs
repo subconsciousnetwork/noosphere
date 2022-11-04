@@ -211,8 +211,10 @@ mod test {
     };
     use serde_json::json;
     use std::str::FromStr;
-    
-    use ucan::{builder::UcanBuilder, crypto::did::DidParser, crypto::KeyMaterial};
+
+    use ucan::{
+        builder::UcanBuilder, crypto::did::DidParser, crypto::KeyMaterial, store::UcanJwtStore,
+    };
 
     async fn expect_failure(
         message: &str,
@@ -262,7 +264,67 @@ mod test {
 
     #[tokio::test]
     async fn test_nsrecord_delegated() -> Result<(), Error> {
-        // TODO
+        let owner_key = generate_ed25519_key();
+        let owner_identity = owner_key.get_did().await?;
+        let sphere_key = generate_ed25519_key();
+        let sphere_identity = sphere_key.get_did().await?;
+        let mut did_parser = DidParser::new(SUPPORTED_KEYS);
+        let capability = generate_capability(&sphere_identity);
+        let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
+        let fact = json!({ "address": cid_address });
+        let mut store = SphereDb::new(&MemoryStorageProvider::default())
+            .await
+            .unwrap();
+
+        // First verify that `owner` cannot publish for `sphere`
+        // without delegation.
+        let mut record = NSRecord::new(
+            UcanBuilder::default()
+                .issued_by(&owner_key)
+                .for_audience(&sphere_identity)
+                .with_lifetime(1000)
+                .claiming_capability(&capability)
+                .with_fact(fact.clone())
+                .build()?
+                .sign()
+                .await?,
+        );
+
+        assert_eq!(record.identity(), &sphere_identity);
+        assert_eq!(record.address(), Some(&Cid::from_str(cid_address).unwrap()));
+        if record.validate(&store, &mut did_parser).await.is_ok() {
+            panic!("Owner should not have authorization to publish record")
+        }
+
+        // Delegate `sphere_key`'s publishing authority to `owner_key`
+        let delegate_capability = generate_capability(&sphere_identity);
+        let delegate_ucan = UcanBuilder::default()
+            .issued_by(&sphere_key)
+            .for_audience(&owner_identity)
+            .with_lifetime(1000)
+            .claiming_capability(&delegate_capability)
+            .build()?
+            .sign()
+            .await?;
+        let _ = store.write_token(&delegate_ucan.encode()?).await?;
+
+        // Attempt `owner` publishing `sphere` with the proper authorization
+        let mut record = NSRecord::new(
+            UcanBuilder::default()
+                .issued_by(&owner_key)
+                .for_audience(&sphere_identity)
+                .with_lifetime(1000)
+                .claiming_capability(&capability)
+                .witnessed_by(&delegate_ucan)
+                .with_fact(fact.clone())
+                .build()?
+                .sign()
+                .await?,
+        );
+        assert_eq!(record.identity(), &sphere_identity);
+        assert_eq!(record.address(), Some(&Cid::from_str(cid_address).unwrap()));
+        record.validate(&store, &mut did_parser).await?;
+
         Ok(())
     }
 
