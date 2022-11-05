@@ -81,6 +81,10 @@ impl NSRecord {
         store: &SphereDb<S>,
         did_parser: &mut DidParser,
     ) -> Result<(), Error> {
+        if self.is_expired() {
+            return Err(anyhow!("Token is expired."));
+        }
+
         let identity = self.identity();
 
         let desired_capability = generate_capability(identity);

@@ -91,21 +91,28 @@ async fn test_name_system_peer_propagation() -> Result<()> {
                 .with_fact(generate_fact(&sphere_1_cid_1.to_string()))
                 .build()?
                 .sign()
-                .await?,
+                .await?
+                .into(),
         )
         .await?;
 
     // `None` for a record that cannot be found
-    let cid = ns_2.ns.get_record("unknown").await?;
-    assert_eq!(cid, None, "no record found");
+    assert!(
+        ns_2.ns.get_record("unknown").await?.is_none(),
+        "no record found"
+    );
 
     // Baseline fetching record from the network.
-    let cid = ns_2
-        .ns
-        .get_record(&ns_1.owner_sphere_id)
-        .await?
-        .expect("to be some");
-    assert_eq!(cid, &sphere_1_cid_1, "first record found");
+    assert_eq!(
+        ns_2.ns
+            .get_record(&ns_1.owner_sphere_id)
+            .await?
+            .expect("to be some")
+            .address()
+            .unwrap(),
+        &sphere_1_cid_1,
+        "first record found"
+    );
 
     // Flush records by identity and fetch latest value from network.
     ns_1.ns
@@ -118,20 +125,22 @@ async fn test_name_system_peer_propagation() -> Result<()> {
                 .with_fact(generate_fact(&sphere_1_cid_2.to_string()))
                 .build()?
                 .sign()
-                .await?,
+                .await?
+                .into(),
         )
         .await?;
     assert!(!ns_2
         .ns
         .flush_records_for_identity(&generate_ed25519_key().get_did().await?));
     assert!(ns_2.ns.flush_records_for_identity(&ns_1.owner_sphere_id));
-    let cid = ns_2
-        .ns
-        .get_record(&ns_1.owner_sphere_id)
-        .await?
-        .expect("to be some");
     assert_eq!(
-        cid, &sphere_1_cid_2,
+        ns_2.ns
+            .get_record(&ns_1.owner_sphere_id)
+            .await?
+            .expect("to be some")
+            .address()
+            .unwrap(),
+        &sphere_1_cid_2,
         "latest record is found from network after flushing record"
     );
 
@@ -161,18 +170,23 @@ async fn test_name_system_peer_propagation() -> Result<()> {
                 .with_fact(generate_fact(&sphere_2_cid_2.to_string()))
                 .build()?
                 .sign()
-                .await?,
+                .await?
+                .into(),
         )
         .await?;
 
     // Fetch sphere 2's record, which should check the network
     // rather than using the cached, expired record.
-    let cid = ns_1
-        .ns
-        .get_record(&ns_2.owner_sphere_id)
-        .await?
-        .expect("to be some");
-    assert_eq!(cid, &sphere_2_cid_2, "non-cached record found for sphere_2");
+    assert_eq!(
+        ns_1.ns
+            .get_record(&ns_2.owner_sphere_id)
+            .await?
+            .expect("to be some")
+            .address()
+            .unwrap(),
+        &sphere_2_cid_2,
+        "non-cached record found for sphere_2"
+    );
 
     Ok(())
 }

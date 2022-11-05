@@ -3,13 +3,12 @@ use crate::{
     records::NSRecord,
 };
 use anyhow::{anyhow, Result};
-use cid::Cid;
 use futures::future::try_join_all;
 use libp2p::Multiaddr;
 use noosphere_core::authority::SUPPORTED_KEYS;
 use noosphere_storage::{db::SphereDb, interface::Store};
 use std::collections::HashMap;
-use ucan::{crypto::did::DidParser, Ucan};
+use ucan::crypto::did::DidParser;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 /// The [NameSystem] is responsible for both propagating and resolving Sphere DIDs
@@ -114,14 +113,13 @@ where
         Ok(())
     }
 
-    /// Propagates the corresponding managed sphere's content Cid on nearby peers
+    /// Propagates the corresponding managed sphere's [NSRecord] on nearby peers
     /// in the DHT network.
     ///
     /// Can fail if NameSystem is not connected or if no peers can be found.
-    pub async fn set_record(&mut self, token: Ucan) -> Result<()> {
+    pub async fn set_record(&mut self, mut record: NSRecord) -> Result<()> {
         let _ = self.require_dht()?;
 
-        let mut record = NSRecord::new(token);
         record.validate(&self.store, &mut self.did_parser).await?;
         let identity = record.identity();
 
@@ -130,37 +128,28 @@ where
         Ok(())
     }
 
-    /// Gets the content Cid for the provided sphere identity.
+    /// Returns an [NSRecord] for the provided identity if found.
     ///
     /// Reads from local cache if a valid token is found; otherwise,
     /// queries the network for a valid record.
-    /// Returns `Ok(None)` if no records were found from the network or local cache.
-    /// Returns `Err` if no valid cached record found and unable to query
-    /// the network.
-    pub async fn get_record(&mut self, identity: &str) -> Result<Option<&Cid>> {
-        // Round about way of checking for local valid record before
-        // querying the DHT network due to the borrow checker.
-        // https://stackoverflow.com/questions/70779967/rust-borrow-checker-and-early-returns#
-        let has_valid_record: bool = {
-            if let Some(record) = self.resolved_records.get(identity) {
-                !record.is_expired()
+    ///
+    /// Can fail if network errors occur.
+    pub async fn get_record(&mut self, identity: &str) -> Result<Option<NSRecord>> {
+        if let Some(record) = self.resolved_records.get(identity) {
+            if !record.is_expired() {
+                return Ok(Some(record.clone()));
             } else {
-                false
-            }
-        };
-
-        // No non-expired record found locally, query the network.
-        if !has_valid_record {
-            match self.dht_get_record(identity).await? {
-                (_, Some(record)) => {
-                    self.resolved_records.insert(identity.to_owned(), record);
-                }
-                (_, None) => {}
+                self.resolved_records.remove(identity);
             }
         }
-        match self.resolved_records.get(identity) {
-            Some(record) => Ok(record.address()),
-            None => Ok(None),
+        // No non-expired record found locally, query the network.
+        match self.dht_get_record(identity).await? {
+            (_, Some(record)) => {
+                self.resolved_records
+                    .insert(identity.to_owned(), record.clone());
+                Ok(Some(record))
+            }
+            (_, None) => Ok(None),
         }
     }
 
