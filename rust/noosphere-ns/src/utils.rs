@@ -33,7 +33,7 @@ pub fn generate_capability(sphere_did: &str) -> Capability<SphereReference, Sphe
 }
 
 /// Generates a UCAN `"fct"` struct for the NS network, representing
-/// the resolved sphere's address as a [cid::Cid].
+/// the resolved sphere's revision as a [cid::Cid].
 ///
 /// ```
 /// use noosphere_ns::utils::generate_fact;

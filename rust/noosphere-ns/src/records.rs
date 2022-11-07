@@ -8,11 +8,10 @@ use std::{convert::TryFrom, str, str::FromStr};
 use ucan::{chain::ProofChain, crypto::did::DidParser, Ucan};
 
 /// An [NSRecord] is the internal representation of a mapping from a
-/// sphere's identity (DID key) to its content address ([cid::Cid]),
-/// providing validation and de/serialization functionality for
-/// transmitting in the distributed NS network.
-/// The record wraps a [ucan::Ucan] token, containing validation
-/// data ensuring the sphere's owner authorized the publishing
+/// sphere's identity (DID key) to a sphere's revision as a
+/// content address ([cid::Cid]). The record wraps a [ucan::Ucan] token,
+/// providing de/serialization for transmitting in the NS network,
+/// and validates data ensuring the sphere's owner authorized the publishing
 /// of a new content address.
 ///
 /// When transmitting through the distributed NS network, the record is
@@ -38,7 +37,8 @@ use ucan::{chain::ProofChain, crypto::did::DidParser, Ucan};
 ///   // Additional Ucan proofs needed to validate.
 ///   "prf": [],
 ///   // Facts contain a single entry with an "address" field containing
-///   // the content address (CID) that the record's sphere's identity maps to.
+///   // the content address of a sphere revision (CID) associated with
+///   // the sphere this record maps to.
 ///   "fct": [{
 ///     "address": "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72"
 ///   }]
@@ -48,14 +48,14 @@ use ucan::{chain::ProofChain, crypto::did::DidParser, Ucan};
 pub struct NSRecord {
     /// The wrapped Ucan token describing this record.
     pub(crate) token: Ucan,
-    /// The resolved content address this record maps to.
+    /// The resolved sphere revision this record maps to.
     pub(crate) address: Option<Cid>,
 }
 
 impl NSRecord {
     /// Creates a new [NSRecord].
     pub fn new(token: Ucan) -> Self {
-        // Cache the address if "fct" contains an entry matching
+        // Cache the revision address if "fct" contains an entry matching
         // the following object without any authority validation:
         // `{ "address": "{VALID_CID}" }`
         let mut address = None;
@@ -107,7 +107,7 @@ impl NSRecord {
 
         if self.address.is_none() {
             return Err(anyhow!(
-                "Missing a valid fact entry with record address. {} {:?}",
+                "Missing a valid fact entry with record sphere revision. {} {:?}",
                 identity,
                 self.token.facts()
             ));

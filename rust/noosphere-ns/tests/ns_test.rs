@@ -4,7 +4,7 @@ pub mod utils;
 use anyhow::{anyhow, Result};
 use futures::future::try_join_all;
 use libipld_cbor::DagCborCodec;
-use noosphere_core::authority::generate_ed25519_key;
+use noosphere_core::{authority::generate_ed25519_key, view::SPHERE_LIFETIME};
 use noosphere_ns::{
     dht::DHTNode,
     utils::{generate_capability, generate_fact},
@@ -14,7 +14,7 @@ use noosphere_storage::{
     db::SphereDb, encoding::derive_cid, memory::MemoryStorageProvider, memory::MemoryStore,
 };
 
-use ucan::{builder::UcanBuilder, crypto::KeyMaterial, time::now};
+use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore, time::now, Ucan};
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 use utils::create_bootstrap_nodes;
 
@@ -22,8 +22,10 @@ use utils::create_bootstrap_nodes;
 /// on its behalf in it's corresponding gateway.
 struct NSData {
     pub ns: NameSystem<MemoryStore>,
-    pub owner_sphere_key: Ed25519KeyMaterial,
-    pub owner_sphere_id: String,
+    pub owner_key: Ed25519KeyMaterial,
+    pub owner_id: String,
+    pub sphere_id: String,
+    pub delegation: Ucan,
 }
 
 /// Generates a DHT network bootstrap node with `ns_count`
@@ -37,12 +39,27 @@ async fn generate_name_systems_network(
         .unwrap();
     let bootstrap_addresses = vec![bootstrap_node.p2p_address().unwrap().to_owned()];
 
-    let store = SphereDb::new(&MemoryStorageProvider::default()).await?;
+    let mut store = SphereDb::new(&MemoryStorageProvider::default()).await?;
     let mut name_systems: Vec<NSData> = vec![];
 
     for _ in 0..ns_count {
-        let owner_sphere_key = generate_ed25519_key();
-        let owner_sphere_id = owner_sphere_key.get_did().await?;
+        let owner_key = generate_ed25519_key();
+        let owner_id = owner_key.get_did().await?;
+        let sphere_key = generate_ed25519_key();
+        let sphere_id = sphere_key.get_did().await?;
+
+        // Delegate `sphere_key`'s publishing authority to `owner_key`
+        let delegate_capability = generate_capability(&sphere_id);
+        let delegation = UcanBuilder::default()
+            .issued_by(&sphere_key)
+            .for_audience(&owner_id)
+            .with_lifetime(SPHERE_LIFETIME)
+            .claiming_capability(&delegate_capability)
+            .build()?
+            .sign()
+            .await?;
+        let _ = &store.write_token(&delegation.encode()?).await?;
+
         let ns_key = generate_ed25519_key();
         let ns: NameSystem<MemoryStore> = NameSystemBuilder::default()
             .key_material(&ns_key)
@@ -53,8 +70,10 @@ async fn generate_name_systems_network(
             .build()?;
         name_systems.push(NSData {
             ns,
-            owner_sphere_key,
-            owner_sphere_id,
+            owner_key,
+            owner_id,
+            sphere_id,
+            delegation,
         });
     }
 
@@ -84,11 +103,12 @@ async fn test_name_system_peer_propagation() -> Result<()> {
     ns_1.ns
         .set_record(
             UcanBuilder::default()
-                .issued_by(&ns_1.owner_sphere_key)
-                .for_audience(&ns_1.owner_sphere_id)
-                .with_lifetime(1000)
-                .claiming_capability(&generate_capability(&ns_1.owner_sphere_id))
+                .issued_by(&ns_1.owner_key)
+                .for_audience(&ns_1.sphere_id)
+                .with_lifetime(SPHERE_LIFETIME - 1000)
+                .claiming_capability(&generate_capability(&ns_1.sphere_id))
                 .with_fact(generate_fact(&sphere_1_cid_1.to_string()))
+                .witnessed_by(&ns_1.delegation)
                 .build()?
                 .sign()
                 .await?
@@ -105,7 +125,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
     // Baseline fetching record from the network.
     assert_eq!(
         ns_2.ns
-            .get_record(&ns_1.owner_sphere_id)
+            .get_record(&ns_1.sphere_id)
             .await?
             .expect("to be some")
             .address()
@@ -118,11 +138,12 @@ async fn test_name_system_peer_propagation() -> Result<()> {
     ns_1.ns
         .set_record(
             UcanBuilder::default()
-                .issued_by(&ns_1.owner_sphere_key)
-                .for_audience(&ns_1.owner_sphere_id)
-                .with_lifetime(1000)
-                .claiming_capability(&generate_capability(&ns_1.owner_sphere_id))
+                .issued_by(&ns_1.owner_key)
+                .for_audience(&ns_1.sphere_id)
+                .with_lifetime(SPHERE_LIFETIME - 1000)
+                .claiming_capability(&generate_capability(&ns_1.sphere_id))
                 .with_fact(generate_fact(&sphere_1_cid_2.to_string()))
+                .witnessed_by(&ns_1.delegation)
                 .build()?
                 .sign()
                 .await?
@@ -132,10 +153,10 @@ async fn test_name_system_peer_propagation() -> Result<()> {
     assert!(!ns_2
         .ns
         .flush_records_for_identity(&generate_ed25519_key().get_did().await?));
-    assert!(ns_2.ns.flush_records_for_identity(&ns_1.owner_sphere_id));
+    assert!(ns_2.ns.flush_records_for_identity(&ns_1.sphere_id));
     assert_eq!(
         ns_2.ns
-            .get_record(&ns_1.owner_sphere_id)
+            .get_record(&ns_1.sphere_id)
             .await?
             .expect("to be some")
             .address()
@@ -146,13 +167,14 @@ async fn test_name_system_peer_propagation() -> Result<()> {
 
     // Store an expired record in ns_1's cache
     ns_1.ns.get_cache_mut().insert(
-        ns_2.owner_sphere_id.clone(),
+        ns_2.owner_id.clone(),
         UcanBuilder::default()
-            .issued_by(&ns_2.owner_sphere_key)
-            .for_audience(&ns_2.owner_sphere_id)
+            .issued_by(&ns_2.owner_key)
+            .for_audience(&ns_2.sphere_id)
             .with_expiration(now() - 1000) // already expired
-            .claiming_capability(&generate_capability(&ns_2.owner_sphere_id))
+            .claiming_capability(&generate_capability(&ns_2.sphere_id))
             .with_fact(generate_fact(&sphere_2_cid_1.to_string()))
+            .witnessed_by(&ns_2.delegation)
             .build()?
             .sign()
             .await?
@@ -163,11 +185,12 @@ async fn test_name_system_peer_propagation() -> Result<()> {
     ns_2.ns
         .set_record(
             UcanBuilder::default()
-                .issued_by(&ns_2.owner_sphere_key)
-                .for_audience(&ns_2.owner_sphere_id)
-                .with_lifetime(1000)
-                .claiming_capability(&generate_capability(&ns_2.owner_sphere_id))
+                .issued_by(&ns_2.owner_key)
+                .for_audience(&ns_2.sphere_id)
+                .with_lifetime(SPHERE_LIFETIME - 1000)
+                .claiming_capability(&generate_capability(&ns_2.sphere_id))
                 .with_fact(generate_fact(&sphere_2_cid_2.to_string()))
+                .witnessed_by(&ns_2.delegation)
                 .build()?
                 .sign()
                 .await?
@@ -179,7 +202,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
     // rather than using the cached, expired record.
     assert_eq!(
         ns_1.ns
-            .get_record(&ns_2.owner_sphere_id)
+            .get_record(&ns_2.sphere_id)
             .await?
             .expect("to be some")
             .address()
