@@ -2,7 +2,7 @@ use crate::dht::{
     errors::DHTError,
     swarm::{build_swarm, DHTEvent, DHTSwarm, DHTSwarmEvent},
     types::{DHTMessage, DHTMessageProcessor, DHTRequest, DHTResponse},
-    DHTConfig,
+    DHTConfig, RecordValidator,
 };
 use libp2p::{
     futures::StreamExt,
@@ -25,7 +25,7 @@ use tokio;
 
 /// The processing component of a [DHTNode]/[DHTProcessor] pair. Consumers
 /// should only interface with a [DHTProcessor] via [DHTNode].
-pub struct DHTProcessor {
+pub struct DHTProcessor<V: RecordValidator + 'static> {
     config: DHTConfig,
     peer_id: PeerId,
     p2p_address: Option<libp2p::Multiaddr>,
@@ -33,6 +33,7 @@ pub struct DHTProcessor {
     swarm: DHTSwarm,
     requests: HashMap<kad::QueryId, DHTMessage>,
     kad_last_range: Option<(Distance, Distance)>,
+    validator: Option<V>,
 }
 
 // Temporary(?), exploring processing both requests that
@@ -52,7 +53,10 @@ macro_rules! store_request {
     };
 }
 
-impl DHTProcessor {
+impl<V> DHTProcessor<V>
+where
+    V: RecordValidator + 'static,
+{
     /// Creates a new [DHTProcessor] and spawns a networking thread for processing.
     /// The processor can only be accessed through channels via the corresponding
     /// [DHTNode].
@@ -61,6 +65,7 @@ impl DHTProcessor {
         peer_id: &PeerId,
         p2p_address: &Option<libp2p::Multiaddr>,
         bootstrap_peers: &Option<Vec<libp2p::Multiaddr>>,
+        validator: Option<V>,
         config: &DHTConfig,
         processor: DHTMessageProcessor,
     ) -> Result<tokio::task::JoinHandle<Result<(), DHTError>>, DHTError> {
@@ -75,6 +80,7 @@ impl DHTProcessor {
             swarm,
             requests: HashMap::default(),
             kad_last_range: None,
+            validator,
         };
 
         Ok(tokio::spawn(async move {
@@ -121,7 +127,7 @@ impl DHTProcessor {
             tokio::select! {
                 message = self.processor.pull_message() => {
                     match message {
-                        Some(m) => self.process_message(m),
+                        Some(m) => self.process_message(m).await,
                         // This occurs when sender is closed (client dropped).
                         // Exit the process loop for thread clean up.
                         None => {
@@ -131,7 +137,7 @@ impl DHTProcessor {
                     }
                 }
                 event = self.swarm.select_next_some() => {
-                    self.process_swarm_event(event)
+                    self.process_swarm_event(event).await
                 }
                 _ = bootstrap_tick.tick() => self.execute_bootstrap()?,
                 _ = peer_dialing_tick.tick() => self.dial_next_peer(),
@@ -144,10 +150,8 @@ impl DHTProcessor {
     /// immediately if possible (synchronous error or pulling value from cache),
     /// otherwise, the message will be mapped to a query, where it can be fulfilled
     /// later, most likely in `process_kad_result()`.
-    fn process_message(&mut self, message: DHTMessage) {
+    async fn process_message(&mut self, message: DHTMessage) {
         dht_event_trace(self, &message);
-
-        let behaviour = self.swarm.behaviour_mut();
 
         // Process client requests.
         match message.request {
@@ -155,7 +159,9 @@ impl DHTProcessor {
                 store_request!(
                     self,
                     message,
-                    Ok::<kad::QueryId, DHTError>(behaviour.kad.get_providers(Key::new(name)))
+                    Ok::<kad::QueryId, DHTError>(
+                        self.swarm.behaviour_mut().kad.get_providers(Key::new(name))
+                    )
                 );
             }
             /*
@@ -176,14 +182,24 @@ impl DHTProcessor {
                 message.respond(Ok(DHTResponse::GetNetworkInfo(info.into())));
             }
             DHTRequest::StartProviding { ref name } => {
-                store_request!(self, message, behaviour.kad.start_providing(Key::new(name)));
+                store_request!(
+                    self,
+                    message,
+                    self.swarm
+                        .behaviour_mut()
+                        .kad
+                        .start_providing(Key::new(name))
+                );
             }
             DHTRequest::GetRecord { ref name } => {
                 store_request!(
                     self,
                     message,
                     Ok::<kad::QueryId, DHTError>(
-                        behaviour.kad.get_record(Key::new(name), Quorum::One)
+                        self.swarm
+                            .behaviour_mut()
+                            .kad
+                            .get_record(Key::new(name), Quorum::One)
                     )
                 );
             }
@@ -191,13 +207,25 @@ impl DHTProcessor {
                 ref name,
                 ref value,
             } => {
-                let record = Record {
-                    key: Key::new(name),
-                    value: value.clone(),
-                    publisher: None,
-                    expires: None,
-                };
-                store_request!(self, message, behaviour.kad.put_record(record, Quorum::One));
+                let value_owned = value.to_owned();
+                if self.validate(value).await {
+                    let record = Record {
+                        key: Key::new(name),
+                        value: value_owned,
+                        publisher: None,
+                        expires: None,
+                    };
+                    store_request!(
+                        self,
+                        message,
+                        self.swarm
+                            .behaviour_mut()
+                            .kad
+                            .put_record(record, Quorum::One)
+                    );
+                } else {
+                    message.respond(Err(DHTError::ValidationError(value_owned)));
+                }
             }
         };
     }
@@ -205,10 +233,10 @@ impl DHTProcessor {
     /// Processes an incoming SwarmEvent, triggered from swarm activity or
     /// a swarm query. If a SwarmEvent has an associated DHTQuery,
     /// the pending query will be fulfilled.
-    fn process_swarm_event(&mut self, event: DHTSwarmEvent) {
+    async fn process_swarm_event(&mut self, event: DHTSwarmEvent) {
         dht_event_trace(self, &event);
         match event {
-            SwarmEvent::Behaviour(DHTEvent::Kademlia(e)) => self.process_kad_event(e),
+            SwarmEvent::Behaviour(DHTEvent::Kademlia(e)) => self.process_kad_event(e).await,
             SwarmEvent::Behaviour(DHTEvent::Identify(e)) => self.process_identify_event(e),
             // The following events are currently handled only for debug logging.
             SwarmEvent::NewListenAddr { address: _, .. } => {}
@@ -249,7 +277,7 @@ impl DHTProcessor {
         }
     }
 
-    fn process_kad_event(&mut self, event: KademliaEvent) {
+    async fn process_kad_event(&mut self, event: KademliaEvent) {
         match event {
             KademliaEvent::OutboundQueryCompleted { id, result, .. } => match result {
                 QueryResult::GetRecord(Ok(ok)) => {
@@ -259,11 +287,15 @@ impl DHTProcessor {
                     } in ok.records
                     {
                         if let Some(message) = self.requests.remove(&id) {
+                            let is_valid = self.validate(&value).await;
+                            // We don't want to propagate validation errors for all
+                            // possible invalid records, but handle it similarly as if
+                            // no record at all was found.
                             message.respond(Ok(DHTResponse::GetRecord {
                                 name: key.to_vec(),
-                                value: Some(value),
+                                value: if is_valid { Some(value) } else { None },
                             }));
-                        }
+                        };
                     }
                 }
                 QueryResult::GetRecord(Err(e)) => {
@@ -358,11 +390,19 @@ impl DHTProcessor {
                 } => {}
                 kad::InboundRequest::PutRecord { source, record, .. } => match record {
                     Some(rec) => {
-                        if let Err(e) = self.swarm.behaviour_mut().kad.store_mut().put(rec.clone())
-                        {
+                        if self.validate(&rec.value).await {
+                            if let Err(e) =
+                                self.swarm.behaviour_mut().kad.store_mut().put(rec.clone())
+                            {
+                                warn!(
+                                    "InboundRequest::PutRecord write failed: {:?} {:?}, {}",
+                                    rec, source, e
+                                );
+                            }
+                        } else {
                             warn!(
-                                "InboundRequest::PutRecord failed: {:?} {:?}, {}",
-                                rec, source, e
+                                "InboundRequest::PutRecord validation failed: {:?} {:?}",
+                                rec, source
                             );
                         }
                     }
@@ -464,9 +504,20 @@ impl DHTProcessor {
             }
         }
     }
+
+    async fn validate(&mut self, data: &[u8]) -> bool {
+        if let Some(v) = self.validator.as_mut() {
+            v.validate(data).await
+        } else {
+            true
+        }
+    }
 }
 
-impl fmt::Debug for DHTProcessor {
+impl<V> fmt::Debug for DHTProcessor<V>
+where
+    V: RecordValidator + 'static,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DHTNode")
             .field("peer_id", &self.peer_id)
@@ -475,12 +526,19 @@ impl fmt::Debug for DHTProcessor {
     }
 }
 
+impl<V> Drop for DHTProcessor<V>
+where
+    V: RecordValidator + 'static,
+{
+    fn drop(&mut self) {}
+}
+
 // #[cfg(test)]
 /// Logging utility. Unfortunately, integration tests do not work
 /// with `#[cfg(test)]` to enable the option of rendering the full
 /// peer id during non-testing (one process, one peer id) scenarios.
 /// https://doc.rust-lang.org/book/ch11-03-test-organization.html
-fn dht_event_trace<T: std::fmt::Debug>(processor: &DHTProcessor, data: &T) {
+fn dht_event_trace<V: RecordValidator, T: std::fmt::Debug>(processor: &DHTProcessor<V>, data: &T) {
     // Convert a full PeerId to a shorter, more identifiable
     // string for comparison in logs during tests, where multiple nodes
     // are shared by a single process. All Ed25519 keys have

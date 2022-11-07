@@ -8,6 +8,7 @@ use std::io;
 pub enum DHTError {
     Error(String),
     IO(io::ErrorKind),
+    ValidationError(Vec<u8>),
     LibP2PTransportError(Option<libp2p::Multiaddr>),
     LibP2PStorageError(KadStorageError),
     LibP2PGetRecordError(kad::GetRecordError),
@@ -34,6 +35,7 @@ impl fmt::Display for DHTError {
             DHTError::LibP2PGetProvidersError(e) => write!(fmt, "{:#?}", e),
             DHTError::IO(k) => write!(fmt, "{:#?}", k),
             DHTError::Error(m) => write!(fmt, "{:#?}", m),
+            DHTError::ValidationError(_) => write!(fmt, "validation error"),
         }
     }
 }

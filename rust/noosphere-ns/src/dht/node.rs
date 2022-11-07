@@ -4,7 +4,7 @@ use crate::dht::{
     processor::DHTProcessor,
     types::{DHTMessageClient, DHTNetworkInfo, DHTRequest, DHTResponse},
     utils::key_material_to_libp2p_keypair,
-    DHTConfig,
+    DHTConfig, DefaultRecordValidator, RecordValidator,
 };
 use libp2p;
 use std::time::Duration;
@@ -28,9 +28,32 @@ pub enum DHTStatus {
     Error(String),
 }
 
-/// Represents a DHT node running in a network thread, providing
-/// async methods for operating the node.
-pub struct DHTNode {
+/// Represents a DHT node running in a network thread.
+///
+/// # Example
+///
+/// ```
+/// use noosphere_ns::dht::{DefaultRecordValidator, DHTConfig, DHTNode};
+/// use noosphere_core::authority::generate_ed25519_key;
+/// use libp2p::{self, Multiaddr};
+/// use std::str::FromStr;
+/// use tokio;
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let key = generate_ed25519_key();
+///     // Note: not a real bootstrap node
+///     let bootstrap_peers: Vec<Multiaddr> = vec!["/ip4/127.0.0.50/tcp/33333/p2p/12D3KooWH8WgH9mgbMXrKX4veokUznvEn6Ycwg4qaGNi83nLkoUK".parse().unwrap()];
+///     let validator = DHTNode::<DefaultRecordValidator>::validator();
+///     let config = DHTConfig {
+///         listening_address: Some("/ip4/127.0.0.1/tcp/10000".parse().unwrap()),
+///         ..Default::default()
+///     };
+///     let mut node = DHTNode::new(&key, Some(&bootstrap_peers), validator, &config).unwrap();
+///     node.run();
+/// }
+/// ```
+pub struct DHTNode<V: RecordValidator + 'static> {
     config: DHTConfig,
     state: DHTStatus,
     client: Option<DHTMessageClient>,
@@ -39,17 +62,24 @@ pub struct DHTNode {
     peer_id: libp2p::PeerId,
     p2p_address: Option<libp2p::Multiaddr>,
     bootstrap_peers: Option<Vec<libp2p::Multiaddr>>,
+    validator: Option<V>,
 }
 
-impl DHTNode {
+impl<V> DHTNode<V>
+where
+    V: RecordValidator + 'static,
+{
     /// Creates a new [DHTNode].
     /// `bootstrap_peers` is a collection of [String]s in [libp2p::Multiaddr] form of initial
     /// peers to connect to during bootstrapping. This collection would be empty in the
     /// standalone bootstrap node scenario.
+    /// `validator` is an object implementing [RecordValidator]. Default validator can be
+    /// created via `DHTNode::validator()`.
     /// `config` is a [DHTConfig] of various configurations for the node.
     pub fn new(
         key_material: &Ed25519KeyMaterial,
         bootstrap_peers: Option<&Vec<libp2p::Multiaddr>>,
+        validator: V,
         config: &DHTConfig,
     ) -> Result<Self, DHTError> {
         let keypair = key_material_to_libp2p_keypair(key_material)?;
@@ -74,6 +104,7 @@ impl DHTNode {
             state: DHTStatus::Initialized,
             client: None,
             thread_handle: None,
+            validator: Some(validator),
         })
     }
 
@@ -87,6 +118,7 @@ impl DHTNode {
             &self.peer_id,
             &self.p2p_address,
             &self.bootstrap_peers,
+            self.validator.take(),
             &self.config,
             processor,
         )?);
@@ -231,6 +263,22 @@ impl DHTNode {
             }
         } else {
             Ok(())
+        }
+    }
+
+    /// Returns an instance of [DefaultRecordValidator].
+    pub fn validator() -> DefaultRecordValidator {
+        DefaultRecordValidator {}
+    }
+}
+
+impl<V> Drop for DHTNode<V>
+where
+    V: RecordValidator + 'static,
+{
+    fn drop(&mut self) {
+        if let Some(thread_handle) = self.thread_handle.take() {
+            thread_handle.abort();
         }
     }
 }
