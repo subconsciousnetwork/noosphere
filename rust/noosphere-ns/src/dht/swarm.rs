@@ -7,7 +7,7 @@ use libp2p::{
     dns,
     identify::{Behaviour as Identify, Config as IdentifyConfig, Event as IdentifyEvent},
     identity::Keypair,
-    kad::{self, Kademlia, KademliaConfig, KademliaEvent},
+    kad::{self, Kademlia, KademliaConfig, KademliaEvent, KademliaStoreInserts},
     mplex, noise,
     swarm::SwarmBuilder,
     swarm::{self, ConnectionHandler, IntoConnectionHandler, SwarmEvent},
@@ -52,6 +52,11 @@ impl DHTBehaviour {
         let kad = {
             let mut cfg = KademliaConfig::default();
             cfg.set_query_timeout(Duration::from_secs(config.query_timeout.into()));
+            // By default, all records from peers are automatically stored.
+            // `FilterBoth` means it's the Kademlia behaviour handler's responsibility
+            // to determine whether or not Provider records and KV records ("both") get stored,
+            // where we implement logic to validate/prune incoming records.
+            cfg.set_record_filtering(KademliaStoreInserts::FilterBoth);
 
             // TODO(#99): Use SphereFS storage
             let store = kad::record::store::MemoryStore::new(local_peer_id.to_owned());
@@ -60,7 +65,7 @@ impl DHTBehaviour {
 
         let identify = {
             let config = IdentifyConfig::new("ipfs/1.0.0".into(), keypair.public())
-                .with_agent_version(format!("noosphere-p2p/{}", env!("CARGO_PKG_VERSION")));
+                .with_agent_version(format!("noosphere-ns/{}", env!("CARGO_PKG_VERSION")));
             Identify::new(config)
         };
 

@@ -3,19 +3,15 @@
 use noosphere_ns::dht::{DHTError, DHTNetworkInfo, DHTNode, DHTStatus};
 use std::str;
 
-mod utils;
+pub mod utils;
 use noosphere_core::authority::generate_ed25519_key;
-use utils::{create_test_config, generate_listening_addr, initialize_network, swarm_command};
+
+use utils::{create_test_config, initialize_network, swarm_command};
 
 /// Testing a detached DHTNode as a server with no peers.
 #[test_log::test(tokio::test)]
 async fn test_dhtnode_base_case() -> Result<(), DHTError> {
-    let mut node = DHTNode::new(
-        &generate_ed25519_key(),
-        &generate_listening_addr(),
-        None,
-        &create_test_config(),
-    )?;
+    let mut node = DHTNode::new(&generate_ed25519_key(), None, &create_test_config())?;
     assert_eq!(node.status(), DHTStatus::Initialized, "DHT is initialized");
     node.run()?;
     assert_eq!(node.status(), DHTStatus::Active, "DHT is active");
@@ -30,11 +26,10 @@ async fn test_dhtnode_base_case() -> Result<(), DHTError> {
             num_pending: 0,
         }
     );
-    assert_eq!(
-        node.bootstrap().await?,
-        (),
-        "bootstrap() should succeed, even without peers to bootstrap."
-    );
+
+    if node.bootstrap().await.is_err() {
+        panic!("bootstrap() should succeed, even without peers to bootstrap.");
+    }
 
     node.terminate()?;
     assert_eq!(node.status(), DHTStatus::Terminated, "DHT is terminated");
@@ -85,7 +80,11 @@ async fn test_dhtnode_simple() -> Result<(), DHTError> {
     let result = client_b
         .get_record(String::from("foo").into_bytes())
         .await?;
-    assert_eq!(str::from_utf8(result.as_ref().unwrap()).unwrap(), "bar");
+    assert_eq!(str::from_utf8(&result.0).expect("parseable"), "foo");
+    assert_eq!(
+        str::from_utf8(result.1.as_ref().unwrap()).expect("parseable"),
+        "bar"
+    );
     Ok(())
 }
 

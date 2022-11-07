@@ -27,8 +27,8 @@ use tokio;
 /// should only interface with a [DHTProcessor] via [DHTNode].
 pub struct DHTProcessor {
     config: DHTConfig,
-    p2p_address: libp2p::Multiaddr,
     peer_id: PeerId,
+    p2p_address: Option<libp2p::Multiaddr>,
     processor: DHTMessageProcessor,
     swarm: DHTSwarm,
     requests: HashMap<kad::QueryId, DHTMessage>,
@@ -59,7 +59,7 @@ impl DHTProcessor {
     pub(crate) fn spawn(
         keypair: &libp2p::identity::Keypair,
         peer_id: &PeerId,
-        p2p_address: &libp2p::Multiaddr,
+        p2p_address: &Option<libp2p::Multiaddr>,
         bootstrap_peers: &Option<Vec<libp2p::Multiaddr>>,
         config: &DHTConfig,
         processor: DHTMessageProcessor,
@@ -136,7 +136,7 @@ impl DHTProcessor {
                 _ = bootstrap_tick.tick() => self.execute_bootstrap()?,
                 _ = peer_dialing_tick.tick() => self.dial_next_peer(),
             }
-        };
+        }
         Ok(())
     }
 
@@ -169,9 +169,7 @@ impl DHTProcessor {
             }
             */
             DHTRequest::Bootstrap => {
-                message.respond(
-                    self.execute_bootstrap().map(|_| DHTResponse::Success),
-                );
+                message.respond(self.execute_bootstrap().map(|_| DHTResponse::Success));
             }
             DHTRequest::GetNetworkInfo => {
                 let info = self.swarm.network_info();
@@ -263,14 +261,24 @@ impl DHTProcessor {
                         if let Some(message) = self.requests.remove(&id) {
                             message.respond(Ok(DHTResponse::GetRecord {
                                 name: key.to_vec(),
-                                value,
+                                value: Some(value),
                             }));
                         }
                     }
                 }
                 QueryResult::GetRecord(Err(e)) => {
                     if let Some(message) = self.requests.remove(&id) {
-                        message.respond(Err(DHTError::from(e)));
+                        match e {
+                            kad::GetRecordError::NotFound { key, .. } => {
+                                // Not finding a record is not an `Err` response,
+                                // but simply a successful query with a `None` result.
+                                message.respond(Ok(DHTResponse::GetRecord {
+                                    name: key.to_vec(),
+                                    value: None,
+                                }))
+                            }
+                            e => message.respond(Err(DHTError::from(e))),
+                        };
                     }
                 }
                 QueryResult::PutRecord(Ok(kad::PutRecordOk { key })) => {
@@ -350,9 +358,12 @@ impl DHTProcessor {
                 } => {}
                 kad::InboundRequest::PutRecord { source, record, .. } => match record {
                     Some(rec) => {
-                        if self.swarm.behaviour_mut().kad.store_mut().put(rec.clone()).is_err()
+                        if let Err(e) = self.swarm.behaviour_mut().kad.store_mut().put(rec.clone())
                         {
-                            warn!("InboundRequest::PutRecord failed: {:?} {:?}", rec, source);
+                            warn!(
+                                "InboundRequest::PutRecord failed: {:?} {:?}, {}",
+                                rec, source, e
+                            );
                         }
                     }
                     None => warn!("InboundRequest::PutRecord failed; empty record"),
@@ -377,22 +388,19 @@ impl DHTProcessor {
     }
 
     fn process_identify_event(&mut self, event: IdentifyEvent) {
-        match event {
-            IdentifyEvent::Received { peer_id, info } => {
-                if info
-                    .protocols
-                    .iter()
-                    .any(|p| p.as_bytes() == kad::protocol::DEFAULT_PROTO_NAME)
-                {
-                    for addr in &info.listen_addrs {
-                        self.swarm
-                            .behaviour_mut()
-                            .kad
-                            .add_address(&peer_id, addr.clone());
-                    }
+        if let IdentifyEvent::Received { peer_id, info } = event {
+            if info
+                .protocols
+                .iter()
+                .any(|p| p.as_bytes() == kad::protocol::DEFAULT_PROTO_NAME)
+            {
+                for addr in &info.listen_addrs {
+                    self.swarm
+                        .behaviour_mut()
+                        .kad
+                        .add_address(&peer_id, addr.clone());
                 }
             }
-            _ => {}
         }
     }
 
@@ -433,11 +441,17 @@ impl DHTProcessor {
     }
 
     fn start_listening(&mut self) -> Result<(), DHTError> {
-        let addr = self.p2p_address.clone();
-        dht_event_trace(self, &format!("Start listening on {}", addr));
-        self.swarm
-            .listen_on(addr).map(|_| ())
-            .map_err(DHTError::from)
+        match self.p2p_address.as_ref() {
+            Some(p2p_address) => {
+                let addr = p2p_address.to_owned();
+                dht_event_trace(self, &format!("Start listening on {}", addr));
+                self.swarm
+                    .listen_on(addr)
+                    .map(|_| ())
+                    .map_err(DHTError::from)
+            }
+            None => Ok(()),
+        }
     }
 
     fn execute_bootstrap(&mut self) -> Result<(), DHTError> {
@@ -456,7 +470,6 @@ impl fmt::Debug for DHTProcessor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DHTNode")
             .field("peer_id", &self.peer_id)
-            .field("p2p_address", &self.p2p_address)
             .field("config", &self.config)
             .finish()
     }
@@ -476,9 +489,7 @@ fn dht_event_trace<T: std::fmt::Debug>(processor: &DHTProcessor, data: &T) {
     let peer_id_b58 = processor.peer_id.to_base58();
     trace!(
         "\nFrom ..{:#?}..\n{:#?}",
-        peer_id_b58
-            .get(8..14)
-            .unwrap_or("INVALID PEER ID"),
+        peer_id_b58.get(8..14).unwrap_or("INVALID PEER ID"),
         data
     );
 }

@@ -59,7 +59,7 @@ impl DelegationIpld {
     }
 }
 
-/// See https://github.com/ucan-wg/spec#66-revocation
+/// See <https://github.com/ucan-wg/spec#66-revocation>
 /// TODO(ucan-wg/spec#112): Verify the form of this
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize, Hash)]
 pub struct RevocationIpld {
