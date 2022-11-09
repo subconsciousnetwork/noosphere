@@ -37,8 +37,8 @@ pub enum NoosphereContextConfiguration {
 
 /// A [NoosphereContext] holds configuration necessary to initialize and store
 /// Noosphere data. It also keeps a running list of active [SphereContext]
-/// instances to avoid the expensive of repeatedly opening and closing a handle
-/// to backing storage for spheres that are being accessed regularly.
+/// instances to avoid the expensive action of repeatedly opening and closing
+/// a handle to backing storage for spheres that are being accessed regularly.
 pub struct NoosphereContext {
     configuration: NoosphereContextConfiguration,
     sphere_contexts:
@@ -46,7 +46,7 @@ pub struct NoosphereContext {
 }
 
 impl NoosphereContext {
-    /// Initialize a [NoosphereContext] with a
+    /// Initialize a [NoosphereContext] with a [NoosphereContextConfiguration]
     pub fn new(configuration: NoosphereContextConfiguration) -> Result<Self> {
         Ok(NoosphereContext {
             configuration,
