@@ -118,13 +118,11 @@ impl KeyStorage<WebCryptoRsaKeyMaterial> for WebCryptoKeyStorage {
 
         let public_key = &key_material.0;
 
-        // console_log!("FOO");
         store
             .put(&JsValue::from(private_key), Some(&private_key_name))
             .await
             .map_err(|error| anyhow!("{:?}", error))?;
 
-        // console_log!("BAR");
         store
             .put(&JsValue::from(public_key), Some(&public_key_name))
             .await

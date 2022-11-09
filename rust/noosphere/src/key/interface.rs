@@ -2,15 +2,6 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use ucan::crypto::KeyMaterial;
 
-// #[cfg(not(target_arch = "wasm32"))]
-// pub trait KeyStorageSendSync: Send + Sync {}
-
-// #[cfg(not(target_arch = "wasm32"))]
-// impl<S> KeyStorageSendSync for S where S: Send + Sync {}
-
-// #[cfg(target_arch = "wasm32")]
-// pub trait KeyStorageSend {}
-
 /// A trait that represents access to arbitrary key storage backends.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
