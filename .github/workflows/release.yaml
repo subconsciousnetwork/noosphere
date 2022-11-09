@@ -23,6 +23,16 @@ jobs:
       noosphere_cli_release_tag_name: ${{ steps.release.outputs['rust/noosphere-cli--tag_name'] }}
       noosphere_released: ${{ steps.release.outputs['rust/noosphere--release_created'] }}
       noosphere_release_tag_name: ${{ steps.release.outputs['rust/noosphere--tag_name'] }}
+      anything_was_released:
+        ${{ steps.release.outputs['rust/noosphere--release_created'] ||
+        steps.release.outputs['rust/noosphere-api--release_created'] ||
+        steps.release.outputs['rust/noosphere-cli--release_created'] ||
+        steps.release.outputs['rust/noosphere-collections--release_created'] ||
+        steps.release.outputs['rust/noosphere-core--release_created'] ||
+        steps.release.outputs['rust/noosphere-fs--release_created'] ||
+        steps.release.outputs['rust/noosphere-into--release_created'] ||
+        steps.release.outputs['rust/noosphere-ns--release_created'] ||
+        steps.release.outputs['rust/noosphere-storage--release_created'] }}
     steps:
       - uses: chainguard-dev/actions/setup-gitsign@main
       - name: 'Run release-please'
@@ -104,14 +114,9 @@ jobs:
   # safe for us to run it indiscriminately
   publish-crates:
     name: 'Publish to crates.io'
-    needs:
-      [
-        'release-please',
-        'noosphere-cli-release-artifacts',
-        'noosphere-release-artifacts',
-      ]
+    needs: ['release-please']
     runs-on: ubuntu-latest
-
+    if: ${{ needs['release-please'].outputs.anything_was_released }}
     steps:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
