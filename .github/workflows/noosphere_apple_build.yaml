@@ -122,8 +122,8 @@ jobs:
             -library ./lib_aarch64-apple-ios/libnoosphere.a \
             -headers ./include/ \
             -output ./LibNoosphere.xcframework
-          zip -r ./libnoosphere.zip ./LibNoosphere.xcframework
+          zip -r ./libnoosphere-apple-xcframework.zip ./LibNoosphere.xcframework
       - uses: actions/upload-artifact@v3
         with:
           name: libnoosphere_apple_framework
-          path: ./libnoosphere.zip
+          path: ./libnoosphere-apple-xcframework.zip

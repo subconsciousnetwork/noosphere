@@ -92,7 +92,7 @@ jobs:
           name: libnoosphere_apple_framework
 
       - name: 'Generate checksum'
-        run: openssl dgst -sha256 ./libnoosphere.zip > ./CHECKSUM
+        run: openssl dgst -sha256 ./libnoosphere-apple-xcframework.zip > ./libnoosphere-apple-xcframework.zip.sha256
 
       # NOTE: The release has to be published before adding build artifacts,
       # otherwise the upload causes a different release to be made (???)
@@ -105,8 +105,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            libnoosphere.zip
-            CHECKSUM
+            libnoosphere-apple-xcframework.zip
+            libnoosphere-apple-xcframework.zip.sha256
           tag_name: ${{ needs['release-please'].outputs.noosphere_release_tag_name }}
 
   # Publishes crates to crates.io in dependency order. This command is
