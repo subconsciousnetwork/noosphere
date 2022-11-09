@@ -1,10 +1,10 @@
 use safer_ffi::prelude::*;
 
-use crate::ffi::NoosphereContext;
+use crate::ffi::NsNoosphereContext;
 
 #[ffi_export]
 /// Create a key with the given name in the current platform's support key
 /// storage mechanism.
-pub fn noosphere_create_key(noosphere: &NoosphereContext, name: char_p::Ref<'_>) {
+pub fn ns_key_create(noosphere: &NsNoosphereContext, name: char_p::Ref<'_>) {
     pollster::block_on(noosphere.inner().create_key(name.to_str())).unwrap();
 }

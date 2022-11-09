@@ -2,42 +2,42 @@ use cid::Cid;
 use noosphere_core::authority::Authorization;
 use safer_ffi::prelude::*;
 
-use crate::ffi::NoosphereContext;
-use crate::sphere::SphereReceipt as SphereReceiptImpl;
+use crate::ffi::NsNoosphereContext;
+use crate::sphere::SphereReceipt;
 
 ReprC! {
     #[ReprC::opaque]
-    pub struct SphereReceipt {
-        inner: SphereReceiptImpl
+    pub struct NsSphereReceipt {
+        inner: SphereReceipt
     }
 }
 
-impl From<SphereReceiptImpl> for SphereReceipt {
-    fn from(inner: SphereReceiptImpl) -> Self {
-        SphereReceipt { inner }
+impl From<SphereReceipt> for NsSphereReceipt {
+    fn from(inner: SphereReceipt) -> Self {
+        NsSphereReceipt { inner }
     }
 }
 
 #[ffi_export]
 /// Read the sphere identity (a DID encoded as a UTF-8 string) from a
 /// [SphereReceipt]
-pub fn noosphere_sphere_receipt_identity<'a>(
-    sphere_receipt: &'a repr_c::Box<SphereReceipt>,
+pub fn ns_sphere_receipt_identity<'a>(
+    sphere_receipt: &'a repr_c::Box<NsSphereReceipt>,
 ) -> char_p::Ref<'a> {
     char_p::Ref::try_from(sphere_receipt.inner.identity.as_str()).unwrap()
 }
 
 #[ffi_export]
 /// Read the mnemonic from a [SphereReceipt]
-pub fn noosphere_sphere_receipt_mnemonic<'a>(
-    sphere_receipt: &'a repr_c::Box<SphereReceipt>,
+pub fn ns_sphere_receipt_mnemonic<'a>(
+    sphere_receipt: &'a repr_c::Box<NsSphereReceipt>,
 ) -> char_p::Ref<'a> {
     char_p::Ref::try_from(sphere_receipt.inner.mnemonic.as_str()).unwrap()
 }
 
 #[ffi_export]
 /// De-allocate a [SphereReceipt]
-pub fn noosphere_free_sphere_receipt(sphere_receipt: repr_c::Box<SphereReceipt>) {
+pub fn ns_sphere_receipt_free(sphere_receipt: repr_c::Box<NsSphereReceipt>) {
     drop(sphere_receipt)
 }
 
@@ -46,10 +46,10 @@ pub fn noosphere_free_sphere_receipt(sphere_receipt: repr_c::Box<SphereReceipt>)
 /// The returned value is a [SphereReceipt], containing the DID of the sphere
 /// and a human-readable mnemonic that can be used to rotate the key authorized
 /// to administer the sphere.
-pub fn noosphere_create_sphere(
-    noosphere: &mut repr_c::Box<NoosphereContext>,
+pub fn ns_sphere_create(
+    noosphere: &mut repr_c::Box<NsNoosphereContext>,
     owner_key_name: char_p::Ref<'_>,
-) -> repr_c::Box<SphereReceipt> {
+) -> repr_c::Box<NsSphereReceipt> {
     repr_c::Box::new(
         pollster::block_on(noosphere.inner_mut().create_sphere(owner_key_name.to_str()))
             .unwrap()
@@ -61,8 +61,8 @@ pub fn noosphere_create_sphere(
 /// Join a sphere by initializing it and configuring it to use the specified
 /// key and authorization. The authorization should be provided in the form of
 /// a base64-encoded CID v1 string.
-pub fn noosphere_join_sphere(
-    noosphere: &mut repr_c::Box<NoosphereContext>,
+pub fn ns_sphere_join(
+    noosphere: &mut repr_c::Box<NsNoosphereContext>,
     sphere_identity: char_p::Ref<'_>,
     local_key_name: char_p::Ref<'_>,
     authorization: char_p::Ref<'_>,

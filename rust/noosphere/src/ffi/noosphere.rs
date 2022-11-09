@@ -2,23 +2,23 @@ use anyhow::Result;
 use safer_ffi::prelude::*;
 use url::Url;
 
-use crate::noosphere::{NoosphereContext as NoosphereContextImpl, NoosphereContextConfiguration};
+use crate::noosphere::{NoosphereContext, NoosphereContextConfiguration};
 
 ReprC! {
     #[ReprC::opaque]
-    pub struct NoosphereContext {
-        inner: NoosphereContextImpl
+    pub struct NsNoosphereContext {
+        inner: NoosphereContext
     }
 }
 
-impl NoosphereContext {
+impl NsNoosphereContext {
     pub fn new(
         global_storage_path: &str,
         sphere_storage_path: &str,
         gateway_url: Option<&Url>,
     ) -> Result<Self> {
-        Ok(NoosphereContext {
-            inner: NoosphereContextImpl::new(NoosphereContextConfiguration::Insecure {
+        Ok(NsNoosphereContext {
+            inner: NoosphereContext::new(NoosphereContextConfiguration::Insecure {
                 global_storage_path: global_storage_path.into(),
                 sphere_storage_path: sphere_storage_path.into(),
                 gateway_url: gateway_url.cloned(),
@@ -26,11 +26,11 @@ impl NoosphereContext {
         })
     }
 
-    pub fn inner(&self) -> &NoosphereContextImpl {
+    pub fn inner(&self) -> &NoosphereContext {
         &self.inner
     }
 
-    pub fn inner_mut(&mut self) -> &mut NoosphereContextImpl {
+    pub fn inner_mut(&mut self) -> &mut NoosphereContext {
         &mut self.inner
     }
 }
@@ -49,13 +49,13 @@ impl NoosphereContext {
 /// You can also initialize the [NoosphereContext] with an optional third
 /// argument: a URL string that refers to a Noosphere Gateway API somewhere
 /// on the network that one or more local spheres may have access to.
-pub fn noosphere_initialize(
+pub fn ns_initialize(
     global_storage_path: char_p::Ref<'_>,
     sphere_storage_path: char_p::Ref<'_>,
     gateway_url: Option<char_p::Ref<'_>>,
-) -> repr_c::Box<NoosphereContext> {
+) -> repr_c::Box<NsNoosphereContext> {
     repr_c::Box::new(
-        NoosphereContext::new(
+        NsNoosphereContext::new(
             global_storage_path.to_str(),
             sphere_storage_path.to_str(),
             gateway_url
@@ -69,6 +69,6 @@ pub fn noosphere_initialize(
 #[ffi_export]
 /// De-allocate a [NoosphereContext]. Note that this will also drop every
 /// [SphereContext] that remains active within the [NoosphereContext].
-pub fn noosphere_free(noosphere: repr_c::Box<NoosphereContext>) {
+pub fn ns_free(noosphere: repr_c::Box<NsNoosphereContext>) {
     drop(noosphere)
 }
