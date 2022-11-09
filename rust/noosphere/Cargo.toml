@@ -31,9 +31,9 @@ async-trait = "~0.1"
 tracing = "~0.1"
 url = "^2"
 
-noosphere-core = { version = "0.1.0-alpha.1", path = "../noosphere-core" }
-noosphere-fs = { version = "0.1.0-alpha.1", path = "../noosphere-fs" }
-noosphere-storage = { version = "0.1.0-alpha.1", path = "../noosphere-storage" }
+noosphere-core = { version = "0.1.0", path = "../noosphere-core" }
+noosphere-fs = { version = "0.1.1-alpha.1", path = "../noosphere-fs" }
+noosphere-storage = { version = "0.1.0", path = "../noosphere-storage" }
 noosphere-api = { version = "0.1.0", path = "../noosphere-api" }
 ucan = { version = "0.7.0-alpha.1" }
 ucan-key-support = { version = "0.7.0-alpha.1" }
