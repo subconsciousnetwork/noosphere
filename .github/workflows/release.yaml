@@ -125,6 +125,10 @@ jobs:
           override: true
           profile: minimal
           toolchain: stable
+      - name: 'Install environment packages'
+        run: |
+          sudo apt-get update -qqy
+          sudo apt-get install protobuf-compiler cmake libssl-dev pkg-config
       - name: 'Install cargo-workspaces'
         uses: actions-rs/cargo@v1
         with:
