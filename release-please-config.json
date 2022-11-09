@@ -5,30 +5,22 @@
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
   "packages": {
-    "rust/noosphere-api": {
-      "release-as": "0.1.0"
-    },
+    "rust/noosphere-api": {},
     "rust/noosphere-cli": {
       "draft": true
     },
     "rust/noosphere-collections": {
       "release-as": "0.1.0"
     },
-    "rust/noosphere-core": {
-      "release-as": "0.1.0"
-    },
+    "rust/noosphere-core": {},
     "rust/noosphere-fs": {
       "release-as": "0.1.0"
     },
     "rust/noosphere-into": {
       "release-as": "0.1.0"
     },
-    "rust/noosphere-ns": {
-      "release-as": "0.1.0"
-    },
-    "rust/noosphere-storage": {
-      "release-as": "0.1.0"
-    },
+    "rust/noosphere-ns": {},
+    "rust/noosphere-storage": {},
     "rust/noosphere": {
       "draft": true,
       "release-as": "0.1.0"
