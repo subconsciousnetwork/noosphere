@@ -33,8 +33,6 @@ where
     pub(crate) dht_config: DHTConfig,
     /// Key of the NameSystem's sphere.
     pub(crate) key_material: Ed25519KeyMaterial,
-    /// In seconds, the interval that hosted records are propagated on the network.
-    pub(crate) _propagation_interval: u64,
     pub(crate) store: SphereDb<S>,
     /// Map of sphere DIDs to [NSRecord] hosted/propagated by this name system.
     hosted_records: HashMap<String, NSRecord>,
@@ -54,14 +52,12 @@ where
         store: SphereDb<S>,
         bootstrap_peers: Option<Vec<Multiaddr>>,
         dht_config: DHTConfig,
-        _propagation_interval: u64,
     ) -> Self {
         NameSystem {
             key_material,
             store,
             bootstrap_peers,
             dht_config,
-            _propagation_interval,
             dht: None,
             hosted_records: HashMap::new(),
             resolved_records: HashMap::new(),
@@ -95,8 +91,7 @@ where
     }
 
     /// Propagates all hosted records on nearby peers in the DHT network.
-    /// Automatically called every `crate::NameSystemBuilder::propagation_interval` seconds (TBD),
-    /// but can be manually called to republish records to the network.
+    /// Automatically propagated by the intervals configured in [crate::NameSystemBuilder].
     ///
     /// Can fail if NameSystem is not connected or if no peers can be found.
     pub async fn propagate_records(&self) -> Result<()> {

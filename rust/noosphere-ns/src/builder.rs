@@ -39,7 +39,6 @@ where
     dht_config: DHTConfig,
     key_material: Option<Ed25519KeyMaterial>,
     store: Option<SphereDb<S>>,
-    propagation_interval: u64,
 }
 
 impl<S> NameSystemBuilder<S>
@@ -88,21 +87,39 @@ where
         self
     }
 
+    /// How long, in seconds, published records are replicated to
+    /// peers. Should be significantly shorter than `record_ttl`.
+    /// See [KademliaConfig::set_publication_interval](https://docs.rs/libp2p/latest/libp2p/kad/struct.KademliaConfig.html#method.set_publication_interval).
+    pub fn publication_interval(mut self, interval: u32) -> Self {
+        self.dht_config.publication_interval = interval;
+        self
+    }
+
     /// How long, in seconds, until a network query times out.
     pub fn query_timeout(mut self, timeout: u32) -> Self {
         self.dht_config.query_timeout = timeout;
         self
     }
 
-    /// The Noosphere Store to use for reading and writing sphere data.
-    pub fn store(mut self, store: &SphereDb<S>) -> Self {
-        self.store = Some(store.to_owned());
+    /// How long, in seconds, records remain valid for. Should be significantly
+    /// longer than `publication_interval`.
+    /// See [KademliaConfig::set_record_ttl](https://docs.rs/libp2p/latest/libp2p/kad/struct.KademliaConfig.html#method.set_record_ttl).
+    pub fn record_ttl(mut self, interval: u32) -> Self {
+        self.dht_config.record_ttl = interval;
         self
     }
 
-    /// Default interval for hosted records to be propagated to the network.
-    pub fn propagation_interval(mut self, propagation_interval: u64) -> Self {
-        self.propagation_interval = propagation_interval;
+    /// How long, in seconds, stored records are replicated to
+    /// peers. Should be significantly shorter than `publication_interval`.
+    /// See [KademliaConfig::set_replication_interval](https://docs.rs/libp2p/latest/libp2p/kad/struct.KademliaConfig.html#method.set_replication_interval).
+    pub fn replication_interval(mut self, interval: u32) -> Self {
+        self.dht_config.replication_interval = interval;
+        self
+    }
+
+    /// The Noosphere Store to use for reading and writing sphere data.
+    pub fn store(mut self, store: &SphereDb<S>) -> Self {
+        self.store = Some(store.to_owned());
         self
     }
 
@@ -121,7 +138,6 @@ where
             store,
             self.bootstrap_peers.take(),
             self.dht_config,
-            self.propagation_interval,
         ))
     }
 }
@@ -136,7 +152,6 @@ where
             dht_config: DHTConfig::default(),
             key_material: None,
             store: None,
-            propagation_interval: 60 * 60 * 24, // 1 day
         }
     }
 }
@@ -171,11 +186,12 @@ mod tests {
             .bootstrap_interval(33)
             .peer_dialing_interval(11)
             .query_timeout(22)
-            .propagation_interval(3600)
+            .publication_interval(60 * 60 * 24 + 1)
+            .replication_interval(60 * 60 + 1)
+            .record_ttl(60 * 60 * 24 * 3 + 1)
             .build()?;
 
         assert_eq!(ns.key_material.0.as_ref(), key_material.0.as_ref());
-        assert_eq!(ns._propagation_interval, 3600);
         assert_eq!(ns.bootstrap_peers.as_ref().unwrap().len(), 2);
         assert_eq!(ns.bootstrap_peers.as_ref().unwrap()[0], bootstrap_peers[0],);
         assert_eq!(ns.bootstrap_peers.as_ref().unwrap()[1], bootstrap_peers[1]);
@@ -186,6 +202,9 @@ mod tests {
         assert_eq!(ns.dht_config.bootstrap_interval, 33);
         assert_eq!(ns.dht_config.peer_dialing_interval, 11);
         assert_eq!(ns.dht_config.query_timeout, 22);
+        assert_eq!(ns.dht_config.publication_interval, 60 * 60 * 24 + 1);
+        assert_eq!(ns.dht_config.replication_interval, 60 * 60 + 1);
+        assert_eq!(ns.dht_config.record_ttl, 60 * 60 * 24 * 3 + 1);
 
         if NameSystemBuilder::default().store(&store).build().is_ok() {
             panic!("key_material required.");

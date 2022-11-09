@@ -58,6 +58,21 @@ impl DHTBehaviour {
             // where we implement logic to validate/prune incoming records.
             cfg.set_record_filtering(KademliaStoreInserts::FilterBoth);
 
+            // These configurations only apply to Value records.
+            cfg.set_record_ttl(Some(Duration::from_secs(config.record_ttl.into())));
+            cfg.set_publication_interval(Some(Duration::from_secs(
+                config.publication_interval.into(),
+            )));
+            cfg.set_replication_interval(Some(Duration::from_secs(
+                config.replication_interval.into(),
+            )));
+
+            // These configurations are for Provider records. No replication interval available.
+            cfg.set_provider_record_ttl(Some(Duration::from_secs(config.record_ttl.into())));
+            cfg.set_provider_publication_interval(Some(Duration::from_secs(
+                config.publication_interval.into(),
+            )));
+
             // TODO(#99): Use SphereFS storage
             let store = kad::record::store::MemoryStore::new(local_peer_id.to_owned());
             Kademlia::with_config(local_peer_id.to_owned(), store, cfg)

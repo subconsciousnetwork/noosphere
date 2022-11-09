@@ -68,7 +68,6 @@ async fn generate_name_systems_network(
         let ns: NameSystem<MemoryStore> = NameSystemBuilder::default()
             .key_material(&ns_key)
             .store(&store)
-            .propagation_interval(3600)
             .peer_dialing_interval(1)
             .bootstrap_peers(&bootstrap_addresses)
             .build()?;
