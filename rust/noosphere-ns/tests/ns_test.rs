@@ -6,7 +6,7 @@ use futures::future::try_join_all;
 use libipld_cbor::DagCborCodec;
 use noosphere_core::{authority::generate_ed25519_key, view::SPHERE_LIFETIME};
 use noosphere_ns::{
-    dht::DHTNode,
+    dht::{DHTNode, DefaultRecordValidator},
     utils::{generate_capability, generate_fact},
     NameSystem, NameSystemBuilder,
 };
@@ -32,8 +32,12 @@ struct NSData {
 /// NameSystems connected, each with a corresponding owner sphere.
 async fn generate_name_systems_network(
     ns_count: usize,
-) -> Result<(DHTNode, SphereDb<MemoryStore>, Vec<NSData>)> {
-    let bootstrap_node = create_bootstrap_nodes(1)
+) -> Result<(
+    DHTNode<DefaultRecordValidator>,
+    SphereDb<MemoryStore>,
+    Vec<NSData>,
+)> {
+    let bootstrap_node = create_bootstrap_nodes(1, DHTNode::<DefaultRecordValidator>::validator())
         .map_err(|e| anyhow!(e.to_string()))?
         .pop()
         .unwrap();
@@ -211,5 +215,35 @@ async fn test_name_system_peer_propagation() -> Result<()> {
         "non-cached record found for sphere_2"
     );
 
+    Ok(())
+}
+
+#[test_log::test(tokio::test)]
+async fn test_name_system_validation() -> Result<()> {
+    let (_bootstrap_node, _store, mut ns_data) = generate_name_systems_network(1).await?;
+    let [mut ns_1] = [ns_data.remove(0)];
+
+    let sphere_1_cid_1 = derive_cid::<DagCborCodec>(b"00000000");
+
+    // Test propagating records from ns_1 to ns_2
+    assert!(
+        ns_1.ns
+            .set_record(
+                UcanBuilder::default()
+                    .issued_by(&ns_1.owner_key)
+                    .for_audience(&ns_1.sphere_id)
+                    .with_expiration(now() - 1000) // already expired
+                    .claiming_capability(&generate_capability(&ns_1.sphere_id))
+                    .with_fact(generate_fact(&sphere_1_cid_1.to_string()))
+                    .witnessed_by(&ns_1.delegation)
+                    .build()?
+                    .sign()
+                    .await?
+                    .into(),
+            )
+            .await
+            .is_err(),
+        "invalid (expired) records cannot be propagated"
+    );
     Ok(())
 }

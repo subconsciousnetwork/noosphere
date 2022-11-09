@@ -1,6 +1,7 @@
 use crate::{
     dht::{DHTConfig, DHTNode},
     records::NSRecord,
+    validator::Validator,
 };
 use anyhow::{anyhow, Result};
 use futures::future::try_join_all;
@@ -24,11 +25,11 @@ use ucan_key_support::ed25519::Ed25519KeyMaterial;
 /// New [NameSystem] instances can be created via [crate::NameSystemBuilder].
 pub struct NameSystem<S>
 where
-    S: Store,
+    S: Store + 'static,
 {
     /// Bootstrap peers for the DHT network.
     pub(crate) bootstrap_peers: Option<Vec<Multiaddr>>,
-    pub(crate) dht: Option<DHTNode>,
+    pub(crate) dht: Option<DHTNode<Validator<S>>>,
     pub(crate) dht_config: DHTConfig,
     /// Key of the NameSystem's sphere.
     pub(crate) key_material: Ed25519KeyMaterial,
@@ -73,6 +74,7 @@ where
         let mut dht = DHTNode::new(
             &self.key_material,
             self.bootstrap_peers.as_ref(),
+            Validator::new(&self.store),
             &self.dht_config,
         )?;
         dht.run().map_err(|e| anyhow!(e.to_string()))?;
@@ -117,7 +119,7 @@ where
     /// in the DHT network.
     ///
     /// Can fail if NameSystem is not connected or if no peers can be found.
-    pub async fn set_record(&mut self, mut record: NSRecord) -> Result<()> {
+    pub async fn set_record(&mut self, record: NSRecord) -> Result<()> {
         let _ = self.require_dht()?;
 
         record.validate(&self.store, &mut self.did_parser).await?;
@@ -239,7 +241,7 @@ where
         }
     }
 
-    fn require_dht(&self) -> Result<&DHTNode> {
+    fn require_dht(&self) -> Result<&DHTNode<Validator<S>>> {
         self.dht.as_ref().ok_or_else(|| anyhow!("not connected"))
     }
 }

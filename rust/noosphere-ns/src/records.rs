@@ -77,7 +77,7 @@ impl NSRecord {
     /// the sphere's owner authorized the publishing of a new
     /// content address. Returns an `Err` if validation fails.
     pub async fn validate<S: Store>(
-        &mut self,
+        &self,
         store: &SphereDb<S>,
         did_parser: &mut DidParser,
     ) -> Result<(), Error> {
@@ -248,7 +248,7 @@ mod test {
             .await
             .unwrap();
 
-        let mut record = NSRecord::new(
+        let record = NSRecord::new(
             UcanBuilder::default()
                 .issued_by(&sphere_key)
                 .for_audience(&sphere_identity)
@@ -282,7 +282,7 @@ mod test {
 
         // First verify that `owner` cannot publish for `sphere`
         // without delegation.
-        let mut record = NSRecord::new(
+        let record = NSRecord::new(
             UcanBuilder::default()
                 .issued_by(&owner_key)
                 .for_audience(&sphere_identity)
@@ -313,7 +313,7 @@ mod test {
         let _ = store.write_token(&delegate_ucan.encode()?).await?;
 
         // Attempt `owner` publishing `sphere` with the proper authorization
-        let mut record = NSRecord::new(
+        let record = NSRecord::new(
             UcanBuilder::default()
                 .issued_by(&owner_key)
                 .for_audience(&sphere_identity)

@@ -8,6 +8,7 @@ pub mod dht;
 mod name_system;
 mod records;
 pub mod utils;
+mod validator;
 
 pub use builder::NameSystemBuilder;
 pub use libp2p::multiaddr;
