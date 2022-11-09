@@ -7,6 +7,6 @@ final class NoosphereTests: XCTestCase {
         // Use XCTAssert and related functions to verify your tests produce the correct
         // results.
         // TODO
-        noosphere_create_key("foobar")
+        noosphere_key_create("foobar")
     }
 }
