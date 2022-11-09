@@ -9,6 +9,10 @@ use web_sys::CryptoKey;
 
 use super::KeyStorage;
 
+/// An implementation of key storage backed by the Web Crypto and IndexedDB
+/// APIs. This implementation is more secure than storing keys in clear text,
+/// but doesn't strictly guarantee that a key is ultimately stored in some
+/// kind of hardware-backed secure storage.
 pub struct WebCryptoKeyStorage {
     db: Rc<Rexie>,
 }

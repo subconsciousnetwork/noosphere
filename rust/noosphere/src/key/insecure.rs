@@ -13,8 +13,10 @@ use crate::platform::PlatformKeyMaterial;
 use super::KeyStorage;
 
 /// InsecureKeyStorage is a stand-in key storage mechanism to tide us over until
-/// we have full-fledged support for secure key strage using TPMs or similar
-/// hardware. This storage mechanism keeps both public and private key data
+/// we have full-fledged support for secure key storage using TPMs or similar
+/// hardware.
+///
+/// ⚠️ This storage mechanism keeps both public and private key data
 /// stored in clear text on disk. User beware!
 pub struct InsecureKeyStorage {
     storage_path: PathBuf,

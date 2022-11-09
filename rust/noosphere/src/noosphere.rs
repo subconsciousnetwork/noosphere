@@ -27,7 +27,8 @@ pub enum NoosphereContextConfiguration {
 
     /// Opaque security configuration may be used in the case where there is
     /// some kind of protected keyring-like API layer where secret key material
-    /// may be considered safely stored.
+    /// may be considered safely stored. For example: secret service on Linux
+    /// or the keyring on MacOS.
     OpaqueSecurity {
         sphere_storage_path: PathBuf,
         gateway_url: Option<Url>,

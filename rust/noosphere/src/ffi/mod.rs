@@ -1,3 +1,5 @@
+///! This module contains FFI implementation for all C ABI-speaking language
+///! integrations.
 mod key;
 mod noosphere;
 mod sphere;
