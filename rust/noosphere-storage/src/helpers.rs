@@ -30,6 +30,6 @@ pub async fn make_disposable_store() -> Result<WebStore> {
         .map(|word| String::from(word))
         .collect();
 
-    let provider = WebStorageProvider::new(1, &temp_name, &vec!["foo"]).await?;
-    provider.get_store("foo").await
+    let provider = WebStorageProvider::new(&temp_name).await?;
+    provider.get_store(crate::db::BLOCK_STORE).await
 }

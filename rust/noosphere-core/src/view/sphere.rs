@@ -17,7 +17,7 @@ use crate::{
     },
     data::{
         AuthorityIpld, Bundle, CidKey, ContentType, DelegationIpld, Header, MemoIpld,
-        RevocationIpld, SphereIpld, TryBundle,
+        RevocationIpld, SphereIpld, TryBundle, Version,
     },
     view::{Links, SphereMutation, SphereRevision, Timeline},
 };
@@ -351,6 +351,9 @@ impl<S: BlockStore> Sphere<S> {
             Header::ContentType.to_string(),
             ContentType::Sphere.to_string(),
         ));
+
+        memo.headers
+            .push((Header::Version.to_string(), Version::V0.to_string()));
 
         let capability = Capability {
             with: With::Resource {

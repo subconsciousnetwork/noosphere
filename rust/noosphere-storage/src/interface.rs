@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::{fmt::Display, io::Cursor};
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -182,7 +182,37 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait KeyValueStore: Store {
+pub trait KeyValueStore {
+    async fn set_key<K, V>(&mut self, key: K, value: V) -> Result<()>
+    where
+        K: AsRef<[u8]> + BlockStoreSend,
+        V: Serialize + BlockStoreSend;
+
+    async fn get_key<K, V>(&self, key: K) -> Result<Option<V>>
+    where
+        K: AsRef<[u8]> + BlockStoreSend,
+        V: DeserializeOwned + BlockStoreSend;
+
+    async fn require_key<K, V>(&self, key: K) -> Result<V>
+    where
+        K: AsRef<[u8]> + BlockStoreSend + Display,
+        V: DeserializeOwned + BlockStoreSend,
+    {
+        let required = key.to_string();
+
+        match self.get_key(key).await? {
+            Some(value) => Ok(value),
+            None => Err(anyhow!("No value found for '{required}'")),
+        }
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<S> KeyValueStore for S
+where
+    S: Store,
+{
     async fn set_key<K, V>(&mut self, key: K, value: V) -> Result<()>
     where
         K: AsRef<[u8]> + BlockStoreSend,
@@ -211,5 +241,3 @@ pub trait KeyValueStore: Store {
         })
     }
 }
-
-impl<S> KeyValueStore for S where S: Store {}

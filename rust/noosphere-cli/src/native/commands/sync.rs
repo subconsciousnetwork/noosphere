@@ -46,7 +46,7 @@ pub async fn sync(workspace: &Workspace) -> Result<()> {
     let client = Client::identify(
         &sphere_identity,
         &gateway_url,
-        &key,
+        key.clone(),
         &authorization,
         &mut did_parser,
         db.clone(),
@@ -75,9 +75,9 @@ pub async fn sync(workspace: &Workspace) -> Result<()> {
 
 /// Attempts to push the latest local lineage to the gateway, causing the
 /// gateway to update its own pointer to the tip of the local sphere's history
-pub async fn push_local_changes<'a, S, K>(
+pub async fn push_local_changes<S, K>(
     local_sphere_identity: &str,
-    client: &Client<'a, K, SphereDb<S>>,
+    client: &Client<K, SphereDb<S>>,
     db: &mut SphereDb<S>,
 ) -> Result<()>
 where
@@ -172,10 +172,10 @@ where
 
 /// Fetches the latest changes from a gateway and updates the local lineage
 /// using a conflict-free rebase strategy
-pub async fn sync_remote_changes<'a, K, S>(
+pub async fn sync_remote_changes<K, S>(
     local_sphere_identity: &str,
-    client: &Client<'a, K, SphereDb<S>>,
-    credential: &'a K,
+    client: &Client<K, SphereDb<S>>,
+    credential: &K,
     authorization: Option<&Authorization>,
     db: &mut SphereDb<S>,
 ) -> Result<()>

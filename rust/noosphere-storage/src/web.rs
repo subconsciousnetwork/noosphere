@@ -7,13 +7,20 @@ use rexie::{
 };
 use std::rc::Rc;
 use wasm_bindgen::{JsCast, JsValue};
+use crate::db::SPHERE_DB_STORE_NAMES;
+
+pub const INDEXEDDB_STORAGE_VERSION: u32 = 1;
 
 pub struct WebStorageProvider {
     db: Rc<Rexie>,
 }
 
 impl WebStorageProvider {
-    pub async fn new(version: u32, db_name: &str, store_names: &[&str]) -> Result<Self> {
+    pub async fn new(db_name: &str) -> Result<Self> {
+        Self::configure(INDEXEDDB_STORAGE_VERSION, db_name, SPHERE_DB_STORE_NAMES).await
+    }
+
+    async fn configure(version: u32, db_name: &str, store_names: &[&str]) -> Result<Self> {
         let mut builder = RexieBuilder::new(db_name).version(version);
 
         for name in store_names {

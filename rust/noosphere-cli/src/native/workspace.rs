@@ -589,7 +589,7 @@ The available keys are:
     /// Creates all the directories needed to start rendering a sphere in the
     /// configured working file tree root
     pub async fn initialize_local_directories(&self) -> Result<()> {
-        if let Ok(_) = self.expect_local_directories() {
+        if self.expect_local_directories().is_ok() {
             return Err(anyhow!(
                 r#"Cannot initialize the sphere; a sphere is already initialized in {:?}
 Unexpected (bad) things will happen if you try to nest spheres this way!"#,

@@ -21,33 +21,33 @@ use ucan::{
 };
 use url::Url;
 
-pub struct Client<'a, K, S>
+pub struct Client<K, S>
 where
-    K: KeyMaterial,
+    K: KeyMaterial + 'static,
     S: UcanStore,
 {
     pub session: IdentifyResponse,
     pub sphere_identity: String,
     pub api_base: Url,
-    pub credential: &'a K,
+    pub credential: K,
     pub authorization: Authorization,
     pub store: S,
     client: reqwest::Client,
 }
 
-impl<'a, K, S> Client<'a, K, S>
+impl<K, S> Client<K, S>
 where
-    K: KeyMaterial,
+    K: KeyMaterial + 'static,
     S: UcanStore,
 {
     pub async fn identify(
         sphere_identity: &str,
         api_base: &Url,
-        credential: &'a K,
+        credential: K,
         authorization: &Authorization,
         did_parser: &mut DidParser,
         store: S,
-    ) -> Result<Client<'a, K, S>> {
+    ) -> Result<Client<K, S>> {
         debug!("Initializing Noosphere API client");
         debug!("Client represents sphere {}", sphere_identity);
         debug!("Client targetting API at {}", api_base);
@@ -64,7 +64,7 @@ where
 
         let (jwt, ucan_headers) = Self::make_bearer_token(
             &gateway_identity,
-            credential,
+            &credential,
             authorization,
             &Capability {
                 with: With::Resource {
@@ -107,7 +107,7 @@ where
 
     async fn make_bearer_token(
         gateway_identity: &str,
-        credential: &'a K,
+        credential: &K,
         authorization: &Authorization,
         capability: &Capability<SphereReference, SphereAction>,
         store: &S,
@@ -180,7 +180,7 @@ where
 
         let (token, ucan_headers) = Self::make_bearer_token(
             &self.session.gateway_identity,
-            self.credential,
+            &self.credential,
             &self.authorization,
             &capability,
             &self.store,
@@ -219,7 +219,7 @@ where
 
         let (token, ucan_headers) = Self::make_bearer_token(
             &self.session.gateway_identity,
-            self.credential,
+            &self.credential,
             &self.authorization,
             &capability,
             &self.store,

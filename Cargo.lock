@@ -2263,15 +2263,28 @@ name = "noosphere"
 version = "0.1.0-alpha.1"
 dependencies = [
  "anyhow",
+ "async-trait",
+ "cid",
+ "js-sys",
  "lazy_static",
  "noosphere-api",
  "noosphere-core",
  "noosphere-fs",
  "noosphere-storage",
+ "pollster",
+ "rexie",
  "safer-ffi",
+ "temp-dir",
  "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-wasm",
  "ucan",
  "ucan-key-support",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+ "web-sys",
 ]
 
 [[package]]
@@ -2835,6 +2848,12 @@ dependencies = [
  "wepoll-ffi",
  "winapi",
 ]
+
+[[package]]
+name = "pollster"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5da3b0203fd7ee5720aa0b5e790b591aa5d3f41c3ed2c34a3a393382198af2f7"
 
 [[package]]
 name = "poly1305"
@@ -4151,6 +4170,17 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
+]
+
+[[package]]
+name = "tracing-wasm"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4575c663a174420fa2d78f4108ff68f65bf2fbb7dd89f33749b6e826b3626e07"
+dependencies = [
+ "tracing",
+ "tracing-subscriber",
+ "wasm-bindgen",
 ]
 
 [[package]]
