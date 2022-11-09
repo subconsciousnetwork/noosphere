@@ -39,7 +39,7 @@ jobs:
         id: release
         uses: cdata/release-please-action@main
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CDATA_GITHUB_TOKEN }}
           default-branch: main
           command: manifest
           release-type: rust
