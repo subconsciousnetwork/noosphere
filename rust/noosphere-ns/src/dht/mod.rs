@@ -11,5 +11,5 @@ mod validator;
 pub use config::DHTConfig;
 pub use errors::DHTError;
 pub use node::{DHTNode, DHTStatus};
-pub use types::DHTNetworkInfo;
+pub use types::{DHTNetworkInfo, DHTRecord};
 pub use validator::{DefaultRecordValidator, RecordValidator};

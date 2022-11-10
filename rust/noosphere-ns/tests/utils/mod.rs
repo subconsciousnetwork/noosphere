@@ -51,12 +51,11 @@ where
     try_join_all(futures).await
 }
 
-fn create_client_nodes_with_bootstrap_peers<V: RecordValidator + Clone>(
-    bootstrap_count: usize,
+pub fn create_nodes_with_bootstrap<V: RecordValidator + Clone, W: RecordValidator>(
     client_count: usize,
+    bootstrap_nodes: &[DHTNode<W>],
     validator: V,
-) -> Result<(Vec<DHTNode<V>>, Vec<DHTNode<V>>), DHTError> {
-    let bootstrap_nodes = create_bootstrap_nodes::<V>(bootstrap_count, validator.clone())?;
+) -> Result<Vec<DHTNode<V>>, DHTError> {
     let bootstrap_addresses: Vec<Multiaddr> = bootstrap_nodes
         .iter()
         .map(|node| node.p2p_address().unwrap().to_owned())
@@ -75,7 +74,7 @@ fn create_client_nodes_with_bootstrap_peers<V: RecordValidator + Clone>(
         node.run()?;
         client_nodes.push(node);
     }
-    Ok((bootstrap_nodes, client_nodes))
+    Ok(client_nodes)
 }
 
 /// Creates `count` bootstrap nodes, each node using all other
@@ -109,8 +108,9 @@ pub async fn initialize_network<V: RecordValidator + Clone + 'static>(
     client_count: usize,
     validator: V,
 ) -> Result<(Vec<DHTNode<V>>, Vec<DHTNode<V>>), DHTError> {
-    let (mut bootstrap_nodes, mut client_nodes) =
-        create_client_nodes_with_bootstrap_peers::<V>(bootstrap_count, client_count, validator)?;
+    let mut bootstrap_nodes = create_bootstrap_nodes::<V>(bootstrap_count, validator.clone())?;
+    let mut client_nodes =
+        create_nodes_with_bootstrap::<V, V>(client_count, &bootstrap_nodes, validator.clone())?;
     let expected_peers = client_count + bootstrap_count - 1;
     // Wait a few, since nodes need to announce each other via Identify,
     // which adds their address to the routing table. Kick off

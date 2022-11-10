@@ -5,6 +5,9 @@ use noosphere_storage::{db::SphereDb, interface::Store};
 use std::net::Ipv4Addr;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
+#[cfg(doc)]
+use libp2p::kad::KademliaConfig;
+
 /// [NameSystemBuilder] is the primary external interface for
 /// creating a new [NameSystem]. `key_material` and `store`
 /// must be provided.
@@ -89,7 +92,7 @@ where
 
     /// How long, in seconds, published records are replicated to
     /// peers. Should be significantly shorter than `record_ttl`.
-    /// See [KademliaConfig::set_publication_interval](https://docs.rs/libp2p/latest/libp2p/kad/struct.KademliaConfig.html#method.set_publication_interval).
+    /// See [KademliaConfig::set_publication_interval] and [KademliaConfig::set_provider_publication_interval].
     pub fn publication_interval(mut self, interval: u32) -> Self {
         self.dht_config.publication_interval = interval;
         self
@@ -103,7 +106,7 @@ where
 
     /// How long, in seconds, records remain valid for. Should be significantly
     /// longer than `publication_interval`.
-    /// See [KademliaConfig::set_record_ttl](https://docs.rs/libp2p/latest/libp2p/kad/struct.KademliaConfig.html#method.set_record_ttl).
+    /// See [KademliaConfig::set_record_ttl] and [KademliaConfig::set_provider_record_ttl].
     pub fn record_ttl(mut self, interval: u32) -> Self {
         self.dht_config.record_ttl = interval;
         self
@@ -111,7 +114,7 @@ where
 
     /// How long, in seconds, stored records are replicated to
     /// peers. Should be significantly shorter than `publication_interval`.
-    /// See [KademliaConfig::set_replication_interval](https://docs.rs/libp2p/latest/libp2p/kad/struct.KademliaConfig.html#method.set_replication_interval).
+    /// See [KademliaConfig::set_replication_interval].
     pub fn replication_interval(mut self, interval: u32) -> Self {
         self.dht_config.replication_interval = interval;
         self

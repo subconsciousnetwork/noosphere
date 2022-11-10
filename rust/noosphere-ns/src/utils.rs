@@ -2,6 +2,9 @@ use noosphere_core::authority::{SphereAction, SphereReference};
 use serde_json;
 use ucan::capability::{Capability, Resource, With};
 
+#[cfg(doc)]
+use cid::Cid;
+
 /// Generates a [Capability] struct representing permission to
 /// publish a sphere.
 ///
@@ -33,7 +36,7 @@ pub fn generate_capability(sphere_did: &str) -> Capability<SphereReference, Sphe
 }
 
 /// Generates a UCAN `"fct"` struct for the NS network, representing
-/// the resolved sphere's revision as a [cid::Cid].
+/// the resolved sphere's revision as a [Cid].
 ///
 /// ```
 /// use noosphere_ns::utils::generate_fact;
