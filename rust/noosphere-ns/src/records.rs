@@ -9,17 +9,17 @@ use ucan::{chain::ProofChain, crypto::did::DidParser, Ucan};
 
 /// An [NSRecord] is the internal representation of a mapping from a
 /// sphere's identity (DID key) to a sphere's revision as a
-/// content address ([cid::Cid]). The record wraps a [ucan::Ucan] token,
+/// content address ([Cid]). The record wraps a [Ucan] token,
 /// providing de/serialization for transmitting in the NS network,
 /// and validates data ensuring the sphere's owner authorized the publishing
 /// of a new content address.
 ///
 /// When transmitting through the distributed NS network, the record is
-/// represented as the base64 encoded Ucan token.
+/// represented as the base64 encoded UCAN token.
 ///
 /// # Ucan Semantics
 ///
-/// An [NSRecord] is a small interface over a [ucan::Ucan] token,
+/// An [NSRecord] is a small interface over a [Ucan] token,
 /// with the following semantics:
 ///
 /// ```json
@@ -34,7 +34,7 @@ use ucan::{chain::ProofChain, crypto::did::DidParser, Ucan};
 ///     "with": "sphere:did:key:z6MkkVfktAC5rVNRmmTjkKPapT3bAyVkYH8ZVCF1UBNUfazp",
 ///     "can": "sphere/publish"
 ///   }],
-///   // Additional Ucan proofs needed to validate.
+///   // Additional UCAN proofs needed to validate.
 ///   "prf": [],
 ///   // Facts contain a single entry with an "address" field containing
 ///   // the content address of a sphere revision (CID) associated with
@@ -46,7 +46,7 @@ use ucan::{chain::ProofChain, crypto::did::DidParser, Ucan};
 /// ```
 #[derive(Debug, Clone)]
 pub struct NSRecord {
-    /// The wrapped Ucan token describing this record.
+    /// The wrapped UCAN token describing this record.
     pub(crate) token: Ucan,
     /// The resolved sphere revision this record maps to.
     pub(crate) address: Option<Cid>,
@@ -73,7 +73,7 @@ impl NSRecord {
         Self { token, address }
     }
 
-    /// Validates the underlying [ucan::Ucan] token, ensuring that
+    /// Validates the underlying [Ucan] token, ensuring that
     /// the sphere's owner authorized the publishing of a new
     /// content address. Returns an `Err` if validation fails.
     pub async fn validate<S: Store>(
@@ -122,17 +122,18 @@ impl NSRecord {
         self.token.audience()
     }
 
-    /// The sphere revision ([cid::Cid]) that the sphere's identity maps to.
+    /// The sphere revision ([Cid]) that the sphere's identity maps to.
     pub fn address(&self) -> Option<&Cid> {
         self.address.as_ref()
     }
 
-    /// Returns true if the UCAN token is past its expiration.
+    /// Returns true if the [Ucan] token is past its expiration.
     pub fn is_expired(&self) -> bool {
         self.token.is_expired()
     }
 }
 
+/// Create a new [NSRecord] taking a [Ucan] token.
 impl From<Ucan> for NSRecord {
     fn from(ucan: Ucan) -> Self {
         Self::new(ucan)
@@ -157,21 +158,21 @@ impl TryFrom<NSRecord> for Vec<u8> {
     }
 }
 
+/// Serialize a [NSRecord] reference into an encoded UCAN token byte vec.
+impl TryFrom<&NSRecord> for Vec<u8> {
+    type Error = anyhow::Error;
+
+    fn try_from(record: &NSRecord) -> Result<Vec<u8>, Self::Error> {
+        Ok(Vec::from(record.token.encode()?))
+    }
+}
+
 /// Deserialize an encoded UCAN token byte vec reference into a [NSRecord].
 impl TryFrom<&[u8]> for NSRecord {
     type Error = anyhow::Error;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         NSRecord::try_from(str::from_utf8(bytes)?)
-    }
-}
-
-/// Serialize a [NSRecord] reference into an encoded UCAN token byte vec.
-impl TryFrom<&NSRecord> for Vec<u8> {
-    type Error = anyhow::Error;
-
-    fn try_from(record: &NSRecord) -> Result<Self, Self::Error> {
-        Ok(Vec::from(record.token.encode()?))
     }
 }
 

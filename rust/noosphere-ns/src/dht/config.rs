@@ -1,5 +1,8 @@
 use libp2p::Multiaddr;
 
+#[cfg(doc)]
+use libp2p::kad::KademliaConfig;
+
 #[derive(Clone, Debug)]
 pub struct DHTConfig {
     /// If bootstrap peers are provided, how often,
@@ -16,19 +19,19 @@ pub struct DHTConfig {
     pub peer_dialing_interval: u64,
     /// How long, in seconds, published records are replicated to
     /// peers. Should be significantly shorter than `record_ttl`.
-    /// See [KademliaConfig::set_publication_interval](https://docs.rs/libp2p/latest/libp2p/kad/struct.KademliaConfig.html#method.set_publication_interval).
+    /// See [KademliaConfig::set_publication_interval] and [KademliaConfig::set_provider_publication_interval].
     pub publication_interval: u32,
     /// How long, in seconds, until an unsuccessful
     /// DHT query times out.
     pub query_timeout: u32,
     /// How long, in seconds, stored records are replicated to
     /// peers. Should be significantly shorter than `publication_interval`.
-    /// See [KademliaConfig::set_replication_interval](https://docs.rs/libp2p/latest/libp2p/kad/struct.KademliaConfig.html#method.set_replication_interval).
+    /// See [KademliaConfig::set_replication_interval].
     /// Only applies to value records.
     pub replication_interval: u32,
     /// How long, in seconds, records remain valid for. Should be significantly
     /// longer than `publication_interval`.
-    /// See [KademliaConfig::set_record_ttl](https://docs.rs/libp2p/latest/libp2p/kad/struct.KademliaConfig.html#method.set_record_ttl).
+    /// See [KademliaConfig::set_record_ttl] and [KademliaConfig::set_provider_record_ttl].
     pub record_ttl: u32,
 }
 

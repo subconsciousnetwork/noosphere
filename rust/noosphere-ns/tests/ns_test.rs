@@ -104,7 +104,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
 
     // Test propagating records from ns_1 to ns_2
     ns_1.ns
-        .set_record(
+        .put_record(
             UcanBuilder::default()
                 .issued_by(&ns_1.owner_key)
                 .for_audience(&ns_1.sphere_id)
@@ -139,7 +139,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
 
     // Flush records by identity and fetch latest value from network.
     ns_1.ns
-        .set_record(
+        .put_record(
             UcanBuilder::default()
                 .issued_by(&ns_1.owner_key)
                 .for_audience(&ns_1.sphere_id)
@@ -186,7 +186,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
 
     // Publish an updated record for sphere_2
     ns_2.ns
-        .set_record(
+        .put_record(
             UcanBuilder::default()
                 .issued_by(&ns_2.owner_key)
                 .for_audience(&ns_2.sphere_id)
@@ -227,7 +227,7 @@ async fn test_name_system_validation() -> Result<()> {
     // Test propagating records from ns_1 to ns_2
     assert!(
         ns_1.ns
-            .set_record(
+            .put_record(
                 UcanBuilder::default()
                     .issued_by(&ns_1.owner_key)
                     .for_audience(&ns_1.sphere_id)

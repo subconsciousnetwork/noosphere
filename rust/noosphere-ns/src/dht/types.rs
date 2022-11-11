@@ -22,16 +22,37 @@ impl From<NetworkInfo> for DHTNetworkInfo {
         }
     }
 }
+#[derive(Debug, Clone)]
+pub struct DHTRecord {
+    pub key: Vec<u8>,
+    pub value: Option<Vec<u8>>,
+}
+
+impl fmt::Display for DHTRecord {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = if let Some(value) = self.value.as_ref() {
+            str::from_utf8(value)
+        } else {
+            Ok("None")
+        };
+        write!(
+            fmt,
+            "DHTRecord {{ key: {:?}, value: {:?} }}",
+            str::from_utf8(&self.key),
+            value
+        )
+    }
+}
 
 #[derive(Debug)]
 pub enum DHTRequest {
     Bootstrap,
     //WaitForPeers(usize),
     GetNetworkInfo,
-    GetRecord { name: Vec<u8> },
-    SetRecord { name: Vec<u8>, value: Vec<u8> },
-    StartProviding { name: Vec<u8> },
-    GetProviders { name: Vec<u8> },
+    GetRecord { key: Vec<u8> },
+    PutRecord { key: Vec<u8>, value: Vec<u8> },
+    StartProviding { key: Vec<u8> },
+    GetProviders { key: Vec<u8> },
 }
 
 impl fmt::Display for DHTRequest {
@@ -40,26 +61,26 @@ impl fmt::Display for DHTRequest {
             //DHTRequest::WaitForPeers(peers) => write!(fmt, "DHTRequest::WaitForPeers({})", peers),
             DHTRequest::Bootstrap => write!(fmt, "DHTRequest::Bootstrap"),
             DHTRequest::GetNetworkInfo => write!(fmt, "DHTRequest::GetNetworkInfo"),
-            DHTRequest::GetRecord { name } => write!(
+            DHTRequest::GetRecord { key } => write!(
                 fmt,
-                "DHTRequest::GetRecord {{ name={:?} }}",
-                str::from_utf8(name)
+                "DHTRequest::GetRecord {{ key={:?} }}",
+                str::from_utf8(key)
             ),
-            DHTRequest::SetRecord { name, value } => write!(
+            DHTRequest::PutRecord { key, value } => write!(
                 fmt,
-                "DHTRequest::SetRecord {{ name={:?}, value={:?} }}",
-                str::from_utf8(name),
+                "DHTRequest::PutRecord {{ key={:?}, value={:?} }}",
+                str::from_utf8(key),
                 str::from_utf8(value)
             ),
-            DHTRequest::StartProviding { name } => write!(
+            DHTRequest::StartProviding { key } => write!(
                 fmt,
-                "DHTRequest::StartProviding {{ name={:?} }}",
-                str::from_utf8(name)
+                "DHTRequest::StartProviding {{ key={:?} }}",
+                str::from_utf8(key)
             ),
-            DHTRequest::GetProviders { name } => write!(
+            DHTRequest::GetProviders { key } => write!(
                 fmt,
-                "DHTRequest::GetProviders {{ name={:?} }}",
-                str::from_utf8(name)
+                "DHTRequest::GetProviders {{ key={:?} }}",
+                str::from_utf8(key)
             ),
         }
     }
@@ -69,18 +90,15 @@ impl fmt::Display for DHTRequest {
 pub enum DHTResponse {
     Success,
     GetNetworkInfo(DHTNetworkInfo),
-    GetRecord {
-        name: Vec<u8>,
-        value: Option<Vec<u8>>,
-    },
-    SetRecord {
-        name: Vec<u8>,
+    GetRecord(DHTRecord),
+    PutRecord {
+        key: Vec<u8>,
     },
     StartProviding {
-        name: Vec<u8>,
+        key: Vec<u8>,
     },
     GetProviders {
-        name: Vec<u8>,
+        key: Vec<u8>,
         providers: Vec<libp2p::PeerId>,
     },
 }
@@ -92,30 +110,23 @@ impl fmt::Display for DHTResponse {
             DHTResponse::GetNetworkInfo(info) => {
                 write!(fmt, "DHTResponse::GetNetworkInfo {:?}", info)
             }
-            DHTResponse::GetRecord { name, value } => write!(
+            DHTResponse::GetRecord(record) => {
+                write!(fmt, "DHTResponse::GetRecord {{ {:?} }}", record)
+            }
+            DHTResponse::PutRecord { key } => write!(
                 fmt,
-                "DHTResponse::GetRecord {{ name={:?}, value={:?} }}",
-                str::from_utf8(name),
-                if value.is_some() {
-                    str::from_utf8(value.as_ref().unwrap())
-                } else {
-                    Ok("None")
-                }
+                "DHTResponse::PutRecord {{ key={:?} }}",
+                str::from_utf8(key)
             ),
-            DHTResponse::SetRecord { name } => write!(
+            DHTResponse::StartProviding { key } => write!(
                 fmt,
-                "DHTResponse::SetRecord {{ name={:?} }}",
-                str::from_utf8(name)
+                "DHTResponse::StartProviding {{ key={:?} }}",
+                str::from_utf8(key)
             ),
-            DHTResponse::StartProviding { name } => write!(
+            DHTResponse::GetProviders { key, providers } => write!(
                 fmt,
-                "DHTResponse::StartProviding {{ name={:?} }}",
-                str::from_utf8(name)
-            ),
-            DHTResponse::GetProviders { name, providers } => write!(
-                fmt,
-                "DHTResponse::GetProviders {{ name={:?}, providers={:?} }}",
-                str::from_utf8(name),
+                "DHTResponse::GetProviders {{ key={:?}, providers={:?} }}",
+                str::from_utf8(key),
                 providers
             ),
         }

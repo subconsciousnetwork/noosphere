@@ -1,5 +1,5 @@
 use crate::{
-    dht::{DHTConfig, DHTNode},
+    dht::{DHTConfig, DHTNode, DHTRecord},
     records::NSRecord,
     validator::Validator,
 };
@@ -12,17 +12,22 @@ use std::collections::HashMap;
 use ucan::crypto::did::DidParser;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
+#[cfg(doc)]
+use crate::NameSystemBuilder;
+#[cfg(doc)]
+use cid::Cid;
+
 /// The [NameSystem] is responsible for both propagating and resolving Sphere DIDs
-/// into an authorized UCAN publish token, resolving into a [cid::Cid] address for
+/// into an authorized UCAN publish token, resolving into a [Cid] address for
 /// a sphere's content. These records are propagated and resolved via the
-/// Noosphere NS distributed network, built on [libp2p](https://libp2p.io)'s
+/// Noosphere Name System, a distributed network, built on [libp2p](https://libp2p.io)'s
 /// [Kademlia DHT specification](https://github.com/libp2p/specs/blob/master/kad-dht/README.md).
 ///
-/// Hosted records can be set via [NameSystem::set_record], propagating the
-/// record immediately, and repropagated every `propagation_interval` seconds. Records
+/// Hosted records can be set via [NameSystem::put_record], propagating the
+/// record immediately, and repropagating on a specified interval. Records
 /// can be resolved via [NameSystem::get_record].
 ///
-/// New [NameSystem] instances can be created via [crate::NameSystemBuilder].
+/// New [NameSystem] instances can be created via [NameSystemBuilder].
 pub struct NameSystem<S>
 where
     S: Store + 'static,
@@ -46,7 +51,7 @@ impl<S> NameSystem<S>
 where
     S: Store,
 {
-    /// Internal instantiation function invoked by [crate::NameSystemBuilder].
+    /// Internal instantiation function invoked by [NameSystemBuilder].
     pub(crate) fn new(
         key_material: Ed25519KeyMaterial,
         store: SphereDb<S>,
@@ -91,7 +96,7 @@ where
     }
 
     /// Propagates all hosted records on nearby peers in the DHT network.
-    /// Automatically propagated by the intervals configured in [crate::NameSystemBuilder].
+    /// Automatically propagated by the intervals configured in [NameSystemBuilder].
     ///
     /// Can fail if NameSystem is not connected or if no peers can be found.
     pub async fn propagate_records(&self) -> Result<()> {
@@ -104,7 +109,7 @@ where
         let pending_tasks: Vec<_> = self
             .hosted_records
             .iter()
-            .map(|(identity, record)| self.dht_set_record(identity, record))
+            .map(|(identity, record)| self.dht_put_record(identity, record))
             .collect();
         try_join_all(pending_tasks).await?;
         Ok(())
@@ -114,13 +119,13 @@ where
     /// in the DHT network.
     ///
     /// Can fail if NameSystem is not connected or if no peers can be found.
-    pub async fn set_record(&mut self, record: NSRecord) -> Result<()> {
+    pub async fn put_record(&mut self, record: NSRecord) -> Result<()> {
         let _ = self.require_dht()?;
 
         record.validate(&self.store, &mut self.did_parser).await?;
         let identity = record.identity();
 
-        self.dht_set_record(identity, &record).await?;
+        self.dht_put_record(identity, &record).await?;
         self.hosted_records.insert(identity.to_owned(), record);
         Ok(())
     }
@@ -187,8 +192,8 @@ where
     async fn dht_get_record(&self, identity: &str) -> Result<(String, Option<NSRecord>)> {
         let dht = self.require_dht()?;
 
-        match dht.get_record(identity.to_owned().into_bytes()).await {
-            Ok((_, result)) => match result {
+        match dht.get_record(identity.as_bytes()).await {
+            Ok(DHTRecord { key: _, value }) => match value {
                 Some(value) => {
                     // Validation/correctness and filtering through
                     // the most recent values can be performed here
@@ -218,19 +223,17 @@ where
     ///
     /// Can fail if record is invalid, NameSystem is not connected or
     /// if no peers can be found.
-    async fn dht_set_record(&self, identity: &str, record: &NSRecord) -> Result<()> {
+    async fn dht_put_record(&self, identity: &str, record: &NSRecord) -> Result<()> {
         let dht = self.require_dht()?;
 
-        match dht
-            .set_record(String::from(identity).into_bytes(), record.try_into()?)
-            .await
-        {
+        let record: Vec<u8> = record.try_into()?;
+        match dht.put_record(identity.as_bytes(), &record).await {
             Ok(_) => {
-                info!("NameSystem: SetRecord: {}", identity);
+                info!("NameSystem: PutRecord: {}", identity);
                 Ok(())
             }
             Err(e) => {
-                warn!("NameSystem: SetRecord: Failure for {} {:?}.", identity, e);
+                warn!("NameSystem: PutRecord: Failure for {} {:?}.", identity, e);
                 Err(anyhow!(e.to_string()))
             }
         }

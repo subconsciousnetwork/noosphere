@@ -1,7 +1,7 @@
 use crate::dht::{
     errors::DHTError,
     swarm::{build_swarm, DHTEvent, DHTSwarm, DHTSwarmEvent},
-    types::{DHTMessage, DHTMessageProcessor, DHTRequest, DHTResponse},
+    types::{DHTMessage, DHTMessageProcessor, DHTRecord, DHTRequest, DHTResponse},
     DHTConfig, RecordValidator,
 };
 use libp2p::{
@@ -155,12 +155,12 @@ where
 
         // Process client requests.
         match message.request {
-            DHTRequest::GetProviders { ref name } => {
+            DHTRequest::GetProviders { ref key } => {
                 store_request!(
                     self,
                     message,
                     Ok::<kad::QueryId, DHTError>(
-                        self.swarm.behaviour_mut().kad.get_providers(Key::new(name))
+                        self.swarm.behaviour_mut().kad.get_providers(Key::new(key))
                     )
                 );
             }
@@ -181,17 +181,17 @@ where
                 let info = self.swarm.network_info();
                 message.respond(Ok(DHTResponse::GetNetworkInfo(info.into())));
             }
-            DHTRequest::StartProviding { ref name } => {
+            DHTRequest::StartProviding { ref key } => {
                 store_request!(
                     self,
                     message,
                     self.swarm
                         .behaviour_mut()
                         .kad
-                        .start_providing(Key::new(name))
+                        .start_providing(Key::new(key))
                 );
             }
-            DHTRequest::GetRecord { ref name } => {
+            DHTRequest::GetRecord { ref key } => {
                 store_request!(
                     self,
                     message,
@@ -199,18 +199,15 @@ where
                         self.swarm
                             .behaviour_mut()
                             .kad
-                            .get_record(Key::new(name), Quorum::One)
+                            .get_record(Key::new(key), Quorum::One)
                     )
                 );
             }
-            DHTRequest::SetRecord {
-                ref name,
-                ref value,
-            } => {
+            DHTRequest::PutRecord { ref key, ref value } => {
                 let value_owned = value.to_owned();
                 if self.validate(value).await {
                     let record = Record {
-                        key: Key::new(name),
+                        key: Key::new(key),
                         value: value_owned,
                         publisher: None,
                         expires: None,
@@ -291,10 +288,10 @@ where
                             // We don't want to propagate validation errors for all
                             // possible invalid records, but handle it similarly as if
                             // no record at all was found.
-                            message.respond(Ok(DHTResponse::GetRecord {
-                                name: key.to_vec(),
+                            message.respond(Ok(DHTResponse::GetRecord(DHTRecord {
+                                key: key.to_vec(),
                                 value: if is_valid { Some(value) } else { None },
-                            }));
+                            })));
                         };
                     }
                 }
@@ -304,10 +301,10 @@ where
                             kad::GetRecordError::NotFound { key, .. } => {
                                 // Not finding a record is not an `Err` response,
                                 // but simply a successful query with a `None` result.
-                                message.respond(Ok(DHTResponse::GetRecord {
-                                    name: key.to_vec(),
+                                message.respond(Ok(DHTResponse::GetRecord(DHTRecord {
+                                    key: key.to_vec(),
                                     value: None,
-                                }))
+                                })))
                             }
                             e => message.respond(Err(DHTError::from(e))),
                         };
@@ -315,7 +312,7 @@ where
                 }
                 QueryResult::PutRecord(Ok(kad::PutRecordOk { key })) => {
                     if let Some(message) = self.requests.remove(&id) {
-                        message.respond(Ok(DHTResponse::SetRecord { name: key.to_vec() }));
+                        message.respond(Ok(DHTResponse::PutRecord { key: key.to_vec() }));
                     }
                 }
                 QueryResult::PutRecord(Err(e)) => {
@@ -340,7 +337,7 @@ where
                 }
                 QueryResult::StartProviding(Ok(kad::AddProviderOk { key })) => {
                     if let Some(message) = self.requests.remove(&id) {
-                        message.respond(Ok(DHTResponse::StartProviding { name: key.to_vec() }));
+                        message.respond(Ok(DHTResponse::StartProviding { key: key.to_vec() }));
                     }
                 }
                 QueryResult::StartProviding(Err(e)) => {
@@ -356,7 +353,7 @@ where
                     if let Some(message) = self.requests.remove(&id) {
                         message.respond(Ok(DHTResponse::GetProviders {
                             providers: providers.into_iter().collect(),
-                            name: key.to_vec(),
+                            key: key.to_vec(),
                         }));
                     }
                 }

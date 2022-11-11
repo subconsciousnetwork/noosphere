@@ -2,7 +2,7 @@ use crate::dht::{
     channel::message_channel,
     errors::DHTError,
     processor::DHTProcessor,
-    types::{DHTMessageClient, DHTNetworkInfo, DHTRequest, DHTResponse},
+    types::{DHTMessageClient, DHTNetworkInfo, DHTRecord, DHTRequest, DHTResponse},
     utils::key_material_to_libp2p_keypair,
     DHTConfig, DefaultRecordValidator, RecordValidator,
 };
@@ -204,41 +204,44 @@ where
         ensure_response!(response, DHTResponse::GetNetworkInfo(info) => Ok(info))
     }
 
-    /// Sets the record keyed by `name` with `value` and propagates
+    /// Sets the record keyed by `key` with `value` and propagates
     /// to peers.
     /// Fails if node is not in an active state or cannot set the record
     /// on any peers.
-    pub async fn set_record(&self, name: Vec<u8>, value: Vec<u8>) -> Result<Vec<u8>, DHTError> {
-        let request = DHTRequest::SetRecord { name, value };
+    pub async fn put_record(&self, key: &[u8], value: &[u8]) -> Result<Vec<u8>, DHTError> {
+        let request = DHTRequest::PutRecord {
+            key: key.to_vec(),
+            value: value.to_vec(),
+        };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::SetRecord { name } => Ok(name))
+        ensure_response!(response, DHTResponse::PutRecord { key } => Ok(key))
     }
 
-    /// Fetches the record keyed by `name` from the network.
+    /// Fetches the record keyed by `key` from the network.
     /// Return value may be `Ok(None)` if query finished without finding
     /// any matching values.
     /// Fails if node is not in an active state.
-    pub async fn get_record(&self, name: Vec<u8>) -> Result<(Vec<u8>, Option<Vec<u8>>), DHTError> {
-        let request = DHTRequest::GetRecord { name };
+    pub async fn get_record(&self, key: &[u8]) -> Result<DHTRecord, DHTError> {
+        let request = DHTRequest::GetRecord { key: key.to_vec() };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::GetRecord { name, value, .. } => Ok((name, value)))
+        ensure_response!(response, DHTResponse::GetRecord(record) => Ok(record))
     }
 
     /// Instructs the node to tell its peers that it is providing
-    /// the record for `name`.
+    /// the record for `key`.
     /// Fails if node is not in an active state.
-    pub async fn start_providing(&self, name: Vec<u8>) -> Result<(), DHTError> {
-        let request = DHTRequest::StartProviding { name };
+    pub async fn start_providing(&self, key: &[u8]) -> Result<(), DHTError> {
+        let request = DHTRequest::StartProviding { key: key.to_vec() };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::StartProviding { name: _ } => Ok(()))
+        ensure_response!(response, DHTResponse::StartProviding { key: _ } => Ok(()))
     }
 
-    /// Queries the network to find peers that are providing `name`.
+    /// Queries the network to find peers that are providing `key`.
     /// Fails if node is not in an active state.
-    pub async fn get_providers(&self, name: Vec<u8>) -> Result<Vec<libp2p::PeerId>, DHTError> {
-        let request = DHTRequest::GetProviders { name };
+    pub async fn get_providers(&self, key: &[u8]) -> Result<Vec<libp2p::PeerId>, DHTError> {
+        let request = DHTRequest::GetProviders { key: key.to_vec() };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::GetProviders { providers, name: _ } => Ok(providers))
+        ensure_response!(response, DHTResponse::GetProviders { providers, key: _ } => Ok(providers))
     }
 
     async fn send_request(&self, request: DHTRequest) -> Result<DHTResponse, DHTError> {
