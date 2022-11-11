@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use safer_ffi::prelude::*;
+use tokio::runtime::Runtime as TokioRuntime;
 use url::Url;
 
 use crate::noosphere::{NoosphereContext, NoosphereContextConfiguration};
@@ -7,7 +10,8 @@ use crate::noosphere::{NoosphereContext, NoosphereContextConfiguration};
 ReprC! {
     #[ReprC::opaque]
     pub struct NsNoosphereContext {
-        inner: NoosphereContext
+        inner: NoosphereContext,
+        async_runtime: Arc<TokioRuntime>
     }
 }
 
@@ -23,7 +27,12 @@ impl NsNoosphereContext {
                 sphere_storage_path: sphere_storage_path.into(),
                 gateway_url: gateway_url.cloned(),
             })?,
+            async_runtime: Arc::new(TokioRuntime::new()?),
         })
+    }
+
+    pub fn async_runtime(&self) -> Arc<TokioRuntime> {
+        self.async_runtime.clone()
     }
 
     pub fn inner(&self) -> &NoosphereContext {
@@ -71,4 +80,22 @@ pub fn ns_initialize(
 /// [SphereContext] that remains active within the [NoosphereContext].
 pub fn ns_free(noosphere: repr_c::Box<NsNoosphereContext>) {
     drop(noosphere)
+}
+
+#[ffi_export]
+/// De-allocate a Noosphere-allocated byte array
+pub fn ns_bytes_free(bytes: c_slice::Box<u8>) {
+    drop(bytes)
+}
+
+#[ffi_export]
+/// De-allocate a Noosphere-allocated string
+pub fn ns_string_free(string: char_p::Box) {
+    drop(string)
+}
+
+#[ffi_export]
+/// De-allocate a Noosphere-allocated array of strings
+pub fn ns_string_array_free(string_array: c_slice::Box<char_p::Box>) {
+    drop(string_array)
 }

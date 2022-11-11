@@ -58,7 +58,7 @@ where
         }
     }
 
-    /// The DID identity of the sphere
+    /// The identity of the sphere
     pub fn identity(&self) -> &Did {
         &self.sphere_identity
     }

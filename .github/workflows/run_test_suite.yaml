@@ -3,7 +3,13 @@ on: [push, pull_request]
 name: Run test suite
 
 jobs:
-  run-test-suite:
+  run-test-suite-mac-os:
+    runs-on: macos-12
+    steps:
+      - uses: actions/checkout@v2
+      - run: swift build
+      - run: swift test
+  run-test-suite-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

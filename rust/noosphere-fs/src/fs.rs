@@ -99,6 +99,7 @@ where
         };
 
         Ok(SphereFile {
+            sphere_identity: self.sphere_identity.clone(),
             sphere_revision: self.sphere_revision,
             memo_revision: *memo_revision,
             memo,
