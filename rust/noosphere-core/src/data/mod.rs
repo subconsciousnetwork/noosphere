@@ -7,6 +7,7 @@ mod links;
 mod memo;
 mod reference;
 mod sphere;
+mod strings;
 mod versioned_map;
 
 pub use authority::*;
@@ -18,4 +19,5 @@ pub use links::*;
 pub use memo::*;
 pub use reference::*;
 pub use sphere::*;
+pub use strings::*;
 pub use versioned_map::*;

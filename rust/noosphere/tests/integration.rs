@@ -64,13 +64,7 @@ async fn single_player_single_device_end_to_end_workflow() {
             .await
             .unwrap();
 
-        fs.save(
-            &sphere_context.user_key().unwrap(),
-            sphere_context.user_authorization(),
-            None,
-        )
-        .await
-        .unwrap();
+        fs.save(None).await.unwrap();
 
         sphere_identity
     };
@@ -103,12 +97,6 @@ async fn single_player_single_device_end_to_end_workflow() {
             .await
             .unwrap();
 
-        fs.save(
-            &sphere_context.user_key().unwrap(),
-            sphere_context.user_authorization(),
-            None,
-        )
-        .await
-        .unwrap();
+        fs.save(None).await.unwrap();
     };
 }

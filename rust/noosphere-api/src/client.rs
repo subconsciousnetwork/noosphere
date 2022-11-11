@@ -9,7 +9,7 @@ use anyhow::Result;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 
-use noosphere_core::authority::{Authorization, SphereAction, SphereReference};
+use noosphere_core::authority::{Author, SphereAction, SphereReference};
 use noosphere_storage::encoding::{block_deserialize, block_serialize};
 use reqwest::{header::HeaderMap, Body};
 use ucan::{
@@ -23,28 +23,26 @@ use url::Url;
 
 pub struct Client<K, S>
 where
-    K: KeyMaterial + 'static,
+    K: KeyMaterial + Clone + 'static,
     S: UcanStore,
 {
     pub session: IdentifyResponse,
     pub sphere_identity: String,
     pub api_base: Url,
-    pub credential: K,
-    pub authorization: Authorization,
+    pub author: Author<K>,
     pub store: S,
     client: reqwest::Client,
 }
 
 impl<K, S> Client<K, S>
 where
-    K: KeyMaterial + 'static,
+    K: KeyMaterial + Clone + 'static,
     S: UcanStore,
 {
     pub async fn identify(
         sphere_identity: &str,
         api_base: &Url,
-        credential: K,
-        authorization: &Authorization,
+        author: &Author<K>,
         did_parser: &mut DidParser,
         store: S,
     ) -> Result<Client<K, S>> {
@@ -64,8 +62,7 @@ where
 
         let (jwt, ucan_headers) = Self::make_bearer_token(
             &gateway_identity,
-            &credential,
-            authorization,
+            author,
             &Capability {
                 with: With::Resource {
                     kind: Resource::Scoped(SphereReference {
@@ -98,8 +95,7 @@ where
             session: identify_response,
             sphere_identity: sphere_identity.into(),
             api_base: api_base.clone(),
-            credential,
-            authorization: authorization.clone(),
+            author: author.clone(),
             store,
             client,
         })
@@ -107,13 +103,12 @@ where
 
     async fn make_bearer_token(
         gateway_identity: &str,
-        credential: &K,
-        authorization: &Authorization,
+        author: &Author<K>,
         capability: &Capability<SphereReference, SphereAction>,
         store: &S,
     ) -> Result<(String, HeaderMap)> {
         let mut signable = UcanBuilder::default()
-            .issued_by(credential)
+            .issued_by(&author.key)
             .for_audience(gateway_identity)
             .with_lifetime(120)
             .claiming_capability(capability)
@@ -122,6 +117,7 @@ where
 
         let mut ucan_headers = HeaderMap::new();
 
+        let authorization = author.require_authorization()?;
         let authorization_cid = Cid::try_from(authorization)?;
 
         match authorization.resolve_ucan(store).await {
@@ -180,8 +176,7 @@ where
 
         let (token, ucan_headers) = Self::make_bearer_token(
             &self.session.gateway_identity,
-            &self.credential,
-            &self.authorization,
+            &self.author,
             &capability,
             &self.store,
         )
@@ -219,8 +214,7 @@ where
 
         let (token, ucan_headers) = Self::make_bearer_token(
             &self.session.gateway_identity,
-            &self.credential,
-            &self.authorization,
+            &self.author,
             &capability,
             &self.store,
         )

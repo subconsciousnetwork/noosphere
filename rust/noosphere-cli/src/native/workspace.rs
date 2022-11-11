@@ -3,8 +3,8 @@ use cid::Cid;
 use globset::{Glob, GlobMatcher, GlobSet, GlobSetBuilder};
 use libipld_cbor::DagCborCodec;
 use noosphere_core::{
-    authority::{restore_ed25519_key, Authorization},
-    data::{BodyChunkIpld, ContentType, Header, MemoIpld},
+    authority::{restore_ed25519_key, Author, Authorization},
+    data::{BodyChunkIpld, ContentType, Did, Header, MemoIpld},
     view::Sphere,
 };
 use noosphere_fs::SphereFs;
@@ -201,7 +201,7 @@ impl Workspace {
 
         let content = self.read_local_content(pattern, new_blocks).await?;
 
-        let sphere_fs = SphereFs::at(&sphere_did, &sphere_cid, None, db);
+        let sphere_fs = SphereFs::at(&sphere_did, &sphere_cid, &Author::anonymous(), db).await?;
         let sphere = Sphere::at(&sphere_cid, db);
         let links = sphere.try_get_links().await?;
 
@@ -264,7 +264,7 @@ impl Workspace {
     pub async fn render<S: Store>(&self, db: &mut SphereDb<S>) -> Result<()> {
         let sphere_did = self.get_local_identity().await?;
         let sphere_cid = db.require_version(&sphere_did).await?;
-        let sphere_fs = SphereFs::at(&sphere_did, &sphere_cid, None, db);
+        let sphere_fs = SphereFs::at(&sphere_did, &sphere_cid, &Author::anonymous(), db).await?;
         let sphere = Sphere::at(&sphere_cid, db);
         let links = sphere.try_get_links().await?;
 
@@ -469,10 +469,10 @@ impl Workspace {
 
     /// Get the identity of the sphere being worked on in the local workspace as
     /// a DID string
-    pub async fn get_local_identity(&self) -> Result<String> {
+    pub async fn get_local_identity(&self) -> Result<Did> {
         self.expect_local_directories()?;
 
-        Ok(fs::read_to_string(&self.identity).await?)
+        Ok(Did(fs::read_to_string(&self.identity).await?))
     }
 
     /// Look up the DID for the key by its name

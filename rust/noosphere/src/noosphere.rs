@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use noosphere_core::authority::Authorization;
+use noosphere_core::{authority::Authorization, data::Did};
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 
 use tokio::sync::Mutex;
@@ -42,7 +42,7 @@ pub enum NoosphereContextConfiguration {
 pub struct NoosphereContext {
     configuration: NoosphereContextConfiguration,
     sphere_contexts:
-        Arc<Mutex<BTreeMap<String, Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStore>>>>>>,
+        Arc<Mutex<BTreeMap<Did, Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStore>>>>>>,
 }
 
 impl NoosphereContext {
@@ -126,7 +126,7 @@ impl NoosphereContext {
         sphere_contexts.insert(sphere_identity.clone(), Arc::new(Mutex::new(context)));
 
         Ok(SphereReceipt {
-            identity: sphere_identity,
+            identity: sphere_identity.into(),
             mnemonic,
         })
     }
@@ -138,7 +138,7 @@ impl NoosphereContext {
     /// the sphere data.
     pub async fn join_sphere(
         &self,
-        sphere_identity: &str,
+        sphere_identity: &Did,
         local_key_name: &str,
         authorization: &Authorization,
     ) -> Result<()> {
@@ -157,7 +157,7 @@ impl NoosphereContext {
 
         let sphere_identity = context.identity().to_owned();
         let mut sphere_contexts = self.sphere_contexts.lock().await;
-        sphere_contexts.insert(sphere_identity.clone(), Arc::new(Mutex::new(context)));
+        sphere_contexts.insert(sphere_identity.into(), Arc::new(Mutex::new(context)));
 
         Ok(())
     }
@@ -171,7 +171,7 @@ impl NoosphereContext {
     /// [NoosphereContext].
     pub async fn get_sphere_context(
         &self,
-        sphere_identity: &str,
+        sphere_identity: &Did,
     ) -> Result<Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStore>>>> {
         let mut contexts = self.sphere_contexts.lock().await;
 

@@ -25,9 +25,10 @@ mod inner {
 mod inner {
     use crate::key::WebCryptoKeyStorage;
     use noosphere_storage::web::{WebStorageProvider, WebStore};
+    use std::sync::Arc;
     use ucan_key_support::web_crypto::WebCryptoRsaKeyMaterial;
 
-    pub type PlatformKeyMaterial = WebCryptoRsaKeyMaterial;
+    pub type PlatformKeyMaterial = Arc<WebCryptoRsaKeyMaterial>;
     pub type PlatformKeyStorage = WebCryptoKeyStorage;
     pub type PlatformStore = WebStore;
     pub type PlatformStorageProvider = WebStorageProvider;

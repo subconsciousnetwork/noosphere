@@ -48,7 +48,7 @@ impl GatewayAuthority {
             trace!("Checking capability: {:?}", capability_info.capability);
             if capability_info
                 .originators
-                .contains(&self.scope.counterpart)
+                .contains(self.scope.counterpart.as_str())
                 && capability_info.capability.enables(capability)
             {
                 debug!("Authorized!");

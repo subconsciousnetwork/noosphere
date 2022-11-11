@@ -2,6 +2,7 @@ use anyhow::Result;
 use axum::http::{HeaderValue, Method};
 use axum::routing::{get, put};
 use axum::{Extension, Router, Server};
+use noosphere_core::data::Did;
 use std::net::TcpListener;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -20,8 +21,8 @@ use crate::native::commands::serve::tracing::initialize_tracing;
 
 #[derive(Clone, Debug)]
 pub struct GatewayScope {
-    pub identity: String,
-    pub counterpart: String,
+    pub identity: Did,
+    pub counterpart: Did,
 }
 
 pub async fn start_gateway<K>(
@@ -104,7 +105,7 @@ mod tests {
         data::{FetchParameters, FetchResponse, PushBody, PushResponse},
     };
     use noosphere_core::{
-        authority::SUPPORTED_KEYS,
+        authority::{Author, SUPPORTED_KEYS},
         data::MemoIpld,
         view::{Sphere, SphereMutation},
     };
@@ -190,8 +191,10 @@ mod tests {
             let client = Client::identify(
                 &client_sphere_identity,
                 &api_base,
-                client_key.clone(),
-                &client_authorization,
+                &Author {
+                    key: client_key.clone(),
+                    authorization: Some(client_authorization),
+                },
                 &mut did_parser,
                 client_db,
             )
@@ -276,8 +279,10 @@ mod tests {
             let client = Client::identify(
                 &client_sphere_identity,
                 &api_base,
-                client_key.clone(),
-                &client_authorization,
+                &Author {
+                    key: client_key.clone(),
+                    authorization: Some(client_authorization),
+                },
                 &mut did_parser,
                 client_db.clone(),
             )
@@ -294,7 +299,7 @@ mod tests {
 
             let push_result = client
                 .push(&PushBody {
-                    sphere: client_sphere_identity,
+                    sphere: client_sphere_identity.to_string(),
                     base: None,
                     tip: *sphere.cid(),
                     blocks: bundle.clone(),
@@ -395,8 +400,10 @@ mod tests {
             let client = Client::identify(
                 &client_sphere_identity,
                 &api_base,
-                client_key.clone(),
-                &client_authorization,
+                &Author {
+                    key: client_key.clone(),
+                    authorization: Some(client_authorization.clone()),
+                },
                 &mut did_parser,
                 client_db.clone(),
             )
@@ -415,7 +422,7 @@ mod tests {
 
             let push_result = client
                 .push(&PushBody {
-                    sphere: client_sphere_identity.clone(),
+                    sphere: client_sphere_identity.to_string(),
                     base: None,
                     tip: *sphere.cid(),
                     blocks: bundle.clone(),
@@ -456,7 +463,7 @@ mod tests {
 
             let push_result = client
                 .push(&PushBody {
-                    sphere: client_sphere_identity,
+                    sphere: client_sphere_identity.to_string(),
                     base: Some(sphere_cid),
                     tip: *sphere.cid(),
                     blocks: bundle,
@@ -556,8 +563,10 @@ mod tests {
             let client = Client::identify(
                 &client_sphere_identity,
                 &api_base,
-                client_key.clone(),
-                &client_authorization,
+                &Author {
+                    key: client_key.clone(),
+                    authorization: Some(client_authorization.clone()),
+                },
                 &mut did_parser,
                 client_db.clone(),
             )
@@ -599,7 +608,7 @@ mod tests {
 
             let push_result = client
                 .push(&PushBody {
-                    sphere: client_sphere_identity,
+                    sphere: client_sphere_identity.to_string(),
                     base: None,
                     tip: *sphere.cid(),
                     blocks: bundle.clone(),

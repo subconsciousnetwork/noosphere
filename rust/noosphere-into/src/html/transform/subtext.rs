@@ -10,25 +10,28 @@ use noosphere_storage::interface::Store;
 use subtext::{block::Block, primitive::Entity, Slashlink};
 use tokio::io::AsyncRead;
 use tokio_util::io::StreamReader;
+use ucan::crypto::KeyMaterial;
 
 use crate::html::template::html_document_envelope;
 
 use super::transclude::TranscludeToHtmlTransformer;
 
 /// Transforms Subtext files from a sphere into HTML
-pub struct SubtextToHtmlTransformer<'a, S>
+pub struct SubtextToHtmlTransformer<'a, S, K>
 where
     S: Store,
+    K: KeyMaterial + Clone + 'static,
 {
-    fs: &'a SphereFs<S>,
-    transclude_transformer: TranscludeToHtmlTransformer<'a, S>,
+    fs: &'a SphereFs<S, K>,
+    transclude_transformer: TranscludeToHtmlTransformer<'a, S, K>,
 }
 
-impl<'a, S> SubtextToHtmlTransformer<'a, S>
+impl<'a, S, K> SubtextToHtmlTransformer<'a, S, K>
 where
     S: Store,
+    K: KeyMaterial + Clone + 'static,
 {
-    pub fn new(fs: &'a SphereFs<S>) -> Self {
+    pub fn new(fs: &'a SphereFs<S, K>) -> Self {
         SubtextToHtmlTransformer {
             fs,
             transclude_transformer: TranscludeToHtmlTransformer::new(fs),
@@ -78,10 +81,8 @@ where
     async fn transform_block(&self, block: Block<Entity>) -> Result<String> {
         let mut content_html_strings = Vec::new();
         let mut transclude_html_strings = Vec::new();
-        let content_entities: Vec<Entity> = block
-            .to_content_entities()
-            .into_iter().cloned()
-            .collect();
+        let content_entities: Vec<Entity> =
+            block.to_content_entities().into_iter().cloned().collect();
         let is_solo_slashlink = if let (Some(&Entity::SlashLink(_)), 1) =
             (content_entities.first(), content_entities.len())
         {
