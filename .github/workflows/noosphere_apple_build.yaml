@@ -1,26 +1,63 @@
 on:
-  - workflow_call
-  - workflow_dispatch
+  workflow_call:
+    inputs:
+      for-test:
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      for-test:
+        description: 'MacOS x86_64 support only'
+        type: boolean
+        default: false
 
 name: 'Build Noosphere artifacts (Apple)'
 
 jobs:
+  determine-build-matrix:
+    name: 'Determine build matrix'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - id: set-matrix
+        env:
+          FOR_TEST: ${{ inputs.for-test }}
+        run: |
+          if [[ $FOR_TEST == true ]]; then
+            targets=("x86_64-apple-darwin")
+          else
+            targets=(
+              "aarch64-apple-ios"
+              "x84_64-apple-ios"
+              "aarch64-apple-ios-sim"
+              "x86_64-apple-darwin"
+              "aarch64-apple-darwin"
+            )
+          fi
+
+          echo -n 'matrix={"include":[' >> $GITHUB_OUTPUT
+
+          target_out=""
+
+          for target in "${targets[@]}"; do
+            target_json="{\"target\":\"$target\"}"
+            if [ -z "$target_out" ]; then
+              target_out="$target_json"
+            else
+              target_out="$target_out,$target_json"
+            fi
+          done
+
+          echo -n "$target_out ]}" >> $GITHUB_OUTPUT
+
   # Build Noosphere out of the noosphere crate for Apple targets
   noosphere-apple-build:
     name: 'Build Noosphere libraries (Apple)'
+    needs: ['determine-build-matrix']
     strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # iOS
-          - target: aarch64-apple-ios
-          # iOS Simulator
-          - target: x86_64-apple-ios
-          - target: aarch64-apple-ios-sim
-          # Mac OS
-          - target: x86_64-apple-darwin
-          - target: aarch64-apple-darwin
-
+      fail-fast: true
+      matrix: ${{ fromJSON(needs.determine-build-matrix.outputs.matrix) }}
     runs-on: macos-12
     steps:
       - uses: actions/checkout@v3
@@ -92,7 +129,9 @@ jobs:
     runs-on: macos-12
     steps:
       - uses: actions/download-artifact@v3
+        if: ${{ !inputs.for-test }}
       - name: 'Make a universal library'
+        if: ${{ !inputs.for-test }}
         run: |
           lipo -create \
             ./lib_${{ matrix.legacy_target }}/libnoosphere.a \
@@ -100,6 +139,7 @@ jobs:
             -output ./libnoosphere.a
 
       - uses: actions/upload-artifact@v3
+        if: ${{ !inputs.for-test }}
         with:
           name: lib_${{ matrix.platform }}-universal
           path: libnoosphere.a
@@ -113,15 +153,25 @@ jobs:
     steps:
       - uses: actions/download-artifact@v3
       - name: 'Generate XCFramework'
+        env:
+          FOR_TEST: ${{ inputs.for-test }}
         run: |
-          xcodebuild -create-xcframework \
-            -library ./lib_macos-universal/libnoosphere.a \
-            -headers ./include/ \
-            -library ./lib_ios-simulator-universal/libnoosphere.a \
-            -headers ./include/ \
-            -library ./lib_aarch64-apple-ios/libnoosphere.a \
-            -headers ./include/ \
-            -output ./LibNoosphere.xcframework
+          if [ "$FOR_TEST" = true ]; then
+            xcodebuild -create-xcframework \
+              -library ./lib_x86_64-apple-darwin/libnoosphere.a \
+              -headers ./include/ \
+              -output ./LibNoosphere.xcframework
+          else
+            xcodebuild -create-xcframework \
+              -library ./lib_macos-universal/libnoosphere.a \
+              -headers ./include/ \
+              -library ./lib_ios-simulator-universal/libnoosphere.a \
+              -headers ./include/ \
+              -library ./lib_aarch64-apple-ios/libnoosphere.a \
+              -headers ./include/ \
+              -output ./LibNoosphere.xcframework
+          fi
+
           zip -r ./libnoosphere-apple-xcframework.zip ./LibNoosphere.xcframework
       - uses: actions/upload-artifact@v3
         with:
