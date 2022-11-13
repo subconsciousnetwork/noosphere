@@ -1,4 +1,6 @@
+use noosphere_core::data::Did;
+
 pub struct SphereReceipt {
-    pub identity: String,
+    pub identity: Did,
     pub mnemonic: String,
 }

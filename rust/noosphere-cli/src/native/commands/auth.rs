@@ -85,7 +85,7 @@ You will be able to add a new one after the old one is revoked"#,
         .claiming_capability(&Capability {
             with: With::Resource {
                 kind: Resource::Scoped(SphereReference {
-                    did: sphere_did.clone(),
+                    did: sphere_did.to_string(),
                 }),
             },
             can: SphereAction::Authorize,

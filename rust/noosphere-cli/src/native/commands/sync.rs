@@ -5,7 +5,7 @@ use noosphere_api::{
     data::{FetchParameters, FetchResponse, PushBody, PushResponse},
 };
 use noosphere_core::{
-    authority::{Authorization, SUPPORTED_KEYS},
+    authority::{Author, SUPPORTED_KEYS},
     view::Sphere,
 };
 use noosphere_storage::{db::SphereDb, interface::Store, memory::MemoryStore};
@@ -34,8 +34,10 @@ pub async fn sync(workspace: &Workspace) -> Result<()> {
 
     let gateway_url = workspace.get_local_gateway_url().await?;
 
-    let authorization = workspace.get_local_authorization().await?;
-    let key = workspace.get_local_key().await?;
+    let author = Author {
+        key: workspace.get_local_key().await?,
+        authorization: Some(workspace.get_local_authorization().await?),
+    };
 
     let sphere_identity = workspace.get_local_identity().await?;
 
@@ -46,21 +48,13 @@ pub async fn sync(workspace: &Workspace) -> Result<()> {
     let client = Client::identify(
         &sphere_identity,
         &gateway_url,
-        key.clone(),
-        &authorization,
+        &author,
         &mut did_parser,
         db.clone(),
     )
     .await?;
 
-    sync_remote_changes(
-        &sphere_identity,
-        &client,
-        &key,
-        Some(&authorization),
-        &mut db,
-    )
-    .await?;
+    sync_remote_changes(&sphere_identity, &client, &author, &mut db).await?;
 
     push_local_changes(&sphere_identity, &client, &mut db).await?;
 
@@ -81,7 +75,7 @@ pub async fn push_local_changes<S, K>(
     db: &mut SphereDb<S>,
 ) -> Result<()>
 where
-    K: KeyMaterial,
+    K: KeyMaterial + Clone + 'static,
     S: Store,
 {
     let local_sphere_identity = local_sphere_identity.to_string();
@@ -175,12 +169,11 @@ where
 pub async fn sync_remote_changes<K, S>(
     local_sphere_identity: &str,
     client: &Client<K, SphereDb<S>>,
-    credential: &K,
-    authorization: Option<&Authorization>,
+    author: &Author<K>,
     db: &mut SphereDb<S>,
 ) -> Result<()>
 where
-    K: KeyMaterial,
+    K: KeyMaterial + Clone + 'static,
     S: Store,
 {
     let local_sphere_identity = local_sphere_identity.to_string();
@@ -247,7 +240,12 @@ where
         (Some(current_tip), Some(old_base), Some(new_base)) => {
             println!("Syncing received local sphere revisions...");
             let new_tip = Sphere::at(&current_tip, db)
-                .try_sync(&old_base, &new_base, credential, authorization)
+                .try_sync(
+                    &old_base,
+                    &new_base,
+                    &author.key,
+                    author.authorization.as_ref(),
+                )
                 .await?;
 
             db.set_version(&local_sphere_identity, &new_tip).await?;

@@ -6,25 +6,28 @@ use noosphere_fs::SphereFs;
 use noosphere_storage::interface::Store;
 use tokio::io::AsyncRead;
 use tokio_stream::StreamExt;
+use ucan::crypto::KeyMaterial;
 
 use crate::html::template::html_document_envelope;
 
 use super::TranscludeToHtmlTransformer;
 
 /// Transforms a sphere into HTML
-pub struct SphereToHtmlTransformer<'a, S>
+pub struct SphereToHtmlTransformer<'a, S, K>
 where
     S: Store,
+    K: KeyMaterial + Clone + 'static,
 {
-    fs: &'a SphereFs<S>,
-    transclude_transformer: TranscludeToHtmlTransformer<'a, S>,
+    fs: &'a SphereFs<S, K>,
+    transclude_transformer: TranscludeToHtmlTransformer<'a, S, K>,
 }
 
-impl<'a, S> SphereToHtmlTransformer<'a, S>
+impl<'a, S, K> SphereToHtmlTransformer<'a, S, K>
 where
     S: Store,
+    K: KeyMaterial + Clone + 'static,
 {
-    pub fn new(fs: &'a SphereFs<S>) -> Self {
+    pub fn new(fs: &'a SphereFs<S, K>) -> Self {
         SphereToHtmlTransformer {
             fs,
             transclude_transformer: TranscludeToHtmlTransformer::new(fs),

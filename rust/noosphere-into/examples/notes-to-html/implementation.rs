@@ -8,8 +8,8 @@ use tokio::fs::{self, File};
 use tower_http::services::ServeDir;
 
 use noosphere_core::{
-    authority::generate_ed25519_key,
-    data::{ContentType, Header},
+    authority::{generate_ed25519_key, Author},
+    data::{ContentType, Did, Header},
     view::Sphere,
 };
 use noosphere_storage::{db::SphereDb, memory::MemoryStorageProvider};
@@ -24,7 +24,11 @@ pub async fn main() -> Result<()> {
 
     let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await?;
 
-    let sphere_identity = sphere.try_get_identity().await?;
+    let sphere_identity = Did(sphere.try_get_identity().await.unwrap());
+    let author = Author {
+        key: owner_key,
+        authorization: Some(proof),
+    };
 
     db.set_version(&sphere_identity, sphere.cid()).await?;
 
@@ -34,7 +38,7 @@ pub async fn main() -> Result<()> {
     println!("Content root: {:?}", content_root);
     println!("HTML root: {:?}", html_root.path());
 
-    let mut sphere_fs = SphereFs::latest(&sphere_identity, Some(&owner_did), &db).await?;
+    let mut sphere_fs = SphereFs::latest(&sphere_identity, &author, &db).await?;
 
     let mut read_dir = fs::read_dir(content_root).await?;
 
@@ -66,7 +70,7 @@ pub async fn main() -> Result<()> {
             .await?;
     }
 
-    sphere_fs.save(&owner_key, Some(&proof), None).await?;
+    sphere_fs.save(None).await?;
 
     let native_fs = NativeFs {
         root: html_root.path().to_path_buf(),

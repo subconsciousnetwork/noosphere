@@ -2,7 +2,7 @@ use std::{collections::BTreeSet, io::Cursor, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere_core::view::Sphere;
+use noosphere_core::{authority::Author, data::Did, view::Sphere};
 use noosphere_fs::SphereFs;
 use noosphere_storage::{db::SphereDb, interface::Store};
 use tokio::sync::Mutex;
@@ -18,7 +18,7 @@ static DEFAULT_STYLES: &[u8] = include_bytes!("./static/styles.css");
 /// rendered HTML output up to and including the complete historical revisions
 /// of the slug-named content of the sphere.
 pub async fn sphere_into_html<S, W>(
-    sphere_identity: &str,
+    sphere_identity: &Did,
     db: &SphereDb<S>,
     write_target: &W,
 ) -> Result<()>
@@ -38,6 +38,7 @@ where
 
     let write_target = Arc::new(write_target.clone());
     let mut latest_revision = true;
+    let author = Author::anonymous();
 
     while let Some(sphere_cid) = next_sphere_cid {
         let sphere_index: PathBuf = format!("permalink/{}/index.html", sphere_cid).into();
@@ -74,10 +75,9 @@ where
                 let cid = *cid;
                 let write_actions = write_actions.clone();
                 let write_target = write_target.clone();
-                let sphere_identity = sphere_identity.to_string();
+                let sphere_identity = sphere_identity.clone();
                 let db = db.clone();
-                // let block_store = block_store.clone();
-                // let sphere_store = sphere_store.clone();
+                let author = author.clone();
                 let latest_revision = latest_revision;
 
                 async move {
@@ -94,7 +94,7 @@ where
                         }
                     }
 
-                    let fs = SphereFs::at(&sphere_identity, &sphere_cid, None, &db);
+                    let fs = SphereFs::at(&sphere_identity, &sphere_cid, &author, &db).await?;
 
                     let transformer = SubtextToHtmlTransformer::new(&fs);
 
@@ -123,7 +123,7 @@ where
         // cases where writing content may fail
         futures::future::try_join_all(tasks).await?;
 
-        let fs = SphereFs::at(sphere_identity, &sphere_cid, None, db);
+        let fs = SphereFs::at(sphere_identity, &sphere_cid, &author, db).await?;
         let sphere_transformer = SphereToHtmlTransformer::new(&fs);
 
         if let Some(read) = sphere_transformer.transform().await? {
@@ -166,8 +166,8 @@ pub mod tests {
     use std::path::PathBuf;
 
     use noosphere_core::{
-        authority::generate_ed25519_key,
-        data::{ContentType, Header},
+        authority::{generate_ed25519_key, Author},
+        data::{ContentType, Did, Header},
         view::Sphere,
     };
     use noosphere_fs::SphereFs;
@@ -197,13 +197,17 @@ pub mod tests {
 
         let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
-        let sphere_identity = sphere.try_get_identity().await.unwrap();
+        let sphere_identity = Did(sphere.try_get_identity().await.unwrap());
+        let author = Author {
+            key: owner_key,
+            authorization: Some(proof),
+        };
 
         db.set_version(&sphere_identity, sphere.cid())
             .await
             .unwrap();
 
-        let mut fs = SphereFs::latest(&sphere_identity, Some(&owner_did), &db)
+        let mut fs = SphereFs::latest(&sphere_identity, &author, &db)
             .await
             .unwrap();
 
@@ -227,7 +231,7 @@ pub mod tests {
         .await
         .unwrap();
 
-        fs.save(&owner_key, Some(&proof), None).await.unwrap();
+        fs.save(None).await.unwrap();
 
         let write_target = MemoryWriteTarget::default();
 
@@ -278,13 +282,17 @@ pub mod tests {
 
         let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
-        let sphere_identity = sphere.try_get_identity().await.unwrap();
+        let sphere_identity = Did(sphere.try_get_identity().await.unwrap());
+        let author = Author {
+            key: owner_key,
+            authorization: Some(proof),
+        };
 
         db.set_version(&sphere_identity, sphere.cid())
             .await
             .unwrap();
 
-        let mut fs = SphereFs::latest(&sphere_identity, Some(&owner_did), &db)
+        let mut fs = SphereFs::latest(&sphere_identity, &author, &db)
             .await
             .unwrap();
 
@@ -308,7 +316,7 @@ pub mod tests {
             .await
             .unwrap();
 
-        fs.save(&owner_key, Some(&proof), None).await.unwrap();
+        fs.save(None).await.unwrap();
 
         let write_target = MemoryWriteTarget::default();
 

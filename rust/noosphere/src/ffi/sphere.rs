@@ -1,5 +1,6 @@
 use cid::Cid;
 use noosphere_core::authority::Authorization;
+use noosphere_core::data::Did;
 use safer_ffi::prelude::*;
 
 use crate::ffi::NsNoosphereContext;
@@ -69,7 +70,7 @@ pub fn ns_sphere_join(
 ) {
     let authorization = Authorization::Cid(Cid::try_from(authorization.to_str()).unwrap());
     pollster::block_on(noosphere.inner_mut().join_sphere(
-        sphere_identity.to_str(),
+        &Did::from(sphere_identity.to_str()),
         local_key_name.to_str(),
         &authorization,
     ))

@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use rexie::{KeyRange, ObjectStore, Rexie, RexieBuilder, Store, Transaction, TransactionMode};
 use ucan_key_support::web_crypto::WebCryptoRsaKeyMaterial;
 use wasm_bindgen::{JsCast, JsValue};
+use std::sync::Arc;
 use web_sys::CryptoKey;
 
 use super::KeyStorage;
@@ -83,8 +84,8 @@ impl WebCryptoKeyStorage {
 }
 
 #[async_trait(?Send)]
-impl KeyStorage<WebCryptoRsaKeyMaterial> for WebCryptoKeyStorage {
-    async fn read_key(&self, name: &str) -> Result<Option<WebCryptoRsaKeyMaterial>> {
+impl KeyStorage<Arc<WebCryptoRsaKeyMaterial>> for WebCryptoKeyStorage {
+    async fn read_key(&self, name: &str) -> Result<Option<Arc<WebCryptoRsaKeyMaterial>>> {
         let (store, tx) = self.start_transaction(TransactionMode::ReadWrite)?;
 
         let private_key_name = JsValue::from_str(&format!("{}/private", name));
@@ -101,10 +102,10 @@ impl KeyStorage<WebCryptoRsaKeyMaterial> for WebCryptoKeyStorage {
 
         WebCryptoKeyStorage::finish_transaction(tx).await?;
 
-        Ok(Some(WebCryptoRsaKeyMaterial(public_key, Some(private_key))))
+        Ok(Some(Arc::new(WebCryptoRsaKeyMaterial(public_key, Some(private_key)))))
     }
 
-    async fn create_key(&self, name: &str) -> Result<WebCryptoRsaKeyMaterial> {
+    async fn create_key(&self, name: &str) -> Result<Arc<WebCryptoRsaKeyMaterial>> {
         let key_material = WebCryptoRsaKeyMaterial::generate(None).await?;
         let (store, tx) = self.start_transaction(TransactionMode::ReadWrite)?;
 
@@ -134,6 +135,6 @@ impl KeyStorage<WebCryptoRsaKeyMaterial> for WebCryptoKeyStorage {
 
         WebCryptoKeyStorage::finish_transaction(tx).await?;
 
-        Ok(key_material)
+        Ok(Arc::new(key_material))
     }
 }

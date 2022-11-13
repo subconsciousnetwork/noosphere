@@ -1,9 +1,13 @@
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
 
-use noosphere_core::{authority::Authorization, view::Sphere};
+use noosphere_core::{
+    authority::{Author, Authorization},
+    data::Did,
+    view::Sphere,
+};
 
 use noosphere_storage::{db::SphereDb, interface::KeyValueStore, memory::MemoryStore};
 use ucan::crypto::KeyMaterial;
@@ -13,7 +17,6 @@ use crate::{
     key::KeyStorage,
     platform::{PlatformKeyMaterial, PlatformKeyStorage, PlatformStore},
     sphere::{
-        access::SphereAccess,
         context::SphereContext,
         storage::{StorageLayout, AUTHORIZATION, USER_KEY_NAME},
     },
@@ -21,8 +24,8 @@ use crate::{
 
 enum SphereInitialization {
     Create,
-    Join(String),
-    Open(String),
+    Join(Did),
+    Open(Did),
 }
 
 impl Default for SphereInitialization {
@@ -80,8 +83,8 @@ pub struct SphereContextBuilder {
 
 impl SphereContextBuilder {
     /// Configure this builder to join a sphere by some DID identity
-    pub fn join_sphere(mut self, sphere_identity: &str) -> Self {
-        self.initialization = SphereInitialization::Join(sphere_identity.into());
+    pub fn join_sphere(mut self, sphere_identity: &Did) -> Self {
+        self.initialization = SphereInitialization::Join(sphere_identity.to_owned());
         self
     }
 
@@ -93,8 +96,8 @@ impl SphereContextBuilder {
 
     /// Configure this builder to open an existing sphere that was previously
     /// created or joined
-    pub fn open_sphere(mut self, sphere_identity: &str) -> Self {
-        self.initialization = SphereInitialization::Open(sphere_identity.into());
+    pub fn open_sphere(mut self, sphere_identity: &Did) -> Self {
+        self.initialization = SphereInitialization::Open(sphere_identity.to_owned());
         self
     }
 
@@ -177,7 +180,7 @@ impl SphereContextBuilder {
                         .await
                         .unwrap();
 
-                let sphere_did = sphere.try_get_identity().await.unwrap();
+                let sphere_did = Did(sphere.try_get_identity().await.unwrap());
 
                 let storage_layout = match self.scoped_storage_layout {
                     true => StorageLayout::Scoped(storage_path, sphere_did.clone()),
@@ -199,10 +202,9 @@ impl SphereContextBuilder {
                 Ok(SphereContextBuilderArtifacts::SphereCreated {
                     context: SphereContext::new(
                         sphere_did,
-                        SphereAccess::ReadWrite {
-                            user_key: Arc::new(owner_key),
-                            user_identity: owner_did.clone(),
-                            authorization,
+                        Author {
+                            key: owner_key,
+                            authorization: Some(authorization),
                         },
                         db,
                         self.gateway_url,
@@ -227,7 +229,6 @@ impl SphereContextBuilder {
                 };
 
                 let user_key = key_storage.require_key(&key_name).await?;
-                let user_identity = user_key.get_did().await?;
 
                 let storage_layout = match self.scoped_storage_layout {
                     true => StorageLayout::Scoped(storage_path, sphere_identity.clone()),
@@ -245,10 +246,9 @@ impl SphereContextBuilder {
                 Ok(SphereContextBuilderArtifacts::SphereOpened(
                     SphereContext::new(
                         sphere_identity,
-                        SphereAccess::ReadWrite {
-                            user_key: Arc::new(user_key),
-                            user_identity,
-                            authorization,
+                        Author {
+                            key: user_key,
+                            authorization: Some(authorization),
                         },
                         db,
                         self.gateway_url,
@@ -264,26 +264,20 @@ impl SphereContextBuilder {
                 let storage_provider = storage_layout.to_storage_provider().await?;
                 let db = SphereDb::new(&storage_provider).await?;
 
-                let access = match (
+                let author = match (
                     self.key_storage,
                     db.get_key(USER_KEY_NAME).await? as Option<String>,
                     db.get_key(AUTHORIZATION).await?,
                 ) {
-                    (Some(key_storage), Some(user_key_name), Some(cid)) => {
-                        let user_key = key_storage.require_key(&user_key_name).await?;
-                        let user_identity = user_key.get_did().await?;
-
-                        SphereAccess::ReadWrite {
-                            user_key: Arc::new(user_key),
-                            user_identity,
-                            authorization: Authorization::Cid(cid),
-                        }
-                    }
-                    _ => SphereAccess::ReadOnly,
+                    (Some(key_storage), Some(user_key_name), Some(cid)) => Author {
+                        key: key_storage.require_key(&user_key_name).await?,
+                        authorization: Some(Authorization::Cid(cid)),
+                    },
+                    _ => return Err(anyhow!("Unable to resolve sphere author")),
                 };
 
                 Ok(SphereContextBuilderArtifacts::SphereOpened(
-                    SphereContext::new(sphere_identity, access, db, self.gateway_url),
+                    SphereContext::new(sphere_identity, author, db, self.gateway_url),
                 ))
             }
         }

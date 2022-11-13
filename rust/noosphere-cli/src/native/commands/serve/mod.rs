@@ -5,6 +5,7 @@ pub mod route;
 pub mod tracing;
 
 use anyhow::{anyhow, Result};
+use noosphere_core::data::Did;
 
 use std::net::{IpAddr, TcpListener};
 
@@ -32,7 +33,7 @@ pub async fn serve(
     let config = Config::from(workspace);
 
     let counterpart = match &config.read().await?.counterpart {
-      Some(counterpart) => counterpart,
+      Some(counterpart) => Did(counterpart.clone()),
       None => return Err(anyhow!("No counterpart has been configured; you should set it to the DID of the sphere you are personally saving content to: orb config set counterpart <SOME_DID>"))
     };
 
@@ -40,7 +41,7 @@ pub async fn serve(
 
     let gateway_scope = GatewayScope {
         identity,
-        counterpart: counterpart.clone(),
+        counterpart,
     };
 
     gateway::start_gateway(

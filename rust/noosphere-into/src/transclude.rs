@@ -4,6 +4,7 @@ use noosphere_fs::SphereFs;
 use noosphere_storage::interface::Store;
 use subtext::{block::Block, primitive::Entity};
 use tokio_stream::StreamExt;
+use ucan::crypto::KeyMaterial;
 
 #[derive(Clone, Debug)]
 pub struct TextTransclude {
@@ -26,18 +27,20 @@ pub enum Transclude {
 
 /// A transcluder is responsible for taking a slug and generating a transclude
 /// for the content that the slug refers to.
-pub struct Transcluder<'a, S>
+pub struct Transcluder<'a, S, K>
 where
     S: Store,
+    K: KeyMaterial + Clone + 'static,
 {
-    fs: &'a SphereFs<S>,
+    fs: &'a SphereFs<S, K>,
 }
 
-impl<'a, S> Transcluder<'a, S>
+impl<'a, S, K> Transcluder<'a, S, K>
 where
     S: Store,
+    K: KeyMaterial + Clone + 'static,
 {
-    pub fn new(fs: &'a SphereFs<S>) -> Self {
+    pub fn new(fs: &'a SphereFs<S, K>) -> Self {
         Transcluder { fs }
     }
 
