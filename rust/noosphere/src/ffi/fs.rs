@@ -48,6 +48,9 @@ impl NsSphereFile {
 #[ffi_export]
 /// Initialize an instance of a [NsSphereFs] that is a read/write view into
 /// the contents (as addressed by the slug namespace) of the identitifed sphere
+/// This will fail if it is not possible to initialize a sphere with the given
+/// identity (which implies that no such sphere was ever created or joined on
+/// this device).
 pub fn ns_sphere_fs_open(
     noosphere: &NsNoosphereContext,
     sphere_identity: char_p::Ref<'_>,
@@ -80,6 +83,10 @@ pub fn ns_sphere_fs_free(sphere_fs: repr_c::Box<NsSphereFs>) {
 /// although this function will eventually support slashlinks that include the
 /// pet name of a peer, at this time only slashlinks with slugs referencing the
 /// slug namespace of the local sphere are allowed.
+///
+/// This function will return a null pointer if the slug does not have a file
+/// associated with it at the revision of the sphere that is referred to by the
+/// [NsSphereFs] being read from.
 pub fn ns_sphere_fs_read(
     noosphere: &NsNoosphereContext,
     sphere_fs: &NsSphereFs,
@@ -88,7 +95,10 @@ pub fn ns_sphere_fs_read(
     noosphere
         .async_runtime()
         .block_on(async {
-            let slashlink = Slashlink::from_str(slashlink.to_str())?;
+            let slashlink = match Slashlink::from_str(slashlink.to_str()) {
+                Ok(slashlink) => slashlink,
+                _ => return Ok(None),
+            };
 
             if Peer::None != slashlink.peer {
                 return Err(anyhow!("Peer in slashlink not yet supported"));
