@@ -7,5 +7,5 @@
   "rust/noosphere-ns": "0.1.1",
   "rust/noosphere-storage": "0.1.0",
   "rust/noosphere-fs": "0.1.0",
-  "rust/noosphere": "0.2.0"
+  "rust/noosphere": "0.3.0"
 }
