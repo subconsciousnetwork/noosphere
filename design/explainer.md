@@ -94,7 +94,7 @@ Every user who publishes to the network does so via a gateway server. The gatewa
 
 The owner of a notebook enables the gateway to publish the notebook to the network using a [UCAN][ucan]-based authorization scheme. UCANs establish a cryptographic chain of proof that allows anyone to verify in place that the gateway was authorized to perform actions such as signing content on the user's behalf (and without asking the user to share cryptographic keys with the gateway).
 
-When the user updates their notebook, they replicate the revision deltas to the gateway over HTTP (as network availability allows), and also tell the gateway which CID represents the latest version of the notebook. The revision deltas are syndicated to the public network via [IPFS][ipfs]. Then, the gateway publishes the latest revision CID to a [DHT][dht], mapping it to the notebook's public key and pairing it with the UCAN proof chain.
+When the user updates their notebook, they replicate the revision deltas to the gateway over HTTP (as network availability allows), and also tell the gateway which CID represents the latest version of the notebook. The revision deltas are syndicated to the public network via [IPFS][ipfs]. Then, the gateway publishes the latest revision CID to a [DHT][dht] (see: [Noosphere Name System][noosphere-ns]) mapping it to the notebook's public key and pairing it with the UCAN proof chain.
 
 ### Putting it all together
 
@@ -117,3 +117,4 @@ Here is Alice's notebook, visualized as simplified data structures; the content 
 [dag-cbor]: https://ipld.io/docs/codecs/known/dag-cbor/
 [ucan]: https://ucan.xyz/
 [dht]: https://en.wikipedia.org/wiki/Distributed_hash_table
+[noosphere-ns]: name-system.md
