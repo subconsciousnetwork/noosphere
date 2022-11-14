@@ -1,9 +1,14 @@
 ![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)
 [![Discord](https://img.shields.io/discord/1003419732516552724.svg?logo=discord&colorB=7289DA)](https://discord.gg/HmHypb6DCj)
 
-# Noosphere
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="design/images/noosphere-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="design/images/noosphere-light.svg">
+  <img alt="Noosphere" src="design/images/noosphere-light.svg">
+</picture>
 
 > Noosphere (noun):
+>
 > 1. Planetary consciousness. A hypothetical new evolutionary phenomena rising out of the biosphere.
 > 2. A protocol for thought.
 
@@ -38,4 +43,3 @@ Apache-2.0: https://www.apache.org/licenses/license-2.0
 [design]: https://github.com/subconsciousnetwork/noosphere/tree/main/design/
 [roadmap]: https://github.com/orgs/subconsciousnetwork/projects/1/views/4
 [noosphere-kanban]: https://github.com/orgs/subconsciousnetwork/projects/1/views/8
-

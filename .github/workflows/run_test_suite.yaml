@@ -1,9 +1,37 @@
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 name: Run test suite
 
 jobs:
-  run-test-suite:
+  build-noosphere-apple-artifacts:
+    name: 'Build Noosphere artifacts (Apple)'
+    uses: ./.github/workflows/noosphere_apple_build.yaml
+    with:
+      for-test: true
+
+  run-test-suite-mac-os:
+    runs-on: macos-12
+    needs: ['build-noosphere-apple-artifacts']
+    steps:
+      - uses: actions/checkout@v2
+      - name: 'Download XCode Framework artifact'
+        uses: actions/download-artifact@v3
+        with:
+          name: libnoosphere_apple_framework
+
+      - name: 'Run Swift tests'
+        run: |
+          unzip ./libnoosphere-apple-xcframework.zip
+
+          sed -i '' -e "s#url: \"[^\"]*\",#path: \"./LibNoosphere.xcframework\"),#" ./Package.swift
+          sed -i '' -e "s#checksum: \"[^\"]*\"),##" ./Package.swift
+
+          swift build
+          swift test
+  run-test-suite-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

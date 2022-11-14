@@ -22,18 +22,24 @@ impl From<SphereReceipt> for NsSphereReceipt {
 #[ffi_export]
 /// Read the sphere identity (a DID encoded as a UTF-8 string) from a
 /// [SphereReceipt]
-pub fn ns_sphere_receipt_identity<'a>(
-    sphere_receipt: &'a repr_c::Box<NsSphereReceipt>,
-) -> char_p::Ref<'a> {
-    char_p::Ref::try_from(sphere_receipt.inner.identity.as_str()).unwrap()
+pub fn ns_sphere_receipt_identity<'a>(sphere_receipt: &'a NsSphereReceipt) -> char_p::Box {
+    sphere_receipt
+        .inner
+        .identity
+        .to_string()
+        .try_into()
+        .unwrap()
 }
 
 #[ffi_export]
 /// Read the mnemonic from a [SphereReceipt]
-pub fn ns_sphere_receipt_mnemonic<'a>(
-    sphere_receipt: &'a repr_c::Box<NsSphereReceipt>,
-) -> char_p::Ref<'a> {
-    char_p::Ref::try_from(sphere_receipt.inner.mnemonic.as_str()).unwrap()
+pub fn ns_sphere_receipt_mnemonic<'a>(sphere_receipt: &'a NsSphereReceipt) -> char_p::Box {
+    sphere_receipt
+        .inner
+        .mnemonic
+        .to_string()
+        .try_into()
+        .unwrap()
 }
 
 #[ffi_export]
@@ -48,11 +54,13 @@ pub fn ns_sphere_receipt_free(sphere_receipt: repr_c::Box<NsSphereReceipt>) {
 /// and a human-readable mnemonic that can be used to rotate the key authorized
 /// to administer the sphere.
 pub fn ns_sphere_create(
-    noosphere: &mut repr_c::Box<NsNoosphereContext>,
+    noosphere: &mut NsNoosphereContext,
     owner_key_name: char_p::Ref<'_>,
 ) -> repr_c::Box<NsSphereReceipt> {
     repr_c::Box::new(
-        pollster::block_on(noosphere.inner_mut().create_sphere(owner_key_name.to_str()))
+        noosphere
+            .async_runtime()
+            .block_on(noosphere.inner_mut().create_sphere(owner_key_name.to_str()))
             .unwrap()
             .into(),
     )
@@ -63,16 +71,18 @@ pub fn ns_sphere_create(
 /// key and authorization. The authorization should be provided in the form of
 /// a base64-encoded CID v1 string.
 pub fn ns_sphere_join(
-    noosphere: &mut repr_c::Box<NsNoosphereContext>,
+    noosphere: &mut NsNoosphereContext,
     sphere_identity: char_p::Ref<'_>,
     local_key_name: char_p::Ref<'_>,
     authorization: char_p::Ref<'_>,
 ) {
     let authorization = Authorization::Cid(Cid::try_from(authorization.to_str()).unwrap());
-    pollster::block_on(noosphere.inner_mut().join_sphere(
-        &Did::from(sphere_identity.to_str()),
-        local_key_name.to_str(),
-        &authorization,
-    ))
-    .unwrap();
+    noosphere
+        .async_runtime()
+        .block_on(noosphere.inner_mut().join_sphere(
+            &Did::from(sphere_identity.to_str()),
+            local_key_name.to_str(),
+            &authorization,
+        ))
+        .unwrap();
 }

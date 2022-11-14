@@ -109,6 +109,34 @@ jobs:
             libnoosphere-apple-xcframework.zip.sha256
           tag_name: ${{ needs['release-please'].outputs.noosphere_release_tag_name }}
 
+  update-swift-noosphere-binary-target:
+    name: 'Update SwiftNoosphere binary target'
+    needs: ['release-please', 'noosphere-release-artifacts']
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Download XCode Framework artifact'
+        uses: actions/download-artifact@v3
+        with:
+          name: libnoosphere_apple_framework
+
+      - name: 'Generate checksum'
+        id: generate-checksum
+        run: |
+          CHECKSUM=`openssl dgst -r -sha256 ./libnoosphere-apple-xcframework.zip | cut -d " " -f 1`
+          echo "checksum=\"$CHECKSUM\"" >> $GITHUB_OUTPUT
+      - name: 'Modify Package.swift'
+        run: |
+          URL="https://github.com/subconsciousnetwork/noosphere/releases/download/${{ needs.release-please.outputs.noosphere_release_tag_name }}/libnoosphere-apple-xcframework.zip"
+
+          sed -i '' -e "s#url: \"[^\"]*\",#url: \"$URL\",#" ./Package.swift
+          sed -i '' -e "s#checksum: \"[^\"]*\"),#checksum: \"${{ steps.generate-checksum.checksum }}\"),#" ./Package.swift
+      # TODO(#135): Evaluate if we want to automatically check this change in
+      # and push it to the project repository
+      - uses: actions/upload-artifact@v3
+        with:
+          name: swift-package-manifest
+          path: ./Package.swift
+
   # Publishes crates to crates.io in dependency order. This command is
   # idempotent and won't re-publish crates that are already published, so it's
   # safe for us to run it indiscriminately
