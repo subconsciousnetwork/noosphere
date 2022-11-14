@@ -1,5 +1,9 @@
 # Changelog
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.1.0 to 0.2.0
+
 ## [0.1.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.1.0-alpha.1...noosphere-ns-v0.1.0) (2022-11-09)
 
 
