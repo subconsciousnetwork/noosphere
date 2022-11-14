@@ -170,7 +170,7 @@ pub fn ns_sphere_fs_write(
 }
 
 #[ffi_export]
-/// Save any writes performed on the [NsSphererFs] instance. If additional
+/// Save any writes performed on the [NsSphereFs] instance. If additional
 /// headers are specified, they will be appended to the headers in the memo that
 /// is created to wrap the latest sphere revision.
 ///
