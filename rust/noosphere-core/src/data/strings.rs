@@ -55,3 +55,51 @@ impl Display for Did {
         Display::fmt(&self.0, f)
     }
 }
+
+impl AsRef<[u8]> for Did {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use libipld_cbor::DagCborCodec;
+    use noosphere_storage::encoding::{block_deserialize, block_serialize};
+    use serde::{Deserialize, Serialize};
+
+    use crate::data::Did;
+
+    #[test]
+    fn it_serializes_a_did_transparently_as_a_string() {
+        #[derive(Serialize, Deserialize)]
+        struct FooDid {
+            foo: Did,
+        }
+
+        #[derive(Serialize, Deserialize)]
+        struct FooString {
+            foo: String,
+        }
+
+        let string_value = String::from("foobar");
+        let (did_cid, did_block) = block_serialize::<DagCborCodec, _>(&FooDid {
+            foo: Did(string_value.clone()),
+        })
+        .unwrap();
+
+        let (string_cid, string_block) = block_serialize::<DagCborCodec, _>(&FooString {
+            foo: string_value.clone(),
+        })
+        .unwrap();
+
+        assert_eq!(did_cid, string_cid);
+        assert_eq!(did_block, string_block);
+
+        let did_from_string = block_deserialize::<DagCborCodec, FooDid>(&string_block).unwrap();
+        let string_from_did = block_deserialize::<DagCborCodec, FooString>(&did_block).unwrap();
+
+        assert_eq!(did_from_string.foo, Did(string_value.clone()));
+        assert_eq!(string_from_did.foo, string_value);
+    }
+}

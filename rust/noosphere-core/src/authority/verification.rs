@@ -70,7 +70,7 @@ pub async fn verify_sphere_cid<S: Store>(
         let desired_capability = Capability {
             with: With::Resource {
                 kind: Resource::Scoped(SphereReference {
-                    did: sphere.identity.clone(),
+                    did: sphere.identity.to_string(),
                 }),
             },
             can: SphereAction::Push,
@@ -78,7 +78,9 @@ pub async fn verify_sphere_cid<S: Store>(
 
         for capability_info in proof.reduce_capabilities(&SPHERE_SEMANTICS) {
             let capability = capability_info.capability;
-            if capability_info.originators.contains(&sphere.identity)
+            if capability_info
+                .originators
+                .contains(sphere.identity.as_str())
                 && capability.enables(&desired_capability)
             {
                 return Ok(());

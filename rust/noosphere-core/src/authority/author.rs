@@ -131,7 +131,7 @@ mod tests {
         let (sphere, _, _) = Sphere::try_generate("did:key:foo", &mut db).await.unwrap();
 
         let access = author
-            .access_to(&Did(sphere.try_get_identity().await.unwrap()), &db)
+            .access_to(&sphere.try_get_identity().await.unwrap(), &db)
             .await
             .unwrap();
 
@@ -154,7 +154,7 @@ mod tests {
         };
 
         let access = author
-            .access_to(&Did(sphere.try_get_identity().await.unwrap()), &db)
+            .access_to(&sphere.try_get_identity().await.unwrap(), &db)
             .await
             .unwrap();
 

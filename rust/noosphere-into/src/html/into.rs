@@ -167,7 +167,7 @@ pub mod tests {
 
     use noosphere_core::{
         authority::{generate_ed25519_key, Author},
-        data::{ContentType, Did, Header},
+        data::{ContentType, Header},
         view::Sphere,
     };
     use noosphere_fs::SphereFs;
@@ -197,7 +197,7 @@ pub mod tests {
 
         let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
-        let sphere_identity = Did(sphere.try_get_identity().await.unwrap());
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
         let author = Author {
             key: owner_key,
             authorization: Some(proof),
@@ -282,7 +282,7 @@ pub mod tests {
 
         let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
-        let sphere_identity = Did(sphere.try_get_identity().await.unwrap());
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
         let author = Author {
             key: owner_key,
             authorization: Some(proof),

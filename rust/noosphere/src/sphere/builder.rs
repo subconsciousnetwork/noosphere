@@ -180,7 +180,7 @@ impl SphereContextBuilder {
                         .await
                         .unwrap();
 
-                let sphere_did = Did(sphere.try_get_identity().await.unwrap());
+                let sphere_did = sphere.try_get_identity().await.unwrap();
 
                 let storage_layout = match self.scoped_storage_layout {
                     true => StorageLayout::Scoped(storage_path, sphere_did.clone()),

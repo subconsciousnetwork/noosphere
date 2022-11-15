@@ -1,6 +1,8 @@
 use cid::Cid;
 use serde::{Deserialize, Serialize};
 
+use super::Did;
+
 /// The root of the sphere, containing pointers to public details such as names
 /// and links, as well as "sealed" (private) data. While public details are accessible
 /// to all, sealed data is encrypted at rest and only accessible to the user who
@@ -8,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Default, Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SphereIpld {
     /// A DID that is the identity of the originating key that owns the sphere
-    pub identity: String,
+    pub identity: Did,
 
     /// The public links for the sphere (LinksIpld)
     pub links: Option<Cid>,
@@ -40,14 +42,10 @@ mod tests {
         authority::{
             verify_sphere_cid, Authorization, SphereAction, SphereReference, SUPPORTED_KEYS,
         },
-        data::{ContentType, Header, MemoIpld, SphereIpld},
+        data::{ContentType, Did, Header, MemoIpld, SphereIpld},
     };
 
-    use noosphere_storage::{
-        db::SphereDb,
-        interface::BlockStore,
-        memory::{MemoryStorageProvider},
-    };
+    use noosphere_storage::{db::SphereDb, interface::BlockStore, memory::MemoryStorageProvider};
 
     fn generate_credential() -> Ed25519KeyMaterial {
         let private_key = Ed25519PrivateKey::new(rand::thread_rng());
@@ -59,7 +57,7 @@ mod tests {
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_be_signed_by_identity_key_and_verified() {
         let identity_credential = generate_credential();
-        let identity_did = identity_credential.get_did().await.unwrap();
+        let identity_did = Did(identity_credential.get_did().await.unwrap());
 
         let mut store = SphereDb::new(&MemoryStorageProvider::default())
             .await
@@ -86,7 +84,7 @@ mod tests {
         let capability: Capability<SphereReference, SphereAction> = Capability {
             with: With::Resource {
                 kind: Resource::Scoped(SphereReference {
-                    did: identity_did.clone(),
+                    did: identity_did.to_string(),
                 }),
             },
             can: SphereAction::Authorize,
@@ -136,8 +134,8 @@ mod tests {
         let identity_credential = generate_credential();
         let authorized_credential = generate_credential();
 
-        let identity_did = identity_credential.get_did().await.unwrap();
-        let authorized_did = authorized_credential.get_did().await.unwrap();
+        let identity_did = Did(identity_credential.get_did().await.unwrap());
+        let authorized_did = Did(authorized_credential.get_did().await.unwrap());
 
         let mut store = SphereDb::new(&MemoryStorageProvider::default())
             .await
@@ -164,7 +162,7 @@ mod tests {
         let capability: Capability<SphereReference, SphereAction> = Capability {
             with: With::Resource {
                 kind: Resource::Scoped(SphereReference {
-                    did: identity_did.clone(),
+                    did: identity_did.to_string(),
                 }),
             },
             can: SphereAction::Authorize,
