@@ -341,6 +341,7 @@ impl<S: BlockStore> Sphere<S> {
             &SphereIpld {
                 identity: sphere_did.clone(),
                 links: None,
+                names: None,
                 sealed: None,
                 authorization: None,
             },

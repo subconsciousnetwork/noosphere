@@ -15,6 +15,9 @@ pub struct SphereIpld {
     /// The public links for the sphere (LinksIpld)
     pub links: Option<Cid>,
 
+    /// The public pet names for the sphere (NamesIpld)
+    pub names: Option<Cid>,
+
     /// The non-public content of the sphere (SealedIpld)
     pub sealed: Option<Cid>,
 
@@ -66,6 +69,7 @@ mod tests {
         let sphere = SphereIpld {
             identity: identity_did.clone(),
             links: None,
+            names: None,
             sealed: None,
             authorization: None,
         };
@@ -144,6 +148,7 @@ mod tests {
         let sphere = SphereIpld {
             identity: identity_did.clone(),
             links: None,
+            names: None,
             sealed: None,
             authorization: None,
         };

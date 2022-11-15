@@ -2,6 +2,62 @@ use std::{fmt::Display, ops::Deref};
 
 use serde::{Deserialize, Serialize};
 
+/// A helper to stamp out trait implementations that promote coherence between
+/// Rust strings and a given wrapper type
+macro_rules! string_coherent {
+    ($wrapper:ty) => {
+        impl Deref for $wrapper {
+            type Target = String;
+
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+
+        impl From<&str> for $wrapper {
+            fn from(value: &str) -> Self {
+                Self(value.to_owned())
+            }
+        }
+
+        impl From<String> for $wrapper {
+            fn from(value: String) -> Self {
+                Self(value)
+            }
+        }
+
+        impl From<$wrapper> for String {
+            fn from(value: $wrapper) -> Self {
+                value.0
+            }
+        }
+
+        impl PartialEq<String> for $wrapper {
+            fn eq(&self, other: &String) -> bool {
+                &self.0 == other
+            }
+        }
+
+        impl PartialEq<$wrapper> for String {
+            fn eq(&self, other: &$wrapper) -> bool {
+                self == &other.0
+            }
+        }
+
+        impl Display for $wrapper {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                Display::fmt(&self.0, f)
+            }
+        }
+
+        impl AsRef<[u8]> for $wrapper {
+            fn as_ref(&self) -> &[u8] {
+                self.0.as_ref()
+            }
+        }
+    };
+}
+
 /// A DID, aka a Decentralized Identifier, is a string that can be parsed and
 /// resolved into a so-called DID Document, usually in order to obtain PKI
 /// details related to a particular user or process.
@@ -12,55 +68,27 @@ use serde::{Deserialize, Serialize};
 #[derive(Default, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct Did(pub String);
 
-impl Deref for Did {
-    type Target = String;
+string_coherent!(Did);
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+/// A JWT, aka a JSON Web Token, is a specialized string-encoding of a
+/// particular format of JSON and an associated signature, commonly used for
+/// authorization flows on the web, but notably also used by the UCAN spec.
+///
+/// See: https://jwt.io/
+/// See: https://ucan.xyz/
+#[repr(transparent)]
+#[derive(Default, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord)]
+pub struct Jwt(pub String);
 
-impl From<&str> for Did {
-    fn from(value: &str) -> Self {
-        Did(value.to_owned())
-    }
-}
+string_coherent!(Jwt);
 
-impl From<String> for Did {
-    fn from(value: String) -> Self {
-        Did(value)
-    }
-}
-
-impl From<Did> for String {
-    fn from(value: Did) -> Self {
-        value.0
-    }
-}
-
-impl PartialEq<String> for Did {
-    fn eq(&self, other: &String) -> bool {
-        &self.0 == other
-    }
-}
-
-impl PartialEq<Did> for String {
-    fn eq(&self, other: &Did) -> bool {
-        self == &other.0
-    }
-}
-
-impl Display for Did {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.0, f)
-    }
-}
-
-impl AsRef<[u8]> for Did {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
-    }
-}
+/// A BIP39-compatible mnemonic phrase that represents the data needed to
+/// recover the private half of a cryptographic key pair.
+///
+/// See: https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+#[repr(transparent)]
+#[derive(Default, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord)]
+pub struct Mnemonic(pub String);
 
 #[cfg(test)]
 mod tests {
