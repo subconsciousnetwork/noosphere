@@ -7,7 +7,7 @@ use futures::Stream;
 use libipld_cbor::DagCborCodec;
 
 use crate::data::{
-    ChangelogIpld, CidKey, DelegationIpld, LinksIpld, MapOperation, RevocationIpld,
+    AddressIpld, ChangelogIpld, CidKey, DelegationIpld, LinksIpld, MapOperation, RevocationIpld,
     VersionedMapIpld, VersionedMapKey, VersionedMapValue,
 };
 
@@ -17,6 +17,7 @@ use noosphere_storage::interface::BlockStore;
 use super::VersionedMapMutation;
 
 pub type Links<S> = VersionedMap<String, Cid, S>;
+pub type Names<S> = VersionedMap<String, AddressIpld, S>;
 pub type AllowedUcans<S> = VersionedMap<CidKey, DelegationIpld, S>;
 pub type RevokedUcans<S> = VersionedMap<CidKey, RevocationIpld, S>;
 

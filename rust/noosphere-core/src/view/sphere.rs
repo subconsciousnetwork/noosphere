@@ -24,7 +24,7 @@ use crate::{
 
 use noosphere_storage::{interface::BlockStore, ucan::UcanStore};
 
-use super::{AllowedUcans, Authority, RevokedUcans};
+use super::{AllowedUcans, Authority, Names, RevokedUcans};
 
 pub const SPHERE_LIFETIME: u64 = 315360000000; // 10,000 years (arbitrarily high)
 
@@ -85,6 +85,12 @@ impl<S: BlockStore> Sphere<S> {
         let sphere = self.try_as_body().await?;
 
         Authority::try_at_or_empty(sphere.authorization.as_ref(), &mut self.store.clone()).await
+    }
+
+    pub async fn try_get_names(&self) -> Result<Names<S>> {
+        let sphere = self.try_as_body().await?;
+
+        Names::try_at_or_empty(sphere.names.as_ref(), &mut self.store.clone()).await
     }
 
     pub async fn try_get_identity(&self) -> Result<Did> {

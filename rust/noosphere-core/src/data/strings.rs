@@ -1,4 +1,4 @@
-use std::{fmt::Display, ops::Deref};
+use std::{fmt::Display, hash::Hash, ops::Deref};
 
 use serde::{Deserialize, Serialize};
 
@@ -11,6 +11,15 @@ macro_rules! string_coherent {
 
             fn deref(&self) -> &Self::Target {
                 &self.0
+            }
+        }
+
+        impl Hash for $wrapper {
+            fn hash<H>(&self, hasher: &mut H)
+            where
+                H: std::hash::Hasher,
+            {
+                self.0.hash(hasher)
             }
         }
 

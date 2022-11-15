@@ -12,16 +12,16 @@ pub struct SphereIpld {
     /// A DID that is the identity of the originating key that owns the sphere
     pub identity: Did,
 
-    /// The public links for the sphere (LinksIpld)
+    /// The public links for the sphere
     pub links: Option<Cid>,
 
-    /// The public pet names for the sphere (NamesIpld)
+    /// The public pet names for the sphere
     pub names: Option<Cid>,
 
-    /// The non-public content of the sphere (SealedIpld)
+    /// The non-public content of the sphere
     pub sealed: Option<Cid>,
 
-    /// Authorization and revocation state for non-owner keys (AuthorizationIpld)
+    /// Authorization and revocation state for non-owner keys
     pub authorization: Option<Cid>,
 }
 
