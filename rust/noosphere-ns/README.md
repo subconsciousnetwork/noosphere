@@ -4,11 +4,11 @@
 
 Noosphere's P2P name system.
 
-## Bootstrap Node
+## Running nodes in Noosphere Name System
 
-The `bootstrap_nns` binary target is an executable that runs one or many bootstrap
+The Noosphere Name System (`orb-ns`) binary target is an executable that runs one or many bootstrap
 nodes, based on configuration.
 
 ```
-cargo run --bin bootstrap_nns -- run --key my-key-name --port 6666
+cargo run --bin orb-ns -- run --key my-key-name --port 6666
 ```

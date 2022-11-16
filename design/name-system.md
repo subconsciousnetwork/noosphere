@@ -45,7 +45,7 @@ All methods in the underlying spec **MUST** be implemented, with cavaets below.
 
 The network uses Value Records (using `GET_VALUE`, `PUT_VALUE` DHT methods) where the key **SHOULD** be a sphere's public [Ed25519] key encoded as a [DID] UTF-8 string, and the corresponding value **SHOULD** be a [UCAN] token encoded as a [JWT] string.
 
-* `PUT_VALUE` methods **SHOULD** reject malformed UCAN tokens or UCAN tokens that do not pass Validation](#validation).
+* `PUT_VALUE` methods **SHOULD** reject malformed UCAN tokens or UCAN tokens that do not pass [Validation](#validation).
 * `PUT_VALUE` and `GET_VALUE` methods with non-DID keys **SHOULD** be ignored.
 * `ADD_PROVIDER` and `GET_PROVIDERS` methods are not currently used and **MAY** be fulfilled.
 * `FIND_NODE` and `PING` **MUST** passthrough from the underlying spec.
