@@ -3,6 +3,9 @@
 #[macro_use]
 extern crate tracing;
 
+#[macro_use]
+extern crate lazy_static;
+
 mod builder;
 pub mod dht;
 mod name_system;
@@ -11,6 +14,7 @@ pub mod utils;
 mod validator;
 
 pub use builder::NameSystemBuilder;
-pub use libp2p::multiaddr;
-pub use name_system::NameSystem;
+pub use libp2p::multiaddr::Multiaddr;
+pub use name_system::{NameSystem, BOOTSTRAP_PEERS};
 pub use records::NSRecord;
+pub use validator::Validator;

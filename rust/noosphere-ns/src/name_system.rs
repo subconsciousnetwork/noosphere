@@ -17,6 +17,15 @@ use crate::NameSystemBuilder;
 #[cfg(doc)]
 use cid::Cid;
 
+pub static BOOTSTRAP_PEERS_ADDRESSES: [&str; 1] =
+    ["/ip4/134.122.20.28/tcp/6666/p2p/12D3KooWAKxaCWsSGauqhCZXyeYjDSQ6jna2SmVhLn4J7uQFdvot"];
+
+lazy_static! {
+    /// Noosphere Name System's maintained list of peers to
+    /// bootstrap nodes joining the network.
+    pub static ref BOOTSTRAP_PEERS: [Multiaddr; 1] = BOOTSTRAP_PEERS_ADDRESSES.map(|addr| addr.parse().expect("parseable"));
+}
+
 /// The [NameSystem] is responsible for both propagating and resolving Sphere DIDs
 /// into an authorized UCAN publish token, resolving into a [Cid] address for
 /// a sphere's content. These records are propagated and resolved via the
@@ -252,5 +261,17 @@ where
         if let Err(e) = self.disconnect() {
             error!("{}", e.to_string());
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn bootstrap_peers_parseable() {
+        // Force getting the lazy static ensuring the addresses
+        // are valid Multiaddrs.
+        assert_eq!(BOOTSTRAP_PEERS.len(), 1);
     }
 }
