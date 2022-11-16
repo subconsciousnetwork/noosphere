@@ -1,3 +1,4 @@
+mod address;
 mod authority;
 mod body_chunk;
 mod bundle;
@@ -10,6 +11,7 @@ mod sphere;
 mod strings;
 mod versioned_map;
 
+pub use address::*;
 pub use authority::*;
 pub use body_chunk::*;
 pub use bundle::*;

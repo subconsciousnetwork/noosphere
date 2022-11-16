@@ -26,8 +26,8 @@ fn platform_configuration() -> NoosphereContextConfiguration {
     let sphere_storage_path = TempDir::new().unwrap().path().to_path_buf();
 
     NoosphereContextConfiguration::Insecure {
-        global_storage_path: global_storage_path,
-        sphere_storage_path: sphere_storage_path,
+        global_storage_path,
+        sphere_storage_path,
         gateway_url: None,
     }
 }

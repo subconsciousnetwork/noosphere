@@ -134,7 +134,7 @@ where
             sphere_identity: sphere_identity.clone(),
             author: author.clone(),
             db: db.clone(),
-            sphere_revision: sphere_revision.clone(),
+            sphere_revision: *sphere_revision,
             access,
             mutation: OnceCell::new(),
         })
@@ -307,7 +307,7 @@ where
 pub mod tests {
     use noosphere_core::{
         authority::{generate_ed25519_key, Author},
-        data::{ContentType, Did, Header},
+        data::{ContentType, Header},
         view::Sphere,
     };
     use noosphere_storage::db::SphereDb;
@@ -333,7 +333,7 @@ pub mod tests {
 
         let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
-        let sphere_identity = Did(sphere.try_get_identity().await.unwrap());
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
         let author = Author {
             key: owner_key,
             authorization: Some(proof),
@@ -377,7 +377,7 @@ pub mod tests {
 
         let (sphere, _, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
-        let sphere_identity = Did(sphere.try_get_identity().await.unwrap());
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
         let author = Author {
             key: owner_key,
             authorization: None,
@@ -414,7 +414,7 @@ pub mod tests {
 
         let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
-        let sphere_identity = Did(sphere.try_get_identity().await.unwrap());
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
         let author = Author {
             key: owner_key,
             authorization: Some(proof),
@@ -465,7 +465,7 @@ pub mod tests {
 
         let (sphere, authorization, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
-        let sphere_identity = Did(sphere.try_get_identity().await.unwrap());
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
         let author = Author {
             key: owner_key,
             authorization: Some(authorization),
@@ -543,7 +543,7 @@ pub mod tests {
 
         let (sphere, authorization, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
-        let sphere_identity = Did(sphere.try_get_identity().await.unwrap());
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
         let author = Author {
             key: owner_key,
             authorization: Some(authorization),
@@ -574,7 +574,7 @@ pub mod tests {
 
         let (sphere, authorization, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
 
-        let sphere_identity = Did(sphere.try_get_identity().await.unwrap());
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
         let author = Author {
             key: owner_key,
             authorization: Some(authorization),

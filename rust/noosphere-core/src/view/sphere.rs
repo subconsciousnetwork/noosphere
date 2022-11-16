@@ -16,7 +16,7 @@ use crate::{
         SphereAction, SphereReference, SPHERE_SEMANTICS,
     },
     data::{
-        AuthorityIpld, Bundle, CidKey, ContentType, DelegationIpld, Header, MemoIpld,
+        AuthorityIpld, Bundle, CidKey, ContentType, DelegationIpld, Did, Header, MemoIpld,
         RevocationIpld, SphereIpld, TryBundle, Version,
     },
     view::{Links, SphereMutation, SphereRevision, Timeline},
@@ -24,7 +24,7 @@ use crate::{
 
 use noosphere_storage::{interface::BlockStore, ucan::UcanStore};
 
-use super::{AllowedUcans, Authority, RevokedUcans};
+use super::{AllowedUcans, Authority, Names, RevokedUcans};
 
 pub const SPHERE_LIFETIME: u64 = 315360000000; // 10,000 years (arbitrarily high)
 
@@ -87,7 +87,13 @@ impl<S: BlockStore> Sphere<S> {
         Authority::try_at_or_empty(sphere.authorization.as_ref(), &mut self.store.clone()).await
     }
 
-    pub async fn try_get_identity(&self) -> Result<String> {
+    pub async fn try_get_names(&self) -> Result<Names<S>> {
+        let sphere = self.try_as_body().await?;
+
+        Names::try_at_or_empty(sphere.names.as_ref(), &mut self.store.clone()).await
+    }
+
+    pub async fn try_get_identity(&self) -> Result<Did> {
         let sphere = self.try_as_body().await?;
 
         Ok(sphere.identity)
@@ -335,12 +341,13 @@ impl<S: BlockStore> Sphere<S> {
     ) -> Result<(Sphere<S>, Authorization, String)> {
         let sphere_key = generate_ed25519_key();
         let mnemonic = ed25519_key_to_mnemonic(&sphere_key)?;
-        let sphere_did = sphere_key.get_did().await?;
+        let sphere_did = Did(sphere_key.get_did().await?);
         let mut memo = MemoIpld::for_body(
             store,
             &SphereIpld {
                 identity: sphere_did.clone(),
                 links: None,
+                names: None,
                 sealed: None,
                 authorization: None,
             },
@@ -358,7 +365,7 @@ impl<S: BlockStore> Sphere<S> {
         let capability = Capability {
             with: With::Resource {
                 kind: Resource::Scoped(SphereReference {
-                    did: sphere_did.clone(),
+                    did: sphere_did.to_string(),
                 }),
             },
             can: SphereAction::Authorize,
@@ -438,7 +445,7 @@ impl<S: BlockStore> Sphere<S> {
         let authorize_capability = Capability {
             with: With::Resource {
                 kind: Resource::Scoped(SphereReference {
-                    did: sphere_did.clone(),
+                    did: sphere_did.to_string(),
                 }),
             },
             can: SphereAction::Authorize,
@@ -448,7 +455,7 @@ impl<S: BlockStore> Sphere<S> {
 
         for info in proof_chain.reduce_capabilities(&SPHERE_SEMANTICS) {
             if info.capability.enables(&authorize_capability)
-                && info.originators.contains(&sphere_did)
+                && info.originators.contains(sphere_did.as_str())
             {
                 proof_is_valid = true;
                 break;
@@ -699,7 +706,7 @@ mod tests {
                 .claiming_capability(&Capability {
                     with: With::Resource {
                         kind: Resource::Scoped(SphereReference {
-                            did: sphere.try_get_identity().await.unwrap(),
+                            did: sphere.try_get_identity().await.unwrap().to_string(),
                         }),
                     },
                     can: SphereAction::Publish,

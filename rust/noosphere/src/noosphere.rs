@@ -126,7 +126,7 @@ impl NoosphereContext {
         sphere_contexts.insert(sphere_identity.clone(), Arc::new(Mutex::new(context)));
 
         Ok(SphereReceipt {
-            identity: sphere_identity.into(),
+            identity: sphere_identity,
             mnemonic,
         })
     }
@@ -157,7 +157,7 @@ impl NoosphereContext {
 
         let sphere_identity = context.identity().to_owned();
         let mut sphere_contexts = self.sphere_contexts.lock().await;
-        sphere_contexts.insert(sphere_identity.into(), Arc::new(Mutex::new(context)));
+        sphere_contexts.insert(sphere_identity, Arc::new(Mutex::new(context)));
 
         Ok(())
     }

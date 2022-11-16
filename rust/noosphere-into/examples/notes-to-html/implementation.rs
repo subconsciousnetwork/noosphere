@@ -9,7 +9,7 @@ use tower_http::services::ServeDir;
 
 use noosphere_core::{
     authority::{generate_ed25519_key, Author},
-    data::{ContentType, Did, Header},
+    data::{ContentType, Header},
     view::Sphere,
 };
 use noosphere_storage::{db::SphereDb, memory::MemoryStorageProvider};
@@ -24,7 +24,7 @@ pub async fn main() -> Result<()> {
 
     let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await?;
 
-    let sphere_identity = Did(sphere.try_get_identity().await.unwrap());
+    let sphere_identity = sphere.try_get_identity().await.unwrap();
     let author = Author {
         key: owner_key,
         authorization: Some(proof),
