@@ -1,6 +1,7 @@
 use crate::dht::channel::{Message, MessageClient, MessageProcessor};
 use crate::dht::errors::DHTError;
 use libp2p::swarm::NetworkInfo;
+
 use std::{fmt, str};
 
 #[derive(Debug, PartialEq, Eq)]

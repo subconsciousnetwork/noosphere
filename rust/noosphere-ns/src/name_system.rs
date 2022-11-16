@@ -1,5 +1,5 @@
 use crate::{
-    dht::{DHTConfig, DHTNode, DHTRecord},
+    dht::{DHTConfig, DHTKeyMaterial, DHTNode, DHTRecord},
     records::NSRecord,
     validator::Validator,
 };
@@ -10,7 +10,6 @@ use noosphere_core::authority::SUPPORTED_KEYS;
 use noosphere_storage::{db::SphereDb, interface::Store};
 use std::collections::HashMap;
 use ucan::crypto::did::DidParser;
-use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 #[cfg(doc)]
 use crate::NameSystemBuilder;
@@ -37,16 +36,17 @@ lazy_static! {
 /// can be resolved via [NameSystem::get_record].
 ///
 /// New [NameSystem] instances can be created via [NameSystemBuilder].
-pub struct NameSystem<S>
+pub struct NameSystem<S, K>
 where
     S: Store + 'static,
+    K: DHTKeyMaterial,
 {
     /// Bootstrap peers for the DHT network.
     pub(crate) bootstrap_peers: Option<Vec<Multiaddr>>,
     pub(crate) dht: Option<DHTNode<Validator<S>>>,
     pub(crate) dht_config: DHTConfig,
     /// Key of the NameSystem's sphere.
-    pub(crate) key_material: Ed25519KeyMaterial,
+    pub(crate) key_material: K,
     pub(crate) store: SphereDb<S>,
     /// Map of sphere DIDs to [NSRecord] hosted/propagated by this name system.
     hosted_records: HashMap<String, NSRecord>,
@@ -56,13 +56,14 @@ where
     did_parser: DidParser,
 }
 
-impl<S> NameSystem<S>
+impl<S, K> NameSystem<S, K>
 where
     S: Store,
+    K: DHTKeyMaterial,
 {
     /// Internal instantiation function invoked by [NameSystemBuilder].
     pub(crate) fn new(
-        key_material: Ed25519KeyMaterial,
+        key_material: K,
         store: SphereDb<S>,
         bootstrap_peers: Option<Vec<Multiaddr>>,
         dht_config: DHTConfig,
@@ -253,9 +254,10 @@ where
     }
 }
 
-impl<S> Drop for NameSystem<S>
+impl<S, K> Drop for NameSystem<S, K>
 where
     S: Store,
+    K: DHTKeyMaterial,
 {
     fn drop(&mut self) {
         if let Err(e) = self.disconnect() {

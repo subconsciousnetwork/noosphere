@@ -21,7 +21,7 @@ use utils::create_bootstrap_nodes;
 /// Data related to an owner sphere and a NameSystem running
 /// on its behalf in it's corresponding gateway.
 struct NSData {
-    pub ns: NameSystem<MemoryStore>,
+    pub ns: NameSystem<MemoryStore, Ed25519KeyMaterial>,
     pub owner_key: Ed25519KeyMaterial,
     pub owner_id: String,
     pub sphere_id: String,
@@ -65,7 +65,7 @@ async fn generate_name_systems_network(
         let _ = &store.write_token(&delegation.encode()?).await?;
 
         let ns_key = generate_ed25519_key();
-        let ns: NameSystem<MemoryStore> = NameSystemBuilder::default()
+        let ns: NameSystem<MemoryStore, Ed25519KeyMaterial> = NameSystemBuilder::default()
             .key_material(&ns_key)
             .store(&store)
             .peer_dialing_interval(1)

@@ -14,6 +14,7 @@ pub mod utils;
 mod validator;
 
 pub use builder::NameSystemBuilder;
+pub use dht::DHTKeyMaterial;
 pub use libp2p::multiaddr::Multiaddr;
 pub use name_system::{NameSystem, BOOTSTRAP_PEERS};
 pub use records::NSRecord;
