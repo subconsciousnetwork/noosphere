@@ -50,6 +50,7 @@ noosphere-core = { version = "0.2.0", path = "../noosphere-core" }
 noosphere-fs = { version = "0.1.0", path = "../noosphere-fs" }
 noosphere-storage = { version = "0.1.0", path = "../noosphere-storage" }
 noosphere-api = { version = "0.3.0", path = "../noosphere-api" }
+noosphere = { version = "0.2.0", path = "../noosphere" }
 ucan = { version = "0.7.0-alpha.1" }
 ucan-key-support = { version = "0.7.0-alpha.1" }
 cid = "~0.8"

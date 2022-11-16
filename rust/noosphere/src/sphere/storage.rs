@@ -4,8 +4,10 @@ use crate::platform::PlatformStorageProvider;
 use anyhow::Result;
 use noosphere_core::data::Did;
 
+pub const IDENTITY: &str = "identity";
 pub const USER_KEY_NAME: &str = "user_key_name";
 pub const AUTHORIZATION: &str = "authorization";
+pub const GATEWAY_URL: &str = "gateway_url";
 
 /// [StorageLayout] represents the namespace that should be used depending on
 /// whether or not a sphere's DID should be included in the namespace. The enum
@@ -29,7 +31,7 @@ impl From<&StorageLayout> for PathBuf {
     fn from(layout: &StorageLayout) -> Self {
         match layout {
             StorageLayout::Scoped(path, scope) => path.join(scope.as_str()),
-            StorageLayout::Unscoped(path) => path.clone(),
+            StorageLayout::Unscoped(path) => path.join(".sphere/storage"),
         }
     }
 }

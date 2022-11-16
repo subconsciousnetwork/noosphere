@@ -26,13 +26,10 @@ pub fn status_section(
 }
 
 pub async fn status(workspace: &Workspace) -> Result<()> {
-    workspace.expect_local_directories()?;
-
     let mut memory_store = MemoryStore::default();
-    let db = workspace.get_local_db().await?;
 
     let (_, mut changes) = match workspace
-        .get_local_content_changes(None, &db, &mut memory_store)
+        .get_file_content_changes(&mut memory_store)
         .await?
     {
         Some((content, content_changes)) if !content_changes.is_empty() => {

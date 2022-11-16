@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use globset::Glob;
 use libipld_cbor::DagCborCodec;
 use noosphere_core::{authority::Author, data::Header};
 use noosphere_fs::SphereFs;
@@ -8,16 +7,14 @@ use noosphere_storage::{interface::BlockStore, memory::MemoryStore};
 
 use crate::native::workspace::{FileReference, Workspace};
 
-pub async fn save(matching: Option<Glob>, workspace: &Workspace) -> Result<()> {
-    workspace.expect_local_directories()?;
-
+/// TODO(#105): We may want to change this to take an optional list of paths to
+/// consider, and allow the user to rely on their shell for glob filtering
+pub async fn save(workspace: &Workspace) -> Result<()> {
     let mut memory_store = MemoryStore::default();
-    let mut db = workspace.get_local_db().await?;
-
-    let pattern = matching.map(|glob| glob.compile_matcher());
+    let mut db = workspace.db().await?;
 
     let (content, content_changes) = match workspace
-        .get_local_content_changes(pattern, &db, &mut memory_store)
+        .get_file_content_changes(&mut memory_store)
         .await?
     {
         Some((content, content_changes)) if !content_changes.is_empty() => {
@@ -36,11 +33,11 @@ pub async fn save(matching: Option<Glob>, workspace: &Workspace) -> Result<()> {
         db.put_links::<DagCborCodec>(&cid, block).await?;
     }
 
-    let sphere_did = workspace.get_local_identity().await?;
+    let sphere_did = workspace.sphere_identity().await?;
     let latest_sphere_cid = db.require_version(&sphere_did).await?;
     let author = Author {
-        key: workspace.get_local_key().await?,
-        authorization: Some(workspace.get_local_authorization().await?),
+        key: workspace.key().await?,
+        authorization: Some(workspace.authorization().await?),
     };
 
     let mut fs = SphereFs::at(&sphere_did, &latest_sphere_cid, &author, &db).await?;

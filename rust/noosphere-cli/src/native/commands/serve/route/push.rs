@@ -5,11 +5,13 @@ use anyhow::Result;
 use axum::{extract::ContentLengthLimit, http::StatusCode, Extension};
 
 use cid::Cid;
+use noosphere::sphere::SphereContext;
 use noosphere_api::data::{PushBody, PushResponse};
 use noosphere_core::authority::{Authorization, SphereAction, SphereReference};
 use noosphere_core::data::Bundle;
 use noosphere_core::view::{Sphere, SphereMutation, Timeline};
 use noosphere_storage::{db::SphereDb, native::NativeStore};
+use tokio::sync::Mutex;
 use ucan::capability::{Capability, Resource, With};
 use ucan::crypto::KeyMaterial;
 
@@ -18,15 +20,13 @@ use crate::native::commands::serve::{authority::GatewayAuthority, extractor::Cbo
 
 // #[debug_handler]
 pub async fn push_route<K>(
-    authority: GatewayAuthority,
+    authority: GatewayAuthority<K>,
     ContentLengthLimit(Cbor(push_body)): ContentLengthLimit<Cbor<PushBody>, { 1024 * 5000 }>,
-    Extension(mut db): Extension<SphereDb<NativeStore>>,
-    Extension(gateway_key): Extension<Arc<K>>,
-    Extension(gateway_authorization): Extension<Authorization>,
+    Extension(sphere_context): Extension<Arc<Mutex<SphereContext<K, NativeStore>>>>,
     Extension(scope): Extension<GatewayScope>,
 ) -> Result<Cbor<PushResponse>, StatusCode>
 where
-    K: KeyMaterial,
+    K: KeyMaterial + Clone,
 {
     debug!("Invoking push route...");
 
@@ -44,6 +44,18 @@ where
         },
         can: SphereAction::Push,
     })?;
+
+    let sphere_context = sphere_context.lock().await;
+    let mut db = sphere_context.db().clone();
+    let gateway_key = &sphere_context.author().key;
+    let gateway_authorization =
+        sphere_context
+            .author()
+            .require_authorization()
+            .map_err(|error| {
+                error!("{:?}", error);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
 
     debug!("Preparing to merge sphere lineage...");
     let local_sphere_base_cid = db.get_version(sphere_identity).await.map_err(|error| {
@@ -95,8 +107,8 @@ where
     let (new_gateway_tip, new_blocks) = update_gateway_sphere(
         &push_body.tip,
         &scope,
-        &gateway_key,
-        &gateway_authorization,
+        gateway_key,
+        gateway_authorization,
         &mut db,
     )
     .await

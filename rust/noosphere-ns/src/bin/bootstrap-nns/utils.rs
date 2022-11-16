@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use home;
+
 use noosphere::key::{InsecureKeyStorage, KeyStorage};
 use noosphere_ns::Multiaddr;
 use std::future::Future;
@@ -14,7 +14,7 @@ pub async fn run_until_abort(future: impl Future<Output = Result<()>>) -> Result
     let mut aborted = false;
     tokio::select! {
         _ = tokio::signal::ctrl_c() => { aborted = true; },
-        result = future => { let _ = result?; }
+        result = future => { result?; }
     };
     if !aborted {
         tokio::signal::ctrl_c().await?;

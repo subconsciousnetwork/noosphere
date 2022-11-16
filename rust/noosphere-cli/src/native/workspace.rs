@@ -1,45 +1,49 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use globset::{Glob, GlobMatcher, GlobSet, GlobSetBuilder};
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use libipld_cbor::DagCborCodec;
 use noosphere_core::{
-    authority::{restore_ed25519_key, Author, Authorization},
+    authority::{Author, Authorization},
     data::{BodyChunkIpld, ContentType, Did, Header, MemoIpld},
     view::Sphere,
 };
 use noosphere_fs::SphereFs;
 use noosphere_storage::{
     db::SphereDb,
-    interface::{BlockStore, Store},
-    native::{NativeStorageInit, NativeStorageProvider, NativeStore},
+    interface::{BlockStore, KeyValueStore, Store},
+    native::NativeStore,
 };
 use pathdiff::diff_paths;
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},
     str::FromStr,
+    sync::Arc,
 };
 use subtext::util::to_slug;
-use tokio::{
-    fs::{self, File},
-    io::copy,
-};
+use tokio::fs::{self, File};
+use tokio::io::copy;
+use tokio::sync::Mutex;
+use tokio::sync::OnceCell;
 use tokio_stream::StreamExt;
-
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 use url::Url;
 
-use super::commands::config::{Config, ConfigContents};
+use noosphere::{
+    key::{InsecureKeyStorage, KeyStorage},
+    sphere::{SphereContext, SphereContextBuilder, AUTHORIZATION, GATEWAY_URL, USER_KEY_NAME},
+};
 
-const NOOSPHERE_DIRECTORY: &str = ".noosphere";
+#[cfg(test)]
+use temp_dir::TempDir;
+
 const SPHERE_DIRECTORY: &str = ".sphere";
-const BLOCKS_DIRECTORY: &str = "blocks";
-const KEYS_DIRECTORY: &str = "keys";
-const AUTHORIZATION_FILE: &str = "AUTHORIZATION";
-const KEY_FILE: &str = "KEY";
-const IDENTITY_FILE: &str = "IDENTITY";
-const CONFIG_FILE: &str = "config.toml";
+const NOOSPHERE_DIRECTORY: &str = ".noosphere";
+// const STORAGE_DIRECTORY: &str = "storage";
 
+pub type CliSphereContext = SphereContext<Ed25519KeyMaterial, NativeStore>;
+
+/// A delta manifest of changes to the local content space
 #[derive(Default)]
 pub struct ContentChanges {
     pub new: BTreeMap<String, Option<ContentType>>,
@@ -54,6 +58,7 @@ impl ContentChanges {
     }
 }
 
+/// A manifest of content to apply some work to in the local content space
 #[derive(Default)]
 pub struct Content {
     pub matched: BTreeMap<String, FileReference>,
@@ -66,143 +71,133 @@ impl Content {
     }
 }
 
+/// Metadata that identifies some sphere content that is present on the file
+/// system
 pub struct FileReference {
     pub cid: Cid,
     pub content_type: ContentType,
     pub extension: Option<String>,
 }
 
-/// A utility for discovering and initializing the well-known paths for a
-/// working copy of a sphere and relevant global Noosphere configuration
-#[derive(Clone, Debug)]
+use super::commands::config::COUNTERPART;
+
+/// A [Workspace] represents the root directory where sphere data is or will be
+/// kept, and exposes core operations that commands need in order to operate on
+/// that directory. Among other things, it holds a singleton [SphereContext] so
+/// that we don't constantly open the local [SphereDb] multiple times in the
+/// space of a single command. It also offers a convenient entrypoint to access
+/// [KeyStorage] for the local platform.
 pub struct Workspace {
-    root: PathBuf,
-    sphere: PathBuf,
-    blocks: PathBuf,
-    noosphere: PathBuf,
-    keys: PathBuf,
-    authorization: PathBuf,
-    key: PathBuf,
-    identity: PathBuf,
-    config: PathBuf,
+    root_directory: PathBuf,
+    sphere_directory: PathBuf,
+    // storage_directory: PathBuf,
+    key_storage: InsecureKeyStorage,
+    sphere_context: OnceCell<Arc<Mutex<CliSphereContext>>>,
 }
 
 impl Workspace {
-    /// Read the local content of the workspace in its entirety, filtered by an
-    /// optional glob pattern. The glob pattern is applied to the file path
-    /// relative to the workspace. This includes files that have not yet been
-    /// saved to the sphere. All files are chunked into blocks, and those blocks
-    /// are persisted to the provided store.
-    /// TODO(#105): We may want to change this to take an optional list of paths to
-    /// consider, and allow the user to rely on their shell for glob filtering
-    pub async fn read_local_content<S: BlockStore>(
-        &self,
-        pattern: Option<GlobMatcher>,
-        store: &mut S,
-    ) -> Result<Content> {
-        self.expect_local_directories()?;
+    /// Get a mutex-guarded reference to the [SphereContext] for the current workspace
+    pub async fn sphere_context(&self) -> Result<Arc<Mutex<CliSphereContext>>> {
+        Ok(self
+            .sphere_context
+            .get_or_try_init(|| async {
+                Ok(Arc::new(Mutex::new(
+                    SphereContextBuilder::default()
+                        .open_sphere(None)
+                        .at_storage_path(&self.root_directory)
+                        .reading_keys_from(self.key_storage.clone())
+                        .build()
+                        .await?
+                        .into(),
+                ))) as Result<Arc<Mutex<CliSphereContext>>, anyhow::Error>
+            })
+            .await?
+            .clone())
+    }
 
-        let root_path = self.root_path();
-        let mut directories = vec![(None, tokio::fs::read_dir(root_path).await?)];
+    /// Get an owned referenced to the [SphereDb] that backs the local sphere.
+    /// Note that this will initialize the [SphereContext] if it has not been
+    /// already.
+    pub async fn db(&self) -> Result<SphereDb<NativeStore>> {
+        let context = self.sphere_context().await?;
+        let context = context.lock().await;
+        Ok(context.db().clone())
+    }
 
-        let ignore_patterns = self.get_ignored_patterns().await?;
+    /// Get the [KeyStorage] that is supported on the current platform
+    pub fn key_storage(&self) -> &InsecureKeyStorage {
+        &self.key_storage
+    }
 
-        let mut content = Content::default();
+    /// The root directory is the path to the folder that contains a .sphere
+    /// directory (or will, after the sphere is initialized)
+    pub fn root_directory(&self) -> &Path {
+        &self.root_directory
+    }
 
-        while let Some((slug_prefix, mut directory)) = directories.pop() {
-            while let Some(entry) = directory.next_entry().await? {
-                let path = entry.path();
-                let relative_path = diff_paths(&path, root_path)
-                    .ok_or_else(|| anyhow!("Could not determine relative path to {:?}", path))?;
+    /// The path to the .sphere directory within the root directory
+    pub fn sphere_directory(&self) -> &Path {
+        &self.sphere_directory
+    }
 
-                if ignore_patterns.is_match(&relative_path) {
-                    continue;
+    /// This directory contains keys that are stored using an insecure, strait-
+    /// to-disk storage mechanism
+    pub fn key_directory(&self) -> &Path {
+        self.key_storage().storage_path()
+    }
+
+    /// Gets the [Did] of the sphere
+    pub async fn sphere_identity(&self) -> Result<Did> {
+        let context = self.sphere_context().await?;
+        let context = context.lock().await;
+
+        Ok(context.identity().clone())
+    }
+
+    /// Returns true if the given path has a .sphere folder in it
+    fn has_sphere_directory(path: &Path) -> bool {
+        path.is_absolute() && path.join(SPHERE_DIRECTORY).is_dir()
+    }
+
+    /// Returns a [PathBuf] pointing to the nearest ancestor directory that
+    /// contains a .sphere directory, if one exists
+    fn find_root_directory(from: Option<&Path>) -> Option<PathBuf> {
+        debug!("Looking for .sphere in {:?}", from);
+
+        match from {
+            Some(directory) => {
+                if Workspace::has_sphere_directory(directory) {
+                    Some(directory.into())
+                } else {
+                    Workspace::find_root_directory(directory.parent())
                 }
-
-                if path.is_dir() {
-                    let slug_prefix = relative_path.to_string_lossy().to_string();
-
-                    directories.push((Some(slug_prefix), tokio::fs::read_dir(path).await?));
-
-                    // TODO: Limit the depth of the directory traversal to some reasonable number
-
-                    continue;
-                }
-
-                let mut ignored = false;
-
-                // Ignore files that don't match an optional pattern
-                if let Some(pattern) = &pattern {
-                    if !pattern.is_match(&relative_path) {
-                        ignored = true;
-                    }
-                }
-
-                let name = match path.file_stem() {
-                    Some(name) => name.to_string_lossy(),
-                    None => continue,
-                };
-
-                let name = match &slug_prefix {
-                    Some(prefix) => format!("{}/{}", prefix, name),
-                    None => name.to_string(),
-                };
-
-                let slug = match to_slug(&name) {
-                    Ok(slug) if slug == name => slug,
-                    _ => continue,
-                };
-
-                if ignored {
-                    content.ignored.insert(slug);
-                    continue;
-                }
-
-                let extension = path
-                    .extension()
-                    .map(|extension| String::from(extension.to_string_lossy()));
-
-                let content_type = match &extension {
-                    Some(extension) => self.infer_content_type(extension).await?,
-                    None => ContentType::Bytes,
-                };
-
-                let file_bytes = fs::read(path).await?;
-                let body_cid = BodyChunkIpld::store_bytes(&file_bytes, store).await?;
-
-                content.matched.insert(
-                    slug,
-                    FileReference {
-                        cid: body_cid,
-                        content_type,
-                        extension,
-                    },
-                );
             }
+            None => None,
         }
-        Ok(content)
     }
 
     /// Produces a manifest of changes (added, updated and removed) derived from
     /// the current state of the workspace
-    pub async fn get_local_content_changes<Sa: Store, Sb: Store>(
+    pub async fn get_file_content_changes<S: Store>(
         &self,
-        pattern: Option<GlobMatcher>,
-        db: &SphereDb<Sa>,
-        new_blocks: &mut Sb,
+        new_blocks: &mut S,
     ) -> Result<Option<(Content, ContentChanges)>> {
-        let sphere_did = self.get_local_identity().await?;
-        let sphere_cid = match db.get_version(&sphere_did).await? {
+        let db = self.db().await?;
+        let sphere_context = self.sphere_context().await?;
+        let sphere_context = sphere_context.lock().await;
+
+        let sphere_did = sphere_context.identity();
+        let sphere_cid = match db.get_version(sphere_did).await? {
             Some(cid) => cid,
             None => {
                 return Ok(None);
             }
         };
 
-        let content = self.read_local_content(pattern, new_blocks).await?;
+        let content = self.read_file_content(new_blocks).await?;
 
-        let sphere_fs = SphereFs::at(&sphere_did, &sphere_cid, &Author::anonymous(), db).await?;
-        let sphere = Sphere::at(&sphere_cid, db);
+        let sphere_fs = SphereFs::at(sphere_did, &sphere_cid, &Author::anonymous(), &db).await?;
+        let sphere = Sphere::at(&sphere_cid, &db);
         let links = sphere.try_get_links().await?;
 
         let mut stream = links.stream().await?;
@@ -258,14 +253,98 @@ impl Workspace {
         Ok(Some((content, changes)))
     }
 
+    /// Read the local content of the workspace in its entirety.
+    /// This includes files that have not yet been saved to the sphere. All
+    /// files are chunked into blocks, and those blocks are persisted to the
+    /// provided store.
+    /// TODO(#105): We may want to change this to take an optional list of paths to
+    /// consider, and allow the user to rely on their shell for glob filtering
+    pub async fn read_file_content<S: BlockStore>(&self, store: &mut S) -> Result<Content> {
+        let root_path = &self.root_directory;
+        let mut directories = vec![(None, tokio::fs::read_dir(root_path).await?)];
+
+        let ignore_patterns = self.get_ignored_patterns().await?;
+
+        let mut content = Content::default();
+
+        while let Some((slug_prefix, mut directory)) = directories.pop() {
+            while let Some(entry) = directory.next_entry().await? {
+                let path = entry.path();
+                let relative_path = diff_paths(&path, root_path)
+                    .ok_or_else(|| anyhow!("Could not determine relative path to {:?}", path))?;
+
+                if ignore_patterns.is_match(&relative_path) {
+                    continue;
+                }
+
+                if path.is_dir() {
+                    let slug_prefix = relative_path.to_string_lossy().to_string();
+
+                    directories.push((Some(slug_prefix), tokio::fs::read_dir(path).await?));
+
+                    // TODO: Limit the depth of the directory traversal to some reasonable number
+
+                    continue;
+                }
+
+                let ignored = false;
+
+                let name = match path.file_stem() {
+                    Some(name) => name.to_string_lossy(),
+                    None => continue,
+                };
+
+                let name = match &slug_prefix {
+                    Some(prefix) => format!("{}/{}", prefix, name),
+                    None => name.to_string(),
+                };
+
+                let slug = match to_slug(&name) {
+                    Ok(slug) if slug == name => slug,
+                    _ => continue,
+                };
+
+                if ignored {
+                    content.ignored.insert(slug);
+                    continue;
+                }
+
+                let extension = path
+                    .extension()
+                    .map(|extension| String::from(extension.to_string_lossy()));
+
+                let content_type = match &extension {
+                    Some(extension) => self.infer_content_type(extension).await?,
+                    None => ContentType::Bytes,
+                };
+
+                let file_bytes = fs::read(path).await?;
+                let body_cid = BodyChunkIpld::store_bytes(&file_bytes, store).await?;
+
+                content.matched.insert(
+                    slug,
+                    FileReference {
+                        cid: body_cid,
+                        content_type,
+                        extension,
+                    },
+                );
+            }
+        }
+        Ok(content)
+    }
+
     /// Reads the latest local version of the sphere and renders its contents to
     /// files in the workspace. Note that this will overwrite any existing files
     /// in the workspace.
-    pub async fn render<S: Store>(&self, db: &mut SphereDb<S>) -> Result<()> {
-        let sphere_did = self.get_local_identity().await?;
-        let sphere_cid = db.require_version(&sphere_did).await?;
-        let sphere_fs = SphereFs::at(&sphere_did, &sphere_cid, &Author::anonymous(), db).await?;
-        let sphere = Sphere::at(&sphere_cid, db);
+    pub async fn render(&self) -> Result<()> {
+        let context = self.sphere_context().await?;
+        let context = context.lock().await;
+
+        let sphere_fs = context.fs().await?;
+
+        let sphere = Sphere::at(sphere_fs.revision(), context.db());
+
         let links = sphere.try_get_links().await?;
 
         let mut stream = links.stream().await?;
@@ -302,7 +381,7 @@ impl Workspace {
                 None => slug.into(),
             };
 
-            let file_path = self.root.join(file_fragment);
+            let file_path = self.root_directory.join(file_fragment);
 
             let file_directory = file_path
                 .parent()
@@ -316,6 +395,21 @@ impl Workspace {
         }
 
         Ok(())
+    }
+
+    /// Produce a matcher that will match any path that should be ignored when
+    /// considering the files that make up the local workspace
+    async fn get_ignored_patterns(&self) -> Result<GlobSet> {
+        // TODO(#82): User-specified ignore patterns
+        let ignored_patterns = vec!["@*", ".*"];
+
+        let mut builder = GlobSetBuilder::new();
+
+        for pattern in ignored_patterns {
+            builder.add(Glob::new(pattern)?);
+        }
+
+        Ok(builder.build()?)
     }
 
     /// Given a file extension, infer its mime
@@ -347,310 +441,47 @@ impl Workspace {
         }
     }
 
-    /// Produce a matcher that will match any path that should be ignored when
-    /// considering the files that make up the local workspace
-    pub async fn get_ignored_patterns(&self) -> Result<GlobSet> {
-        self.expect_local_directories()?;
+    /// Get the key material (with both verification and signing capabilities)
+    /// for the locally configured author key.
+    pub async fn key(&self) -> Result<Ed25519KeyMaterial> {
+        let key_name: String = self.db().await?.require_key(USER_KEY_NAME).await?;
 
-        // TODO(#82): User-specified ignore patterns
-        let ignored_patterns = vec!["@*", ".*"];
-
-        let mut builder = GlobSetBuilder::new();
-
-        for pattern in ignored_patterns {
-            builder.add(Glob::new(pattern)?);
-        }
-
-        Ok(builder.build()?)
+        self.key_storage().require_key(&key_name).await
     }
 
-    /// The root directory containing the working copy of sphere files on
-    /// disk, as well as the local sphere data
-    pub fn root_path(&self) -> &PathBuf {
-        &self.root
-    }
-
-    /// The path to the sphere data folder within the working file tree
-    pub fn sphere_path(&self) -> &PathBuf {
-        &self.sphere
-    }
-
-    /// The path to the block storage database within the working file tree
-    pub fn blocks_path(&self) -> &PathBuf {
-        &self.blocks
-    }
-
-    /// The path to the folder that contains global Noosphere configuration
-    /// and keys generated by the user
-    pub fn noosphere_path(&self) -> &PathBuf {
-        &self.noosphere
-    }
-
-    /// The path to the folder containing user-generated keys when there is
-    /// no secure option for generating them available
-    pub fn keys_path(&self) -> &PathBuf {
-        &self.keys
-    }
-
-    /// Path to the local authorization (the granted UCAN) for the key that
-    /// is authorized to work on the sphere
-    pub fn authorization_path(&self) -> &PathBuf {
-        &self.authorization
-    }
-
-    /// The path to the file containing the DID of the local key used to operate
-    /// on the local sphere
-    pub fn key_path(&self) -> &PathBuf {
-        &self.key
-    }
-
-    /// The path to the file containing the DID of the sphere that is being
-    /// worked on in this local workspace
-    pub fn identity_path(&self) -> &PathBuf {
-        &self.identity
-    }
-
-    pub fn config_path(&self) -> &PathBuf {
-        &self.config
-    }
-
-    pub async fn get_local_gateway_url(&self) -> Result<Url> {
-        match Config::from(self).read().await? {
-            ConfigContents {
-                gateway_url: Some(url),
-                ..
-            } => Ok(url.clone()),
-            _ => Err(anyhow!(
-                "No gateway URL configured; set it with: orb config set gateway-url <URL>"
-            )),
-        }
+    /// Get the configured counterpart sphere's identity
+    pub async fn counterpart_identity(&self) -> Result<Did> {
+        self.db().await?.require_key(COUNTERPART).await
     }
 
     /// Attempts to read the locally stored authorization that enables the key
     /// to operate on this sphere; the returned authorization may be represented
     /// as either a UCAN or the CID of a UCAN
-    pub async fn get_local_authorization(&self) -> Result<Authorization> {
-        self.expect_local_directories()?;
-
-        Authorization::from_str(&fs::read_to_string(&self.authorization).await?)
+    pub async fn authorization(&self) -> Result<Authorization> {
+        Ok(self
+            .db()
+            .await?
+            .require_key::<_, Cid>(AUTHORIZATION)
+            .await?
+            .into())
     }
 
-    /// Produces a `SphereDb<NativeStore>` referring to the block storage
-    /// backing the sphere in the local workspace
-    pub async fn get_local_db(&self) -> Result<SphereDb<NativeStore>> {
-        self.expect_local_directories()?;
-
-        let storage_provider =
-            NativeStorageProvider::new(NativeStorageInit::Path(self.blocks_path().clone()))?;
-        SphereDb::new(&storage_provider).await
-    }
-
-    /// Get the key material (with both verification and signing capabilities)
-    /// for the locally configured author key.
-    pub async fn get_local_key(&self) -> Result<Ed25519KeyMaterial> {
-        self.expect_global_directories()?;
-        self.expect_local_directories()?;
-
-        let local_key_did = fs::read_to_string(&self.key).await?;
-        let keys = self.get_all_keys().await?;
-
-        for (key, did) in keys {
-            if did == local_key_did {
-                let private_key_mnemonic = self.get_key_mnemonic(&key).await?;
-                return restore_ed25519_key(&private_key_mnemonic);
-            }
-        }
-
-        Err(anyhow!(
-            "Could not resolve private key material for {:?}",
-            local_key_did
-        ))
-    }
-
-    /// Get the identity of the sphere being worked on in the local workspace as
-    /// a DID string
-    pub async fn get_local_identity(&self) -> Result<Did> {
-        self.expect_local_directories()?;
-
-        Ok(Did(fs::read_to_string(&self.identity).await?))
-    }
-
-    /// Look up the DID for the key by its name
-    pub async fn get_key_did(&self, name: &str) -> Result<String> {
-        Ok(fs::read_to_string(self.keys.join(name).with_extension("public")).await?)
-    }
-
-    /// Get a mnemonic corresponding to the private portion of a give key by name
-    async fn get_key_mnemonic(&self, name: &str) -> Result<String> {
-        Ok(fs::read_to_string(self.keys.join(name).with_extension("private")).await?)
-    }
-
-    /// Returns true if there are no files in the configured root path
-    pub async fn is_root_empty(&self) -> Result<bool> {
-        let mut directory = fs::read_dir(&self.root).await?;
-
-        Ok(if let Some(_) = directory.next_entry().await? {
-            false
-        } else {
-            true
-        })
-    }
-
-    /// Reads all the available keys and returns a map of their names to their
-    /// DIDs
-    pub async fn get_all_keys(&self) -> Result<BTreeMap<String, String>> {
-        self.expect_global_directories()?;
-
-        let mut key_names = BTreeMap::<String, String>::new();
-        let mut directory = fs::read_dir(&self.keys).await?;
-
-        while let Some(entry) = directory.next_entry().await? {
-            let key_path = entry.path();
-            let key_name = key_path.file_stem().map(|stem| stem.to_str());
-            let extension = key_path.extension().map(|extension| extension.to_str());
-
-            match (key_name, extension) {
-                (Some(Some(key_name)), Some(Some("public"))) => {
-                    let did = self.get_key_did(key_name).await?;
-                    key_names.insert(key_name.to_string(), did);
-                }
-                _ => continue,
-            };
-        }
-
-        Ok(key_names)
-    }
-
-    /// If there is only one key to choose from, returns its name. Otherwise
-    /// returns an error result.
-    pub async fn unambiguous_default_key_name(&self) -> Result<String> {
-        if self.expect_global_directories().is_ok() {
-            let keys = self.get_all_keys().await?;
-
-            if keys.len() > 1 {
-                let key_names = keys
-                    .into_iter()
-                    .map(|(name, _)| name)
-                    .collect::<Vec<String>>()
-                    .join("\n");
-                return Err(anyhow!(
-                    r#"There is more than one key; you should specify a key to use by name
-The available keys are:
-
-{}"#,
-                    key_names
-                ));
-            } else if let Some((key_name, _)) = keys.iter().next() {
-                return Ok(key_name.clone());
-            }
-        }
-
-        Err(anyhow!("No keys found; have you created any yet?"))
-    }
-
-    /// Returns true if the given path has a .sphere folder in it
-    fn has_sphere_directory(path: &Path) -> bool {
-        path.is_absolute() && path.join(SPHERE_DIRECTORY).is_dir()
-    }
-
-    /// Asserts that all related directories for the suggested working file
-    /// tree root are present
-    pub fn expect_local_directories(&self) -> Result<()> {
-        if !self.root.is_dir() {
-            return Err(anyhow!(
-                "Configured sphere root {:?} is not a directory!",
-                self.root
-            ));
-        }
-
-        if !Workspace::has_sphere_directory(&self.root) {
-            return Err(anyhow!(
-                "The {:?} folder within {:?} is missing or corrupted",
-                SPHERE_DIRECTORY,
-                self.root
-            ));
-        }
-
-        Ok(())
-    }
-
-    /// Asserts that the global Noosphere directories are present
-    pub fn expect_global_directories(&self) -> Result<()> {
-        if !self.noosphere.is_dir() || !self.keys.is_dir() {
-            return Err(anyhow!(
-                "The Noosphere config directory ({:?}) is missing or corrupted",
-                self.noosphere
-            ));
-        }
-
-        Ok(())
-    }
-
-    /// Creates all the directories needed to start rendering a sphere in the
-    /// configured working file tree root
-    pub async fn initialize_local_directories(&self) -> Result<()> {
-        if self.expect_local_directories().is_ok() {
-            return Err(anyhow!(
-                r#"Cannot initialize the sphere; a sphere is already initialized in {:?}
-Unexpected (bad) things will happen if you try to nest spheres this way!"#,
-                self.root,
-            ))?;
-        }
-
-        fs::create_dir_all(&self.sphere).await?;
-
-        fs::write(self.config_path(), "").await?;
-
-        Ok(())
-    }
-
-    /// Creates the global Noosphere config and keys directories
-    pub async fn initialize_global_directories(&self) -> Result<()> {
-        fs::create_dir_all(&self.keys).await?;
-
-        Ok(())
+    /// Get the configured gateway URL for the local workspace
+    pub async fn gateway_url(&self) -> Result<Url> {
+        self.db().await?.require_key(GATEWAY_URL).await
     }
 
     pub fn new(
-        current_working_directory: &PathBuf,
-        noosphere_global_root: Option<&PathBuf>,
+        current_working_directory: &Path,
+        noosphere_directory: Option<&Path>,
     ) -> Result<Self> {
-        if !current_working_directory.is_absolute() {
-            return Err(anyhow!(
-                "Ambiguous working directory: {:?} (must be an absolute path)",
-                current_working_directory
-            ));
-        }
+        let root_directory = match Workspace::find_root_directory(Some(current_working_directory)) {
+            Some(directory) => directory,
+            None => current_working_directory.into(),
+        };
 
-        let mut root = current_working_directory.clone();
-
-        // Crawl up the directories to the root of the filesystem and use an
-        // existing `.sphere` directory to determine the root. If none are
-        // found, instead use the current working directory.
-        loop {
-            match root.parent() {
-                Some(parent) => {
-                    root = parent.to_path_buf();
-
-                    if Workspace::has_sphere_directory(&root) {
-                        break;
-                    }
-                }
-                None => {
-                    root = current_working_directory.clone();
-                    break;
-                }
-            }
-        }
-
-        let sphere = root.join(SPHERE_DIRECTORY);
-        let blocks = sphere.join(BLOCKS_DIRECTORY);
-        let authorization = sphere.join(AUTHORIZATION_FILE);
-        let key = sphere.join(KEY_FILE);
-        let identity = sphere.join(IDENTITY_FILE);
-        let config = sphere.join(CONFIG_FILE);
-        let noosphere = match noosphere_global_root {
-            Some(custom_root) => custom_root.clone(),
+        let noosphere_directory = match noosphere_directory {
+            Some(custom_root) => custom_root.into(),
             None => home::home_dir()
                 .ok_or_else(|| {
                     anyhow!(
@@ -660,32 +491,31 @@ Unexpected (bad) things will happen if you try to nest spheres this way!"#,
                 })?
                 .join(NOOSPHERE_DIRECTORY),
         };
-        let keys = noosphere.join(KEYS_DIRECTORY);
+
+        let key_storage = InsecureKeyStorage::new(&noosphere_directory)?;
+        let sphere_directory = root_directory.join(SPHERE_DIRECTORY);
+        // let storage_directory = sphere_directory.join(STORAGE_DIRECTORY);
 
         Ok(Workspace {
-            root,
-            sphere,
-            blocks,
-            authorization,
-            key,
-            identity,
-            noosphere,
-            keys,
-            config,
+            root_directory,
+            sphere_directory,
+            // storage_directory,
+            key_storage,
+            sphere_context: OnceCell::new(),
         })
     }
 
     #[cfg(test)]
-    pub fn temporary() -> Result<Self> {
-        use temp_dir::TempDir;
-
+    /// Configure a workspace automatically by creating temporary directories
+    /// on the file system and initializing it with their paths
+    pub fn temporary() -> Result<(Self, (TempDir, TempDir))> {
         let root = TempDir::new()?;
         let global_root = TempDir::new()?;
 
-        Workspace::new(
-            &root.path().to_path_buf(),
-            Some(&global_root.path().to_path_buf()),
-        )
+        Ok((
+            Workspace::new(root.path(), Some(global_root.path()))?,
+            (root, global_root),
+        ))
     }
 }
 
@@ -698,19 +528,21 @@ mod tests {
 
     #[tokio::test]
     async fn it_chooses_an_ancestor_sphere_directory_as_root_if_one_exists() {
-        let workspace = Workspace::temporary().unwrap();
+        let (workspace, temporary_directories) = Workspace::temporary().unwrap();
 
         key::key_create("FOO", &workspace).await.unwrap();
 
         sphere::sphere_create("FOO", &workspace).await.unwrap();
 
-        let subdirectory = workspace.root_path().join("foo/bar");
+        let subdirectory = workspace.root_directory().join("foo/bar");
 
         fs::create_dir_all(&subdirectory).await.unwrap();
 
         let new_workspace =
-            Workspace::new(&subdirectory, Some(workspace.noosphere_path())).unwrap();
+            Workspace::new(&subdirectory, workspace.key_directory().parent()).unwrap();
 
-        assert_eq!(workspace.root_path(), new_workspace.root_path());
+        assert_eq!(workspace.root_directory(), new_workspace.root_directory());
+
+        drop(temporary_directories)
     }
 }

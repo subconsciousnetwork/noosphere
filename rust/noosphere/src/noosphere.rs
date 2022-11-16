@@ -177,7 +177,7 @@ impl NoosphereContext {
 
         if !contexts.contains_key(sphere_identity) {
             let artifacts = SphereContextBuilder::default()
-                .open_sphere(sphere_identity)
+                .open_sphere(Some(sphere_identity))
                 .at_storage_path(self.sphere_storage_path())
                 .using_scoped_storage_layout()
                 .reading_keys_from(self.key_storage().await?)

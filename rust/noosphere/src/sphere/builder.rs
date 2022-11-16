@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
@@ -19,13 +19,14 @@ use crate::{
     sphere::{
         context::SphereContext,
         storage::{StorageLayout, AUTHORIZATION, USER_KEY_NAME},
+        IDENTITY,
     },
 };
 
 enum SphereInitialization {
     Create,
     Join(Did),
-    Open(Did),
+    Open(Option<Did>),
 }
 
 impl Default for SphereInitialization {
@@ -95,9 +96,10 @@ impl SphereContextBuilder {
     }
 
     /// Configure this builder to open an existing sphere that was previously
-    /// created or joined
-    pub fn open_sphere(mut self, sphere_identity: &Did) -> Self {
-        self.initialization = SphereInitialization::Open(sphere_identity.to_owned());
+    /// created or joined; if the sphere uses a scoped layout, you must provide
+    /// the identity of the sphere as well.
+    pub fn open_sphere(mut self, sphere_identity: Option<&Did>) -> Self {
+        self.initialization = SphereInitialization::Open(sphere_identity.cloned());
         self
     }
 
@@ -116,8 +118,8 @@ impl SphereContextBuilder {
 
     /// Specify the local namespace in storage where sphere data should be
     /// initialized
-    pub fn at_storage_path(mut self, path: &PathBuf) -> Self {
-        self.storage_path = Some(path.clone());
+    pub fn at_storage_path(mut self, path: &Path) -> Self {
+        self.storage_path = Some(path.into());
         self
     }
 
@@ -195,22 +197,27 @@ impl SphereContextBuilder {
 
                 db.set_version(&sphere_did, sphere.cid()).await?;
 
+                db.set_key(IDENTITY, &sphere_did).await?;
                 db.set_key(USER_KEY_NAME, key_name).await?;
                 db.set_key(AUTHORIZATION, Cid::try_from(&authorization)?)
                     .await?;
 
-                Ok(SphereContextBuilderArtifacts::SphereCreated {
-                    context: SphereContext::new(
-                        sphere_did,
-                        Author {
-                            key: owner_key,
-                            authorization: Some(authorization),
-                        },
-                        db,
-                        self.gateway_url,
-                    ),
-                    mnemonic,
-                })
+                let mut context = SphereContext::new(
+                    sphere_did,
+                    Author {
+                        key: owner_key,
+                        authorization: Some(authorization),
+                    },
+                    db,
+                );
+
+                if self.gateway_url.is_some() {
+                    context
+                        .configure_gateway_url(self.gateway_url.as_ref())
+                        .await?;
+                }
+
+                Ok(SphereContextBuilderArtifacts::SphereCreated { context, mnemonic })
             }
             SphereInitialization::Join(sphere_identity) => {
                 let key_storage = match self.key_storage {
@@ -239,46 +246,62 @@ impl SphereContextBuilder {
 
                 let mut db = SphereDb::new(&storage_provider).await?;
 
+                db.set_key(IDENTITY, &sphere_identity).await?;
                 db.set_key(USER_KEY_NAME, key_name).await?;
                 db.set_key(AUTHORIZATION, Cid::try_from(&authorization)?)
                     .await?;
 
-                Ok(SphereContextBuilderArtifacts::SphereOpened(
-                    SphereContext::new(
-                        sphere_identity,
-                        Author {
-                            key: user_key,
-                            authorization: Some(authorization),
-                        },
-                        db,
-                        self.gateway_url,
-                    ),
-                ))
+                let mut context = SphereContext::new(
+                    sphere_identity,
+                    Author {
+                        key: user_key,
+                        authorization: Some(authorization),
+                    },
+                    db,
+                );
+
+                if self.gateway_url.is_some() {
+                    context
+                        .configure_gateway_url(self.gateway_url.as_ref())
+                        .await?;
+                }
+
+                Ok(SphereContextBuilderArtifacts::SphereOpened(context))
             }
             SphereInitialization::Open(sphere_identity) => {
                 let storage_layout = match self.scoped_storage_layout {
-                    true => StorageLayout::Scoped(storage_path, sphere_identity.clone()),
+                    true => StorageLayout::Scoped(
+                        storage_path,
+                        sphere_identity
+                            .ok_or_else(|| anyhow!("A sphere identity must be provided!"))?,
+                    ),
                     false => StorageLayout::Unscoped(storage_path),
                 };
 
                 let storage_provider = storage_layout.to_storage_provider().await?;
                 let db = SphereDb::new(&storage_provider).await?;
 
-                let author = match (
-                    self.key_storage,
-                    db.get_key(USER_KEY_NAME).await? as Option<String>,
-                    db.get_key(AUTHORIZATION).await?,
-                ) {
-                    (Some(key_storage), Some(user_key_name), Some(cid)) => Author {
+                let user_key_name: String = db.require_key(USER_KEY_NAME).await?;
+                let authorization_cid: Cid = db.require_key(AUTHORIZATION).await?;
+
+                let author = match self.key_storage {
+                    Some(key_storage) => Author {
                         key: key_storage.require_key(&user_key_name).await?,
-                        authorization: Some(Authorization::Cid(cid)),
+                        authorization: Some(Authorization::Cid(authorization_cid)),
                     },
                     _ => return Err(anyhow!("Unable to resolve sphere author")),
                 };
 
-                Ok(SphereContextBuilderArtifacts::SphereOpened(
-                    SphereContext::new(sphere_identity, author, db, self.gateway_url),
-                ))
+                let sphere_identity = db.require_key(IDENTITY).await?;
+                let mut context = SphereContext::new(sphere_identity, author, db);
+
+                if self.gateway_url.is_some() {
+                    context
+                        .configure_gateway_url(self.gateway_url.as_ref())
+                        .await?;
+                }
+
+                Ok(SphereContextBuilderArtifacts::SphereOpened(context))
             }
         }
     }

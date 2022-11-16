@@ -6,8 +6,19 @@ use libipld_core::{ipld::Ipld, raw::RawCodec};
 use noosphere_storage::encoding::block_encode;
 use ucan::{store::UcanJwtStore, Ucan};
 
-// TODO(ucan-wg/rs-ucan#32): Maybe swap this out is we get a substantially
-// similar construct to land in rs-ucan
+#[cfg(doc)]
+use ucan::ipld::UcanIpld;
+
+#[cfg(doc)]
+use crate::data::Jwt;
+
+/// An [Authorization] is a wrapper around something that can be resolved into
+/// a [Ucan]. Typically this is a [Cid], but it may also be something like a
+/// [Ucan] itself, or a [UcanIpld], or a [Jwt]. We don't want to deal with each
+/// of these heterogenous types separately, so we move them around as an
+/// [Authorization] instead.
+/// TODO(ucan-wg/rs-ucan#32): Maybe swap this out is we get a substantially
+/// similar construct to land in rs-ucan
 #[derive(Clone)]
 pub enum Authorization {
     /// A fully instantiated UCAN
@@ -43,6 +54,12 @@ impl FromStr for Authorization {
             Some(any_other) => Authorization::Cid(Cid::from_str(any_other)?),
             None => return Err(anyhow!("Authorization had empty value")),
         })
+    }
+}
+
+impl From<Cid> for Authorization {
+    fn from(cid: Cid) -> Self {
+        Authorization::Cid(cid)
     }
 }
 

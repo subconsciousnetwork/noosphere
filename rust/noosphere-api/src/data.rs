@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_core::{
     authority::{SphereAction, SphereReference, SPHERE_SEMANTICS},
-    data::Bundle,
+    data::{Bundle, Did},
 };
 use noosphere_storage::encoding::{base64_decode, base64_encode};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -116,9 +116,9 @@ pub enum PushResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdentifyResponse {
     /// The DID of the API host
-    pub gateway_identity: String,
+    pub gateway_identity: Did,
     /// The DID of the "counterpart" sphere
-    pub sphere_identity: String,
+    pub sphere_identity: Did,
     /// The signature of the API host over this payload, as base64-encoded bytes
     pub signature: String,
     /// The proof that the API host was authorized by the "counterpart" sphere
@@ -131,7 +131,7 @@ impl IdentifyResponse {
     where
         K: KeyMaterial,
     {
-        let gateway_identity = key.get_did().await?;
+        let gateway_identity = Did(key.get_did().await?);
         let signature = base64_encode(
             &key.sign(&[gateway_identity.as_bytes(), sphere_identity.as_bytes()].concat())
                 .await?,
@@ -174,14 +174,14 @@ impl IdentifyResponse {
 
         let proof = ProofChain::try_from_token_string(&self.proof, did_parser, store).await?;
 
-        if proof.ucan().audience() != self.gateway_identity {
+        if proof.ucan().audience() != self.gateway_identity.as_str() {
             return Err(anyhow!("Wrong audience!"));
         }
 
         let capability = Capability {
             with: With::Resource {
                 kind: Resource::Scoped(SphereReference {
-                    did: self.sphere_identity.clone(),
+                    did: self.sphere_identity.to_string(),
                 }),
             },
             can: SphereAction::Push,
@@ -191,7 +191,9 @@ impl IdentifyResponse {
 
         for capability_info in capability_infos {
             if capability_info.capability.enables(&capability)
-                && capability_info.originators.contains(&self.sphere_identity)
+                && capability_info
+                    .originators
+                    .contains(self.sphere_identity.as_str())
             {
                 return Ok(());
             }
