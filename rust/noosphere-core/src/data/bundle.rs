@@ -21,7 +21,9 @@ use crate::{
     view::Timeslice,
 };
 
-use super::{AllowedIpld, AuthorityIpld, RevokedIpld, VersionedMapKey, VersionedMapValue};
+use super::{
+    AllowedIpld, AuthorityIpld, NamesIpld, RevokedIpld, VersionedMapKey, VersionedMapValue,
+};
 
 // TODO: This should maybe only collect CIDs, and then streaming-serialize to
 // a CAR (https://ipld.io/specs/transport/car/carv2/)
@@ -337,6 +339,13 @@ impl TryBundle for SphereIpld {
         match sphere.authorization {
             Some(cid) => {
                 AuthorityIpld::try_extend_bundle_with_cid(&cid, bundle, store).await?;
+            }
+            _ => (),
+        }
+
+        match sphere.names {
+            Some(cid) => {
+                NamesIpld::try_extend_bundle_with_cid(&cid, bundle, store).await?;
             }
             _ => (),
         }
