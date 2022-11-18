@@ -42,24 +42,34 @@ impl<S: BlockStore> Sphere<S> {
         }
     }
 
+    /// Get the CID that points to the sphere's wrapping memo that corresponds
+    /// to this revision of the sphere
     pub fn cid(&self) -> &Cid {
         &self.cid
     }
 
+    /// Load the wrapping [MemoIpld] of the sphere data
     pub async fn try_as_memo(&self) -> Result<MemoIpld> {
         self.store.load::<DagCborCodec, _>(&self.cid).await
     }
 
+    /// Load the body [SphereIpld] of this sphere
     pub async fn try_as_body(&self) -> Result<SphereIpld> {
         self.store
             .load::<DagCborCodec, _>(&self.try_as_memo().await?.body)
             .await
     }
 
+    /// Produce a bundle that contains the sparse set of blocks needed
+    /// to produce this revision to the sphere
     pub async fn try_as_bundle(&self) -> Result<Bundle> {
         MemoIpld::try_bundle_with_cid(self.cid(), &self.store).await
     }
 
+    /// Produce a bundle that contains the sparse set of blocks needed to
+    /// produce a series of sequential revisions of this sphere, up to but
+    /// excluding the given [Cid] (or until the genesis revision of the
+    /// sphere if no [Cid] is given).
     pub async fn try_bundle_until_ancestor(&self, cid: Option<&Cid>) -> Result<Bundle> {
         Bundle::try_from_timeslice(
             &Timeline::new(&self.store).slice(&self.cid, cid),
@@ -68,6 +78,8 @@ impl<S: BlockStore> Sphere<S> {
         .await
     }
 
+    /// Get a [Sphere] view over the parent revision of the sphere relative to
+    /// this revision, if one exists
     pub async fn try_get_parent(&self) -> Result<Option<Sphere<S>>> {
         match self.try_as_memo().await?.parent {
             Some(cid) => Ok(Some(Sphere::at(&cid, &self.store))),
@@ -75,24 +87,34 @@ impl<S: BlockStore> Sphere<S> {
         }
     }
 
+    /// Attempt to load the [Links] of this sphere. If no links have been
+    /// set for this sphere yet, this initializes an empty [Links] and returns
+    /// it for the caller to populate.
     pub async fn try_get_links(&self) -> Result<Links<S>> {
         let sphere = self.try_as_body().await?;
 
         Links::try_at_or_empty(sphere.links.as_ref(), &mut self.store.clone()).await
     }
 
+    /// Attempt to load the [Authority] of this sphere. If no authorizations or
+    /// revocations have been added to this sphere yet, this initializes an
+    /// empty [Authority] and returns it for the caller to populate.
     pub async fn try_get_authority(&self) -> Result<Authority<S>> {
         let sphere = self.try_as_body().await?;
 
         Authority::try_at_or_empty(sphere.authorization.as_ref(), &mut self.store.clone()).await
     }
 
+    /// Attempt to load the [Names] of this sphere. If no names have been added
+    /// to this sphere yet, this initializes an empty [Names] and returns it
+    /// for the caller to populate.
     pub async fn try_get_names(&self) -> Result<Names<S>> {
         let sphere = self.try_as_body().await?;
 
         Names::try_at_or_empty(sphere.names.as_ref(), &mut self.store.clone()).await
     }
 
+    /// Get the [Did] identity of the sphere
     pub async fn try_get_identity(&self) -> Result<Did> {
         let sphere = self.try_as_body().await?;
 
@@ -123,10 +145,23 @@ impl<S: BlockStore> Sphere<S> {
             let changelog = links.try_get_changelog().await?;
 
             if changelog.is_empty() {
-                return Err(anyhow!("Links has changed but the changelog is empty"));
+                return Err(anyhow!("Links have changed but the changelog is empty"));
             }
 
             mutation.links_mut().try_apply_changelog(changelog)?;
+        }
+
+        let parent_names = parent.try_get_names().await?;
+        let names = self.try_get_names().await?;
+
+        if names.cid() != parent_names.cid() {
+            let changelog = names.try_get_changelog().await?;
+
+            if changelog.is_empty() {
+                return Err(anyhow!("Names have changed but the changelog is empty"));
+            }
+
+            mutation.names_mut().try_apply_changelog(changelog)?;
         }
 
         let parent_authorization = parent.try_get_authority().await?;
@@ -181,6 +216,8 @@ impl<S: BlockStore> Sphere<S> {
         store: &mut S,
     ) -> Result<SphereRevision<S>> {
         let links_mutation = mutation.links();
+        let names_mutation = mutation.names();
+
         let mut memo = MemoIpld::branch_from(cid, store).await?;
         let mut sphere = store.load::<DagCborCodec, SphereIpld>(&memo.body).await?;
 
@@ -189,6 +226,13 @@ impl<S: BlockStore> Sphere<S> {
                 Some(Links::try_apply_with_cid(sphere.links.as_ref(), links_mutation, store).await?)
             }
             false => sphere.links,
+        };
+
+        sphere.names = match !names_mutation.changes().is_empty() {
+            true => {
+                Some(Names::try_apply_with_cid(sphere.names.as_ref(), names_mutation, store).await?)
+            }
+            false => sphere.names,
         };
 
         let allowed_ucans_mutation = mutation.allowed_ucans();
@@ -523,7 +567,7 @@ mod tests {
             ed25519_key_to_mnemonic, generate_ed25519_key, Authorization, SphereAction,
             SphereReference, SUPPORTED_KEYS,
         },
-        data::{Bundle, CidKey, DelegationIpld, RevocationIpld},
+        data::{AddressIpld, Bundle, CidKey, DelegationIpld, RevocationIpld},
         view::{Sphere, SphereMutation, Timeline, SPHERE_LIFETIME},
     };
 
@@ -875,6 +919,61 @@ mod tests {
         );
         assert_eq!(rebased_links.get(&bar_key).await.unwrap(), Some(&baz_cid));
         assert_eq!(rebased_links.get(&baz_key).await.unwrap(), Some(&flurb_cid));
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_hydrate_revisions_of_names_changes() {
+        let mut store = MemoryStore::default();
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await.unwrap();
+
+        let (mut sphere, authorization, _) =
+            Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+
+        let address = AddressIpld {
+            identity: owner_did.clone().into(),
+            last_known_record: None,
+        };
+
+        let mut mutation = SphereMutation::new(&owner_did);
+
+        mutation.names_mut().set(&"foo".into(), &address);
+
+        let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+        let next_cid = revision
+            .try_sign(&owner_key, Some(&authorization))
+            .await
+            .unwrap();
+
+        sphere = Sphere::at(&next_cid, &store);
+
+        let mut mutation = SphereMutation::new(&owner_did);
+
+        mutation.names_mut().set(&"bar".into(), &address);
+
+        let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+        let next_cid = revision
+            .try_sign(&owner_key, Some(&authorization))
+            .await
+            .unwrap();
+
+        sphere = Sphere::at(&next_cid, &store);
+
+        let bundle = sphere.try_bundle_until_ancestor(None).await.unwrap();
+        let mut other_store = MemoryStore::default();
+
+        bundle.load_into(&mut other_store).await.unwrap();
+
+        let timeline = Timeline::new(&other_store);
+        let timeslice = timeline.slice(sphere.cid(), None);
+        let items = timeslice.try_to_chronological().await.unwrap();
+
+        for (cid, _) in items {
+            Sphere::at(&cid, &other_store).try_hydrate().await.unwrap();
+        }
+
+        store.expect_replica_in(&other_store).await.unwrap();
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]

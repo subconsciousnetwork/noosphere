@@ -1,12 +1,12 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
-use ucan::{crypto::KeyMaterial};
+use ucan::crypto::KeyMaterial;
 
 use crate::{
     authority::Authorization,
     data::{
-        ChangelogIpld, CidKey, DelegationIpld, MapOperation, MemoIpld, RevocationIpld,
+        AddressIpld, ChangelogIpld, CidKey, DelegationIpld, MapOperation, MemoIpld, RevocationIpld,
         VersionedMapKey, VersionedMapValue,
     },
 };
@@ -34,6 +34,7 @@ impl<S: BlockStore> SphereRevision<S> {
 pub struct SphereMutation {
     did: String,
     links: LinksMutation,
+    names: NamesMutation,
     allowed_ucans: AllowedUcansMutation,
     revoked_ucans: RevokedUcansMutation,
 }
@@ -43,6 +44,7 @@ impl<'a> SphereMutation {
         SphereMutation {
             did: did.into(),
             links: LinksMutation::new(did),
+            names: NamesMutation::new(did),
             allowed_ucans: AllowedUcansMutation::new(did),
             revoked_ucans: RevokedUcansMutation::new(did),
         }
@@ -58,6 +60,14 @@ impl<'a> SphereMutation {
 
     pub fn links(&self) -> &LinksMutation {
         &self.links
+    }
+
+    pub fn names_mut(&mut self) -> &mut NamesMutation {
+        &mut self.names
+    }
+
+    pub fn names(&self) -> &NamesMutation {
+        &self.names
     }
 
     pub fn allowed_ucans_mut(&mut self) -> &mut AllowedUcansMutation {
@@ -84,6 +94,7 @@ impl<'a> SphereMutation {
 }
 
 pub type LinksMutation = VersionedMapMutation<String, Cid>;
+pub type NamesMutation = VersionedMapMutation<String, AddressIpld>;
 pub type AllowedUcansMutation = VersionedMapMutation<CidKey, DelegationIpld>;
 pub type RevokedUcansMutation = VersionedMapMutation<CidKey, RevocationIpld>;
 
@@ -110,8 +121,6 @@ where
             .did
             .as_ref()
             .ok_or_else(|| anyhow!("Changelog did not have an author DID"))?;
-
-        // println!("CHANGELOG INSIDE MUTATION: {:?}", changelog);
 
         if did != &self.did {
             return Err(anyhow!(
