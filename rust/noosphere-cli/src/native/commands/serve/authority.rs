@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -9,13 +9,12 @@ use axum::{
     TypedHeader,
 };
 use libipld_core::cid::Cid;
+use noosphere::sphere::SphereContext;
 use noosphere_core::authority::{SphereAction, SphereReference, SPHERE_SEMANTICS};
-use noosphere_storage::{db::SphereDb, native::NativeStore};
+use noosphere_storage::native::NativeStore;
 
 use tokio::sync::Mutex;
-use ucan::{
-    capability::Capability, chain::ProofChain, crypto::did::DidParser, store::UcanJwtStore,
-};
+use ucan::{capability::Capability, chain::ProofChain, crypto::KeyMaterial, store::UcanJwtStore};
 
 use super::gateway::GatewayScope;
 
@@ -24,12 +23,19 @@ use super::gateway::GatewayScope;
 /// represented by a UCAN. Any request handler can use a GatewayAuthority
 /// to test if a required capability is satisfied by the authorization
 /// presented by the maker of the request.
-pub struct GatewayAuthority {
+pub struct GatewayAuthority<K>
+where
+    K: KeyMaterial + Clone,
+{
     proof: ProofChain,
     scope: GatewayScope,
+    key_type: PhantomData<K>,
 }
 
-impl GatewayAuthority {
+impl<K> GatewayAuthority<K>
+where
+    K: KeyMaterial + Clone,
+{
     pub fn expect_audience(&self, audience: &str) -> Result<(), StatusCode> {
         if self.proof.ucan().audience() != audience {
             return Err(StatusCode::UNAUTHORIZED);
@@ -61,29 +67,20 @@ impl GatewayAuthority {
 }
 
 #[async_trait]
-impl<B> FromRequest<B> for GatewayAuthority
+impl<B, K> FromRequest<B> for GatewayAuthority<K>
 where
     B: Send,
+    K: KeyMaterial + Clone + 'static,
 {
     type Rejection = StatusCode;
 
     async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        // Look for the DID parser
-        let did_parser = req
+        // Look for the SphereContext
+        let sphere_context = req
             .extensions()
-            .get::<Arc<Mutex<DidParser>>>()
+            .get::<Arc<Mutex<SphereContext<K, NativeStore>>>>()
             .ok_or_else(|| {
                 error!("Could not find DidParser in extensions");
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?
-            .clone();
-
-        // Look for the SphereDb
-        let mut db = req
-            .extensions()
-            .get::<SphereDb<NativeStore>>()
-            .ok_or_else(|| {
-                error!("Could not find SphereDb in extensions");
                 StatusCode::INTERNAL_SERVER_ERROR
             })?
             .clone();
@@ -107,6 +104,11 @@ where
                     StatusCode::BAD_REQUEST
                 })?;
 
+        let mut db = {
+            let sphere_context = sphere_context.lock().await;
+            sphere_context.db().clone()
+        };
+
         // TODO: We should write a typed header thing for this:
         let ucan_headers = req.headers().get_all("ucan");
         for header in ucan_headers.iter() {
@@ -129,27 +131,32 @@ where
             }
         }
 
-        let mut did_parser = did_parser.lock().await;
+        let proof_chain = {
+            let mut sphere_context = sphere_context.lock().await;
+            let did_parser = sphere_context.did_parser_mut();
+            let proof_chain = ProofChain::try_from_token_string(bearer.token(), did_parser, &db)
+                .await
+                .map_err(|error| {
+                    error!("{:?}", error);
+                    StatusCode::BAD_REQUEST
+                })?;
 
-        let proof_chain = ProofChain::try_from_token_string(bearer.token(), &mut did_parser, &db)
-            .await
-            .map_err(|error| {
-                error!("{:?}", error);
-                StatusCode::BAD_REQUEST
-            })?;
+            proof_chain
+                .ucan()
+                .validate(did_parser)
+                .await
+                .map_err(|error| {
+                    error!("{:?}", error);
+                    StatusCode::UNAUTHORIZED
+                })?;
 
-        proof_chain
-            .ucan()
-            .validate(&mut did_parser)
-            .await
-            .map_err(|error| {
-                error!("{:?}", error);
-                StatusCode::UNAUTHORIZED
-            })?;
+            proof_chain
+        };
 
         Ok(GatewayAuthority {
             scope: gateway_scope.clone(),
             proof: proof_chain,
+            key_type: PhantomData::default(),
         })
     }
 }

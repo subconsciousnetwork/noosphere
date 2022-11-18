@@ -4,8 +4,8 @@ use anyhow::{anyhow, Result};
 use futures::future::try_join_all;
 use noosphere::key::InsecureKeyStorage;
 use noosphere_ns::Multiaddr;
-use tokio;
-use toml;
+
+
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 /// DHT node configuration that contains resolved
@@ -49,7 +49,7 @@ impl RunnerConfig {
             .nodes
             .iter()
             .map(|config_node| {
-                let port = config_node.port.or(Some(0)).unwrap();
+                let port = config_node.port.unwrap_or(0);
                 RunnerNodeConfig::try_from_key_name(key_storage, &config_node.key, port)
             })
             .collect();
@@ -70,7 +70,7 @@ impl RunnerConfig {
                 Some(config_path) => {
                     let toml_str = tokio::fs::read_to_string(&config_path).await?;
                     let config: CLIConfig = toml::from_str(&toml_str)?;
-                    Ok(RunnerConfig::try_from_config(&key_storage, config).await?)
+                    Ok(RunnerConfig::try_from_config(key_storage, config).await?)
                 }
                 None => {
                     let key_name: String =
@@ -82,7 +82,7 @@ impl RunnerConfig {
                             port: port.take(),
                         }],
                     };
-                    Ok(RunnerConfig::try_from_config(&key_storage, config).await?)
+                    Ok(RunnerConfig::try_from_config(key_storage, config).await?)
                 }
             },
             _ => Err(anyhow!(
@@ -160,7 +160,7 @@ mod tests {
         );
         assert_eq!(
             node_config.listening_address,
-            format!("/ip4/127.0.0.1/tcp/6666").parse()?,
+            "/ip4/127.0.0.1/tcp/6666".to_string().parse()?,
             "expected port"
         );
 
@@ -201,7 +201,7 @@ port = 20000
         );
         assert_eq!(
             node_config.listening_address,
-            format!("/ip4/127.0.0.1/tcp/10000").parse()?,
+            "/ip4/127.0.0.1/tcp/10000".to_string().parse()?,
             "expected port"
         );
 
@@ -212,7 +212,7 @@ port = 20000
         );
         assert_eq!(
             node_config.listening_address,
-            format!("/ip4/127.0.0.1/tcp/20000").parse()?,
+            "/ip4/127.0.0.1/tcp/20000".to_string().parse()?,
             "expected port"
         );
 

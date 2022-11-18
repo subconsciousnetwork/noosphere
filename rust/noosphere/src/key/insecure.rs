@@ -1,9 +1,13 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use noosphere_core::authority::{
-    ed25519_key_to_mnemonic, generate_ed25519_key, restore_ed25519_key,
+use noosphere_core::{
+    authority::{ed25519_key_to_mnemonic, generate_ed25519_key, restore_ed25519_key},
+    data::Did,
 };
-use std::path::PathBuf;
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 use tokio::fs;
 use ucan::crypto::KeyMaterial;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
@@ -18,12 +22,13 @@ use super::KeyStorage;
 ///
 /// ⚠️ This storage mechanism keeps both public and private key data
 /// stored in clear text on disk. User beware!
+#[derive(Clone)]
 pub struct InsecureKeyStorage {
     storage_path: PathBuf,
 }
 
 impl InsecureKeyStorage {
-    pub fn new(global_storage_path: &PathBuf) -> Result<Self> {
+    pub fn new(global_storage_path: &Path) -> Result<Self> {
         let storage_path = global_storage_path.join("keys");
 
         std::fs::create_dir_all(&storage_path)?;
@@ -37,6 +42,40 @@ impl InsecureKeyStorage {
 
     fn private_key_path(&self, name: &str) -> PathBuf {
         self.storage_path.join(name).with_extension("private")
+    }
+
+    /// The location on disk where all keys are stored
+    pub fn storage_path(&self) -> &Path {
+        &self.storage_path
+    }
+
+    /// Reads all of the "discoverable" keys and returns a BTreeMap of their
+    /// credential ID (e.g., their "name") to their DID.
+    ///
+    /// TODO: This should eventually be a formal part of the [KeyStorage] trait,
+    /// but for now we aren't certain if we can depend on the ability to
+    /// enumerate keys in general WebAuthn cases.
+    ///
+    /// See: https://www.w3.org/TR/webauthn-3/#client-side-discoverable-credential
+    pub async fn get_discoverable_keys(&self) -> Result<BTreeMap<String, Did>> {
+        let mut discoverable_keys = BTreeMap::<String, Did>::new();
+        let mut directory = fs::read_dir(&self.storage_path).await?;
+
+        while let Some(entry) = directory.next_entry().await? {
+            let key_path = entry.path();
+            let key_name = key_path.file_stem().map(|stem| stem.to_str());
+            let extension = key_path.extension().map(|extension| extension.to_str());
+
+            match (key_name, extension) {
+                (Some(Some(key_name)), Some(Some("public"))) => {
+                    let did = Did(fs::read_to_string(&key_path).await?);
+                    discoverable_keys.insert(key_name.to_string(), did);
+                }
+                _ => continue,
+            };
+        }
+
+        Ok(discoverable_keys)
     }
 }
 
@@ -78,5 +117,55 @@ impl KeyStorage<Ed25519KeyMaterial> for InsecureKeyStorage {
         )?;
 
         Ok(key_pair)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::key::KeyStorage;
+
+    use super::InsecureKeyStorage;
+    use temp_dir::TempDir;
+    use ucan::crypto::KeyMaterial;
+
+    #[tokio::test]
+    async fn it_can_create_and_read_a_key() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let created_key = {
+            let key_storage = InsecureKeyStorage::new(temp_dir.path()).unwrap();
+            key_storage.create_key("foo").await.unwrap()
+        };
+
+        let retrieved_key = {
+            let key_storage = InsecureKeyStorage::new(temp_dir.path()).unwrap();
+            key_storage.require_key("foo").await.unwrap()
+        };
+
+        assert_eq!(
+            created_key.get_did().await.unwrap(),
+            retrieved_key.get_did().await.unwrap()
+        )
+    }
+
+    #[tokio::test]
+    async fn it_lists_all_the_created_keys() {
+        let temp_dir = TempDir::new().unwrap();
+
+        {
+            let key_storage = InsecureKeyStorage::new(temp_dir.path()).unwrap();
+            for i in [1, 2, 3, 4, 5] {
+                key_storage.create_key(&format!("key{}", i)).await.unwrap();
+            }
+        }
+
+        {
+            let key_storage = InsecureKeyStorage::new(temp_dir.path()).unwrap();
+            let keys = key_storage.get_discoverable_keys().await.unwrap();
+
+            for i in [1, 2, 3, 4, 5] {
+                assert!(keys.contains_key(&format!("key{}", i)));
+            }
+        }
     }
 }

@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 
 use axum::{extract::Query, http::StatusCode, response::IntoResponse, Extension};
 use cid::Cid;
+use noosphere::sphere::SphereContext;
 use noosphere_api::data::{FetchParameters, FetchResponse};
 use noosphere_core::{
     authority::{SphereAction, SphereReference},
@@ -9,18 +12,25 @@ use noosphere_core::{
     view::Sphere,
 };
 use noosphere_storage::{db::SphereDb, native::NativeStore};
-use ucan::capability::{Capability, Resource, With};
+use tokio::sync::Mutex;
+use ucan::{
+    capability::{Capability, Resource, With},
+    crypto::KeyMaterial,
+};
 
 use crate::native::commands::serve::{
     authority::GatewayAuthority, extractor::Cbor, gateway::GatewayScope,
 };
 
-pub async fn fetch_route(
-    authority: GatewayAuthority,
+pub async fn fetch_route<K>(
+    authority: GatewayAuthority<K>,
     Query(FetchParameters { since }): Query<FetchParameters>,
     Extension(scope): Extension<GatewayScope>,
-    Extension(db): Extension<SphereDb<NativeStore>>,
-) -> Result<impl IntoResponse, StatusCode> {
+    Extension(sphere_context): Extension<Arc<Mutex<SphereContext<K, NativeStore>>>>,
+) -> Result<impl IntoResponse, StatusCode>
+where
+    K: KeyMaterial + Clone,
+{
     authority.try_authorize(&Capability {
         with: With::Resource {
             kind: Resource::Scoped(SphereReference {
@@ -29,8 +39,10 @@ pub async fn fetch_route(
         },
         can: SphereAction::Fetch,
     })?;
+    let sphere_context = sphere_context.lock().await;
+    let db = sphere_context.db();
 
-    let response = match generate_fetch_bundle(&scope, since.as_ref(), &db)
+    let response = match generate_fetch_bundle(&scope, since.as_ref(), db)
         .await
         .map_err(|error| {
             error!("{:?}", error);

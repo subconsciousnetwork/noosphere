@@ -29,7 +29,7 @@ lazy_static = "^1"
 cid = "~0.8"
 async-trait = "~0.1"
 tracing = "~0.1"
-url = "^2"
+url = { version = "^2", features = ["serde"] }
 subtext = { version = "~0.3" }
 
 noosphere-core = { version = "0.2.0", path = "../noosphere-core" }
@@ -40,7 +40,7 @@ ucan = { version = "0.7.0-alpha.1" }
 ucan-key-support = { version = "0.7.0-alpha.1" }
 
 [dev-dependencies]
-wasm-bindgen-test = "~0.3"
+libipld-core = "~0.14"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tokio = { version = "^1", features = ["sync"] }
@@ -61,3 +61,7 @@ tokio = { version = "^1", features = ["full"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 temp-dir = "0.1"
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "~0.3"
+witty-phrase-generator = "~0.2"
