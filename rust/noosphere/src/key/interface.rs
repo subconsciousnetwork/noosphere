@@ -5,7 +5,7 @@ use ucan::crypto::KeyMaterial;
 /// A trait that represents access to arbitrary key storage backends.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait KeyStorage<K>
+pub trait KeyStorage<K>: Clone
 where
     K: KeyMaterial,
 {

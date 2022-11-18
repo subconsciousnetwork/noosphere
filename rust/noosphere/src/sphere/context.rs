@@ -8,12 +8,17 @@ use noosphere_core::{
     data::Did,
 };
 use noosphere_fs::SphereFs;
-use noosphere_storage::{db::SphereDb, interface::Store};
+use noosphere_storage::{
+    db::SphereDb,
+    interface::{KeyValueStore, Store},
+};
 use tokio::sync::OnceCell;
 use ucan::crypto::{did::DidParser, KeyMaterial};
 use url::Url;
 
 use crate::error::NoosphereError;
+
+use super::{metadata::GATEWAY_URL, GatewaySyncStrategy};
 
 /// A [SphereContext] is an accessor construct over locally replicated sphere
 /// data. It embodies both the storage layer that contains the sphere's data
@@ -30,7 +35,6 @@ where
     S: Store,
 {
     sphere_identity: Did,
-    gateway_url: Option<Url>,
     author: Author<K>,
     db: SphereDb<S>,
     did_parser: DidParser,
@@ -42,17 +46,11 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Store,
 {
-    pub fn new(
-        sphere_identity: Did,
-        author: Author<K>,
-        db: SphereDb<S>,
-        gateway_url: Option<Url>,
-    ) -> Self {
+    pub fn new(sphere_identity: Did, author: Author<K>, db: SphereDb<S>) -> Self {
         SphereContext {
             sphere_identity,
             author,
             db,
-            gateway_url,
             did_parser: DidParser::new(SUPPORTED_KEYS),
             client: OnceCell::new(),
         }
@@ -61,6 +59,44 @@ where
     /// The identity of the sphere
     pub fn identity(&self) -> &Did {
         &self.sphere_identity
+    }
+
+    /// The [Author] who is currently accessing the sphere
+    pub fn author(&self) -> &Author<K> {
+        &self.author
+    }
+
+    pub fn did_parser_mut(&mut self) -> &mut DidParser {
+        &mut self.did_parser
+    }
+
+    /// Sets or unsets the gateway URL that points to the gateway API that the
+    /// sphere will use when it is syncing.
+    pub async fn configure_gateway_url(&mut self, url: Option<&Url>) -> Result<()> {
+        self.client = OnceCell::new();
+
+        match url {
+            Some(url) => {
+                self.db.set_key(GATEWAY_URL, url.to_string()).await?;
+            }
+            None => {
+                self.db.unset_key(GATEWAY_URL).await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Get the [SphereDb] instance that manages the current sphere's block
+    /// space and persisted configuration.
+    pub fn db(&self) -> &SphereDb<S> {
+        &self.db
+    }
+
+    /// Get a mutable reference to the [SphereDb] instance that manages the
+    /// current sphere's block space and persisted configuration.
+    pub fn db_mut(&mut self) -> &mut SphereDb<S> {
+        &mut self.db
     }
 
     /// Get a [SphereFs] instance over the current sphere's content; note that
@@ -80,10 +116,7 @@ where
         let client = self
             .client
             .get_or_try_init::<anyhow::Error, _, _>(|| async {
-                let gateway_url = self
-                    .gateway_url
-                    .clone()
-                    .ok_or(NoosphereError::MissingConfiguration("gateway URL"))?;
+                let gateway_url: Url = self.db.require_key(GATEWAY_URL).await?;
 
                 Ok(Arc::new(
                     Client::identify(
@@ -99,5 +132,16 @@ where
             .await?;
 
         Ok(client.clone())
+    }
+
+    /// If a gateway URL has been configured, attempt to synchronize local
+    /// sphere data with the gateway. Changes on the gateway will first be
+    /// fetched to local storage. Then, the local changes will be replayed on
+    /// top of those changes. Finally, the synchronized local history will be
+    /// pushed up to the gateway.
+    pub async fn sync(&mut self) -> Result<()> {
+        let sync_strategy = GatewaySyncStrategy::default();
+        sync_strategy.sync(self).await?;
+        Ok(())
     }
 }

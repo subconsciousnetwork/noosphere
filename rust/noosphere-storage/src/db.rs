@@ -186,8 +186,14 @@ where
         K: AsRef<[u8]> + BlockStoreSend,
         V: Serialize + BlockStoreSend,
     {
-        self.metadata_store.set_key(key, value).await?;
-        Ok(())
+        self.metadata_store.set_key(key, value).await
+    }
+
+    async fn unset_key<K>(&mut self, key: K) -> Result<()>
+    where
+        K: AsRef<[u8]> + BlockStoreSend,
+    {
+        self.metadata_store.unset_key(key).await
     }
 
     async fn get_key<K, V>(&self, key: K) -> Result<Option<V>>

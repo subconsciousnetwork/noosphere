@@ -2,7 +2,8 @@ pub mod commands;
 pub mod workspace;
 
 use anyhow::Result;
-use globset::Glob;
+
+use noosphere_core::data::Did;
 use std::ffi::OsString;
 
 use std::net::IpAddr;
@@ -125,10 +126,7 @@ pub enum OrbCommand {
     /// Saves changed files to a sphere, creating and signing a new revision in
     /// the process; does nothing if there have been no changes to the files
     /// since the last revision
-    Save {
-        #[clap(short = 'm', long)]
-        matching: Option<Glob>,
-    },
+    Save,
 
     /// Synchronizes the local sphere with the copy in a configured gateway;
     /// note that this is a "conflict-free" sync that may cause local changes
@@ -223,7 +221,7 @@ pub enum SphereCommand {
     Create {
         /// The pet name of a key to assign as the owner of the sphere
         #[clap(short = 'k', long)]
-        owner_key: Option<String>,
+        owner_key: String,
 
         /// An optional path to a directory where the sphere should be
         /// initialized; by default, the current working directory will
@@ -235,15 +233,15 @@ pub enum SphereCommand {
     Join {
         /// The pet name of a key to use when requesting access to the sphere
         #[clap(short = 'k', long)]
-        local_key: Option<String>,
+        local_key: String,
 
         /// The identity of the authorization that allows the specified key
         /// to join the sphere (if already known)
         #[clap(short = 'a', long)]
         authorization: Option<String>,
 
-        /// The ID (specifically: a DID) of an existing sphere to join
-        id: String,
+        /// The identity of an existing sphere to join
+        id: Did,
 
         /// An optional path to a directory where the sphere should be
         /// initialized; by default, the current working directory will
@@ -285,13 +283,10 @@ pub enum AuthCommand {
 }
 
 pub async fn main() -> Result<()> {
-    // println!("Hello, Orb!");
     let args = Cli::parse();
 
-    let mut workspace = Workspace::new(&std::env::current_dir()?, None)?;
-
-    // println!("{:#?}", args);
-    // println!("{:#?}", working_paths);
+    let current_working_directory = std::env::current_dir()?;
+    let mut workspace = Workspace::new(&current_working_directory, None)?;
 
     match args.command {
         OrbCommand::Config { command } => match command {
@@ -305,13 +300,8 @@ pub async fn main() -> Result<()> {
         OrbCommand::Sphere { command } => match command {
             SphereCommand::Create { owner_key, path } => {
                 if let Some(path) = path {
-                    workspace = Workspace::new(&workspace.root_path().join(path), None)?;
+                    workspace = Workspace::new(&current_working_directory.join(path), None)?;
                 }
-
-                let owner_key = match owner_key {
-                    Some(owner_key) => owner_key,
-                    None => workspace.unambiguous_default_key_name().await?,
-                };
 
                 sphere_create(&owner_key, &workspace).await?;
             }
@@ -322,20 +312,15 @@ pub async fn main() -> Result<()> {
                 path,
             } => {
                 if let Some(path) = path {
-                    workspace = Workspace::new(&workspace.root_path().join(path), None)?;
+                    workspace = Workspace::new(&current_working_directory.join(path), None)?;
                 }
-
-                let local_key = match local_key {
-                    Some(local_key) => local_key,
-                    None => workspace.unambiguous_default_key_name().await?,
-                };
 
                 sphere_join(&local_key, authorization, &id, &workspace).await?;
             }
         },
         OrbCommand::Status => status(&workspace).await?,
         OrbCommand::Diff { paths: _, base: _ } => todo!(),
-        OrbCommand::Save { matching } => save(matching, &workspace).await?,
+        OrbCommand::Save => save(&workspace).await?,
         OrbCommand::Sync => sync(&workspace).await?,
         OrbCommand::Publish { version: _ } => todo!(),
         OrbCommand::Auth { command } => match command {

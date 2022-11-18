@@ -21,10 +21,9 @@ use tokio_stream::StreamExt;
 use crate::native::workspace::Workspace;
 
 pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) -> Result<()> {
-    workspace.expect_local_directories()?;
+    let sphere_did = workspace.sphere_identity().await?;
+    let mut db = workspace.db().await?;
 
-    let mut db = workspace.get_local_db().await?;
-    let sphere_did = workspace.get_local_identity().await?;
     let latest_sphere_cid = db.require_version(&sphere_did).await?;
     let sphere = Sphere::at(&latest_sphere_cid, &db);
 
@@ -73,11 +72,10 @@ You will be able to add a new one after the old one is revoked"#,
         }
     };
 
-    let my_key = workspace.get_local_key().await?;
+    let my_key = workspace.key().await?;
     let my_did = my_key.get_did().await?;
-    let sphere_did = workspace.get_local_identity().await?;
     let latest_sphere_cid = db.require_version(&sphere_did).await?;
-    let authorization = workspace.get_local_authorization().await?;
+    let authorization = workspace.authorization().await?;
 
     let mut signable = UcanBuilder::default()
         .issued_by(&my_key)
@@ -136,10 +134,9 @@ Use this identity when joining the sphere on the other client"#,
 }
 
 pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {
-    workspace.expect_local_directories()?;
+    let sphere_did = workspace.sphere_identity().await?;
+    let db = workspace.db().await?;
 
-    let db = workspace.get_local_db().await?;
-    let sphere_did = workspace.get_local_identity().await?;
     let latest_sphere_cid = db
         .get_version(&sphere_did)
         .await?
@@ -191,16 +188,15 @@ pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {
 }
 
 pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
-    workspace.expect_local_directories()?;
+    let sphere_did = workspace.sphere_identity().await?;
+    let mut db = workspace.db().await?;
 
-    let mut db = workspace.get_local_db().await?;
-    let sphere_did = workspace.get_local_identity().await?;
     let latest_sphere_cid = db
         .get_version(&sphere_did)
         .await?
         .ok_or_else(|| anyhow!("Sphere version pointer is missing or corrupted"))?;
 
-    let my_key = workspace.get_local_key().await?;
+    let my_key = workspace.key().await?;
     let my_did = my_key.get_did().await?;
 
     let sphere = Sphere::at(&latest_sphere_cid, &db);
@@ -223,7 +219,7 @@ pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
             mutation.revoked_ucans_mut().set(&key, &revocation);
 
             let mut revision = sphere.try_apply_mutation(&mutation).await?;
-            let ucan = workspace.get_local_authorization().await?;
+            let ucan = workspace.authorization().await?;
 
             let sphere_cid = revision.try_sign(&my_key, Some(&ucan)).await?;
 

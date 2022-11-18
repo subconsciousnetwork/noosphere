@@ -193,6 +193,10 @@ pub trait KeyValueStore {
         K: AsRef<[u8]> + BlockStoreSend,
         V: DeserializeOwned + BlockStoreSend;
 
+    async fn unset_key<K>(&mut self, key: K) -> Result<()>
+    where
+        K: AsRef<[u8]> + BlockStoreSend;
+
     async fn require_key<K, V>(&self, key: K) -> Result<V>
     where
         K: AsRef<[u8]> + BlockStoreSend + Display,
@@ -223,6 +227,15 @@ where
         let cbor = codec.encode(&ipld)?;
         let key_bytes = K::as_ref(&key);
         self.write(key_bytes, &cbor).await?;
+        Ok(())
+    }
+
+    async fn unset_key<K>(&mut self, key: K) -> Result<()>
+    where
+        K: AsRef<[u8]> + BlockStoreSend,
+    {
+        let key_bytes = K::as_ref(&key);
+        self.remove(key_bytes).await?;
         Ok(())
     }
 
