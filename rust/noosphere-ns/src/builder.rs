@@ -1,9 +1,11 @@
-use crate::{dht::DHTConfig, name_system::NameSystem};
+use crate::{
+    dht::{DHTConfig, DHTKeyMaterial},
+    name_system::NameSystem,
+};
 use anyhow::{anyhow, Result};
 use libp2p::{self, Multiaddr};
 use noosphere_storage::{db::SphereDb, interface::Store};
 use std::net::Ipv4Addr;
-use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 #[cfg(doc)]
 use libp2p::kad::KademliaConfig;
@@ -18,6 +20,7 @@ use libp2p::kad::KademliaConfig;
 /// use noosphere_core::authority::generate_ed25519_key;
 /// use noosphere_storage::{db::SphereDb, memory::{MemoryStore, MemoryStorageProvider}};
 /// use noosphere_ns::{NameSystem, NameSystemBuilder};
+/// use ucan_key_support::ed25519::Ed25519KeyMaterial;
 /// use tokio;
 ///
 /// #[tokio::main]
@@ -31,22 +34,25 @@ use libp2p::kad::KademliaConfig;
 ///         .listening_port(30000)
 ///         .build().expect("valid config");
 ///
-///     assert!(NameSystemBuilder::<MemoryStore>::default().build().is_err(), "key_material and store must be provided.");
+///     assert!(NameSystemBuilder::<MemoryStore, Ed25519KeyMaterial>::default().build().is_err(),
+///         "key_material and store must be provided.");
 /// }
 /// ```
-pub struct NameSystemBuilder<S>
+pub struct NameSystemBuilder<S, K>
 where
     S: Store,
+    K: DHTKeyMaterial,
 {
     bootstrap_peers: Option<Vec<Multiaddr>>,
     dht_config: DHTConfig,
-    key_material: Option<Ed25519KeyMaterial>,
+    key_material: Option<K>,
     store: Option<SphereDb<S>>,
 }
 
-impl<S> NameSystemBuilder<S>
+impl<S, K> NameSystemBuilder<S, K>
 where
     S: Store,
+    K: DHTKeyMaterial,
 {
     /// If bootstrap peers are provided, how often,
     /// in seconds, should the bootstrap process execute
@@ -59,13 +65,13 @@ where
     /// Peer addresses to query to update routing tables
     /// during bootstrap. A standalone bootstrap node would
     /// have this field empty.
-    pub fn bootstrap_peers(mut self, peers: &Vec<Multiaddr>) -> Self {
+    pub fn bootstrap_peers(mut self, peers: &[Multiaddr]) -> Self {
         self.bootstrap_peers = Some(peers.to_owned());
         self
     }
 
     /// Public/private keypair for DHT node.
-    pub fn key_material(mut self, key_material: &Ed25519KeyMaterial) -> Self {
+    pub fn key_material(mut self, key_material: &K) -> Self {
         self.key_material = Some(key_material.to_owned());
         self
     }
@@ -127,7 +133,7 @@ where
     }
 
     /// Build a [NameSystem] based off of the provided configuration.
-    pub fn build(mut self) -> Result<NameSystem<S>> {
+    pub fn build(mut self) -> Result<NameSystem<S, K>> {
         let key_material = self
             .key_material
             .take()
@@ -145,9 +151,10 @@ where
     }
 }
 
-impl<S> Default for NameSystemBuilder<S>
+impl<S, K> Default for NameSystemBuilder<S, K>
 where
     S: Store,
+    K: DHTKeyMaterial,
 {
     fn default() -> Self {
         Self {
@@ -167,6 +174,7 @@ mod tests {
         db::SphereDb,
         memory::{MemoryStorageProvider, MemoryStore},
     };
+    use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
     #[tokio::test]
     async fn test_name_system_builder() -> Result<(), anyhow::Error> {
@@ -209,10 +217,14 @@ mod tests {
         assert_eq!(ns.dht_config.replication_interval, 60 * 60 + 1);
         assert_eq!(ns.dht_config.record_ttl, 60 * 60 * 24 * 3 + 1);
 
-        if NameSystemBuilder::default().store(&store).build().is_ok() {
+        if NameSystemBuilder::<MemoryStore, Ed25519KeyMaterial>::default()
+            .store(&store)
+            .build()
+            .is_ok()
+        {
             panic!("key_material required.");
         }
-        if NameSystemBuilder::<MemoryStore>::default()
+        if NameSystemBuilder::<MemoryStore, Ed25519KeyMaterial>::default()
             .key_material(&key_material)
             .build()
             .is_ok()

@@ -1,15 +1,14 @@
 use crate::dht::{
     channel::message_channel,
     errors::DHTError,
+    keys::DHTKeyMaterial,
     processor::DHTProcessor,
     types::{DHTMessageClient, DHTNetworkInfo, DHTRecord, DHTRequest, DHTResponse},
-    utils::key_material_to_libp2p_keypair,
     DHTConfig, DefaultRecordValidator, RecordValidator,
 };
 use libp2p;
 use std::time::Duration;
 use tokio;
-use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 macro_rules! ensure_response {
     ($response:expr, $matcher:pat => $statement:expr) => {
@@ -76,13 +75,13 @@ where
     /// `validator` is an object implementing [RecordValidator]. Default validator can be
     /// created via `DHTNode::validator()`.
     /// `config` is a [DHTConfig] of various configurations for the node.
-    pub fn new(
-        key_material: &Ed25519KeyMaterial,
+    pub fn new<K: DHTKeyMaterial>(
+        key_material: &K,
         bootstrap_peers: Option<&Vec<libp2p::Multiaddr>>,
         validator: V,
         config: &DHTConfig,
     ) -> Result<Self, DHTError> {
-        let keypair = key_material_to_libp2p_keypair(key_material)?;
+        let keypair = key_material.to_dht_keypair()?;
         let peer_id = libp2p::PeerId::from(keypair.public());
         let peers: Option<Vec<libp2p::Multiaddr>> = bootstrap_peers.map(|peers| peers.to_vec());
 
