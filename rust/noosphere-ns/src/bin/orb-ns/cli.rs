@@ -5,7 +5,7 @@ use serde::Deserialize;
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[clap(name = "bootstrap_nns")]
+#[clap(name = "orb-ns")]
 pub struct CLI {
     #[clap(subcommand)]
     pub command: CLICommand,

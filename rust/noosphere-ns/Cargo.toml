@@ -53,10 +53,10 @@ libipld-cbor = "~0.14"
 tempdir = { version = "~0.3" }
 
 [features]
-default = ["bootstrap"]
-bootstrap = ["clap", "noosphere", "home", "toml"]
+default = ["orb-ns"]
+orb-ns = ["clap", "noosphere", "home", "toml"]
 
 
 [[bin]]
-name = "bootstrap-nns"
-required-features = ["bootstrap"]
+name = "orb-ns"
+required-features = ["orb-ns"]
