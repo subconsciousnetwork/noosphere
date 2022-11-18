@@ -18,8 +18,8 @@ use crate::{
     platform::{PlatformKeyMaterial, PlatformKeyStorage, PlatformStore},
     sphere::{
         context::SphereContext,
-        storage::{StorageLayout, AUTHORIZATION, USER_KEY_NAME},
-        IDENTITY,
+        metadata::{AUTHORIZATION, IDENTITY, USER_KEY_NAME},
+        storage::StorageLayout,
     },
 };
 
@@ -318,5 +318,126 @@ impl Default for SphereContextBuilder {
             key_storage: None as Option<PlatformKeyStorage>,
             key_name: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SphereContextBuilder;
+
+    use libipld_core::raw::RawCodec;
+    use noosphere_core::authority::Authorization;
+    use noosphere_storage::encoding::derive_cid;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    use crate::{
+        key::KeyStorage, platform::make_temporary_platform_primitives, sphere::SphereContext,
+    };
+
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_create_a_sphere_and_later_open_it() {
+        let (storage_path, key_storage, temporary_directories) =
+            make_temporary_platform_primitives().await.unwrap();
+
+        key_storage.create_key("foo").await.unwrap();
+
+        let sphere_identity = {
+            let artifacts = SphereContextBuilder::default()
+                .create_sphere()
+                .at_storage_path(&storage_path)
+                .reading_keys_from(key_storage.clone())
+                .using_key("foo")
+                .build()
+                .await
+                .unwrap();
+
+            artifacts.require_mnemonic().unwrap();
+
+            let sphere_context: SphereContext<_, _> = artifacts.into();
+            sphere_context.identity().clone()
+        };
+
+        let context: SphereContext<_, _> = SphereContextBuilder::default()
+            .open_sphere(None)
+            .at_storage_path(&storage_path)
+            .reading_keys_from(key_storage)
+            .build()
+            .await
+            .unwrap()
+            .into();
+
+        assert_eq!(&sphere_identity, context.identity());
+
+        drop(temporary_directories);
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_create_a_scoped_sphere_and_later_open_it() {
+        let (storage_path, key_storage, temporary_directories) =
+            make_temporary_platform_primitives().await.unwrap();
+
+        key_storage.create_key("foo").await.unwrap();
+
+        let sphere_identity = {
+            let artifacts = SphereContextBuilder::default()
+                .create_sphere()
+                .using_scoped_storage_layout()
+                .at_storage_path(&storage_path)
+                .reading_keys_from(key_storage.clone())
+                .using_key("foo")
+                .build()
+                .await
+                .unwrap();
+
+            artifacts.require_mnemonic().unwrap();
+
+            let sphere_context: SphereContext<_, _> = artifacts.into();
+            sphere_context.identity().clone()
+        };
+
+        let context: SphereContext<_, _> = SphereContextBuilder::default()
+            .open_sphere(Some(&sphere_identity))
+            .using_scoped_storage_layout()
+            .at_storage_path(&storage_path)
+            .reading_keys_from(key_storage)
+            .build()
+            .await
+            .unwrap()
+            .into();
+
+        assert_eq!(&sphere_identity, context.identity());
+
+        drop(temporary_directories);
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_initialize_a_sphere_to_sync_from_elsewhere() {
+        let (storage_path, key_storage, temporary_directories) =
+            make_temporary_platform_primitives().await.unwrap();
+
+        key_storage.create_key("foo").await.unwrap();
+
+        let artifacts = SphereContextBuilder::default()
+            .join_sphere(&"did:key:foo".into())
+            .at_storage_path(&storage_path)
+            .reading_keys_from(key_storage)
+            .authorized_by(&Authorization::Cid(derive_cid::<RawCodec>(&[0, 0, 0])))
+            .using_key("foo")
+            .build()
+            .await
+            .unwrap();
+
+        let context: SphereContext<_, _> = artifacts.into();
+
+        assert_eq!(context.identity().as_str(), "did:key:foo");
+
+        drop(temporary_directories);
     }
 }

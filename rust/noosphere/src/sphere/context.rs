@@ -18,7 +18,7 @@ use url::Url;
 
 use crate::error::NoosphereError;
 
-use super::{GatewaySyncStrategy, GATEWAY_URL};
+use super::{metadata::GATEWAY_URL, GatewaySyncStrategy};
 
 /// A [SphereContext] is an accessor construct over locally replicated sphere
 /// data. It embodies both the storage layer that contains the sphere's data

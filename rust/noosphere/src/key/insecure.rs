@@ -28,7 +28,7 @@ pub struct InsecureKeyStorage {
 }
 
 impl InsecureKeyStorage {
-    pub fn new(global_storage_path: &PathBuf) -> Result<Self> {
+    pub fn new(global_storage_path: &Path) -> Result<Self> {
         let storage_path = global_storage_path.join("keys");
 
         std::fs::create_dir_all(&storage_path)?;
@@ -117,5 +117,55 @@ impl KeyStorage<Ed25519KeyMaterial> for InsecureKeyStorage {
         )?;
 
         Ok(key_pair)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::key::KeyStorage;
+
+    use super::InsecureKeyStorage;
+    use temp_dir::TempDir;
+    use ucan::crypto::KeyMaterial;
+
+    #[tokio::test]
+    async fn it_can_create_and_read_a_key() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let created_key = {
+            let key_storage = InsecureKeyStorage::new(temp_dir.path()).unwrap();
+            key_storage.create_key("foo").await.unwrap()
+        };
+
+        let retrieved_key = {
+            let key_storage = InsecureKeyStorage::new(temp_dir.path()).unwrap();
+            key_storage.require_key("foo").await.unwrap()
+        };
+
+        assert_eq!(
+            created_key.get_did().await.unwrap(),
+            retrieved_key.get_did().await.unwrap()
+        )
+    }
+
+    #[tokio::test]
+    async fn it_lists_all_the_created_keys() {
+        let temp_dir = TempDir::new().unwrap();
+
+        {
+            let key_storage = InsecureKeyStorage::new(temp_dir.path()).unwrap();
+            for i in [1, 2, 3, 4, 5] {
+                key_storage.create_key(&format!("key{}", i)).await.unwrap();
+            }
+        }
+
+        {
+            let key_storage = InsecureKeyStorage::new(temp_dir.path()).unwrap();
+            let keys = key_storage.get_discoverable_keys().await.unwrap();
+
+            for i in [1, 2, 3, 4, 5] {
+                assert!(keys.contains_key(&format!("key{}", i)));
+            }
+        }
     }
 }

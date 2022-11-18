@@ -3,9 +3,9 @@ use std::rc::Rc;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use rexie::{KeyRange, ObjectStore, Rexie, RexieBuilder, Store, Transaction, TransactionMode};
+use std::sync::Arc;
 use ucan_key_support::web_crypto::WebCryptoRsaKeyMaterial;
 use wasm_bindgen::{JsCast, JsValue};
-use std::sync::Arc;
 use web_sys::CryptoKey;
 
 use super::KeyStorage;
@@ -14,6 +14,7 @@ use super::KeyStorage;
 /// APIs. This implementation is more secure than storing keys in clear text,
 /// but doesn't strictly guarantee that a key is ultimately stored in some
 /// kind of hardware-backed secure storage.
+#[derive(Clone)]
 pub struct WebCryptoKeyStorage {
     db: Rc<Rexie>,
 }
@@ -102,7 +103,10 @@ impl KeyStorage<Arc<WebCryptoRsaKeyMaterial>> for WebCryptoKeyStorage {
 
         WebCryptoKeyStorage::finish_transaction(tx).await?;
 
-        Ok(Some(Arc::new(WebCryptoRsaKeyMaterial(public_key, Some(private_key)))))
+        Ok(Some(Arc::new(WebCryptoRsaKeyMaterial(
+            public_key,
+            Some(private_key),
+        ))))
     }
 
     async fn create_key(&self, name: &str) -> Result<Arc<WebCryptoRsaKeyMaterial>> {
@@ -136,5 +140,42 @@ impl KeyStorage<Arc<WebCryptoRsaKeyMaterial>> for WebCryptoKeyStorage {
         WebCryptoKeyStorage::finish_transaction(tx).await?;
 
         Ok(Arc::new(key_material))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::key::KeyStorage;
+
+    use super::WebCryptoKeyStorage;
+    use ucan::crypto::KeyMaterial;
+
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    async fn it_can_create_and_read_a_key() {
+        let db_name: String = witty_phrase_generator::WPGen::new()
+            .with_words(3)
+            .unwrap()
+            .into_iter()
+            .map(|word| String::from(word))
+            .collect();
+
+        let created_key = {
+            let key_storage = WebCryptoKeyStorage::new(&db_name).await.unwrap();
+            key_storage.create_key("foo").await.unwrap()
+        };
+
+        let retrieved_key = {
+            let key_storage = WebCryptoKeyStorage::new(&db_name).await.unwrap();
+            key_storage.require_key("foo").await.unwrap()
+        };
+
+        assert_eq!(
+            created_key.get_did().await.unwrap(),
+            retrieved_key.get_did().await.unwrap()
+        )
     }
 }
