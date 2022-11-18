@@ -82,7 +82,7 @@ mod inner {
     use std::path::PathBuf;
 
     #[cfg(test)]
-    use temp_dir::TempDir;
+    use tempfile::TempDir;
 
     #[cfg(test)]
     pub async fn make_temporary_platform_primitives(

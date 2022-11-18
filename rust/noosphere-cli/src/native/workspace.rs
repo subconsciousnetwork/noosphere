@@ -34,7 +34,7 @@ use noosphere::{
     sphere::{SphereContext, SphereContextBuilder, AUTHORIZATION, GATEWAY_URL, USER_KEY_NAME},
 };
 
-use temp_dir::TempDir;
+use tempfile::TempDir;
 
 const SPHERE_DIRECTORY: &str = ".sphere";
 const NOOSPHERE_DIRECTORY: &str = ".noosphere";
