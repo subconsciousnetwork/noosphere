@@ -6,6 +6,7 @@ use noosphere_api::client::Client;
 use noosphere_core::{
     authority::{Author, SUPPORTED_KEYS},
     data::Did,
+    view::Sphere,
 };
 use noosphere_fs::SphereFs;
 use noosphere_storage::{
@@ -106,6 +107,17 @@ where
         SphereFs::latest(&self.sphere_identity, &self.author, &self.db)
             .await
             .map_err(|e| e.into())
+    }
+
+    /// Get a [Sphere] view over the current sphere's latest revision. This view
+    /// offers lower-level access than [SphereFs], but includes affordances to
+    /// help tranversing and manipulating IPLD structures that are more
+    /// convenient than working directly with raw data.
+    pub async fn sphere(&self) -> Result<Sphere<SphereDb<S>>, NoosphereError> {
+        Ok(Sphere::at(
+            &self.db.require_version(self.identity()).await?,
+            self.db(),
+        ))
     }
 
     /// Get a [Client] that will interact with a configured gateway (if a URL

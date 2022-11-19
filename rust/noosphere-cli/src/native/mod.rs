@@ -31,29 +31,6 @@ use self::commands::serve::serve;
 use self::commands::status::status;
 use self::commands::sync::sync;
 
-// On client:
-// orb key create cdata
-// orb sphere create --owner-key cdata
-// << client sphere DID is shown here >>
-
-// On gateway:
-// orb key create cdata-gateway
-// orb sphere create --owner-key cdata-gateway
-// << gateway sphere DID is shown here >>
-// orb config set counterpart $CLIENT_SPHERE_DID
-// orb serve
-// << gateway URL is shown here >>
-
-// On client:
-// orb config set gateway-url $GATEWAY_URL
-// orb config set counterpart $GATEWAY_SPHERE_DID
-
-// configs go in .sphere/config.toml
-//
-// gateway does not syndicate its sphere to IPFS, preserving a sort of privacy.
-// But: sphere content may still "leak" to public IPFS if it is linked to from
-// the user's sphere
-
 #[derive(Debug, Parser)]
 #[clap(name = "orb")]
 #[clap(about = "A CLI tool for saving, syncing and sharing content to the Noosphere", long_about = Some(
@@ -99,6 +76,10 @@ pub enum OrbCommand {
         /// Optional origin to allow CORS for
         #[clap(short, long)]
         cors_origin: Option<Url>,
+
+        /// URL of a Kubo Gateway RPC API
+        #[clap(short = 'I', long, default_value = "http://127.0.0.1:5001")]
+        ipfs_api: Url,
 
         /// The IP address of the interface that the gateway should bind to
         #[clap(short, long, default_value = "127.0.0.1")]
@@ -324,16 +305,19 @@ pub async fn main() -> Result<()> {
         OrbCommand::Sync => sync(&workspace).await?,
         OrbCommand::Publish { version: _ } => todo!(),
         OrbCommand::Auth { command } => match command {
-            AuthCommand::Add { did, name } => auth_add(&did, name, &workspace).await?,
+            AuthCommand::Add { did, name } => {
+                auth_add(&did, name, &workspace).await?;
+            }
             AuthCommand::List { as_json } => auth_list(as_json, &workspace).await?,
             AuthCommand::Revoke { name } => auth_revoke(&name, &workspace).await?,
             AuthCommand::Rotate {} => todo!(),
         },
         OrbCommand::Serve {
             cors_origin,
+            ipfs_api,
             interface,
             port,
-        } => serve(interface, port, cors_origin, &workspace).await?,
+        } => serve(interface, port, ipfs_api, cors_origin, &workspace).await?,
     };
 
     Ok(())

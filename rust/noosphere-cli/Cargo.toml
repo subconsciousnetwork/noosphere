@@ -16,13 +16,20 @@ repository = "https://github.com/subconsciousnetwork/noosphere"
 homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
+[features]
+test_kubo = []
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tempfile = "^3"
 clap = { version = "^4", features = ["derive", "cargo"] }
 anyhow = "^1"
 
+async-compat = { version = "~0.2" }
 tokio = { version = "^1", features = ["full"] }
 tokio-stream = "~0.1"
 axum = { version = "~0.5", features = ["headers", "macros"] }
@@ -31,6 +38,13 @@ tower-http = { version = "~0.3", features = ["cors", "trace"] }
 async-trait = "~0.1"
 tracing = "~0.1"
 tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
+ipfs-api-prelude = "~0.5"
+hyper = "~0.14"
+hyper-multipart-rfc7578 = "~0.8"
+multipart = "~0.18"
+wnfs = { git = "https://github.com/wnfs-wg/rs-wnfs", package = "wnfs", rev = "9d3b5c2d4357f57919668e3bc31aea497f41b6a4" }
+iroh-car = { git = "https://github.com/n0-computer/iroh", package = "iroh-car", rev = "d4c9c6f6a9ce6ebf63abcd1a03fabeb12600d7fb" }
+
 
 url = { version = "^2", features = [ "serde" ] }
 whoami = "^1"

@@ -1,6 +1,6 @@
 use std::pin::Pin;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_once_cell::OnceCell;
 use cid::Cid;
 use futures::Stream;
@@ -21,6 +21,11 @@ pub type Names<S> = VersionedMap<String, AddressIpld, S>;
 pub type AllowedUcans<S> = VersionedMap<CidKey, DelegationIpld, S>;
 pub type RevokedUcans<S> = VersionedMap<CidKey, RevocationIpld, S>;
 
+/// A view over a [VersionedMapIpld] which provides high-level traversal of the
+/// underlying data structure, including ergonomic access to its internal
+/// [HAMT](https://ipld.io/specs/advanced-data-layouts/hamt/). The end-product is
+/// a convenient view over key/value data in IPLD that includes versioning
+/// information suitable to support multi-device synchronization over time.
 #[derive(Debug)]
 pub struct VersionedMap<K, V, S>
 where
@@ -100,10 +105,21 @@ impl<K: VersionedMapKey, V: VersionedMapValue, S: BlockStore> VersionedMap<K, V,
         })
     }
 
+    /// Read a key from the map. You can think of this as analogous to reading
+    /// a key from a hashmap, but note that this will load the underlying HAMT
+    /// into memory if it has not yet been accessed.
     pub async fn get(&self, key: &K) -> Result<Option<&V>> {
         let hamt = self.try_get_hamt().await?;
 
         hamt.get(key).await
+    }
+
+    /// Same as `get`, but gives an error result if the key is not present in
+    /// the underlying HAMT.
+    pub async fn require(&self, key: &K) -> Result<&V> {
+        self.get(key)
+            .await?
+            .ok_or_else(|| anyhow!("Key {} not found!", key))
     }
 
     pub async fn try_apply_with_cid(

@@ -241,7 +241,10 @@ impl TryBundle for MemoIpld {
         match self.get_first_header(&Header::ContentType.to_string()) {
             Some(value) => {
                 match ContentType::from_str(&value)? {
-                    ContentType::Subtext | ContentType::Bytes => {
+                    ContentType::Subtext
+                    | ContentType::Bytes
+                    | ContentType::Json
+                    | ContentType::Cbor => {
                         bundle.extend::<BodyChunkIpld, _>(&self.body, store).await?;
                     }
                     ContentType::Sphere => {

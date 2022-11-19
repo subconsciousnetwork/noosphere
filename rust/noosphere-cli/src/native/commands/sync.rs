@@ -19,10 +19,12 @@ pub async fn sync(workspace: &Workspace) -> Result<()> {
         _ => (),
     };
 
-    let context = workspace.sphere_context().await?;
-    let mut context = context.lock().await;
+    {
+        let context = workspace.sphere_context().await?;
+        let mut context = context.lock().await;
 
-    context.sync().await?;
+        context.sync().await?;
+    }
 
     println!("Sync complete, rendering updated workspace...");
 

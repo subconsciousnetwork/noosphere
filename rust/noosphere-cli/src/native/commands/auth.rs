@@ -20,7 +20,7 @@ use tokio_stream::StreamExt;
 
 use crate::native::workspace::Workspace;
 
-pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) -> Result<()> {
+pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) -> Result<Cid> {
     let sphere_did = workspace.sphere_identity().await?;
     let mut db = workspace.db().await?;
 
@@ -130,7 +130,7 @@ Use this identity when joining the sphere on the other client"#,
         delegation.jwt
     );
 
-    Ok(())
+    Ok(delegation.jwt)
 }
 
 pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {

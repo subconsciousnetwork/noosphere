@@ -11,19 +11,22 @@ use noosphere_core::authority::{Authorization, SphereAction, SphereReference};
 use noosphere_core::data::Bundle;
 use noosphere_core::view::{Sphere, SphereMutation, Timeline};
 use noosphere_storage::{db::SphereDb, native::NativeStore};
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
 use ucan::capability::{Capability, Resource, With};
 use ucan::crypto::KeyMaterial;
 
-use crate::native::commands::serve::gateway::GatewayScope;
-use crate::native::commands::serve::{authority::GatewayAuthority, extractor::Cbor};
+use crate::native::commands::serve::{
+    authority::GatewayAuthority, extractor::Cbor, gateway::GatewayScope, ipfs::SyndicationJob,
+};
 
 // #[debug_handler]
 pub async fn push_route<K>(
     authority: GatewayAuthority<K>,
     ContentLengthLimit(Cbor(push_body)): ContentLengthLimit<Cbor<PushBody>, { 1024 * 5000 }>,
-    Extension(sphere_context): Extension<Arc<Mutex<SphereContext<K, NativeStore>>>>,
+    Extension(sphere_context_mutex): Extension<Arc<Mutex<SphereContext<K, NativeStore>>>>,
     Extension(scope): Extension<GatewayScope>,
+    Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<K, NativeStore>>>,
 ) -> Result<Cbor<PushResponse>, StatusCode>
 where
     K: KeyMaterial + Clone,
@@ -45,7 +48,7 @@ where
         can: SphereAction::Push,
     })?;
 
-    let sphere_context = sphere_context.lock().await;
+    let sphere_context = sphere_context_mutex.lock().await;
     let mut db = sphere_context.db().clone();
     let gateway_key = &sphere_context.author().key;
     let gateway_authorization =
@@ -116,6 +119,16 @@ where
         error!("{:?}", error);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
+
+    // TODO(#156): This should not be happening on every push, but rather on
+    // an explicit publish action. Move this to the publish handler when we
+    // have added it to the gateway.
+    if let Err(error) = syndication_tx.send(SyndicationJob {
+        revision: new_gateway_tip.clone(),
+        context: sphere_context_mutex.clone(),
+    }) {
+        warn!("Failed to queue IPFS syndication job: {}", error);
+    };
 
     Ok(Cbor(PushResponse::Accepted {
         new_tip: new_gateway_tip,

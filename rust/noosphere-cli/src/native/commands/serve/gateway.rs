@@ -15,8 +15,11 @@ use url::Url;
 use noosphere_api::route::Route as GatewayRoute;
 use noosphere_storage::native::NativeStore;
 
-use crate::native::commands::serve::route::{did_route, fetch_route, identify_route, push_route};
-use crate::native::commands::serve::tracing::initialize_tracing;
+use crate::native::commands::serve::{
+    ipfs::start_ipfs_syndication,
+    route::{did_route, fetch_route, identify_route, push_route},
+    tracing::initialize_tracing,
+};
 
 #[derive(Clone, Debug)]
 pub struct GatewayScope {
@@ -28,12 +31,18 @@ pub async fn start_gateway<K>(
     listener: TcpListener,
     gateway_scope: GatewayScope,
     sphere_context: Arc<Mutex<SphereContext<K, NativeStore>>>,
+    ipfs_api: Url,
     cors_origin: Option<Url>,
 ) -> Result<()>
 where
     K: KeyMaterial + Clone + 'static,
 {
     initialize_tracing();
+
+    let gateway_key_did = {
+        let sphere_context = sphere_context.lock().await;
+        sphere_context.author().identity().await?
+    };
 
     let mut cors = CorsLayer::new();
 
@@ -56,6 +65,8 @@ where
             ]);
     }
 
+    let (syndication_tx, syndication_task) = start_ipfs_syndication::<K, NativeStore>(ipfs_api);
+
     let app = Router::new()
         .route(&GatewayRoute::Did.to_string(), get(did_route::<K>))
         .route(
@@ -64,8 +75,10 @@ where
         )
         .route(&GatewayRoute::Push.to_string(), put(push_route::<K>))
         .route(&GatewayRoute::Fetch.to_string(), get(fetch_route::<K>))
-        .layer(Extension(sphere_context))
+        .layer(Extension(sphere_context.clone()))
         .layer(Extension(gateway_scope.clone()))
+        .layer(Extension(gateway_key_did))
+        .layer(Extension(syndication_tx))
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 
@@ -84,6 +97,8 @@ It awaits updates from sphere {}..."#,
     Server::from_tcp(listener)?
         .serve(app.into_make_service())
         .await?;
+
+    syndication_task.abort();
 
     Ok(())
 }

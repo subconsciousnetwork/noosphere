@@ -1,4 +1,4 @@
-use std::{convert::TryFrom, str::FromStr};
+use std::{convert::TryFrom, fmt::Display, str::FromStr};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
@@ -83,5 +83,12 @@ impl TryFrom<&Authorization> for Cid {
             }
             Authorization::Cid(cid) => *cid,
         })
+    }
+}
+
+impl Display for Authorization {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let cid = Cid::try_from(self).map_err(|_| std::fmt::Error)?;
+        cid.fmt(f)
     }
 }

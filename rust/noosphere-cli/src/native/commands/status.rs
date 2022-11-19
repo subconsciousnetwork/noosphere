@@ -26,6 +26,11 @@ pub fn status_section(
 }
 
 pub async fn status(workspace: &Workspace) -> Result<()> {
+    let identity = workspace.sphere_identity().await?;
+
+    println!("This sphere's identity is {identity}");
+    println!("Here is a summary of the current changes to sphere content:\n");
+
     let mut memory_store = MemoryStore::default();
 
     let (_, mut changes) = match workspace

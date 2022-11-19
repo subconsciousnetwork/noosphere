@@ -15,10 +15,6 @@ readme = "README.md"
 [lib]
 crate-type = ["rlib", "staticlib", "cdylib"]
 
-[profile.release]
-opt-level = 'z'
-lto = true
-
 [features]
 headers = ["safer-ffi/headers"]
 

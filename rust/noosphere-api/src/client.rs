@@ -5,13 +5,13 @@ use crate::{
     route::{Route, RouteUrl},
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 
 use noosphere_core::authority::{Author, SphereAction, SphereReference};
 use noosphere_storage::encoding::{block_deserialize, block_serialize};
-use reqwest::{header::HeaderMap, Body};
+use reqwest::{header::HeaderMap, Body, StatusCode};
 use ucan::{
     builder::UcanBuilder,
     capability::{Capability, Resource, With},
@@ -21,6 +21,10 @@ use ucan::{
 };
 use url::Url;
 
+/// A [Client] is a simple, portable HTTP client for the Noosphere gateway REST
+/// API. It embodies the intended usage of the REST API, which includes an
+/// opening handshake (with associated key verification) and various
+/// UCAN-authorized verbs over sphere data.
 pub struct Client<K, S>
 where
     K: KeyMaterial + Clone + 'static,
@@ -55,7 +59,14 @@ where
         let mut url = api_base.clone();
         url.set_path(&Route::Did.to_string());
 
-        let gateway_identity = client.get(url).send().await?.text().await?;
+        let did_response = client.get(url).send().await?;
+
+        match did_response.status() {
+            StatusCode::OK => (),
+            _ => return Err(anyhow!("Unable to look up gateway identity")),
+        };
+
+        let gateway_identity = did_response.text().await?;
 
         let mut url = api_base.clone();
         url.set_path(&Route::Identify.to_string());

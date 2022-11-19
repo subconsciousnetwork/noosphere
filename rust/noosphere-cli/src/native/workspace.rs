@@ -437,6 +437,8 @@ impl Workspace {
                     None => None,
                 }
             }
+            ContentType::Cbor => Some("json".into()),
+            ContentType::Json => Some("cbor".into()),
         }
     }
 
@@ -493,12 +495,10 @@ impl Workspace {
 
         let key_storage = InsecureKeyStorage::new(&noosphere_directory)?;
         let sphere_directory = root_directory.join(SPHERE_DIRECTORY);
-        // let storage_directory = sphere_directory.join(STORAGE_DIRECTORY);
 
         Ok(Workspace {
             root_directory,
             sphere_directory,
-            // storage_directory,
             key_storage,
             sphere_context: OnceCell::new(),
         })
