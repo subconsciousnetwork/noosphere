@@ -6,11 +6,15 @@ use crate::{
     data::Did,
 };
 use anyhow::{anyhow, Result};
+use cid::Cid;
 use noosphere_storage::{SphereDb, Storage};
+use serde_json;
 use ucan::{
+    builder::UcanBuilder,
     capability::{Capability, Resource, With},
     chain::ProofChain,
     crypto::{did::DidParser, KeyMaterial},
+    Ucan,
 };
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
@@ -102,6 +106,34 @@ where
         }
 
         Ok(Access::ReadOnly)
+    }
+
+    /// A helper for creating and signing a new UCAN token for publishing.
+    pub async fn create_publish_token(
+        &self,
+        sphere_id: &str,
+        address: &Cid,
+        authority: &Cid,
+        lifetime: u64,
+    ) -> Result<Ucan> {
+        let mut signable = UcanBuilder::default()
+            .issued_by(&self.key)
+            .for_audience(sphere_id)
+            .with_lifetime(lifetime)
+            .claiming_capability(&Capability {
+                with: With::Resource {
+                    kind: Resource::Scoped(SphereReference {
+                        did: sphere_id.to_owned(),
+                    }),
+                },
+                can: SphereAction::Publish,
+            })
+            .with_fact(serde_json::json!({ "link": address.to_string() }))
+            .build()?;
+
+        // TODO(ucan-wg/rs-ucan#32): This is kind of a hack until we can add proofs by CID
+        signable.proofs.push(authority.to_string());
+        signable.sign().await
     }
 }
 

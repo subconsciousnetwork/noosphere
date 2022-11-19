@@ -24,7 +24,7 @@ impl Runner {
 
         for node_config in self.config.nodes.iter() {
             let store = SphereDb::new(&MemoryStorage::default()).await?;
-            let mut node = NameSystem::new(
+            let node = NameSystem::new(
                 &node_config.key_material,
                 store,
                 node_config.dht_config.to_owned(),

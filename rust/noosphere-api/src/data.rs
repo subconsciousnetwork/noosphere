@@ -111,6 +111,20 @@ pub enum PushResponse {
     NoChange,
 }
 
+/// The body payload expected by the "publish" API route
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PublishBody {
+    /// The DID of the local sphere whose revisions are being pushed
+    pub sphere: String,
+    /// The latest revision address of the sphere to publish
+    /// as a UCAN string.
+    pub publish_token: String,
+}
+
+/// The possible responses from the "publish" API route
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PublishResponse {}
+
 /// The response from the "identify" API route; this is a signed response that
 /// allows the client to verify the authority of the API host
 #[derive(Debug, Clone, Serialize, Deserialize)]

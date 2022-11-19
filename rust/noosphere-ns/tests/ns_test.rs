@@ -48,12 +48,11 @@ async fn generate_name_system(
     let _ = store.write_token(&delegation.encode()?).await?;
 
     let ns_key = generate_ed25519_key();
-    let mut ns = NameSystem::new(&ns_key, store.to_owned(), create_test_dht_config())?;
+    let ns = NameSystem::new(&ns_key, store.to_owned(), create_test_dht_config())?;
     ns.start_listening(generate_default_listening_address())
         .await?;
     ns.add_peers(bootstrap_addresses.to_vec()).await?;
     ns.bootstrap().await?;
-
     Ok(NSData {
         ns,
         owner_key,
@@ -73,7 +72,7 @@ async fn generate_name_systems_network(
 
     let bootstrap_node = {
         let key = generate_ed25519_key();
-        let mut node = NameSystem::new(&key, store.clone(), create_test_dht_config())?;
+        let node = NameSystem::new(&key, store.clone(), create_test_dht_config())?;
         node.start_listening(generate_default_listening_address())
             .await?;
         node

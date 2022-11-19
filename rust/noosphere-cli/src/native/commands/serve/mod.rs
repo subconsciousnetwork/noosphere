@@ -2,6 +2,7 @@ pub mod authority;
 pub mod extractor;
 pub mod gateway;
 pub mod ipfs;
+mod name_system;
 pub mod route;
 pub mod tracing;
 
@@ -15,12 +16,15 @@ use crate::native::workspace::Workspace;
 
 use self::gateway::GatewayScope;
 
+use noosphere_ns::BOOTSTRAP_PEERS;
+
 pub async fn serve(
     interface: IpAddr,
     port: u16,
     ipfs_api: Url,
     cors_origin: Option<Url>,
     workspace: &Workspace,
+    ns_port: Option<u16>,
 ) -> Result<()> {
     let listener = TcpListener::bind(&(interface, port))?;
 
@@ -41,6 +45,8 @@ pub async fn serve(
         sphere_context,
         ipfs_api,
         cors_origin,
+        &BOOTSTRAP_PEERS[..],
+        ns_port,
     )
     .await
 }

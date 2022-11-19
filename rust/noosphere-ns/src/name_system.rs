@@ -58,12 +58,12 @@ impl NameSystem {
 
     /// Adds peers to connect to. Unless bootstrapping a network, at least one
     /// peer is needed.
-    pub async fn add_peers(&mut self, peers: Vec<Multiaddr>) -> Result<()> {
+    pub async fn add_peers(&self, peers: Vec<Multiaddr>) -> Result<()> {
         self.dht.add_peers(peers).await.map_err(|e| e.into())
     }
 
     /// Starts listening for connections on provided address.
-    pub async fn start_listening(&mut self, listening_address: Multiaddr) -> Result<()> {
+    pub async fn start_listening(&self, listening_address: Multiaddr) -> Result<()> {
         self.dht
             .start_listening(listening_address)
             .await
@@ -71,7 +71,7 @@ impl NameSystem {
     }
 
     /// Stops listening for connections on provided address.
-    pub async fn stop_listening(&mut self, listening_address: Multiaddr) -> Result<()> {
+    pub async fn stop_listening(&self, listening_address: Multiaddr) -> Result<()> {
         self.dht
             .stop_listening(listening_address)
             .await
@@ -79,7 +79,7 @@ impl NameSystem {
     }
 
     /// Connects to peers provided in `add_peers`.
-    pub async fn bootstrap(&mut self) -> Result<()> {
+    pub async fn bootstrap(&self) -> Result<()> {
         self.dht.bootstrap().await.map_err(|e| e.into())
     }
 

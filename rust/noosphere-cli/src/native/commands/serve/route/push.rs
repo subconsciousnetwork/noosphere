@@ -9,28 +9,31 @@ use noosphere::sphere::SphereContext;
 use noosphere_api::data::{PushBody, PushResponse};
 use noosphere_core::{
     authority::{Authorization, SphereAction, SphereReference},
-    data::Bundle,
+    data::{Bundle, MapOperation},
     view::{Sphere, SphereMutation, Timeline},
 };
+use noosphere_ns::DHTKeyMaterial;
 use noosphere_storage::{NativeStorage, SphereDb};
 use tokio::sync::{mpsc::UnboundedSender, Mutex};
 use ucan::capability::{Capability, Resource, With};
-use ucan::crypto::KeyMaterial;
 
 use crate::native::commands::serve::{
     authority::GatewayAuthority, extractor::Cbor, gateway::GatewayScope, ipfs::SyndicationJob,
+    name_system::NSJob,
 };
 
-// #[debug_handler]
+//use axum::debug_handler;
+//#[debug_handler]
 pub async fn push_route<K>(
     authority: GatewayAuthority<K>,
     ContentLengthLimit(Cbor(push_body)): ContentLengthLimit<Cbor<PushBody>, { 1024 * 5000 }>,
     Extension(sphere_context_mutex): Extension<Arc<Mutex<SphereContext<K, NativeStorage>>>>,
     Extension(scope): Extension<GatewayScope>,
     Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<K, NativeStorage>>>,
+    Extension(ns_tx): Extension<Option<UnboundedSender<NSJob>>>,
 ) -> Result<Cbor<PushResponse>, StatusCode>
 where
-    K: KeyMaterial + Clone + 'static,
+    K: DHTKeyMaterial + 'static,
 {
     debug!("Invoking push route...");
 
@@ -99,12 +102,14 @@ where
 
     debug!("Merging...");
 
-    incorporate_lineage(&scope, &mut db, &push_body)
-        .await
-        .map_err(|error| {
-            error!("{:?}", error);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    {
+        incorporate_lineage::<K>(&scope, &mut db, &push_body, &ns_tx)
+            .await
+            .map_err(|error| {
+                error!("{:?}", error);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+    }
 
     debug!("Updating the gateway's sphere...");
 
@@ -121,7 +126,7 @@ where
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    // TODO(#156): This should not be happening on every push, but rather on
+    // TODO(#156): These jobs should not be happening on every push, but rather on
     // an explicit publish action. Move this to the publish handler when we
     // have added it to the gateway.
     if let Err(error) = syndication_tx.send(SyndicationJob {
@@ -145,7 +150,7 @@ async fn update_gateway_sphere<K>(
     db: &mut SphereDb<NativeStorage>,
 ) -> Result<(Cid, Bundle)>
 where
-    K: KeyMaterial + Send,
+    K: DHTKeyMaterial + 'static,
 {
     let my_sphere_cid = db.require_version(&scope.identity).await?;
 
@@ -171,11 +176,15 @@ where
     Ok((my_updated_sphere_cid, blocks))
 }
 
-async fn incorporate_lineage(
+async fn incorporate_lineage<K>(
     scope: &GatewayScope,
     db: &mut SphereDb<NativeStorage>,
     push_body: &PushBody,
-) -> Result<()> {
+    ns_tx: &Option<UnboundedSender<NSJob>>,
+) -> Result<()>
+where
+    K: DHTKeyMaterial + 'static,
+{
     push_body.blocks.load_into(db).await?;
 
     let PushBody { base, tip, .. } = push_body;
@@ -183,13 +192,48 @@ async fn incorporate_lineage(
     let timeline = Timeline::new(db);
     let timeslice = timeline.slice(tip, base.as_ref());
     let steps = timeslice.try_to_chronological().await?;
-
     for (cid, _) in steps {
-        debug!("Hydrating {}", cid);
-        Sphere::at(&cid, db).try_hydrate().await?;
+        info!("Hydrating {:#?}", cid);
+        let sphere = Sphere::at(&cid, db);
+        sphere.try_hydrate().await?;
+        request_ns_addresses(&sphere, ns_tx).await?;
     }
-
     db.set_version(&scope.counterpart, &push_body.tip).await?;
 
+    Ok(())
+}
+
+/// Looks for new entries in a sphere's address book,
+/// and makes a request to the Name System to find
+/// the latest address.
+async fn request_ns_addresses(
+    sphere: &Sphere<SphereDb<NativeStorage>>,
+    ns_tx: &Option<UnboundedSender<NSJob>>,
+) -> Result<()> {
+    if ns_tx.is_none() {
+        info!("Skipping NS address request, NS not configured");
+        return Ok(());
+    }
+
+    let names = sphere.try_get_names().await?;
+    let changelog = names.try_get_changelog().await?;
+
+    for op in &changelog.changes {
+        match op {
+            MapOperation::Add {
+                key: name,
+                value: address,
+                ..
+            } => {
+                if let Err(e) = ns_tx.as_ref().unwrap().send(NSJob::GetRecord {
+                    pet_name: name.to_owned(),
+                    sphere_id: address.identity.clone(),
+                }) {
+                    warn!("Failed to queue name system job: {}", e);
+                }
+            }
+            _ => (),
+        };
+    }
     Ok(())
 }

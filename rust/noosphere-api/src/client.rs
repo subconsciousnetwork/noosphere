@@ -1,7 +1,10 @@
 use std::str::FromStr;
 
 use crate::{
-    data::{FetchParameters, FetchResponse, IdentifyResponse, PushBody, PushResponse},
+    data::{
+        FetchParameters, FetchResponse, IdentifyResponse, PublishBody, PublishResponse, PushBody,
+        PushResponse,
+    },
     route::{Route, RouteUrl},
 };
 
@@ -246,5 +249,44 @@ where
             .await?;
 
         block_deserialize::<DagCborCodec, _>(bytes.as_ref())
+    }
+
+    pub async fn publish(&self, publish_body: &PublishBody) -> Result<PublishResponse> {
+        let url = Url::try_from(RouteUrl::<()>(&self.api_base, Route::Publish, None))?;
+        debug!("Client publishing sphere {}", self.sphere_identity.clone());
+
+        let (token, ucan_headers) = Self::make_bearer_token(
+            &self.session.gateway_identity,
+            &self.author,
+            &Capability {
+                with: With::Resource {
+                    kind: Resource::Scoped(SphereReference {
+                        did: self.sphere_identity.clone(),
+                    }),
+                },
+                can: SphereAction::Publish,
+            },
+            &self.store,
+        )
+        .await?;
+
+        let (_, publish_body_bytes) = block_serialize::<DagCborCodec, _>(publish_body)?;
+
+        let res = self
+            .client
+            .post(url)
+            .bearer_auth(token)
+            .headers(ucan_headers)
+            .header("Content-Type", "application/octet-stream")
+            .body(Body::from(publish_body_bytes))
+            .send()
+            .await?;
+
+        // PublishResponse is an empty struct, which cannot be deserialized;
+        // just return a new instance.
+        match res.status() {
+            StatusCode::OK => Ok(PublishResponse {}),
+            _ => Err(anyhow!("Unable to publish.")),
+        }
     }
 }

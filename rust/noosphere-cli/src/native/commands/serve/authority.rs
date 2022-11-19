@@ -14,7 +14,9 @@ use noosphere_core::authority::{SphereAction, SphereReference, SPHERE_SEMANTICS}
 use noosphere_storage::NativeStorage;
 
 use tokio::sync::Mutex;
-use ucan::{capability::Capability, chain::ProofChain, crypto::KeyMaterial, store::UcanJwtStore};
+use ucan::{
+    capability::Capability, chain::ProofChain, crypto::KeyMaterial, store::UcanJwtStore, Ucan,
+};
 
 use super::gateway::GatewayScope;
 
@@ -63,6 +65,10 @@ where
         }
 
         Err(StatusCode::UNAUTHORIZED)
+    }
+
+    pub fn ucan(&self) -> &Ucan {
+        self.proof.ucan()
     }
 }
 

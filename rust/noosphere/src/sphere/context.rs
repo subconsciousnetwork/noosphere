@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use cid::Cid;
-use noosphere_api::client::Client;
-
+use noosphere_api::{client::Client, data::PublishBody};
 use noosphere_core::{
     authority::{Author, SUPPORTED_KEYS},
     data::Did,
@@ -18,6 +17,9 @@ use url::Url;
 use crate::error::NoosphereError;
 
 use super::{metadata::GATEWAY_URL, GatewaySyncStrategy};
+
+/// When signing an NSRecord, the UCAN expiration for the record (90 days).
+const NS_RECORD_LIFETIME: u64 = 7776000;
 
 /// A [SphereContext] is an accessor construct over locally replicated sphere
 /// data. It embodies both the storage layer that contains the sphere's data
@@ -161,6 +163,30 @@ where
     pub async fn sync(&mut self) -> Result<()> {
         let sync_strategy = GatewaySyncStrategy::default();
         sync_strategy.sync(self).await?;
+        Ok(())
+    }
+
+    pub async fn publish(&mut self) -> Result<()> {
+        let identity = self.identity().to_owned();
+        let publish_token = {
+            let authorization = self.author.require_authorization()?;
+            let authorization_cid = Cid::try_from(authorization)?;
+            self.author
+                .create_publish_token(
+                    &identity,
+                    self.sphere().await?.cid(),
+                    &authorization_cid,
+                    NS_RECORD_LIFETIME,
+                )
+                .await?
+        };
+        let client = self.client().await?;
+        client
+            .publish(&PublishBody {
+                sphere: String::from(identity),
+                publish_token: publish_token.encode()?,
+            })
+            .await?;
         Ok(())
     }
 }

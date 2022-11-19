@@ -317,7 +317,7 @@ pub async fn main() -> Result<()> {
             ipfs_api,
             interface,
             port,
-        } => serve(interface, port, ipfs_api, cors_origin, &workspace).await?,
+        } => serve(interface, port, ipfs_api, cors_origin, &workspace, None).await?,
     };
 
     Ok(())
