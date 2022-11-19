@@ -26,9 +26,7 @@ mod tests {
     #[test]
     fn it_converts_to_libp2p_keypair() -> anyhow::Result<()> {
         let zebra_keys = generate_ed25519_key();
-        let keypair = match zebra_keys.to_dht_keypair()? {
-            libp2p::identity::Keypair::Ed25519(k) => k,
-        };
+        let libp2p::identity::Keypair::Ed25519(keypair) = zebra_keys.to_dht_keypair()?;
         let zebra_private_key = zebra_keys.1.expect("Has private key");
         let dalek_public_key = keypair.public().encode();
         let dalek_private_key = keypair.secret();

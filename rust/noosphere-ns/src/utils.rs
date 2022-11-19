@@ -10,7 +10,7 @@ use cid::Cid;
 ///
 /// ```
 /// use noosphere_ns::utils::generate_capability;
-/// use noosphere_core::authority::{SphereAction, SphereReference};
+/// use noosphere_core::{authority::{SphereAction, SphereReference}};
 /// use ucan::capability::{Capability, Resource, With};
 ///
 /// let identity = "did:key:z6MkoE19WHXJzpLqkxbGP7uXdJX38sWZNUWwyjcuCmjhPpUP";
@@ -22,13 +22,13 @@ use cid::Cid;
 ///     },
 ///     can: SphereAction::Publish,
 /// };
-/// assert_eq!(generate_capability(identity), expected_capability);
+/// assert_eq!(generate_capability(&identity), expected_capability);
 /// ```
-pub fn generate_capability(sphere_did: &str) -> Capability<SphereReference, SphereAction> {
+pub fn generate_capability(identity: &str) -> Capability<SphereReference, SphereAction> {
     Capability {
         with: With::Resource {
             kind: Resource::Scoped(SphereReference {
-                did: sphere_did.to_owned(),
+                did: identity.to_owned(),
             }),
         },
         can: SphereAction::Publish,

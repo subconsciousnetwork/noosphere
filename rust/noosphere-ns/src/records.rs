@@ -209,7 +209,10 @@ impl FromStr for NSRecord {
 #[cfg(test)]
 mod test {
     use super::*;
-    use noosphere_core::authority::{generate_ed25519_key, SUPPORTED_KEYS};
+    use noosphere_core::{
+        authority::{generate_ed25519_key, SUPPORTED_KEYS},
+        data::Did,
+    };
     use noosphere_storage::{
         db::SphereDb,
         memory::{MemoryStorageProvider, MemoryStore},
@@ -240,7 +243,7 @@ mod test {
     #[tokio::test]
     async fn test_nsrecord_self_signed() -> Result<(), Error> {
         let sphere_key = generate_ed25519_key();
-        let sphere_identity = sphere_key.get_did().await?;
+        let sphere_identity = Did::from(sphere_key.get_did().await?);
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
         let capability = generate_capability(&sphere_identity);
         let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
@@ -261,7 +264,7 @@ mod test {
                 .await?,
         );
 
-        assert_eq!(record.identity(), &sphere_identity);
+        assert_eq!(&Did::from(record.identity()), &sphere_identity);
         assert_eq!(record.address(), Some(&Cid::from_str(cid_address).unwrap()));
         record.validate(&store, &mut did_parser).await?;
         Ok(())
@@ -270,9 +273,9 @@ mod test {
     #[tokio::test]
     async fn test_nsrecord_delegated() -> Result<(), Error> {
         let owner_key = generate_ed25519_key();
-        let owner_identity = owner_key.get_did().await?;
+        let owner_identity = Did::from(owner_key.get_did().await?);
         let sphere_key = generate_ed25519_key();
-        let sphere_identity = sphere_key.get_did().await?;
+        let sphere_identity = Did::from(sphere_key.get_did().await?);
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
         let capability = generate_capability(&sphere_identity);
         let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
@@ -336,7 +339,7 @@ mod test {
     #[tokio::test]
     async fn test_nsrecord_failures() -> Result<(), Error> {
         let sphere_key = generate_ed25519_key();
-        let sphere_identity = sphere_key.get_did().await?;
+        let sphere_identity = Did::from(sphere_key.get_did().await?);
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
         let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
         let store = SphereDb::new(&MemoryStorageProvider::default())
@@ -360,7 +363,7 @@ mod test {
         )
         .await;
 
-        let capability = generate_capability(&generate_ed25519_key().get_did().await?);
+        let capability = generate_capability(&Did(generate_ed25519_key().get_did().await?));
         expect_failure(
             "fails when capability resource does not match sphere identity",
             &store,
@@ -400,7 +403,7 @@ mod test {
     #[tokio::test]
     async fn test_nsrecord_convert() -> Result<(), Error> {
         let sphere_key = generate_ed25519_key();
-        let sphere_identity = sphere_key.get_did().await?;
+        let sphere_identity = Did::from(sphere_key.get_did().await?);
         let capability = generate_capability(&sphere_identity);
         let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
         let fact = json!({ "address": cid_address });

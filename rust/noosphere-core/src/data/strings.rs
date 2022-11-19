@@ -41,6 +41,12 @@ macro_rules! string_coherent {
             }
         }
 
+        impl<'a> From<&'a $wrapper> for &'a str {
+            fn from(value: &'a $wrapper) -> Self {
+                &value.0
+            }
+        }
+
         impl PartialEq<String> for $wrapper {
             fn eq(&self, other: &String) -> bool {
                 &self.0 == other
@@ -50,6 +56,30 @@ macro_rules! string_coherent {
         impl PartialEq<$wrapper> for String {
             fn eq(&self, other: &$wrapper) -> bool {
                 self == &other.0
+            }
+        }
+
+        impl PartialEq<str> for $wrapper {
+            fn eq(&self, other: &str) -> bool {
+                &self.0 == other
+            }
+        }
+
+        impl PartialEq<$wrapper> for str {
+            fn eq(&self, other: &$wrapper) -> bool {
+                self == &other.0
+            }
+        }
+
+        impl PartialEq<&str> for $wrapper {
+            fn eq(&self, other: &&str) -> bool {
+                &self.0 == *other
+            }
+        }
+
+        impl<'a> PartialEq<$wrapper> for &'a str {
+            fn eq(&self, other: &$wrapper) -> bool {
+                **self == *other.0
             }
         }
 
@@ -138,5 +168,28 @@ mod tests {
 
         assert_eq!(did_from_string.foo, Did(string_value.clone()));
         assert_eq!(string_from_did.foo, string_value);
+    }
+
+    #[test]
+    fn it_enables_comparison_to_string_types() {
+        let did_str = "did:key:z6MkoE19WHXJzpLqkxbGP7uXdJX38sWZNUWwyjcuCmjhPpUP";
+        let did_string = String::from(did_str);
+        let did = Did::from(did_str);
+
+        // Did <-> &str
+        assert_eq!(did, did_str);
+        assert_eq!(did_str, did);
+
+        // Did <-> String
+        assert_eq!(did, did_string);
+        assert_eq!(did_string, did);
+
+        // &Did <-> &str
+        assert_eq!(&did, did_str);
+        assert_eq!(did_str, &did);
+
+        // &Did <-> &String
+        assert_eq!(&did, &did_string);
+        assert_eq!(&did_string, &did);
     }
 }
