@@ -49,7 +49,7 @@ wasm-bindgen-test = "~0.3"
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 # Mostly these dependencies are used in the examples
 tokio = { version = "^1", features = ["full"] }
-temp-dir = "~0.1"
+tempfile = "^3"
 axum = "~0.5"
 axum-extra = { version = "~0.3", features = ["spa"] }
 tower-http = { version = "~0.3", features = ["fs", "trace"] }

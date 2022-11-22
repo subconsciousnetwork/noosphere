@@ -125,7 +125,7 @@ mod tests {
     use crate::key::KeyStorage;
 
     use super::InsecureKeyStorage;
-    use temp_dir::TempDir;
+    use tempfile::TempDir;
     use ucan::crypto::KeyMaterial;
 
     #[tokio::test]
