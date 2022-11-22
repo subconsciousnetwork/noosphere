@@ -34,7 +34,6 @@ use noosphere::{
     sphere::{SphereContext, SphereContextBuilder, AUTHORIZATION, GATEWAY_URL, USER_KEY_NAME},
 };
 
-#[cfg(test)]
 use temp_dir::TempDir;
 
 const SPHERE_DIRECTORY: &str = ".sphere";
@@ -505,7 +504,6 @@ impl Workspace {
         })
     }
 
-    #[cfg(test)]
     /// Configure a workspace automatically by creating temporary directories
     /// on the file system and initializing it with their paths
     pub fn temporary() -> Result<(Self, (TempDir, TempDir))> {
