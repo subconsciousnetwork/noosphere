@@ -25,8 +25,8 @@ use noosphere_cli::native::commands::serve::gateway::{start_gateway, GatewayScop
 async fn it_can_be_identified_by_the_client_of_its_owner() {
     initialize_tracing();
 
-    let (gateway_workspace, gateway_temporary_directories) = Workspace::temporary().unwrap();
-    let (client_workspace, client_temporary_directories) = Workspace::temporary().unwrap();
+    let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
+    let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
 
     let gateway_key_name = "GATEWAY_KEY";
     let client_key_name = "CLIENT_KEY";
@@ -100,17 +100,14 @@ async fn it_can_be_identified_by_the_client_of_its_owner() {
     });
 
     client_task.await.unwrap();
-
-    drop(gateway_temporary_directories);
-    drop(client_temporary_directories);
 }
 
 #[tokio::test]
 async fn it_can_receive_a_newly_initialized_sphere_from_the_client() {
     // initialize_tracing();
 
-    let (gateway_workspace, gateway_temporary_directories) = Workspace::temporary().unwrap();
-    let (client_workspace, client_temporary_directories) = Workspace::temporary().unwrap();
+    let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
+    let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
 
     let gateway_key_name = "GATEWAY_KEY";
     let client_key_name = "CLIENT_KEY";
@@ -214,17 +211,14 @@ async fn it_can_receive_a_newly_initialized_sphere_from_the_client() {
     });
 
     client_task.await.unwrap();
-
-    drop(gateway_temporary_directories);
-    drop(client_temporary_directories);
 }
 
 #[tokio::test]
 async fn it_can_update_an_existing_sphere_with_changes_from_the_client() {
     // initialize_tracing();
 
-    let (gateway_workspace, gateway_temporary_directories) = Workspace::temporary().unwrap();
-    let (client_workspace, client_temporary_directories) = Workspace::temporary().unwrap();
+    let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
+    let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
 
     let gateway_key_name = "GATEWAY_KEY";
     let client_key_name = "CLIENT_KEY";
@@ -382,17 +376,14 @@ async fn it_can_update_an_existing_sphere_with_changes_from_the_client() {
     });
 
     client_task.await.unwrap();
-
-    drop(gateway_temporary_directories);
-    drop(client_temporary_directories);
 }
 
 #[tokio::test]
 async fn it_can_serve_sphere_revisions_to_a_client() {
     // initialize_tracing();
 
-    let (gateway_workspace, gateway_temporary_directories) = Workspace::temporary().unwrap();
-    let (client_workspace, client_temporary_directories) = Workspace::temporary().unwrap();
+    let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
+    let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
 
     let gateway_key_name = "GATEWAY_KEY";
     let client_key_name = "CLIENT_KEY";
@@ -530,7 +521,4 @@ async fn it_can_serve_sphere_revisions_to_a_client() {
     });
 
     client_task.await.unwrap();
-
-    drop(gateway_temporary_directories);
-    drop(client_temporary_directories);
 }

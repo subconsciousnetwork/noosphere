@@ -526,7 +526,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_chooses_an_ancestor_sphere_directory_as_root_if_one_exists() {
-        let (workspace, temporary_directories) = Workspace::temporary().unwrap();
+        let (workspace, _temporary_directories) = Workspace::temporary().unwrap();
 
         key::key_create("FOO", &workspace).await.unwrap();
 
@@ -540,7 +540,5 @@ mod tests {
             Workspace::new(&subdirectory, workspace.key_directory().parent()).unwrap();
 
         assert_eq!(workspace.root_directory(), new_workspace.root_directory());
-
-        drop(temporary_directories)
     }
 }

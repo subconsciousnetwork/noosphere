@@ -47,7 +47,7 @@ async fn single_player_single_device_end_to_end_workflow() {
     #[cfg(target_arch = "wasm32")]
     tracing_wasm::set_as_global_default();
 
-    let (configuration, temporary_directories) = platform_configuration();
+    let (configuration, _temporary_directories) = platform_configuration();
     let key_name = "foobar";
 
     // Create the sphere and write a file to it
@@ -108,6 +108,4 @@ async fn single_player_single_device_end_to_end_workflow() {
 
         fs.save(None).await.unwrap();
     };
-
-    drop(temporary_directories)
 }
