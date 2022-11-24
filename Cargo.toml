@@ -14,3 +14,8 @@ members = [
 # See: https://github.com/rust-lang/rust/issues/90148#issuecomment-949194352
 resolver = "2"
 
+[workspace.dependencies]
+anyhow = "^1"
+cid = "~0.8"
+tokio = { version = "^1" }
+tokio-stream = "~0.1"

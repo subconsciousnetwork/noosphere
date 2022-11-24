@@ -53,12 +53,10 @@ libipld-core = "~0.14"
 libipld-cbor = "~0.14"
 
 noosphere-storage = { path = "../noosphere-storage" }
-noosphere-cbor = { path = "../noosphere-cbor" }
 noosphere-collections = { path = "../noosphere-collections" }
 
 noosphere-core = { version = "0.2.0", path = "../noosphere-core" }
 noosphere-fs = { version = "0.1.0", path = "../noosphere-fs" }
-noosphere-storage = { version = "0.1.0", path = "../noosphere-storage" }
 noosphere-api = { version = "0.3.0", path = "../noosphere-api" }
 ucan = { version = "0.7.0-alpha.1" }
 ucan-key-support = { version = "0.7.0-alpha.1" }
@@ -69,6 +67,7 @@ wasm-bindgen-test = "~0.3"
 serde_bytes = "~0.11"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+safer-ffi = { version = "~0.0.10", features = ["proc_macros"] }
 tokio = { workspace = true, features = ["full"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -83,10 +82,6 @@ version = "~0.3"
 features = [
   "CryptoKey",
 ]
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-safer-ffi = { version = "~0.0.10", features = ["proc_macros"] }
-tokio = { version = "^1", features = ["full"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 temp-dir = "0.1"
