@@ -11,25 +11,34 @@ wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 use noosphere::{sphere::SphereReceipt, NoosphereContext, NoosphereContextConfiguration};
 
 #[cfg(target_arch = "wasm32")]
-fn platform_configuration() -> NoosphereContextConfiguration {
-    NoosphereContextConfiguration::OpaqueSecurity {
-        sphere_storage_path: "sphere-data".into(),
-        gateway_url: None,
-    }
+fn platform_configuration() -> (NoosphereContextConfiguration, ()) {
+    (
+        NoosphereContextConfiguration::OpaqueSecurity {
+            sphere_storage_path: "sphere-data".into(),
+            gateway_url: None,
+        },
+        (),
+    )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn platform_configuration() -> NoosphereContextConfiguration {
-    use temp_dir::TempDir;
+fn platform_configuration() -> (
+    NoosphereContextConfiguration,
+    (tempfile::TempDir, tempfile::TempDir),
+) {
+    use tempfile::TempDir;
 
-    let global_storage_path = TempDir::new().unwrap().path().to_path_buf();
-    let sphere_storage_path = TempDir::new().unwrap().path().to_path_buf();
+    let global_storage = TempDir::new().unwrap();
+    let sphere_storage = TempDir::new().unwrap();
 
-    NoosphereContextConfiguration::Insecure {
-        global_storage_path,
-        sphere_storage_path,
-        gateway_url: None,
-    }
+    (
+        NoosphereContextConfiguration::Insecure {
+            global_storage_path: global_storage.path().to_path_buf(),
+            sphere_storage_path: sphere_storage.path().to_path_buf(),
+            gateway_url: None,
+        },
+        (global_storage, sphere_storage),
+    )
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
@@ -38,7 +47,7 @@ async fn single_player_single_device_end_to_end_workflow() {
     #[cfg(target_arch = "wasm32")]
     tracing_wasm::set_as_global_default();
 
-    let configuration = platform_configuration();
+    let (configuration, _temporary_directories) = platform_configuration();
     let key_name = "foobar";
 
     // Create the sphere and write a file to it

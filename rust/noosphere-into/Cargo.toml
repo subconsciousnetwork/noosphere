@@ -50,6 +50,7 @@ wasm-bindgen-test = "~0.3"
 # Mostly these dependencies are used in the examples
 tokio = { workspace = true, features = ["full"] }
 temp-dir = "~0.1"
+tempfile = "^3"
 axum = "~0.5"
 axum-extra = { version = "~0.3", features = ["spa"] }
 tower-http = { version = "~0.3", features = ["fs", "trace"] }

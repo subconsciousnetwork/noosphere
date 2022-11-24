@@ -84,7 +84,7 @@ features = [
 ]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-temp-dir = "0.1"
+tempfile = "^3"
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "~0.3"

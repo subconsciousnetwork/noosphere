@@ -3,7 +3,7 @@ use axum::{http::StatusCode, response::IntoResponse, routing::get_service, Route
 use noosphere_fs::SphereFs;
 use noosphere_into::{html::sphere_into_html, write::NativeFs};
 use std::{net::SocketAddr, os::unix::prelude::OsStrExt, path::Path};
-use temp_dir::TempDir;
+use tempfile::TempDir;
 use tokio::fs::{self, File};
 use tower_http::services::ServeDir;
 

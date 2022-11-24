@@ -34,8 +34,7 @@ use noosphere::{
     sphere::{SphereContext, SphereContextBuilder, AUTHORIZATION, GATEWAY_URL, USER_KEY_NAME},
 };
 
-#[cfg(test)]
-use temp_dir::TempDir;
+use tempfile::TempDir;
 
 const SPHERE_DIRECTORY: &str = ".sphere";
 const NOOSPHERE_DIRECTORY: &str = ".noosphere";
@@ -505,7 +504,6 @@ impl Workspace {
         })
     }
 
-    #[cfg(test)]
     /// Configure a workspace automatically by creating temporary directories
     /// on the file system and initializing it with their paths
     pub fn temporary() -> Result<(Self, (TempDir, TempDir))> {
@@ -528,7 +526,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_chooses_an_ancestor_sphere_directory_as_root_if_one_exists() {
-        let (workspace, temporary_directories) = Workspace::temporary().unwrap();
+        let (workspace, _temporary_directories) = Workspace::temporary().unwrap();
 
         key::key_create("FOO", &workspace).await.unwrap();
 
@@ -542,7 +540,5 @@ mod tests {
             Workspace::new(&subdirectory, workspace.key_directory().parent()).unwrap();
 
         assert_eq!(workspace.root_directory(), new_workspace.root_directory());
-
-        drop(temporary_directories)
     }
 }
