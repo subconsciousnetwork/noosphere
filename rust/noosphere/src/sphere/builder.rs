@@ -9,6 +9,9 @@ use noosphere_core::{
     view::Sphere,
 };
 
+#[cfg(feature = "kubo-storage")]
+use noosphere_storage::KuboStorage;
+
 use noosphere_storage::{KeyValueStore, MemoryStore, SphereDb};
 use ucan::crypto::KeyMaterial;
 use url::Url;
@@ -75,7 +78,8 @@ impl From<SphereContextBuilderArtifacts> for SphereContext<PlatformKeyMaterial, 
 pub struct SphereContextBuilder {
     initialization: SphereInitialization,
     scoped_storage_layout: bool,
-    gateway_url: Option<Url>,
+    gateway_api: Option<Url>,
+    ipfs_api: Option<Url>,
     storage_path: Option<PathBuf>,
     authorization: Option<Authorization>,
     key_storage: Option<PlatformKeyStorage>,
@@ -106,7 +110,14 @@ impl SphereContextBuilder {
     /// Specify the URL of a gateway API for this application to sync sphere
     /// data with
     pub fn syncing_to(mut self, gateway_url: Option<&Url>) -> Self {
-        self.gateway_url = gateway_url.cloned();
+        self.gateway_api = gateway_url.cloned();
+        self
+    }
+
+    /// Speciy the URL of an IPFS Kubo RPC API for this application to access
+    /// as a contingency when blocks being read from storage are missing
+    pub fn reading_ipfs_from(mut self, ipfs_api: Option<&Url>) -> Self {
+        self.ipfs_api = ipfs_api.cloned();
         self
     }
 
@@ -125,8 +136,8 @@ impl SphereContextBuilder {
 
     /// Specify the authorization that enables a local key to manipulate a
     /// sphere
-    pub fn authorized_by(mut self, authorization: &Authorization) -> Self {
-        self.authorization = Some(authorization.clone());
+    pub fn authorized_by(mut self, authorization: Option<&Authorization>) -> Self {
+        self.authorization = authorization.cloned();
         self
     }
 
@@ -189,9 +200,14 @@ impl SphereContextBuilder {
                     false => StorageLayout::Unscoped(storage_path),
                 };
 
-                let storage_provider = storage_layout.to_storage_provider().await?;
+                #[cfg(all(target_arch = "wasm32", feature = "kubo-storage"))]
+                let storage =
+                    KuboStorage::new(storage_layout.to_storage().await?, self.ipfs_api.as_ref());
 
-                let mut db = SphereDb::new(&storage_provider).await?;
+                #[cfg(not(all(target_arch = "wasm32", feature = "kubo-storage")))]
+                let storage = storage_layout.to_storage().await?;
+
+                let mut db = SphereDb::new(&storage).await?;
 
                 db.persist(&memory_store).await?;
 
@@ -211,9 +227,9 @@ impl SphereContextBuilder {
                     db,
                 );
 
-                if self.gateway_url.is_some() {
+                if self.gateway_api.is_some() {
                     context
-                        .configure_gateway_url(self.gateway_url.as_ref())
+                        .configure_gateway_url(self.gateway_api.as_ref())
                         .await?;
                 }
 
@@ -230,11 +246,6 @@ impl SphereContextBuilder {
                     None => return Err(anyhow!("No key name configured!")),
                 };
 
-                let authorization = match self.authorization {
-                    Some(authorization) => authorization,
-                    None => return Err(anyhow!("No authorization configured!")),
-                };
-
                 let user_key = key_storage.require_key(&key_name).await?;
 
                 let storage_layout = match self.scoped_storage_layout {
@@ -242,27 +253,35 @@ impl SphereContextBuilder {
                     false => StorageLayout::Unscoped(storage_path),
                 };
 
-                let storage_provider = storage_layout.to_storage_provider().await?;
+                #[cfg(all(target_arch = "wasm32", feature = "kubo-storage"))]
+                let storage =
+                    KuboStorage::new(storage_layout.to_storage().await?, self.ipfs_api.as_ref());
 
-                let mut db = SphereDb::new(&storage_provider).await?;
+                #[cfg(not(all(target_arch = "wasm32", feature = "kubo-storage")))]
+                let storage = storage_layout.to_storage().await?;
+
+                let mut db = SphereDb::new(&storage).await?;
 
                 db.set_key(IDENTITY, &sphere_identity).await?;
                 db.set_key(USER_KEY_NAME, key_name).await?;
-                db.set_key(AUTHORIZATION, Cid::try_from(&authorization)?)
-                    .await?;
+
+                if let Some(authorization) = &self.authorization {
+                    db.set_key(AUTHORIZATION, Cid::try_from(authorization)?)
+                        .await?;
+                }
 
                 let mut context = SphereContext::new(
                     sphere_identity,
                     Author {
                         key: user_key,
-                        authorization: Some(authorization),
+                        authorization: self.authorization,
                     },
                     db,
                 );
 
-                if self.gateway_url.is_some() {
+                if self.gateway_api.is_some() {
                     context
-                        .configure_gateway_url(self.gateway_url.as_ref())
+                        .configure_gateway_url(self.gateway_api.as_ref())
                         .await?;
                 }
 
@@ -278,16 +297,25 @@ impl SphereContextBuilder {
                     false => StorageLayout::Unscoped(storage_path),
                 };
 
-                let storage_provider = storage_layout.to_storage_provider().await?;
-                let db = SphereDb::new(&storage_provider).await?;
+                #[cfg(all(target_arch = "wasm32", feature = "kubo-storage"))]
+                let storage =
+                    KuboStorage::new(storage_layout.to_storage().await?, self.ipfs_api.as_ref());
+
+                #[cfg(not(all(target_arch = "wasm32", feature = "kubo-storage")))]
+                let storage = storage_layout.to_storage().await?;
+
+                let db = SphereDb::new(&storage).await?;
 
                 let user_key_name: String = db.require_key(USER_KEY_NAME).await?;
-                let authorization_cid: Cid = db.require_key(AUTHORIZATION).await?;
+                let authorization = db
+                    .get_key(AUTHORIZATION)
+                    .await?
+                    .map(|cid| Authorization::Cid(cid));
 
                 let author = match self.key_storage {
                     Some(key_storage) => Author {
                         key: key_storage.require_key(&user_key_name).await?,
-                        authorization: Some(Authorization::Cid(authorization_cid)),
+                        authorization,
                     },
                     _ => return Err(anyhow!("Unable to resolve sphere author")),
                 };
@@ -295,9 +323,9 @@ impl SphereContextBuilder {
                 let sphere_identity = db.require_key(IDENTITY).await?;
                 let mut context = SphereContext::new(sphere_identity, author, db);
 
-                if self.gateway_url.is_some() {
+                if self.gateway_api.is_some() {
                     context
-                        .configure_gateway_url(self.gateway_url.as_ref())
+                        .configure_gateway_url(self.gateway_api.as_ref())
                         .await?;
                 }
 
@@ -312,7 +340,8 @@ impl Default for SphereContextBuilder {
         Self {
             initialization: SphereInitialization::Create,
             scoped_storage_layout: false,
-            gateway_url: None,
+            gateway_api: None,
+            ipfs_api: None,
             storage_path: None,
             authorization: None,
             key_storage: None as Option<PlatformKeyStorage>,
@@ -325,9 +354,6 @@ impl Default for SphereContextBuilder {
 mod tests {
     use super::SphereContextBuilder;
 
-    use libipld_core::raw::RawCodec;
-    use noosphere_core::authority::Authorization;
-    use noosphere_storage::derive_cid;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
@@ -428,7 +454,7 @@ mod tests {
             .join_sphere(&"did:key:foo".into())
             .at_storage_path(&storage_path)
             .reading_keys_from(key_storage)
-            .authorized_by(&Authorization::Cid(derive_cid::<RawCodec>(&[0, 0, 0])))
+            .authorized_by(None)
             .using_key("foo")
             .build()
             .await

@@ -106,7 +106,7 @@ Type or paste the code here and press enter:"#,
         .at_storage_path(workspace.root_directory())
         .reading_keys_from(workspace.key_storage().clone())
         .using_key(local_key)
-        .authorized_by(&Authorization::Cid(cid))
+        .authorized_by(Some(&Authorization::Cid(cid)))
         .build()
         .await?;
 

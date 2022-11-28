@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate tracing;
+
 mod decoder;
 mod file;
 mod fs;

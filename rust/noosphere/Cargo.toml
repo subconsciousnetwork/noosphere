@@ -16,7 +16,9 @@ readme = "README.md"
 crate-type = ["rlib", "staticlib", "cdylib"]
 
 [features]
+default = ["kubo-storage"]
 headers = ["safer-ffi/headers"]
+kubo-storage = ["noosphere-storage/kubo-storage"]
 
 [dependencies]
 anyhow = "^1"
@@ -27,6 +29,7 @@ async-trait = "~0.1"
 tracing = "~0.1"
 url = { version = "^2", features = ["serde"] }
 subtext = { version = "~0.3" }
+tokio-stream = "~0.1"
 
 noosphere-core = { version = "0.4.0", path = "../noosphere-core" }
 noosphere-fs = { version = "0.3.0", path = "../noosphere-fs" }
@@ -39,11 +42,15 @@ ucan-key-support = { version = "0.1.0" }
 libipld-core = "~0.15"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+# TODO: We should eventually support gateway storage as a specialty target only,
+# as it is a specialty use-case
 tokio = { version = "^1", features = ["sync"] }
 rexie = { version = "~0.4" }
 wasm-bindgen = "~0.2"
+wasm-bindgen-futures = "0.4.33"
 js-sys = "~0.3"
 tracing-wasm = "~0.2"
+console_error_panic_hook = "0.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
 version = "~0.3"

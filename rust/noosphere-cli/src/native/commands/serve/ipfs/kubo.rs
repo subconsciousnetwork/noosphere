@@ -106,9 +106,12 @@ mod tests {
     use url::Url;
 
     use super::{IpfsClient, KuboClient};
+    use crate::native::commands::serve::tracing::initialize_tracing;
 
     #[tokio::test]
     pub async fn it_can_interact_with_a_kubo_server() {
+        initialize_tracing();
+
         #[derive(Serialize, Deserialize)]
         struct SomeData {
             value: String,

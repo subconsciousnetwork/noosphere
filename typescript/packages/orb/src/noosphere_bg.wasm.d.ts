@@ -1,0 +1,1 @@
+../lib/noosphere_bg.wasm.d.ts

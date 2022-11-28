@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use async_stream::try_stream;
 use libipld_cbor::DagCborCodec;
 use noosphere_core::{
     authority::{Access, Author},
@@ -8,6 +9,7 @@ use noosphere_core::{
 use noosphere_storage::{BlockStore, SphereDb, Storage};
 use once_cell::sync::OnceCell;
 use std::str::FromStr;
+use tokio_stream::Stream;
 use tokio_util::io::StreamReader;
 use ucan::crypto::KeyMaterial;
 
@@ -35,6 +37,23 @@ where
     sphere_revision: Cid,
     db: SphereDb<S>,
     mutation: OnceCell<SphereMutation>,
+}
+
+impl<S, K> Clone for SphereFs<S, K>
+where
+    S: Storage,
+    K: KeyMaterial + Clone + 'static,
+{
+    fn clone(&self) -> Self {
+        Self {
+            author: self.author.clone(),
+            access: self.access.clone(),
+            sphere_identity: self.sphere_identity.clone(),
+            sphere_revision: self.sphere_revision.clone(),
+            db: self.db.clone(),
+            mutation: OnceCell::new(),
+        }
+    }
 }
 
 impl<S, K> SphereFs<S, K>
@@ -298,10 +317,51 @@ where
 
         Ok(new_sphere_revision)
     }
+
+    /// Get a stream that yields every slug in the namespace along with its
+    /// corresponding [SphereFile]. This is useful for iterating over sphere
+    /// content incrementally without having to load the entire index into
+    /// memory at once.
+    pub fn stream<'a>(
+        &'a self,
+    ) -> impl Stream<Item = Result<(String, SphereFile<impl AsyncRead + 'a>)>> {
+        try_stream! {
+            let sphere = Sphere::at(&self.sphere_revision, &self.db);
+            let links = sphere.try_get_links().await?;
+            let stream = links.stream().await?;
+
+            for await entry in stream {
+                let (key, revision) = entry?;
+                let file = self.get_file(revision).await?;
+
+                yield (key.clone(), file);
+            }
+        }
+    }
+
+    /// Same as `stream`, but consumes the [SphereFs]. This is useful in cases
+    /// where it would otherwise be necessary to borrow a reference to
+    /// [SphereFs] for a static lifetime.
+    pub fn into_stream(self) -> impl Stream<Item = Result<(String, SphereFile<impl AsyncRead>)>> {
+        try_stream! {
+            let sphere = Sphere::at(&self.sphere_revision, &self.db);
+            let links = sphere.try_get_links().await?;
+            let stream = links.stream().await?;
+
+            for await entry in stream {
+                let (key, revision) = entry?;
+                let file = self.get_file(revision).await?;
+
+                yield (key.clone(), file);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 pub mod tests {
+    use std::collections::BTreeSet;
+
     use noosphere_core::{
         authority::{generate_ed25519_key, Author},
         data::{ContentType, Header},
@@ -310,6 +370,7 @@ pub mod tests {
     use noosphere_storage::MemoryStorage;
     use noosphere_storage::SphereDb;
     use tokio::io::AsyncReadExt;
+    use tokio_stream::StreamExt;
     use ucan::crypto::KeyMaterial;
 
     #[cfg(target_arch = "wasm32")]
@@ -589,5 +650,64 @@ pub mod tests {
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "No changes to save");
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_stream_the_whole_index() {
+        let storage = MemoryStorage::default();
+        let mut db = SphereDb::new(&storage).await.unwrap();
+
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await.unwrap();
+
+        let (sphere, authorization, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
+
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
+        let author = Author {
+            key: owner_key,
+            authorization: Some(authorization),
+        };
+
+        db.set_version(&sphere_identity, sphere.cid())
+            .await
+            .unwrap();
+
+        let mut fs = SphereFs::latest(&sphere_identity, &author, &db)
+            .await
+            .unwrap();
+
+        let expected = BTreeSet::<(String, String)>::from([
+            ("cats".into(), "Cats are awesome".into()),
+            ("dogs".into(), "Dogs are pretty cool".into()),
+            ("birds".into(), "Birds rights".into()),
+            ("mice".into(), "Mice like cookies".into()),
+        ]);
+
+        for (slug, content) in &expected {
+            fs.write(
+                slug.as_str(),
+                &ContentType::Subtext.to_string(),
+                content.as_ref(),
+                None,
+            )
+            .await
+            .unwrap();
+
+            fs.save(None).await.unwrap();
+        }
+
+        let mut actual = BTreeSet::new();
+        let stream = fs.stream();
+
+        tokio::pin!(stream);
+
+        while let Some(Ok((slug, mut file))) = stream.next().await {
+            let mut contents = String::new();
+            file.contents.read_to_string(&mut contents).await.unwrap();
+            actual.insert((slug, contents));
+        }
+
+        assert_eq!(expected, actual);
     }
 }
