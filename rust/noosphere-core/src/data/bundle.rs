@@ -7,10 +7,7 @@ use cid::Cid;
 use futures::{pin_mut, StreamExt};
 use libipld_cbor::DagCborCodec;
 use libipld_core::{raw::RawCodec, serde::to_ipld};
-use noosphere_storage::{
-    encoding::{block_deserialize, block_serialize},
-    interface::BlockStore,
-};
+use noosphere_storage::{block_deserialize, block_serialize, BlockStore};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
@@ -388,7 +385,7 @@ impl TryBundle for AuthorityIpld {
 mod tests {
     use libipld_cbor::DagCborCodec;
     use libipld_core::{ipld::Ipld, raw::RawCodec};
-    use noosphere_storage::{interface::BlockStore, memory::MemoryStore};
+    use noosphere_storage::{BlockStore, MemoryStore};
     use serde_bytes::Bytes;
     use ucan::crypto::KeyMaterial;
 

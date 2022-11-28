@@ -6,7 +6,7 @@
 use anyhow::Result;
 use libipld_cbor::DagCborCodec;
 
-use noosphere_storage::interface::BlockStore;
+use noosphere_storage::BlockStore;
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 use std::pin::Pin;
@@ -43,7 +43,7 @@ impl<S> TargetConditionalSendSync for S {}
 ///
 /// ```
 /// use noosphere_collections::hamt::Hamt;
-/// use noosphere_storage::memory::MemoryStore;
+/// use noosphere_storage::MemoryStore;
 ///
 /// async_std::task::block_on(async {
 ///     let store = MemoryStore::default();
@@ -155,7 +155,7 @@ where
     ///
     /// ```
     /// use noosphere_collections::hamt::Hamt;
-    /// use noosphere_storage::memory::MemoryStore;
+    /// use noosphere_storage::MemoryStore;
     ///
     /// async_std::task::block_on(async {
     ///     let store = MemoryStore::default();
@@ -185,7 +185,7 @@ where
     ///
     /// ```
     /// use noosphere_collections::hamt::Hamt;
-    /// use noosphere_storage::memory::MemoryStore;
+    /// use noosphere_storage::MemoryStore;
     ///
     /// async_std::task::block_on(async {
     ///     let store = MemoryStore::default();
@@ -223,7 +223,7 @@ where
     ///
     /// ```
     /// use noosphere_collections::hamt::Hamt;
-    /// use noosphere_storage::memory::MemoryStore;
+    /// use noosphere_storage::MemoryStore;
     ///
     /// async_std::task::block_on(async {
     ///     let store = MemoryStore::default();
@@ -261,7 +261,7 @@ where
     ///
     /// ```
     /// use noosphere_collections::hamt::Hamt;
-    /// use noosphere_storage::memory::MemoryStore;
+    /// use noosphere_storage::MemoryStore;
     ///
     /// async_std::task::block_on(async {
     ///     let store = MemoryStore::default();
@@ -296,7 +296,7 @@ where
     ///
     /// ```
     /// use noosphere_collections::hamt::Hamt;
-    /// use noosphere_storage::memory::MemoryStore;
+    /// use noosphere_storage::MemoryStore;
     ///
     /// async_std::task::block_on(async {
     ///     let store = MemoryStore::default();
@@ -336,7 +336,7 @@ where
     ///
     /// ```
     /// use noosphere_collections::hamt::Hamt;
-    /// use noosphere_storage::memory::MemoryStore;
+    /// use noosphere_storage::MemoryStore;
     ///
     /// async_std::task::block_on(async {
     ///     let store = MemoryStore::default();

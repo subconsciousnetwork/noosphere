@@ -3,7 +3,7 @@ use std::io::Cursor;
 use anyhow::Result;
 use noosphere_core::{data::MemoIpld, view::Links};
 use noosphere_fs::SphereFs;
-use noosphere_storage::interface::Store;
+use noosphere_storage::Storage;
 use tokio::io::AsyncRead;
 use tokio_stream::StreamExt;
 use ucan::crypto::KeyMaterial;
@@ -15,7 +15,7 @@ use super::TranscludeToHtmlTransformer;
 /// Transforms a sphere into HTML
 pub struct SphereToHtmlTransformer<'a, S, K>
 where
-    S: Store,
+    S: Storage,
     K: KeyMaterial + Clone + 'static,
 {
     fs: &'a SphereFs<S, K>,
@@ -24,7 +24,7 @@ where
 
 impl<'a, S, K> SphereToHtmlTransformer<'a, S, K>
 where
-    S: Store,
+    S: Storage,
     K: KeyMaterial + Clone + 'static,
 {
     pub fn new(fs: &'a SphereFs<S, K>) -> Self {
@@ -44,7 +44,7 @@ where
         Ok(Some(Cursor::new(self.html_text(memo, links).await?)))
     }
 
-    async fn html_text(&'a self, memo: MemoIpld, links: Links<S>) -> Result<String> {
+    async fn html_text(&'a self, memo: MemoIpld, links: Links<S::BlockStore>) -> Result<String> {
         // Cheating here because the link stream isn't Send + Sync; should fix this
         let mut link_stream = links.stream().await?;
         let (html_prefix, html_suffix) = html_document_envelope(memo);

@@ -7,7 +7,7 @@ use libipld_cbor::DagCborCodec;
 
 use crate::data::MemoIpld;
 
-use noosphere_storage::interface::BlockStore;
+use noosphere_storage::BlockStore;
 
 // Assumptions:
 // - network operations are _always_ mediated by a "remote" agent (no client-to-client syncing)

@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-use noosphere_storage::interface::BlockStore;
+use noosphere_storage::BlockStore;
 
 #[derive(Debug)]
 pub struct SphereRevision<S: BlockStore> {

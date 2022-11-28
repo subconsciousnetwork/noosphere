@@ -40,7 +40,7 @@ pub fn generate_capability(sphere_did: &str) -> Capability<SphereReference, Sphe
 ///
 /// ```
 /// use noosphere_ns::utils::generate_fact;
-/// use noosphere_storage::encoding::derive_cid;
+/// use noosphere_storage::derive_cid;
 /// use libipld_cbor::DagCborCodec;
 /// use serde_json::json;
 ///  

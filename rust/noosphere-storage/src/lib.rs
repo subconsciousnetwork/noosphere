@@ -1,26 +1,37 @@
+///! This crate contains generic interfaces and concrete implementations to
+///! support a common API for data persistance in Noosphere on many different
+///! platforms.
+
 #[macro_use]
 extern crate tracing;
 
-pub mod db;
-pub mod encoding;
-pub mod interface;
-pub mod memory;
-pub mod tracking;
-pub mod ucan;
+mod block;
+mod implementation;
+mod key_value;
+
+mod db;
+mod encoding;
+mod storage;
+mod store;
+mod ucan;
+
+pub use crate::ucan::*;
+pub use block::*;
+pub use db::*;
+pub use encoding::*;
+pub use implementation::*;
+pub use key_value::*;
+pub use storage::*;
+pub use store::*;
 
 pub const BLOCK_STORE: &str = "blocks";
-
-#[cfg(not(target_arch = "wasm32"))]
-pub mod native;
-#[cfg(target_arch = "wasm32")]
-pub mod web;
 
 #[cfg(test)]
 pub mod helpers;
 
 #[cfg(test)]
 mod tests {
-    use crate::{helpers::make_disposable_store, interface::BlockStore};
+    use crate::{block::BlockStore, helpers::make_disposable_store};
 
     use libipld_cbor::DagCborCodec;
     #[cfg(target_arch = "wasm32")]

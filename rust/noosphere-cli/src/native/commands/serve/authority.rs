@@ -11,7 +11,7 @@ use axum::{
 use libipld_core::cid::Cid;
 use noosphere::sphere::SphereContext;
 use noosphere_core::authority::{SphereAction, SphereReference, SPHERE_SEMANTICS};
-use noosphere_storage::native::NativeStore;
+use noosphere_storage::NativeStorage;
 
 use tokio::sync::Mutex;
 use ucan::{capability::Capability, chain::ProofChain, crypto::KeyMaterial, store::UcanJwtStore};
@@ -78,7 +78,7 @@ where
         // Look for the SphereContext
         let sphere_context = req
             .extensions()
-            .get::<Arc<Mutex<SphereContext<K, NativeStore>>>>()
+            .get::<Arc<Mutex<SphereContext<K, NativeStorage>>>>()
             .ok_or_else(|| {
                 error!("Could not find DidParser in extensions");
                 StatusCode::INTERNAL_SERVER_ERROR

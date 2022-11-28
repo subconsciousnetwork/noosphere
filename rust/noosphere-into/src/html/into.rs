@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_core::{authority::Author, data::Did, view::Sphere};
 use noosphere_fs::SphereFs;
-use noosphere_storage::{db::SphereDb, interface::Store};
+use noosphere_storage::{SphereDb, Storage};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 
@@ -23,7 +23,7 @@ pub async fn sphere_into_html<S, W>(
     write_target: &W,
 ) -> Result<()>
 where
-    S: Store + 'static,
+    S: Storage + 'static,
     W: WriteTarget + 'static,
 {
     let mut next_sphere_cid = match db.get_version(sphere_identity).await? {
@@ -171,7 +171,7 @@ pub mod tests {
         view::Sphere,
     };
     use noosphere_fs::SphereFs;
-    use noosphere_storage::{db::SphereDb, memory::MemoryStorageProvider};
+    use noosphere_storage::{MemoryStorage, SphereDb};
     use ucan::crypto::KeyMaterial;
 
     #[cfg(target_arch = "wasm32")]
@@ -186,10 +186,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_writes_a_file_from_the_sphere_to_the_target_as_html() {
-        // let mut sphere_store = MemoryStore::default();
-        // let mut block_store = MemoryStore::default();
-
-        let storage_provider = MemoryStorageProvider::default();
+        let storage_provider = MemoryStorage::default();
         let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let owner_key = generate_ed25519_key();
@@ -274,7 +271,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_symlinks_a_file_slug_to_the_latest_file_version() {
-        let storage_provider = MemoryStorageProvider::default();
+        let storage_provider = MemoryStorage::default();
         let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let owner_key = generate_ed25519_key();

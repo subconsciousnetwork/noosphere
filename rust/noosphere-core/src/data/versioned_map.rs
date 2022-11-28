@@ -6,7 +6,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{fmt::Display, hash::Hash, marker::PhantomData};
 
 use noosphere_collections::hamt::{Hamt, Hash as HamtHash, Sha256};
-use noosphere_storage::interface::BlockStore;
+use noosphere_storage::BlockStore;
 
 use super::ChangelogIpld;
 

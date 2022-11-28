@@ -8,7 +8,7 @@ use axum::{
 };
 use libipld_cbor::DagCborCodec;
 use mime_guess::mime;
-use noosphere_storage::encoding::{block_deserialize, block_serialize};
+use noosphere_storage::{block_deserialize, block_serialize};
 use serde::{de::DeserializeOwned, Serialize};
 
 #[derive(Debug, Clone, Copy, Default)]

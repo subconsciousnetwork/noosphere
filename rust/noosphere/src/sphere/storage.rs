@@ -1,14 +1,16 @@
 use std::{fmt::Display, path::PathBuf};
 
-use crate::platform::PlatformStorageProvider;
+use crate::platform::PlatformStorage;
 use anyhow::Result;
 use noosphere_core::data::Did;
 
+#[cfg(doc)]
+use noosphere_storage::Storage;
+
 /// [StorageLayout] represents the namespace that should be used depending on
 /// whether or not a sphere's DID should be included in the namespace. The enum
-/// is a convenience that can be directly transformed into a
-/// [noosphere_storage::interface::StorageProvider] implementation that is
-/// suitable for the current platform
+/// is a convenience that can be directly transformed into a [Storage]
+/// implementation that is suitable for the current platform
 pub enum StorageLayout {
     Scoped(PathBuf, Did),
     Unscoped(PathBuf),
@@ -39,16 +41,16 @@ impl From<StorageLayout> for PathBuf {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl StorageLayout {
-    pub async fn to_storage_provider(&self) -> Result<PlatformStorageProvider> {
-        PlatformStorageProvider::new(noosphere_storage::native::NativeStorageInit::Path(
-            PathBuf::from(self),
-        ))
+    pub async fn to_storage_provider(&self) -> Result<PlatformStorage> {
+        PlatformStorage::new(noosphere_storage::NativeStorageInit::Path(PathBuf::from(
+            self,
+        )))
     }
 }
 
 #[cfg(target_arch = "wasm32")]
 impl StorageLayout {
-    pub async fn to_storage_provider(&self) -> Result<PlatformStorageProvider> {
-        PlatformStorageProvider::new(&self.to_string()).await
+    pub async fn to_storage_provider(&self) -> Result<PlatformStorage> {
+        PlatformStorage::new(&self.to_string()).await
     }
 }

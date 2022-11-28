@@ -9,9 +9,7 @@ use noosphere_core::{
 };
 use noosphere_fs::SphereFs;
 use noosphere_storage::{
-    db::SphereDb,
-    interface::{BlockStore, KeyValueStore, Store},
-    native::NativeStore,
+    BlockStore, SphereDb, KeyValueStore, NativeStorage, Store,
 };
 use pathdiff::diff_paths;
 use std::{
@@ -40,7 +38,7 @@ const SPHERE_DIRECTORY: &str = ".sphere";
 const NOOSPHERE_DIRECTORY: &str = ".noosphere";
 // const STORAGE_DIRECTORY: &str = "storage";
 
-pub type CliSphereContext = SphereContext<Ed25519KeyMaterial, NativeStore>;
+pub type CliSphereContext = SphereContext<Ed25519KeyMaterial, NativeStorage>;
 
 /// A delta manifest of changes to the local content space
 #[derive(Default)]
@@ -117,7 +115,7 @@ impl Workspace {
     /// Get an owned referenced to the [SphereDb] that backs the local sphere.
     /// Note that this will initialize the [SphereContext] if it has not been
     /// already.
-    pub async fn db(&self) -> Result<SphereDb<NativeStore>> {
+    pub async fn db(&self) -> Result<SphereDb<NativeStorage>> {
         let context = self.sphere_context().await?;
         let context = context.lock().await;
         Ok(context.db().clone())

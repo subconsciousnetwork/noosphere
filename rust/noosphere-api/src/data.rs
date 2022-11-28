@@ -6,7 +6,7 @@ use noosphere_core::{
     authority::{SphereAction, SphereReference, SPHERE_SEMANTICS},
     data::{Bundle, Did},
 };
-use noosphere_storage::encoding::{base64_decode, base64_encode};
+use noosphere_storage::{base64_decode, base64_encode};
 use serde::{Deserialize, Deserializer, Serialize};
 use ucan::{
     capability::{Capability, Resource, With},

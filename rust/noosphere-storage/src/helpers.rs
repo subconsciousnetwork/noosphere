@@ -1,8 +1,8 @@
-use crate::interface::StorageProvider;
+use crate::Storage;
 use anyhow::Result;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::native::{NativeStorageInit, NativeStorageProvider, NativeStore};
+use crate::{NativeStorage, NativeStorageInit, NativeStore};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn make_disposable_store() -> Result<NativeStore> {
@@ -14,12 +14,12 @@ pub async fn make_disposable_store() -> Result<NativeStore> {
         .map(String::from)
         .collect();
     let db = sled::open(temp_dir.join(temp_name)).unwrap();
-    let provider = NativeStorageProvider::new(NativeStorageInit::Db(db))?;
-    provider.get_store("foo").await
+    let provider = NativeStorage::new(NativeStorageInit::Db(db))?;
+    provider.get_block_store("foo").await
 }
 
 #[cfg(target_arch = "wasm32")]
-use crate::web::{WebStorageProvider, WebStore};
+use crate::{WebStorage, WebStore};
 
 #[cfg(target_arch = "wasm32")]
 pub async fn make_disposable_store() -> Result<WebStore> {
@@ -30,6 +30,6 @@ pub async fn make_disposable_store() -> Result<WebStore> {
         .map(|word| String::from(word))
         .collect();
 
-    let provider = WebStorageProvider::new(&temp_name).await?;
-    provider.get_store(crate::db::BLOCK_STORE).await
+    let provider = WebStorage::new(&temp_name).await?;
+    provider.get_block_store(crate::db::BLOCK_STORE).await
 }

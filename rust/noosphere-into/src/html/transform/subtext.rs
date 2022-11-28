@@ -6,7 +6,7 @@ use bytes::Bytes;
 use futures::Stream;
 use horrorshow::{html, Raw};
 use noosphere_fs::{SphereFile, SphereFs};
-use noosphere_storage::interface::Store;
+use noosphere_storage::Storage;
 use subtext::{block::Block, primitive::Entity, Slashlink};
 use tokio::io::AsyncRead;
 use tokio_util::io::StreamReader;
@@ -19,7 +19,7 @@ use super::transclude::TranscludeToHtmlTransformer;
 /// Transforms Subtext files from a sphere into HTML
 pub struct SubtextToHtmlTransformer<'a, S, K>
 where
-    S: Store,
+    S: Storage,
     K: KeyMaterial + Clone + 'static,
 {
     fs: &'a SphereFs<S, K>,
@@ -28,7 +28,7 @@ where
 
 impl<'a, S, K> SubtextToHtmlTransformer<'a, S, K>
 where
-    S: Store,
+    S: Storage,
     K: KeyMaterial + Clone + 'static,
 {
     pub fn new(fs: &'a SphereFs<S, K>) -> Self {

@@ -48,7 +48,7 @@ mod tests {
         data::{ContentType, Did, Header, MemoIpld, SphereIpld},
     };
 
-    use noosphere_storage::{db::SphereDb, interface::BlockStore, memory::MemoryStorageProvider};
+    use noosphere_storage::{BlockStore, MemoryStorage, SphereDb};
 
     fn generate_credential() -> Ed25519KeyMaterial {
         let private_key = Ed25519PrivateKey::new(rand::thread_rng());
@@ -62,9 +62,7 @@ mod tests {
         let identity_credential = generate_credential();
         let identity_did = Did(identity_credential.get_did().await.unwrap());
 
-        let mut store = SphereDb::new(&MemoryStorageProvider::default())
-            .await
-            .unwrap();
+        let mut store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
         let sphere = SphereIpld {
             identity: identity_did.clone(),
@@ -141,9 +139,7 @@ mod tests {
         let identity_did = Did(identity_credential.get_did().await.unwrap());
         let authorized_did = Did(authorized_credential.get_did().await.unwrap());
 
-        let mut store = SphereDb::new(&MemoryStorageProvider::default())
-            .await
-            .unwrap();
+        let mut store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
         let sphere = SphereIpld {
             identity: identity_did.clone(),

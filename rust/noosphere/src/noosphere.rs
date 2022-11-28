@@ -7,7 +7,7 @@ use url::Url;
 
 use crate::{
     key::KeyStorage,
-    platform::{PlatformKeyMaterial, PlatformKeyStorage, PlatformStore},
+    platform::{PlatformKeyMaterial, PlatformKeyStorage, PlatformStorage},
     sphere::{SphereContext, SphereContextBuilder, SphereReceipt},
 };
 
@@ -42,7 +42,7 @@ pub enum NoosphereContextConfiguration {
 pub struct NoosphereContext {
     configuration: NoosphereContextConfiguration,
     sphere_contexts:
-        Arc<Mutex<BTreeMap<Did, Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStore>>>>>>,
+        Arc<Mutex<BTreeMap<Did, Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>>>>,
 }
 
 impl NoosphereContext {
@@ -172,7 +172,7 @@ impl NoosphereContext {
     pub async fn get_sphere_context(
         &self,
         sphere_identity: &Did,
-    ) -> Result<Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStore>>>> {
+    ) -> Result<Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>> {
         let mut contexts = self.sphere_contexts.lock().await;
 
         if !contexts.contains_key(sphere_identity) {

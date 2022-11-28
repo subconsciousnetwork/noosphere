@@ -4,7 +4,7 @@ use axum::{http::StatusCode, response::IntoResponse, Extension, Json};
 use noosphere::sphere::SphereContext;
 use noosphere_api::data::IdentifyResponse;
 use noosphere_core::authority::{SphereAction, SphereReference};
-use noosphere_storage::native::NativeStore;
+use noosphere_storage::NativeStorage;
 use tokio::sync::Mutex;
 use ucan::{
     capability::{Capability, Resource, With},
@@ -16,7 +16,7 @@ use crate::native::commands::serve::{authority::GatewayAuthority, gateway::Gatew
 pub async fn identify_route<K: KeyMaterial + Clone>(
     authority: GatewayAuthority<K>,
     Extension(scope): Extension<GatewayScope>,
-    Extension(sphere_context): Extension<Arc<Mutex<SphereContext<K, NativeStore>>>>,
+    Extension(sphere_context): Extension<Arc<Mutex<SphereContext<K, NativeStorage>>>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     debug!("Invoking identify route...");
 

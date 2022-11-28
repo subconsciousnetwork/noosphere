@@ -13,18 +13,13 @@ use ucan::{
 
 use crate::data::{ContentType, Header, MemoIpld, SphereIpld};
 
-use noosphere_storage::{
-    db::SphereDb,
-    encoding::base64_decode,
-    interface::{BlockStore, Store},
-    ucan::UcanStore,
-};
+use noosphere_storage::{base64_decode, BlockStore, SphereDb, Storage, UcanStore};
 
 use crate::authority::SPHERE_SEMANTICS;
 
 use super::{SphereAction, SphereReference};
 
-pub async fn verify_sphere_cid<S: Store>(
+pub async fn verify_sphere_cid<S: Storage>(
     cid: &Cid,
     store: &SphereDb<S>,
     did_parser: &mut DidParser,

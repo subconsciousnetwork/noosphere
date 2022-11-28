@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_api::data::{FetchParameters, FetchResponse, PushBody, PushResponse};
 use noosphere_core::{data::Did, view::Sphere};
-use noosphere_storage::{db::SphereDb, interface::Store};
+use noosphere_storage::{SphereDb, Storage};
 use ucan::crypto::KeyMaterial;
 
 use super::SphereContext;
@@ -21,7 +21,7 @@ use super::SphereContext;
 pub struct GatewaySyncStrategy<K, S>
 where
     K: KeyMaterial + Clone + 'static,
-    S: Store,
+    S: Storage,
 {
     key_type: PhantomData<K>,
     store_type: PhantomData<S>,
@@ -30,7 +30,7 @@ where
 impl<K, S> Default for GatewaySyncStrategy<K, S>
 where
     K: KeyMaterial + Clone + 'static,
-    S: Store,
+    S: Storage,
 {
     fn default() -> Self {
         Self {
@@ -43,7 +43,7 @@ where
 impl<K, S> GatewaySyncStrategy<K, S>
 where
     K: KeyMaterial + Clone + 'static,
-    S: Store,
+    S: Storage,
 {
     /// Synchronize a local sphere's data with the data in a gateway, and rollback
     /// if there is an error.
@@ -115,9 +115,8 @@ where
                 println!("Local history is already up to date...");
                 return Ok((
                     local_sphere_tip.cloned(),
-                    counterpart_sphere_base
-                        .ok_or_else(|| anyhow!("Counterpart sphere history is missing!"))?
-                        .clone(),
+                    *counterpart_sphere_base
+                        .ok_or_else(|| anyhow!("Counterpart sphere history is missing!"))?,
                 ));
             }
         };

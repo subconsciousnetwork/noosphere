@@ -3,7 +3,7 @@ use std::{convert::TryFrom, fmt::Display, str::FromStr};
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_core::{ipld::Ipld, raw::RawCodec};
-use noosphere_storage::encoding::block_encode;
+use noosphere_storage::block_encode;
 use ucan::{store::UcanJwtStore, Ucan};
 
 #[cfg(doc)]

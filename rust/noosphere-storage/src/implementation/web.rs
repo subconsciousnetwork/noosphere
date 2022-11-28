@@ -1,4 +1,5 @@
-use crate::interface::{StorageProvider, Store};
+use crate::store::Store;
+use crate::{db::SPHERE_DB_STORE_NAMES, storage::Storage};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use js_sys::Uint8Array;
@@ -7,15 +8,15 @@ use rexie::{
 };
 use std::rc::Rc;
 use wasm_bindgen::{JsCast, JsValue};
-use crate::db::SPHERE_DB_STORE_NAMES;
 
 pub const INDEXEDDB_STORAGE_VERSION: u32 = 1;
 
-pub struct WebStorageProvider {
+#[derive(Clone)]
+pub struct WebStorage {
     db: Rc<Rexie>,
 }
 
-impl WebStorageProvider {
+impl WebStorage {
     pub async fn new(db_name: &str) -> Result<Self> {
         Self::configure(INDEXEDDB_STORAGE_VERSION, db_name, SPHERE_DB_STORE_NAMES).await
     }
@@ -32,12 +33,9 @@ impl WebStorageProvider {
             .await
             .map_err(|error| anyhow!("{:?}", error))?;
 
-        Ok(WebStorageProvider { db: Rc::new(db) })
+        Ok(WebStorage { db: Rc::new(db) })
     }
-}
 
-#[async_trait(?Send)]
-impl StorageProvider<WebStore> for WebStorageProvider {
     async fn get_store(&self, name: &str) -> Result<WebStore> {
         if self
             .db
@@ -53,6 +51,21 @@ impl StorageProvider<WebStore> for WebStorageProvider {
             db: self.db.clone(),
             store_name: name.to_string(),
         })
+    }
+}
+
+#[async_trait(?Send)]
+impl Storage for WebStorage {
+    type BlockStore = WebStore;
+
+    type KeyValueStore = WebStore;
+
+    async fn get_block_store(&self, name: &str) -> Result<Self::BlockStore> {
+        self.get_store(name).await
+    }
+
+    async fn get_key_value_store(&self, name: &str) -> Result<Self::KeyValueStore> {
+        self.get_store(name).await
     }
 }
 

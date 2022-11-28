@@ -5,10 +5,7 @@ use noosphere_core::{
     data::{BodyChunkIpld, ContentType, Did, Header, MemoIpld},
     view::{Sphere, SphereMutation},
 };
-use noosphere_storage::{
-    db::SphereDb,
-    interface::{BlockStore, Store},
-};
+use noosphere_storage::{BlockStore, SphereDb, Storage};
 use once_cell::sync::OnceCell;
 use std::str::FromStr;
 use tokio_util::io::StreamReader;
@@ -28,7 +25,7 @@ use crate::{BodyChunkDecoder, SphereFile};
 /// interface for operation on sphere content.
 pub struct SphereFs<S, K>
 where
-    S: Store,
+    S: Storage,
     K: KeyMaterial + Clone + 'static,
 {
     author: Author<K>,
@@ -42,7 +39,7 @@ where
 
 impl<S, K> SphereFs<S, K>
 where
-    S: Store,
+    S: Storage,
     K: KeyMaterial + Clone + 'static,
 {
     /// Get the DID identity of the sphere that this FS view is reading from and
@@ -58,7 +55,7 @@ where
     }
 
     /// Get a data view into the sphere at the current revision
-    pub fn to_sphere(&self) -> Sphere<S> {
+    pub fn to_sphere(&self) -> Sphere<S::BlockStore> {
         Sphere::at(self.revision(), &self.db.to_block_store())
     }
 
@@ -310,8 +307,8 @@ pub mod tests {
         data::{ContentType, Header},
         view::Sphere,
     };
-    use noosphere_storage::db::SphereDb;
-    use noosphere_storage::memory::MemoryStorageProvider;
+    use noosphere_storage::MemoryStorage;
+    use noosphere_storage::SphereDb;
     use tokio::io::AsyncReadExt;
     use ucan::crypto::KeyMaterial;
 
@@ -325,7 +322,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_unlink_slugs_from_the_content_space() {
-        let storage_provider = MemoryStorageProvider::default();
+        let storage_provider = MemoryStorage::default();
         let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let owner_key = generate_ed25519_key();
@@ -369,7 +366,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_does_not_allow_writes_when_an_author_has_read_only_access() {
-        let storage_provider = MemoryStorageProvider::default();
+        let storage_provider = MemoryStorage::default();
         let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let owner_key = generate_ed25519_key();
@@ -406,7 +403,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_write_a_file_and_read_it_back() {
-        let storage_provider = MemoryStorageProvider::default();
+        let storage_provider = MemoryStorage::default();
         let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let owner_key = generate_ed25519_key();
@@ -457,7 +454,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_overwrite_a_file_with_new_contents_and_preserve_history() {
-        let storage_provider = MemoryStorageProvider::default();
+        let storage_provider = MemoryStorage::default();
         let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let owner_key = generate_ed25519_key();
@@ -535,7 +532,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_throws_an_error_when_saving_without_changes() {
-        let storage_provider = MemoryStorageProvider::default();
+        let storage_provider = MemoryStorage::default();
         let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let owner_key = generate_ed25519_key();
@@ -566,7 +563,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_throws_an_error_when_saving_with_empty_mutation_and_empty_headers() {
-        let storage_provider = MemoryStorageProvider::default();
+        let storage_provider = MemoryStorage::default();
         let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let owner_key = generate_ed25519_key();

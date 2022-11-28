@@ -7,7 +7,7 @@ use anyhow::{anyhow, Result};
 use futures::future::try_join_all;
 use libp2p::Multiaddr;
 use noosphere_core::authority::SUPPORTED_KEYS;
-use noosphere_storage::{db::SphereDb, interface::Store};
+use noosphere_storage::{SphereDb, Storage};
 use std::collections::HashMap;
 use ucan::crypto::did::DidParser;
 
@@ -38,7 +38,7 @@ lazy_static! {
 /// New [NameSystem] instances can be created via [NameSystemBuilder].
 pub struct NameSystem<S, K>
 where
-    S: Store + 'static,
+    S: Storage + 'static,
     K: DHTKeyMaterial,
 {
     /// Bootstrap peers for the DHT network.
@@ -58,7 +58,7 @@ where
 
 impl<S, K> NameSystem<S, K>
 where
-    S: Store,
+    S: Storage,
     K: DHTKeyMaterial,
 {
     /// Internal instantiation function invoked by [NameSystemBuilder].
@@ -256,7 +256,7 @@ where
 
 impl<S, K> Drop for NameSystem<S, K>
 where
-    S: Store,
+    S: Storage,
     K: DHTKeyMaterial,
 {
     fn drop(&mut self) {

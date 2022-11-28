@@ -4,7 +4,7 @@ use fastcdc::FastCDC;
 use libipld_cbor::DagCborCodec;
 use serde::{Deserialize, Serialize};
 
-use noosphere_storage::interface::BlockStore;
+use noosphere_storage::BlockStore;
 
 pub const BODY_CHUNK_MAX_SIZE: usize = 1024 * 64 * 8; // ~.5mb/chunk worst case
 

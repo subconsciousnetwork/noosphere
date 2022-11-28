@@ -3,7 +3,7 @@ use bytes::Bytes;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_core::data::BodyChunkIpld;
-use noosphere_storage::interface::BlockStore;
+use noosphere_storage::BlockStore;
 use tokio_stream::Stream;
 
 /// Helper to easily decode a linked list of `BodyChunkIpld` as a byte stream

@@ -8,7 +8,7 @@
     target_vendor = "apple"
 ))]
 mod inner {
-    use noosphere_storage::native::{NativeStorageProvider, NativeStore};
+    use noosphere_storage::{NativeStorage, NativeStore};
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
     use crate::key::InsecureKeyStorage;
@@ -18,22 +18,28 @@ mod inner {
     pub type PlatformKeyMaterial = Ed25519KeyMaterial;
     pub type PlatformKeyStorage = InsecureKeyStorage;
     pub type PlatformStore = NativeStore;
-    pub type PlatformStorageProvider = NativeStorageProvider;
+    pub type PlatformStorage = NativeStorage;
 }
 
 #[cfg(target_arch = "wasm32")]
 mod inner {
     use crate::key::WebCryptoKeyStorage;
-    use anyhow::Result;
-    use noosphere_storage::web::{WebStorageProvider, WebStore};
-    use std::path::PathBuf;
+
+    use noosphere_storage::{WebStorage, WebStore};
+
     use std::sync::Arc;
     use ucan_key_support::web_crypto::WebCryptoRsaKeyMaterial;
 
     pub type PlatformKeyMaterial = Arc<WebCryptoRsaKeyMaterial>;
     pub type PlatformKeyStorage = WebCryptoKeyStorage;
     pub type PlatformStore = WebStore;
-    pub type PlatformStorageProvider = WebStorageProvider;
+    pub type PlatformStorage = WebStorage;
+
+    #[cfg(test)]
+    use anyhow::Result;
+
+    #[cfg(test)]
+    use std::path::PathBuf;
 
     #[cfg(test)]
     pub async fn make_temporary_platform_primitives() -> Result<(PathBuf, PlatformKeyStorage, ())> {
@@ -65,7 +71,7 @@ mod inner {
     ))
 ))]
 mod inner {
-    use noosphere_storage::native::{NativeStorageProvider, NativeStore};
+    use noosphere_storage::{NativeStorage, NativeStore};
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
     use crate::key::InsecureKeyStorage;
@@ -73,7 +79,7 @@ mod inner {
     pub type PlatformKeyMaterial = Ed25519KeyMaterial;
     pub type PlatformKeyStorage = InsecureKeyStorage;
     pub type PlatformStore = NativeStore;
-    pub type PlatformStorageProvider = NativeStorageProvider;
+    pub type PlatformStorage = NativeStorage;
 
     #[cfg(test)]
     use anyhow::Result;

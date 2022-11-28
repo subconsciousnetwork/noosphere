@@ -13,7 +13,7 @@ use ucan::crypto::KeyMaterial;
 use url::Url;
 
 use noosphere_api::route::Route as GatewayRoute;
-use noosphere_storage::native::NativeStore;
+use noosphere_storage::NativeStorage;
 
 use crate::native::commands::serve::{
     ipfs::start_ipfs_syndication,
@@ -30,7 +30,7 @@ pub struct GatewayScope {
 pub async fn start_gateway<K>(
     listener: TcpListener,
     gateway_scope: GatewayScope,
-    sphere_context: Arc<Mutex<SphereContext<K, NativeStore>>>,
+    sphere_context: Arc<Mutex<SphereContext<K, NativeStorage>>>,
     ipfs_api: Url,
     cors_origin: Option<Url>,
 ) -> Result<()>
@@ -65,7 +65,7 @@ where
             ]);
     }
 
-    let (syndication_tx, syndication_task) = start_ipfs_syndication::<K, NativeStore>(ipfs_api);
+    let (syndication_tx, syndication_task) = start_ipfs_syndication::<K, NativeStorage>(ipfs_api);
 
     let app = Router::new()
         .route(&GatewayRoute::Did.to_string(), get(did_route::<K>))

@@ -3,7 +3,7 @@ use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_core::{authority::Author, data::Header};
 use noosphere_fs::SphereFs;
-use noosphere_storage::{interface::BlockStore, memory::MemoryStore};
+use noosphere_storage::{BlockStore, MemoryStore};
 
 use crate::native::workspace::{FileReference, Workspace};
 
