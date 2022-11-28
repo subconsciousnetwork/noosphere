@@ -3,7 +3,7 @@ use cid::Cid;
 pub use crdts::{map, Orswot};
 use libipld_cbor::DagCborCodec;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{hash::Hash, marker::PhantomData};
+use std::{fmt::Display, hash::Hash, marker::PhantomData};
 
 use noosphere_collections::hamt::{Hamt, Hash as HamtHash, Sha256};
 use noosphere_storage::interface::BlockStore;
@@ -32,13 +32,19 @@ impl HamtHash for CidKey {
     }
 }
 
+impl Display for CidKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 pub trait VersionedMapKey:
-    Serialize + DeserializeOwned + HamtHash + Clone + Eq + Ord + VersionedMapSendSync
+    Serialize + DeserializeOwned + HamtHash + Clone + Eq + Ord + VersionedMapSendSync + Display
 {
 }
 
 impl<T> VersionedMapKey for T where
-    T: Serialize + DeserializeOwned + HamtHash + Clone + Eq + Ord + VersionedMapSendSync
+    T: Serialize + DeserializeOwned + HamtHash + Clone + Eq + Ord + VersionedMapSendSync + Display
 {
 }
 

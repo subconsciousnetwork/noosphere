@@ -1,13 +1,9 @@
-use std::sync::Arc;
-
 use axum::{http::StatusCode, Extension};
+use noosphere_core::data::Did;
 use ucan::crypto::KeyMaterial;
 
 pub async fn did_route<K: KeyMaterial>(
-    Extension(gateway_key): Extension<Arc<K>>,
+    Extension(gateway_identity): Extension<Did>,
 ) -> Result<String, StatusCode> {
-    gateway_key.get_did().await.map_err(|error| {
-        error!("{:?}", error);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })
+    Ok(gateway_identity.into())
 }

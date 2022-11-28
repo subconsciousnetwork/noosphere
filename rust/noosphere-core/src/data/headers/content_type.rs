@@ -5,6 +5,8 @@ pub enum ContentType {
     Subtext,
     Sphere,
     Bytes,
+    Cbor,
+    Json,
     Unknown(String),
 }
 
@@ -14,6 +16,8 @@ impl Display for ContentType {
             ContentType::Subtext => "text/subtext",
             ContentType::Sphere => "noo/sphere",
             ContentType::Bytes => "raw/bytes",
+            ContentType::Cbor => "application/cbor",
+            ContentType::Json => "application/json",
             ContentType::Unknown(header) => header.as_str(),
         };
 
@@ -29,6 +33,8 @@ impl FromStr for ContentType {
             "text/subtext" => ContentType::Subtext,
             "noo/sphere" => ContentType::Sphere,
             "raw/bytes" => ContentType::Bytes,
+            "application/json" => ContentType::Json,
+            "application/cbor" => ContentType::Cbor,
             _ => ContentType::Unknown(String::from(s)),
         })
     }

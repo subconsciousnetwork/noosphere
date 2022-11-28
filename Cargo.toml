@@ -14,3 +14,7 @@ members = [
 # See: https://github.com/rust-lang/rust/issues/90148#issuecomment-949194352
 resolver = "2"
 
+[profile.release]
+opt-level = 'z'
+lto = true
+

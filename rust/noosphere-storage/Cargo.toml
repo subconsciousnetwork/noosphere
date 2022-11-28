@@ -31,7 +31,7 @@ ucan = { version = "0.7.0-alpha.1" }
 libipld-core = "~0.14"
 libipld-cbor = "~0.14"
 serde = "^1"
-base64 = "~0.13"
+base64 = "=0.13.0"
 
 [dev-dependencies]
 witty-phrase-generator = "~0.2"

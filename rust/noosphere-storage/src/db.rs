@@ -8,6 +8,7 @@ use libipld_core::{
     raw::RawCodec,
 };
 use serde::{de::DeserializeOwned, Serialize};
+use std::future::Future;
 use std::{collections::BTreeSet, fmt::Debug};
 use tokio_stream::Stream;
 use ucan::store::{UcanStore, UcanStoreConditionalSend};
@@ -105,7 +106,15 @@ where
         self.link_store.get_key(&cid.to_string()).await
     }
 
-    pub fn stream_links<'a>(&'a self, cid: &'a Cid) -> impl Stream<Item = Result<Cid>> + 'a {
+    pub fn query_links<'a, F, P>(
+        &'a self,
+        cid: &'a Cid,
+        predicate: P,
+    ) -> impl Stream<Item = Result<Cid>> + 'a
+    where
+        F: Future<Output = Result<bool>>,
+        P: Fn(&Cid) -> F + Send + Sync + 'static,
+    {
         try_stream! {
             let mut visited_links = BTreeSet::new();
             let mut remaining_links = vec![cid.clone()];
@@ -115,13 +124,23 @@ where
                     continue;
                 }
 
-                if let Some(mut links) = self.get_block_links(&cid).await? {
-                    remaining_links.append(&mut links);
+                if predicate(&cid).await? {
+                    if let Some(mut links) = self.get_block_links(&cid).await? {
+                        remaining_links.append(&mut links);
+                    }
+
+                    yield cid;
                 }
 
                 visited_links.insert(cid.clone());
+            }
+        }
+    }
 
-                yield cid;
+    pub fn stream_links<'a>(&'a self, cid: &'a Cid) -> impl Stream<Item = Result<Cid>> + 'a {
+        try_stream! {
+            for await cid in self.query_links(cid, |_| async {Ok(true)}) {
+                yield cid?;
             }
         }
     }

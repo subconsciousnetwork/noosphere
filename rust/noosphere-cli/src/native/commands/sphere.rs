@@ -105,6 +105,7 @@ Type or paste the code here and press enter:"#,
         .join_sphere(sphere_identity)
         .at_storage_path(workspace.root_directory())
         .reading_keys_from(workspace.key_storage().clone())
+        .using_key(local_key)
         .authorized_by(&Authorization::Cid(cid))
         .build()
         .await?;

@@ -1,6 +1,7 @@
 pub mod authority;
 pub mod extractor;
 pub mod gateway;
+pub mod ipfs;
 pub mod route;
 pub mod tracing;
 
@@ -17,6 +18,7 @@ use self::gateway::GatewayScope;
 pub async fn serve(
     interface: IpAddr,
     port: u16,
+    ipfs_api: Url,
     cors_origin: Option<Url>,
     workspace: &Workspace,
 ) -> Result<()> {
@@ -33,5 +35,12 @@ pub async fn serve(
 
     let sphere_context = workspace.sphere_context().await?;
 
-    gateway::start_gateway(listener, gateway_scope, sphere_context, cors_origin).await
+    gateway::start_gateway(
+        listener,
+        gateway_scope,
+        sphere_context,
+        ipfs_api,
+        cors_origin,
+    )
+    .await
 }

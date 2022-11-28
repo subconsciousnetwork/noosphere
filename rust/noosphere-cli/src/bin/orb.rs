@@ -3,6 +3,7 @@
 pub async fn main() -> anyhow::Result<()> {
     // Call out to an external module for platform-specific compilation purposes
     noosphere_cli::native::main().await?;
+
     Ok(())
 }
 
