@@ -13,12 +13,8 @@
       "release-as": "0.1.0"
     },
     "rust/noosphere-core": {},
-    "rust/noosphere-fs": {
-      "release-as": "0.1.0"
-    },
-    "rust/noosphere-into": {
-      "release-as": "0.1.0"
-    },
+    "rust/noosphere-fs": {},
+    "rust/noosphere-into": {},
     "rust/noosphere-ns": {},
     "rust/noosphere-storage": {},
     "rust/noosphere": {
