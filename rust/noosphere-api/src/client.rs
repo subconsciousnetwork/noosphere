@@ -140,7 +140,7 @@ where
                 while let Some(cid_string) = proofs_to_search.pop() {
                     let cid = Cid::from_str(cid_string.as_str())?;
                     let jwt = store.require_token(&cid).await?;
-                    let ucan = Ucan::try_from_token_string(&jwt)?;
+                    let ucan = Ucan::from_str(&jwt)?;
 
                     debug!("Adding UCAN header for {}", cid);
 

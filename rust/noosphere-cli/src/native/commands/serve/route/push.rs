@@ -12,7 +12,7 @@ use noosphere_core::{
     data::Bundle,
     view::{Sphere, SphereMutation, Timeline},
 };
-use noosphere_storage::{SphereDb, NativeStorage};
+use noosphere_storage::{NativeStorage, SphereDb};
 use tokio::sync::{mpsc::UnboundedSender, Mutex};
 use ucan::capability::{Capability, Resource, With};
 use ucan::crypto::KeyMaterial;
@@ -30,7 +30,7 @@ pub async fn push_route<K>(
     Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<K, NativeStorage>>>,
 ) -> Result<Cbor<PushResponse>, StatusCode>
 where
-    K: KeyMaterial + Clone,
+    K: KeyMaterial + Clone + 'static,
 {
     debug!("Invoking push route...");
 

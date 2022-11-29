@@ -9,9 +9,7 @@
     "rust/noosphere-cli": {
       "draft": true
     },
-    "rust/noosphere-collections": {
-      "release-as": "0.1.0"
-    },
+    "rust/noosphere-collections": {},
     "rust/noosphere-core": {},
     "rust/noosphere-fs": {},
     "rust/noosphere-into": {},

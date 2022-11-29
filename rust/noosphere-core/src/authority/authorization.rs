@@ -32,9 +32,7 @@ impl Authorization {
     pub async fn resolve_ucan<S: UcanJwtStore>(&self, store: &S) -> Result<Ucan> {
         match self {
             Authorization::Ucan(ucan) => Ok(ucan.clone()),
-            Authorization::Cid(cid) => {
-                Ucan::try_from_token_string(&store.require_token(cid).await?)
-            }
+            Authorization::Cid(cid) => Ucan::from_str(&store.require_token(cid).await?),
         }
     }
 }
@@ -45,7 +43,7 @@ impl FromStr for Authorization {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut parts = s.trim().split(':');
         Ok(match parts.next() {
-            Some("jwt") => Authorization::Ucan(Ucan::try_from_token_string(
+            Some("jwt") => Authorization::Ucan(Ucan::from_str(
                 parts.next().ok_or_else(|| anyhow!("Missing token"))?,
             )?),
             Some("cid") => Authorization::Cid(Cid::try_from(

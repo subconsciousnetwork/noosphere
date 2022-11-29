@@ -20,7 +20,7 @@ readme = "README.md"
 
 [dependencies]
 log = "~0.4"
-cid = "~0.8"
+cid = "~0.9"
 url = "^2"
 async-trait = "~0.1"
 async-recursion = "^1"
@@ -31,7 +31,7 @@ async-once-cell = "~0.3"
 anyhow = "^1"
 fastcdc = "^1"
 futures = "~0.3"
-fvm_ipld_amt = "~0.4"
+fvm_ipld_amt = "~0.5"
 serde = "^1"
 byteorder = "^1.4"
 base64 = "~0.13"
@@ -42,14 +42,14 @@ serde_ipld_dagcbor = "~0.2"
 tiny-bip39 = "^1"
 crdts = "^7"
 tokio-stream = "~0.1"
-libipld-core = "~0.14"
-libipld-cbor = "~0.14"
+libipld-core = "~0.15"
+libipld-cbor = "~0.15"
 
 noosphere-storage = { version = "0.2.0", path = "../noosphere-storage" }
 noosphere-collections = { version = "0.1.0", path = "../noosphere-collections" }
 
-ucan = { version = "0.7.0-alpha.1" }
-ucan-key-support = { version = "0.7.0-alpha.1" }
+ucan = { version = "0.1.0" }
+ucan-key-support = { version = "0.1.0" }
 
 [dev-dependencies]
 wasm-bindgen-test = "~0.3"
