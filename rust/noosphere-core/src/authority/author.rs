@@ -6,7 +6,7 @@ use crate::{
     data::Did,
 };
 use anyhow::{anyhow, Result};
-use noosphere_storage::{db::SphereDb, interface::Store};
+use noosphere_storage::{SphereDb, Storage};
 use ucan::{
     capability::{Capability, Resource, With},
     chain::ProofChain,
@@ -66,7 +66,7 @@ where
     }
 
     /// Determine the level of access that the author has to a given sphere
-    pub async fn access_to<S: Store>(
+    pub async fn access_to<S: Storage>(
         &self,
         sphere_identity: &Did,
         db: &SphereDb<S>,
@@ -107,7 +107,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use noosphere_storage::{db::SphereDb, memory::MemoryStorageProvider};
+    use noosphere_storage::{MemoryStorage, SphereDb};
     use ucan::crypto::KeyMaterial;
 
     use crate::{authority::generate_ed25519_key, data::Did, view::Sphere};
@@ -124,9 +124,7 @@ mod tests {
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_gives_read_only_access_when_there_is_no_authorization() {
         let author = Author::anonymous();
-        let mut db = SphereDb::new(&MemoryStorageProvider::default())
-            .await
-            .unwrap();
+        let mut db = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
         let (sphere, _, _) = Sphere::try_generate("did:key:foo", &mut db).await.unwrap();
 
@@ -143,9 +141,7 @@ mod tests {
     async fn it_gives_read_write_access_if_the_key_is_authorized() {
         let owner_key = generate_ed25519_key();
         let owner_did = Did(owner_key.get_did().await.unwrap());
-        let mut db = SphereDb::new(&MemoryStorageProvider::default())
-            .await
-            .unwrap();
+        let mut db = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
         let (sphere, authorization, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
         let author = Author {

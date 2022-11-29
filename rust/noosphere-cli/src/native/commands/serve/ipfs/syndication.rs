@@ -9,8 +9,10 @@ use noosphere_core::{
     view::{Sphere, Timeline},
 };
 use noosphere_storage::{
-    encoding::{block_deserialize, block_serialize},
-    interface::{BlockStore, KeyValueStore, Store},
+    BlockStore,
+    block_deserialize, block_serialize,
+    KeyValueStore,
+    Storage,
 };
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -37,7 +39,7 @@ use super::KuboClient;
 pub struct SyndicationJob<K, S>
 where
     K: KeyMaterial + Clone + 'static,
-    S: Store,
+    S: Storage,
 {
     /// The revision of the _local_ sphere to discover the _counterpart_ sphere
     /// from; the counterpart sphere's revision will need to be derived using
@@ -68,7 +70,7 @@ pub fn start_ipfs_syndication<K, S>(
 )
 where
     K: KeyMaterial + Clone + 'static,
-    S: Store + 'static,
+    S: Storage + 'static,
 {
     let (tx, rx) = unbounded_channel();
 
@@ -81,7 +83,7 @@ async fn ipfs_syndication_task<K, S>(
 ) -> Result<()>
 where
     K: KeyMaterial + Clone + 'static,
-    S: Store,
+    S: Storage,
 {
     debug!("Syndicating sphere revisions to IPFS API at {}", ipfs_api);
 
@@ -110,10 +112,7 @@ where
             let sphere = Sphere::at(&revision, context.db());
             let links = sphere.try_get_links().await?;
 
-            let counterpart_revision = links
-                .require(&counterpart_identity.to_string())
-                .await?
-                .clone();
+            let counterpart_revision = *links.require(&counterpart_identity).await?;
 
             let fs = context.fs().await?;
 
@@ -163,7 +162,7 @@ where
                 move |cid| {
                     let filter = filter.clone();
                     let kubo_client = kubo_client.clone();
-                    let cid = cid.clone();
+                    let cid = *cid;
 
                     async move {
                         // The Bloom filter probabilistically tells us if we

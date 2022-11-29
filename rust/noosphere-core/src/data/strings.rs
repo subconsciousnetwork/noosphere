@@ -102,7 +102,7 @@ pub struct Mnemonic(pub String);
 #[cfg(test)]
 mod tests {
     use libipld_cbor::DagCborCodec;
-    use noosphere_storage::encoding::{block_deserialize, block_serialize};
+    use noosphere_storage::{block_deserialize, block_serialize};
     use serde::{Deserialize, Serialize};
 
     use crate::data::Did;

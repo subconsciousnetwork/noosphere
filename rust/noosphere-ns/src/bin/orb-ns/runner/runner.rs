@@ -5,12 +5,9 @@ use noosphere_ns::{
     dht::{DHTConfig, DHTNode},
     Validator, BOOTSTRAP_PEERS,
 };
-use noosphere_storage::{
-    db::SphereDb,
-    memory::{MemoryStorageProvider, MemoryStore},
-};
+use noosphere_storage::{SphereDb, MemoryStorage};
 
-type NSNode = DHTNode<Validator<MemoryStore>>;
+type NSNode = DHTNode<Validator<MemoryStorage>>;
 
 /// Runner runs one or many DHT nodes based off of provided
 /// configuration from a [CLICommand].
@@ -28,7 +25,7 @@ impl Runner {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let store = SphereDb::new(&MemoryStorageProvider::default()).await?;
+        let store = SphereDb::new(&MemoryStorage::default()).await?;
 
         for node_config in self.config.nodes.iter() {
             let config = DHTConfig {

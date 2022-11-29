@@ -2,7 +2,7 @@
 
 use anyhow::anyhow;
 use noosphere::key::KeyStorage;
-use noosphere_storage::interface::BlockStore;
+use noosphere_storage::BlockStore;
 use std::net::TcpListener;
 use tokio::io::AsyncReadExt;
 use tokio_stream::StreamExt;

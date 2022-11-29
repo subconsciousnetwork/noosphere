@@ -13,10 +13,7 @@ use std::{collections::BTreeSet, fmt::Debug};
 use tokio_stream::Stream;
 use ucan::store::{UcanStore, UcanStoreConditionalSend};
 
-use crate::{
-    interface::{BlockStore, BlockStoreSend, KeyValueStore, StorageProvider, Store},
-    memory::MemoryStore,
-};
+use crate::{BlockStore, BlockStoreSend, KeyValueStore, MemoryStore, Storage};
 
 use async_stream::try_stream;
 
@@ -40,30 +37,37 @@ pub const METADATA_STORE: &str = "metadata";
 pub const SPHERE_DB_STORE_NAMES: &[&str] =
     &[BLOCK_STORE, LINK_STORE, VERSION_STORE, METADATA_STORE];
 
+/// A [SphereDb] is a high-level storage primitive for Noosphere's APIs. It
+/// takes a [Storage] and implements [BlockStore] and [KeyValueStore],
+/// orchestrating writes so that as blocks are stored, links are also extracted
+/// and tracked separately, and also hosting metadata information such as sphere
+/// version records and other purely local configuration
 #[derive(Clone)]
 pub struct SphereDb<S>
 where
-    S: Store,
+    S: Storage,
 {
-    block_store: S,
-    link_store: S,
-    version_store: S,
-    metadata_store: S,
+    block_store: S::BlockStore,
+    link_store: S::KeyValueStore,
+    version_store: S::KeyValueStore,
+    metadata_store: S::KeyValueStore,
 }
 
 impl<S> SphereDb<S>
 where
-    S: Store,
+    S: Storage,
 {
-    pub async fn new<P: StorageProvider<S>>(storage_provider: &P) -> Result<SphereDb<S>> {
+    pub async fn new(storage: &S) -> Result<SphereDb<S>> {
         Ok(SphereDb {
-            block_store: storage_provider.get_store(BLOCK_STORE).await?,
-            link_store: storage_provider.get_store(LINK_STORE).await?,
-            version_store: storage_provider.get_store(VERSION_STORE).await?,
-            metadata_store: storage_provider.get_store(METADATA_STORE).await?,
+            block_store: storage.get_block_store(BLOCK_STORE).await?,
+            link_store: storage.get_key_value_store(LINK_STORE).await?,
+            version_store: storage.get_key_value_store(VERSION_STORE).await?,
+            metadata_store: storage.get_key_value_store(METADATA_STORE).await?,
         })
     }
 
+    /// Given a [MemoryStore], store copies of all the blocks found within in
+    /// the storage that backs this [SphereDb].
     pub async fn persist(&mut self, memory_store: &MemoryStore) -> Result<()> {
         let cids = memory_store.get_stored_cids().await;
 
@@ -85,16 +89,20 @@ where
         Ok(())
     }
 
+    /// Record the tip of a local sphere lineage as a [Cid]
     pub async fn set_version(&mut self, identity: &str, version: &Cid) -> Result<()> {
         self.version_store
             .set_key(identity.to_string(), version)
             .await
     }
 
+    /// Get the most recently recorded tip of a local sphere lineage
     pub async fn get_version(&self, identity: &str) -> Result<Option<Cid>> {
         self.version_store.get_key(identity).await
     }
 
+    /// Get the most recently recorded tip of a local sphere lineage, returning
+    /// an error if no version has ever been recorded
     pub async fn require_version(&self, identity: &str) -> Result<Cid> {
         self.version_store
             .get_key(identity)
@@ -102,10 +110,18 @@ where
             .ok_or_else(|| anyhow!("No version was found for sphere {}", identity))
     }
 
+    /// Get all links referenced by a block given its [Cid]
     pub async fn get_block_links(&self, cid: &Cid) -> Result<Option<Vec<Cid>>> {
         self.link_store.get_key(&cid.to_string()).await
     }
 
+    /// Given a [Cid] root and a predicate function, stream all links that are
+    /// referenced by the root or its descendants (recursively). The predicate
+    /// function is called with each [Cid] before it is yielded by the stream.
+    /// If the predicate returns true, the [Cid] is yielded and its referenced
+    /// links are queued to be yielded later by the stream. If the predicate
+    /// returns false, the [Cid] is skipped and by extension so are its
+    /// referenced links.
     pub fn query_links<'a, F, P>(
         &'a self,
         cid: &'a Cid,
@@ -137,6 +153,8 @@ where
         }
     }
 
+    /// Stream all links that are referenced from the given root [Cid] or its
+    /// DAG descendants (recursively).
     pub fn stream_links<'a>(&'a self, cid: &'a Cid) -> impl Stream<Item = Result<Cid>> + 'a {
         try_stream! {
             for await cid in self.query_links(cid, |_| async {Ok(true)}) {
@@ -145,6 +163,7 @@ where
         }
     }
 
+    /// Stream all the blocks in the DAG starting at the given root [Cid].
     pub fn stream_blocks<'a>(
         &'a self,
         cid: &'a Cid,
@@ -159,7 +178,9 @@ where
         }
     }
 
-    pub fn to_block_store(&self) -> S {
+    /// Get an owned copy of the underlying primitive [BlockStore] for this
+    /// [SphereDb]
+    pub fn to_block_store(&self) -> S::BlockStore {
         self.block_store.clone()
     }
 }
@@ -168,7 +189,7 @@ where
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl<S> BlockStore for SphereDb<S>
 where
-    S: Store,
+    S: Storage,
 {
     async fn put_links<C>(&mut self, cid: &Cid, block: &[u8]) -> Result<()>
     where
@@ -198,7 +219,7 @@ where
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl<S> KeyValueStore for SphereDb<S>
 where
-    S: Store,
+    S: Storage,
 {
     async fn set_key<K, V>(&mut self, key: K, value: V) -> Result<()>
     where
@@ -228,7 +249,7 @@ where
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl<S> UcanStore for SphereDb<S>
 where
-    S: Store,
+    S: Storage,
 {
     async fn read<T: Decode<RawCodec>>(&self, cid: &Cid) -> Result<Option<T>> {
         self.get::<RawCodec, T>(cid).await
@@ -251,12 +272,7 @@ mod tests {
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
-    use crate::{
-        db::SphereDb,
-        encoding::{block_encode, derive_cid},
-        interface::BlockStore,
-        memory::MemoryStorageProvider,
-    };
+    use crate::{block_encode, derive_cid, BlockStore, MemoryStorage, SphereDb};
 
     use tokio_stream::StreamExt;
 
@@ -266,7 +282,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     pub async fn it_stores_links_when_a_block_is_saved() {
-        let storage_provider = MemoryStorageProvider::default();
+        let storage_provider = MemoryStorage::default();
         let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let list1 = vec!["cats", "dogs", "pigeons"];
@@ -287,7 +303,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     pub async fn it_can_stream_all_blocks_in_a_dag() {
-        let storage_provider = MemoryStorageProvider::default();
+        let storage_provider = MemoryStorage::default();
         let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let list1 = vec!["cats", "dogs", "pigeons"];
@@ -322,7 +338,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     pub async fn it_can_put_a_raw_block_and_read_it_as_a_token() {
-        let storage_provider = MemoryStorageProvider::default();
+        let storage_provider = MemoryStorage::default();
         let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
         let (cid, block) = block_encode::<RawCodec, _>(&Ipld::Bytes(b"foobar".to_vec())).unwrap();

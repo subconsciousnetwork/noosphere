@@ -11,7 +11,7 @@ use noosphere_core::{
     data::Bundle,
     view::Sphere,
 };
-use noosphere_storage::{db::SphereDb, native::NativeStore};
+use noosphere_storage::{SphereDb, NativeStorage};
 use tokio::sync::Mutex;
 use ucan::{
     capability::{Capability, Resource, With},
@@ -26,7 +26,7 @@ pub async fn fetch_route<K>(
     authority: GatewayAuthority<K>,
     Query(FetchParameters { since }): Query<FetchParameters>,
     Extension(scope): Extension<GatewayScope>,
-    Extension(sphere_context): Extension<Arc<Mutex<SphereContext<K, NativeStore>>>>,
+    Extension(sphere_context): Extension<Arc<Mutex<SphereContext<K, NativeStorage>>>>,
 ) -> Result<impl IntoResponse, StatusCode>
 where
     K: KeyMaterial + Clone,
@@ -61,7 +61,7 @@ where
 pub async fn generate_fetch_bundle(
     scope: &GatewayScope,
     since: Option<&Cid>,
-    db: &SphereDb<NativeStore>,
+    db: &SphereDb<NativeStorage>,
 ) -> Result<Option<(Cid, Bundle)>> {
     debug!("Resolving latest local sphere version...");
 

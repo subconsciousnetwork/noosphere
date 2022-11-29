@@ -10,9 +10,7 @@ use noosphere_ns::{
     utils::{generate_capability, generate_fact},
     NameSystem, NameSystemBuilder,
 };
-use noosphere_storage::{
-    db::SphereDb, encoding::derive_cid, memory::MemoryStorageProvider, memory::MemoryStore,
-};
+use noosphere_storage::{derive_cid, MemoryStorage, SphereDb};
 
 use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore, time::now, Ucan};
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
@@ -21,7 +19,7 @@ use utils::create_bootstrap_nodes;
 /// Data related to an owner sphere and a NameSystem running
 /// on its behalf in it's corresponding gateway.
 struct NSData {
-    pub ns: NameSystem<MemoryStore, Ed25519KeyMaterial>,
+    pub ns: NameSystem<MemoryStorage, Ed25519KeyMaterial>,
     pub owner_key: Ed25519KeyMaterial,
     pub owner_id: String,
     pub sphere_id: String,
@@ -34,7 +32,7 @@ async fn generate_name_systems_network(
     ns_count: usize,
 ) -> Result<(
     DHTNode<DefaultRecordValidator>,
-    SphereDb<MemoryStore>,
+    SphereDb<MemoryStorage>,
     Vec<NSData>,
 )> {
     let bootstrap_node = create_bootstrap_nodes(1, DHTNode::<DefaultRecordValidator>::validator())
@@ -43,7 +41,7 @@ async fn generate_name_systems_network(
         .unwrap();
     let bootstrap_addresses = vec![bootstrap_node.p2p_address().unwrap().to_owned()];
 
-    let mut store = SphereDb::new(&MemoryStorageProvider::default()).await?;
+    let mut store = SphereDb::new(&MemoryStorage::default()).await?;
     let mut name_systems: Vec<NSData> = vec![];
 
     for _ in 0..ns_count {
@@ -65,7 +63,7 @@ async fn generate_name_systems_network(
         let _ = &store.write_token(&delegation.encode()?).await?;
 
         let ns_key = generate_ed25519_key();
-        let ns: NameSystem<MemoryStore, Ed25519KeyMaterial> = NameSystemBuilder::default()
+        let ns: NameSystem<MemoryStorage, Ed25519KeyMaterial> = NameSystemBuilder::default()
             .key_material(&ns_key)
             .store(&store)
             .peer_dialing_interval(1)

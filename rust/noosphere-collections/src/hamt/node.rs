@@ -8,7 +8,7 @@ use async_recursion::async_recursion;
 use async_stream::try_stream;
 use libipld_cbor::DagCborCodec;
 
-use noosphere_storage::interface::BlockStore;
+use noosphere_storage::BlockStore;
 use std::borrow::Borrow;
 use std::fmt::Debug;
 use std::marker::PhantomData;

@@ -7,12 +7,13 @@ use axum::{extract::ContentLengthLimit, http::StatusCode, Extension};
 use cid::Cid;
 use noosphere::sphere::SphereContext;
 use noosphere_api::data::{PushBody, PushResponse};
-use noosphere_core::authority::{Authorization, SphereAction, SphereReference};
-use noosphere_core::data::Bundle;
-use noosphere_core::view::{Sphere, SphereMutation, Timeline};
-use noosphere_storage::{db::SphereDb, native::NativeStore};
-use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::Mutex;
+use noosphere_core::{
+    authority::{Authorization, SphereAction, SphereReference},
+    data::Bundle,
+    view::{Sphere, SphereMutation, Timeline},
+};
+use noosphere_storage::{SphereDb, NativeStorage};
+use tokio::sync::{mpsc::UnboundedSender, Mutex};
 use ucan::capability::{Capability, Resource, With};
 use ucan::crypto::KeyMaterial;
 
@@ -24,9 +25,9 @@ use crate::native::commands::serve::{
 pub async fn push_route<K>(
     authority: GatewayAuthority<K>,
     ContentLengthLimit(Cbor(push_body)): ContentLengthLimit<Cbor<PushBody>, { 1024 * 5000 }>,
-    Extension(sphere_context_mutex): Extension<Arc<Mutex<SphereContext<K, NativeStore>>>>,
+    Extension(sphere_context_mutex): Extension<Arc<Mutex<SphereContext<K, NativeStorage>>>>,
     Extension(scope): Extension<GatewayScope>,
-    Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<K, NativeStore>>>,
+    Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<K, NativeStorage>>>,
 ) -> Result<Cbor<PushResponse>, StatusCode>
 where
     K: KeyMaterial + Clone,
@@ -124,7 +125,7 @@ where
     // an explicit publish action. Move this to the publish handler when we
     // have added it to the gateway.
     if let Err(error) = syndication_tx.send(SyndicationJob {
-        revision: new_gateway_tip.clone(),
+        revision: new_gateway_tip,
         context: sphere_context_mutex.clone(),
     }) {
         warn!("Failed to queue IPFS syndication job: {}", error);
@@ -141,7 +142,7 @@ async fn update_gateway_sphere<K>(
     scope: &GatewayScope,
     key: &K,
     authority: &Authorization,
-    db: &mut SphereDb<NativeStore>,
+    db: &mut SphereDb<NativeStorage>,
 ) -> Result<(Cid, Bundle)>
 where
     K: KeyMaterial + Send,
@@ -172,7 +173,7 @@ where
 
 async fn incorporate_lineage(
     scope: &GatewayScope,
-    db: &mut SphereDb<NativeStore>,
+    db: &mut SphereDb<NativeStorage>,
     push_body: &PushBody,
 ) -> Result<()> {
     push_body.blocks.load_into(db).await?;

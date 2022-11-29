@@ -7,8 +7,7 @@ use crate::hamt::Hamt;
 use forest_hash_utils::BytesKey;
 use serde_bytes::ByteBuf;
 
-use noosphere_storage::memory::MemoryStore;
-use noosphere_storage::tracking::{StoreStats, TrackingStore};
+use noosphere_storage::{MemoryStore, StoreStats, TrackingStore};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test;

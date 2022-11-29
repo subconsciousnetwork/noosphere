@@ -12,7 +12,7 @@ use crate::data::{
 };
 
 use noosphere_collections::hamt::Hamt;
-use noosphere_storage::interface::BlockStore;
+use noosphere_storage::BlockStore;
 
 use super::VersionedMapMutation;
 

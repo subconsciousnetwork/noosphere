@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use crate::native::Workspace;
 use anyhow::Result;
 use noosphere_core::data::ContentType;
-use noosphere_storage::memory::MemoryStore;
+use noosphere_storage::MemoryStore;
 
 pub fn status_section(
     name: &str,

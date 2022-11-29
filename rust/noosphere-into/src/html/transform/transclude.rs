@@ -1,7 +1,7 @@
 use anyhow::Result;
 use horrorshow::html;
 use noosphere_fs::SphereFs;
-use noosphere_storage::interface::Store;
+use noosphere_storage::Storage;
 use ucan::crypto::KeyMaterial;
 
 use crate::transclude::{Transclude, Transcluder};
@@ -9,7 +9,7 @@ use crate::transclude::{Transclude, Transcluder};
 /// Transforms a transclude into HTML
 pub struct TranscludeToHtmlTransformer<'a, S, K>
 where
-    S: Store,
+    S: Storage,
     K: KeyMaterial + Clone + 'static,
 {
     transcluder: Transcluder<'a, S, K>,
@@ -17,7 +17,7 @@ where
 
 impl<'a, S, K> TranscludeToHtmlTransformer<'a, S, K>
 where
-    S: Store,
+    S: Storage,
     K: KeyMaterial + Clone + 'static,
 {
     pub fn new(fs: &'a SphereFs<S, K>) -> Self {

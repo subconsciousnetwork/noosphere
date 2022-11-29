@@ -2,7 +2,7 @@ use crate::utils::generate_capability;
 use anyhow::{anyhow, Error};
 use cid::Cid;
 use noosphere_core::authority::SPHERE_SEMANTICS;
-use noosphere_storage::{db::SphereDb, interface::Store};
+use noosphere_storage::{SphereDb, Storage};
 use serde_json::Value;
 use std::{convert::TryFrom, str, str::FromStr};
 use ucan::{chain::ProofChain, crypto::did::DidParser, Ucan};
@@ -76,7 +76,7 @@ impl NSRecord {
     /// Validates the underlying [Ucan] token, ensuring that
     /// the sphere's owner authorized the publishing of a new
     /// content address. Returns an `Err` if validation fails.
-    pub async fn validate<S: Store>(
+    pub async fn validate<S: Storage>(
         &self,
         store: &SphereDb<S>,
         did_parser: &mut DidParser,
@@ -210,10 +210,7 @@ impl FromStr for NSRecord {
 mod test {
     use super::*;
     use noosphere_core::authority::{generate_ed25519_key, SUPPORTED_KEYS};
-    use noosphere_storage::{
-        db::SphereDb,
-        memory::{MemoryStorageProvider, MemoryStore},
-    };
+    use noosphere_storage::{SphereDb, MemoryStorage};
     use serde_json::json;
     use std::str::FromStr;
 
@@ -223,7 +220,7 @@ mod test {
 
     async fn expect_failure(
         message: &str,
-        store: &SphereDb<MemoryStore>,
+        store: &SphereDb<MemoryStorage>,
         did_parser: &mut DidParser,
         ucan: Ucan,
     ) {
@@ -245,9 +242,7 @@ mod test {
         let capability = generate_capability(&sphere_identity);
         let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
         let fact = json!({ "address": cid_address });
-        let store = SphereDb::new(&MemoryStorageProvider::default())
-            .await
-            .unwrap();
+        let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
         let record = NSRecord::new(
             UcanBuilder::default()
@@ -277,9 +272,7 @@ mod test {
         let capability = generate_capability(&sphere_identity);
         let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
         let fact = json!({ "address": cid_address });
-        let mut store = SphereDb::new(&MemoryStorageProvider::default())
-            .await
-            .unwrap();
+        let mut store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
         // First verify that `owner` cannot publish for `sphere`
         // without delegation.
@@ -339,9 +332,7 @@ mod test {
         let sphere_identity = sphere_key.get_did().await?;
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
         let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
-        let store = SphereDb::new(&MemoryStorageProvider::default())
-            .await
-            .unwrap();
+        let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
         let sphere_capability = generate_capability(&sphere_identity);
         expect_failure(

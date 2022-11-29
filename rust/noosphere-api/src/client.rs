@@ -10,7 +10,7 @@ use cid::Cid;
 use libipld_cbor::DagCborCodec;
 
 use noosphere_core::authority::{Author, SphereAction, SphereReference};
-use noosphere_storage::encoding::{block_deserialize, block_serialize};
+use noosphere_storage::{block_deserialize, block_serialize};
 use reqwest::{header::HeaderMap, Body, StatusCode};
 use ucan::{
     builder::UcanBuilder,

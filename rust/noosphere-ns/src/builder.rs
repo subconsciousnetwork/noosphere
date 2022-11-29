@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use libp2p::{self, Multiaddr};
-use noosphere_storage::{db::SphereDb, interface::Store};
+use noosphere_storage::{SphereDb, Storage};
 use std::net::Ipv4Addr;
 
 #[cfg(doc)]
@@ -18,7 +18,7 @@ use libp2p::kad::KademliaConfig;
 ///
 /// ```
 /// use noosphere_core::authority::generate_ed25519_key;
-/// use noosphere_storage::{db::SphereDb, memory::{MemoryStore, MemoryStorageProvider}};
+/// use noosphere_storage::{SphereDb, MemoryStorage};
 /// use noosphere_ns::{NameSystem, NameSystemBuilder};
 /// use ucan_key_support::ed25519::Ed25519KeyMaterial;
 /// use tokio;
@@ -26,7 +26,7 @@ use libp2p::kad::KademliaConfig;
 /// #[tokio::main]
 /// async fn main() {
 ///     let key_material = generate_ed25519_key();
-///     let store = SphereDb::new(&MemoryStorageProvider::default()).await.unwrap();
+///     let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 ///
 ///     let ns = NameSystemBuilder::default()
 ///         .key_material(&key_material)
@@ -34,13 +34,13 @@ use libp2p::kad::KademliaConfig;
 ///         .listening_port(30000)
 ///         .build().expect("valid config");
 ///
-///     assert!(NameSystemBuilder::<MemoryStore, Ed25519KeyMaterial>::default().build().is_err(),
+///     assert!(NameSystemBuilder::<MemoryStorage, Ed25519KeyMaterial>::default().build().is_err(),
 ///         "key_material and store must be provided.");
 /// }
 /// ```
 pub struct NameSystemBuilder<S, K>
 where
-    S: Store,
+    S: Storage,
     K: DHTKeyMaterial,
 {
     bootstrap_peers: Option<Vec<Multiaddr>>,
@@ -51,7 +51,7 @@ where
 
 impl<S, K> NameSystemBuilder<S, K>
 where
-    S: Store,
+    S: Storage,
     K: DHTKeyMaterial,
 {
     /// If bootstrap peers are provided, how often,
@@ -153,7 +153,7 @@ where
 
 impl<S, K> Default for NameSystemBuilder<S, K>
 where
-    S: Store,
+    S: Storage,
     K: DHTKeyMaterial,
 {
     fn default() -> Self {
@@ -170,18 +170,13 @@ where
 mod tests {
     use super::*;
     use noosphere_core::authority::generate_ed25519_key;
-    use noosphere_storage::{
-        db::SphereDb,
-        memory::{MemoryStorageProvider, MemoryStore},
-    };
+    use noosphere_storage::{MemoryStorage, SphereDb};
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
     #[tokio::test]
     async fn test_name_system_builder() -> Result<(), anyhow::Error> {
         let key_material = generate_ed25519_key();
-        let store = SphereDb::new(&MemoryStorageProvider::default())
-            .await
-            .unwrap();
+        let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
         let bootstrap_peers: Vec<Multiaddr> = vec![
             "/ip4/127.0.0.50/tcp/33333/p2p/12D3KooWH8WgH9mgbMXrKX4veokUznvEn6Ycwg4qaGNi83nLkoUK"
                 .parse()?,
@@ -217,14 +212,14 @@ mod tests {
         assert_eq!(ns.dht_config.replication_interval, 60 * 60 + 1);
         assert_eq!(ns.dht_config.record_ttl, 60 * 60 * 24 * 3 + 1);
 
-        if NameSystemBuilder::<MemoryStore, Ed25519KeyMaterial>::default()
+        if NameSystemBuilder::<MemoryStorage, Ed25519KeyMaterial>::default()
             .store(&store)
             .build()
             .is_ok()
         {
             panic!("key_material required.");
         }
-        if NameSystemBuilder::<MemoryStore, Ed25519KeyMaterial>::default()
+        if NameSystemBuilder::<MemoryStorage, Ed25519KeyMaterial>::default()
             .key_material(&key_material)
             .build()
             .is_ok()

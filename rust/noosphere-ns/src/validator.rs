@@ -2,17 +2,17 @@ use crate::dht::RecordValidator;
 use crate::records::NSRecord;
 use async_trait::async_trait;
 use noosphere_core::authority::SUPPORTED_KEYS;
-use noosphere_storage::{db::SphereDb, interface::Store};
+use noosphere_storage::{SphereDb, Storage};
 use ucan::crypto::did::DidParser;
 
-pub struct Validator<S: Store> {
+pub struct Validator<S: Storage> {
     store: SphereDb<S>,
     did_parser: DidParser,
 }
 
 impl<S> Validator<S>
 where
-    S: Store,
+    S: Storage,
 {
     pub fn new(store: &SphereDb<S>) -> Self {
         Validator {
@@ -25,7 +25,7 @@ where
 #[async_trait]
 impl<S> RecordValidator for Validator<S>
 where
-    S: Store,
+    S: Storage,
 {
     async fn validate(&mut self, record_value: &[u8]) -> bool {
         if let Ok(record) = NSRecord::try_from(record_value) {

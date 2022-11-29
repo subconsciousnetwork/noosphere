@@ -9,13 +9,13 @@ use noosphere_core::{
     view::Sphere,
 };
 
-use noosphere_storage::{db::SphereDb, interface::KeyValueStore, memory::MemoryStore};
+use noosphere_storage::{KeyValueStore, MemoryStore, SphereDb};
 use ucan::crypto::KeyMaterial;
 use url::Url;
 
 use crate::{
     key::KeyStorage,
-    platform::{PlatformKeyMaterial, PlatformKeyStorage, PlatformStore},
+    platform::{PlatformKeyMaterial, PlatformKeyStorage, PlatformStorage},
     sphere::{
         context::SphereContext,
         metadata::{AUTHORIZATION, IDENTITY, USER_KEY_NAME},
@@ -41,10 +41,10 @@ impl Default for SphereInitialization {
 /// are possible.
 pub enum SphereContextBuilderArtifacts {
     SphereCreated {
-        context: SphereContext<PlatformKeyMaterial, PlatformStore>,
+        context: SphereContext<PlatformKeyMaterial, PlatformStorage>,
         mnemonic: String,
     },
-    SphereOpened(SphereContext<PlatformKeyMaterial, PlatformStore>),
+    SphereOpened(SphereContext<PlatformKeyMaterial, PlatformStorage>),
 }
 
 impl SphereContextBuilderArtifacts {
@@ -58,7 +58,7 @@ impl SphereContextBuilderArtifacts {
     }
 }
 
-impl From<SphereContextBuilderArtifacts> for SphereContext<PlatformKeyMaterial, PlatformStore> {
+impl From<SphereContextBuilderArtifacts> for SphereContext<PlatformKeyMaterial, PlatformStorage> {
     fn from(artifacts: SphereContextBuilderArtifacts) -> Self {
         match artifacts {
             SphereContextBuilderArtifacts::SphereCreated { context, .. } => context,
@@ -327,7 +327,7 @@ mod tests {
 
     use libipld_core::raw::RawCodec;
     use noosphere_core::authority::Authorization;
-    use noosphere_storage::encoding::derive_cid;
+    use noosphere_storage::derive_cid;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 

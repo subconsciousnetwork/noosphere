@@ -3,7 +3,7 @@ use async_std::sync::Mutex;
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use crate::interface::Store;
+use crate::store::Store;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StoreStats {

@@ -4,11 +4,7 @@ use libipld_cbor::DagCborCodec;
 use std::hash::Hash;
 use ucan::{crypto::KeyMaterial, store::UcanJwtStore, Ucan};
 
-use noosphere_storage::{
-    encoding::{base64_decode, base64_encode},
-    interface::BlockStore,
-    ucan::UcanStore,
-};
+use noosphere_storage::{base64_decode, base64_encode, BlockStore, UcanStore};
 use serde::{Deserialize, Serialize};
 
 use crate::data::{CidKey, VersionedMapIpld};
@@ -108,7 +104,7 @@ pub type RevokedIpld = VersionedMapIpld<CidKey, RevocationIpld>;
 
 #[cfg(test)]
 mod tests {
-    use noosphere_storage::{memory::MemoryStore, ucan::UcanStore};
+    use noosphere_storage::{MemoryStore, UcanStore};
     use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
 
     use crate::authority::generate_ed25519_key;

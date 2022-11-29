@@ -101,7 +101,7 @@ mod tests {
     use cid::Cid;
     use iroh_car::{CarHeader, CarWriter};
     use libipld_cbor::DagCborCodec;
-    use noosphere_storage::encoding::block_serialize;
+    use noosphere_storage::block_serialize;
     use serde::{Deserialize, Serialize};
     use url::Url;
 

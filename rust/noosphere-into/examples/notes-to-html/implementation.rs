@@ -12,11 +12,11 @@ use noosphere_core::{
     data::{ContentType, Header},
     view::Sphere,
 };
-use noosphere_storage::{db::SphereDb, memory::MemoryStorageProvider};
+use noosphere_storage::{SphereDb, MemoryStorage};
 use ucan::crypto::KeyMaterial;
 
 pub async fn main() -> Result<()> {
-    let storage_provider = MemoryStorageProvider::default();
+    let storage_provider = MemoryStorage::default();
     let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
     let owner_key = generate_ed25519_key();

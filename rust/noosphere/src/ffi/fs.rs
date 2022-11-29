@@ -8,22 +8,22 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::{
     ffi::{NsHeaders, NsNoosphereContext},
-    platform::{PlatformKeyMaterial, PlatformStore},
+    platform::{PlatformKeyMaterial, PlatformStorage},
 };
 
 ReprC! {
     #[ReprC::opaque]
     pub struct NsSphereFs {
-        inner: SphereFs<PlatformStore, PlatformKeyMaterial>
+        inner: SphereFs<PlatformStorage, PlatformKeyMaterial>
     }
 }
 
 impl NsSphereFs {
-    pub fn inner(&self) -> &SphereFs<PlatformStore, PlatformKeyMaterial> {
+    pub fn inner(&self) -> &SphereFs<PlatformStorage, PlatformKeyMaterial> {
         &self.inner
     }
 
-    pub fn inner_mut(&mut self) -> &mut SphereFs<PlatformStore, PlatformKeyMaterial> {
+    pub fn inner_mut(&mut self) -> &mut SphereFs<PlatformStorage, PlatformKeyMaterial> {
         &mut self.inner
     }
 }

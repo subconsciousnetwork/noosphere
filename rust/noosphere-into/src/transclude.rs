@@ -1,7 +1,7 @@
 use anyhow::Result;
 use noosphere_core::data::Header;
 use noosphere_fs::SphereFs;
-use noosphere_storage::interface::Store;
+use noosphere_storage::Storage;
 use subtext::{block::Block, primitive::Entity};
 use tokio_stream::StreamExt;
 use ucan::crypto::KeyMaterial;
@@ -29,7 +29,7 @@ pub enum Transclude {
 /// for the content that the slug refers to.
 pub struct Transcluder<'a, S, K>
 where
-    S: Store,
+    S: Storage,
     K: KeyMaterial + Clone + 'static,
 {
     fs: &'a SphereFs<S, K>,
@@ -37,7 +37,7 @@ where
 
 impl<'a, S, K> Transcluder<'a, S, K>
 where
-    S: Store,
+    S: Storage,
     K: KeyMaterial + Clone + 'static,
 {
     pub fn new(fs: &'a SphereFs<S, K>) -> Self {

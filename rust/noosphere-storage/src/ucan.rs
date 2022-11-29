@@ -8,7 +8,7 @@ use libipld_core::{
 };
 use ucan::store::{UcanStore as UcanStoreTrait, UcanStoreConditionalSend};
 
-use crate::interface::BlockStore;
+use crate::block::BlockStore;
 
 pub struct UcanStore<S: BlockStore>(pub S);
 

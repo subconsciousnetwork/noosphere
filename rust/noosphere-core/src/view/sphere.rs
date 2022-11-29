@@ -22,7 +22,7 @@ use crate::{
     view::{Links, SphereMutation, SphereRevision, Timeline},
 };
 
-use noosphere_storage::{interface::BlockStore, ucan::UcanStore};
+use noosphere_storage::{BlockStore, UcanStore};
 
 use super::{AllowedUcans, Authority, Names, RevokedUcans};
 
@@ -571,11 +571,7 @@ mod tests {
         view::{Sphere, SphereMutation, Timeline, SPHERE_LIFETIME},
     };
 
-    use noosphere_storage::{
-        interface::{BlockStore, Store},
-        memory::MemoryStore,
-        ucan::UcanStore,
-    };
+    use noosphere_storage::{BlockStore, MemoryStore, Store, UcanStore};
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]

@@ -9,10 +9,7 @@ use noosphere_core::{
     view::Sphere,
 };
 use noosphere_fs::SphereFs;
-use noosphere_storage::{
-    db::SphereDb,
-    interface::{KeyValueStore, Store},
-};
+use noosphere_storage::{KeyValueStore, SphereDb, Storage};
 use tokio::sync::OnceCell;
 use ucan::crypto::{did::DidParser, KeyMaterial};
 use url::Url;
@@ -33,7 +30,7 @@ use super::{metadata::GATEWAY_URL, GatewaySyncStrategy};
 pub struct SphereContext<K, S>
 where
     K: KeyMaterial + Clone + 'static,
-    S: Store,
+    S: Storage,
 {
     sphere_identity: Did,
     author: Author<K>,
@@ -45,7 +42,7 @@ where
 impl<K, S> SphereContext<K, S>
 where
     K: KeyMaterial + Clone + 'static,
-    S: Store,
+    S: Storage,
 {
     pub fn new(sphere_identity: Did, author: Author<K>, db: SphereDb<S>) -> Self {
         SphereContext {

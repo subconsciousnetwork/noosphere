@@ -4,7 +4,8 @@ use async_trait::async_trait;
 use cid::Cid;
 use std::{collections::HashMap, sync::Arc};
 
-use crate::interface::{StorageProvider, Store};
+use crate::storage::Storage;
+use crate::store::Store;
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -20,14 +21,12 @@ impl<S: Store> StoreContainsCid for S {
     }
 }
 
-#[derive(Default)]
-pub struct MemoryStorageProvider {
+#[derive(Default, Clone)]
+pub struct MemoryStorage {
     stores: Arc<Mutex<HashMap<String, MemoryStore>>>,
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl StorageProvider<MemoryStore> for MemoryStorageProvider {
+impl MemoryStorage {
     async fn get_store(&self, name: &str) -> Result<MemoryStore> {
         let mut stores = self.stores.lock().await;
 
@@ -39,6 +38,22 @@ impl StorageProvider<MemoryStore> for MemoryStorageProvider {
             .get(name)
             .cloned()
             .ok_or_else(|| anyhow!("Failed to initialize {} store", name))
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl Storage for MemoryStorage {
+    type BlockStore = MemoryStore;
+
+    type KeyValueStore = MemoryStore;
+
+    async fn get_block_store(&self, name: &str) -> Result<Self::BlockStore> {
+        self.get_store(name).await
+    }
+
+    async fn get_key_value_store(&self, name: &str) -> Result<Self::KeyValueStore> {
+        self.get_store(name).await
     }
 }
 
