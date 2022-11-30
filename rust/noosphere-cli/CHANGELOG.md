@@ -8,6 +8,28 @@
   * dependencies
     * noosphere-api bumped from 0.1.0 to 0.2.0
 
+## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.4.0...noosphere-cli-v0.5.0) (2022-11-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* Several critical dependencies of this library were updated to new versions that contain breaking changes.
+
+### Miscellaneous Chores
+
+* Update IPLD-adjacent dependencies ([#180](https://github.com/subconsciousnetwork/noosphere/issues/180)) ([1a1114b](https://github.com/subconsciousnetwork/noosphere/commit/1a1114b0c6277ea2c0d879e43191e962eb2e462b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.3.0 to 0.4.0
+    * noosphere-fs bumped from 0.2.0 to 0.3.0
+    * noosphere-storage bumped from 0.2.0 to 0.3.0
+    * noosphere-api bumped from 0.4.0 to 0.5.0
+    * noosphere bumped from 0.3.0 to 0.4.0
+
 ## [0.4.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.3.0...noosphere-cli-v0.4.0) (2022-11-29)
 
 
