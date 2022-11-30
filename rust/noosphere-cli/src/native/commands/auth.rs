@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::{convert::TryFrom, str::FromStr};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
@@ -154,7 +154,7 @@ pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {
 
     while let Some(Ok((_, delegation))) = delegation_stream.next().await {
         let jwt = db.require_token(&delegation.jwt).await?;
-        let ucan = Ucan::try_from_token_string(&jwt)?;
+        let ucan = Ucan::from_str(&jwt)?;
         let name = delegation.name.clone();
 
         max_name_length = max_name_length.max(name.len());

@@ -42,8 +42,8 @@ ipfs-api-prelude = "~0.5"
 hyper = "~0.14"
 hyper-multipart-rfc7578 = "~0.8"
 multipart = "~0.18"
-wnfs = { git = "https://github.com/wnfs-wg/rs-wnfs", package = "wnfs", rev = "9d3b5c2d4357f57919668e3bc31aea497f41b6a4" }
-iroh-car = { git = "https://github.com/n0-computer/iroh", package = "iroh-car", rev = "d4c9c6f6a9ce6ebf63abcd1a03fabeb12600d7fb" }
+wnfs = { version = "0.1.9" }
+iroh-car = { version = "0.1.3" }
 
 
 url = { version = "^2", features = [ "serde" ] }
@@ -53,7 +53,7 @@ pathdiff = "~0.2"
 path-absolutize = "^3"
 mime_guess = "^2"
 witty-phrase-generator = "~0.2"
-toml_edit = { version = "~0.14", features = [ "serde" ] }
+toml_edit = { version = "~0.15", features = [ "serde" ] }
 globset = "~0.4"
 
 noosphere-core = { version = "0.3.0", path = "../noosphere-core" }
@@ -61,15 +61,15 @@ noosphere-fs = { version = "0.2.0", path = "../noosphere-fs" }
 noosphere-storage = { version = "0.2.0", path = "../noosphere-storage" }
 noosphere-api = { version = "0.4.0", path = "../noosphere-api" }
 noosphere = { version = "0.3.0", path = "../noosphere" }
-ucan = { version = "0.7.0-alpha.1" }
-ucan-key-support = { version = "0.7.0-alpha.1" }
-cid = "~0.8"
+ucan = { version = "0.1.0" }
+ucan-key-support = { version = "0.1.0" }
+cid = "~0.9"
 subtext = "~0.3"
 
 serde = "^1"
 serde_json = "^1"
-libipld-core = "~0.14"
-libipld-cbor = "~0.14"
+libipld-core = "~0.15"
+libipld-cbor = "~0.15"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "~0.2"

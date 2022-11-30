@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use axum::{http::StatusCode, response::IntoResponse, routing::get_service, Router};
+use axum::{http::StatusCode, response::IntoResponse, routing::get_service};
 use noosphere_fs::SphereFs;
 use noosphere_into::{html::sphere_into_html, write::NativeFs};
 use std::{net::SocketAddr, os::unix::prelude::OsStrExt, path::Path};
@@ -12,7 +12,7 @@ use noosphere_core::{
     data::{ContentType, Header},
     view::Sphere,
 };
-use noosphere_storage::{SphereDb, MemoryStorage};
+use noosphere_storage::{MemoryStorage, SphereDb};
 use ucan::crypto::KeyMaterial;
 
 pub async fn main() -> Result<()> {
@@ -78,8 +78,7 @@ pub async fn main() -> Result<()> {
 
     sphere_into_html(&sphere_identity, &db, &native_fs).await?;
 
-    let app = Router::new()
-        .fallback(get_service(ServeDir::new(html_root.path())).handle_error(handle_error));
+    let app = get_service(ServeDir::new(html_root.path())).handle_error(handle_error);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 

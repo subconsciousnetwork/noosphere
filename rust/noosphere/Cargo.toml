@@ -22,7 +22,7 @@ headers = ["safer-ffi/headers"]
 anyhow = "^1"
 thiserror = "^1"
 lazy_static = "^1"
-cid = "~0.8"
+cid = "~0.9"
 async-trait = "~0.1"
 tracing = "~0.1"
 url = { version = "^2", features = ["serde"] }
@@ -32,11 +32,11 @@ noosphere-core = { version = "0.3.0", path = "../noosphere-core" }
 noosphere-fs = { version = "0.2.0", path = "../noosphere-fs" }
 noosphere-storage = { version = "0.2.0", path = "../noosphere-storage" }
 noosphere-api = { version = "0.4.0", path = "../noosphere-api" }
-ucan = { version = "0.7.0-alpha.1" }
-ucan-key-support = { version = "0.7.0-alpha.1" }
+ucan = { version = "0.1.0" }
+ucan-key-support = { version = "0.1.0" }
 
 [dev-dependencies]
-libipld-core = "~0.14"
+libipld-core = "~0.15"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tokio = { version = "^1", features = ["sync"] }

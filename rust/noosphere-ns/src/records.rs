@@ -202,7 +202,7 @@ impl FromStr for NSRecord {
         // Wait for next release of `ucan` which includes traits and
         // removes `try_from_token_string`:
         // https://github.com/ucan-wg/rs-ucan/commit/75e9afdb9da60c3d5d8c65b6704e412f0ef8189b
-        Ok(NSRecord::new(Ucan::try_from_token_string(ucan_token)?))
+        Ok(NSRecord::new(Ucan::from_str(ucan_token)?))
     }
 }
 
@@ -210,7 +210,7 @@ impl FromStr for NSRecord {
 mod test {
     use super::*;
     use noosphere_core::authority::{generate_ed25519_key, SUPPORTED_KEYS};
-    use noosphere_storage::{SphereDb, MemoryStorage};
+    use noosphere_storage::{MemoryStorage, SphereDb};
     use serde_json::json;
     use std::str::FromStr;
 

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
-use std::hash::Hash;
+use std::{hash::Hash, str::FromStr};
 use ucan::{crypto::KeyMaterial, store::UcanJwtStore, Ucan};
 
 use noosphere_storage::{base64_decode, base64_encode, BlockStore, UcanStore};
@@ -51,7 +51,7 @@ impl DelegationIpld {
         let store = UcanStore(store.clone());
         let jwt = store.require_token(&self.jwt).await?;
 
-        Ucan::try_from_token_string(&jwt)
+        Ucan::from_str(&jwt)
     }
 }
 

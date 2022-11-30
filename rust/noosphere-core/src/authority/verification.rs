@@ -51,7 +51,7 @@ pub async fn verify_sphere_cid<S: Storage>(
         // Extract a UCAN from the proof header, or...
         let ucan_cid = Cid::from_str(proof_header)?;
         let ucan_jwt = store.require_token(&ucan_cid).await?;
-        let ucan = Ucan::try_from_token_string(&ucan_jwt)?;
+        let ucan = Ucan::from_str(&ucan_jwt)?;
 
         // Discover the intended audience of the UCAN
         let credential = did_parser.parse(ucan.audience())?;

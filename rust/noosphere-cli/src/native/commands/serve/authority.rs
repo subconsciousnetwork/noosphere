@@ -25,7 +25,7 @@ use super::gateway::GatewayScope;
 /// presented by the maker of the request.
 pub struct GatewayAuthority<K>
 where
-    K: KeyMaterial + Clone,
+    K: KeyMaterial + Clone + 'static,
 {
     proof: ProofChain,
     scope: GatewayScope,
@@ -34,7 +34,7 @@ where
 
 impl<K> GatewayAuthority<K>
 where
-    K: KeyMaterial + Clone,
+    K: KeyMaterial + Clone + 'static,
 {
     pub fn expect_audience(&self, audience: &str) -> Result<(), StatusCode> {
         if self.proof.ucan().audience() != audience {

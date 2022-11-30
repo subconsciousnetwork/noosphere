@@ -20,7 +20,7 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "^1"
-cid = "~0.8"
+cid = "~0.9"
 url = "^2"
 serde = "^1"
 serde_urlencoded = "~0.7"
@@ -29,11 +29,12 @@ noosphere-core = { version = "0.3.0", path = "../noosphere-core" }
 noosphere-storage = { version = "0.2.0", path = "../noosphere-storage" }
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls"] }
 
-ucan = { version = "0.7.0-alpha.1" }
-ucan-key-support = { version = "0.7.0-alpha.1" }
+ucan = { version = "0.1.0" }
+ucan-key-support = { version = "0.1.0" }
 
-libipld-core = "~0.14"
-libipld-cbor = "~0.14"
+
+libipld-core = "~0.15"
+libipld-cbor = "~0.15"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "^1", features = ["full"] }
