@@ -1,6 +1,6 @@
 [package]
 name = "noosphere"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "A high-level package for dealing with accessing the Noosphere"
 keywords = ["noosphere"]
@@ -28,10 +28,10 @@ tracing = "~0.1"
 url = { version = "^2", features = ["serde"] }
 subtext = { version = "~0.3" }
 
-noosphere-core = { version = "0.3.0", path = "../noosphere-core" }
-noosphere-fs = { version = "0.2.0", path = "../noosphere-fs" }
-noosphere-storage = { version = "0.2.0", path = "../noosphere-storage" }
-noosphere-api = { version = "0.4.0", path = "../noosphere-api" }
+noosphere-core = { version = "0.4.0", path = "../noosphere-core" }
+noosphere-fs = { version = "0.3.0", path = "../noosphere-fs" }
+noosphere-storage = { version = "0.3.0", path = "../noosphere-storage" }
+noosphere-api = { version = "0.5.0", path = "../noosphere-api" }
 ucan = { version = "0.1.0" }
 ucan-key-support = { version = "0.1.0" }
 
