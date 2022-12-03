@@ -114,7 +114,7 @@ impl SphereContextBuilder {
         self
     }
 
-    /// Speciy the URL of an IPFS Kubo RPC API for this application to access
+    /// Specify the URL of an IPFS Kubo RPC API for this application to access
     /// as a contingency when blocks being read from storage are missing
     pub fn reading_ipfs_from(mut self, ipfs_api: Option<&Url>) -> Self {
         self.ipfs_api = ipfs_api.cloned();

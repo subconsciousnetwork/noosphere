@@ -21,7 +21,7 @@
     "typescript": "~4.8.2",
     "vite": "^3.2.3",
     "vite-plugin-wasm": "^3.1.0",
-    "wireit": "^0.8.0"
+    "wireit": "^0.9.0"
   },
   "wireit": {
     "build": {
@@ -37,12 +37,23 @@
       "dependencies": [
         "../orb:build"
       ],
-      "command": "tsc"
+      "command": "tsc --pretty",
+      "clean": "if-file-deleted",
+      "files": [
+        "../../tsconfig.base.json",
+        "tsconfig.json",
+        "./src/**/*.ts"
+      ],
+      "output": [
+        "./lib/**",
+        "./tsconfig.tsbuildinfo"
+      ]
     },
     "serve": {
       "dependencies": [
         "build"
       ],
+      "service": true,
       "command": "web-dev-server -r ./dist --open"
     },
     "clean": {

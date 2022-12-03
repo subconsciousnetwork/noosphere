@@ -16,7 +16,7 @@
     "@web/dev-server": "^0.1.34",
     "esbuild": "^0.15.9",
     "typescript": "~4.8.2",
-    "wireit": "^0.8.0"
+    "wireit": "^0.9.0"
   },
   "wireit": {
     "build": {
@@ -24,8 +24,17 @@
         "generate_wasm"
       ],
       "command": "tsc --pretty",
+      "clean": "if-file-deleted",
       "files": [
+        "../../tsconfig.base.json",
+        "tsconfig.json",
         "./src/**/*.ts"
+      ],
+      "output": [
+        "./lib/index.js",
+        "./lib/index.d.ts",
+        "./lib/index.js.map",
+        "./tsconfig.tsbuildinfo"
       ]
     },
     "generate_wasm": {
