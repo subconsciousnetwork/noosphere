@@ -10,6 +10,7 @@ import {
 export interface SphereViewerState {
   sphereId: string | null;
   sphereVersion: string | null;
+  sphereIndex: string[];
   slug: string | null;
   ipfsApi: string | null;
   key: string | null;
@@ -18,11 +19,14 @@ export interface SphereViewerState {
   fs: SphereFs | null;
   file: SphereFile | null;
   fileContents: string | null;
+  fileVersion: string | null;
+  loading: boolean;
 }
 
 const initialState: SphereViewerState = {
   sphereId: null,
   sphereVersion: null,
+  sphereIndex: [],
   slug: null,
   ipfsApi: null,
   key: null,
@@ -31,6 +35,8 @@ const initialState: SphereViewerState = {
   fs: null,
   file: null,
   fileContents: null,
+  fileVersion: null,
+  loading: true,
 };
 
 export const sphereViewerSlice = createSlice({
@@ -66,6 +72,7 @@ export const sphereViewerSlice = createSlice({
       state.sphereId = action.payload.id;
       state.sphereVersion = action.payload.version;
       state.slug = action.payload.slug;
+      state.loading = true;
 
       state.fileContents = null;
     },
@@ -81,6 +88,15 @@ export const sphereViewerSlice = createSlice({
       if (state.fs) {
         state.fs.free();
       }
+
+      if (state.file) {
+        state.file.free();
+      }
+
+      state.file = null;
+      state.slug = null;
+      state.fileContents = null;
+      state.fileVersion = null;
 
       state.sphere = action.payload.sphere;
       state.fs = action.payload.fs;
@@ -99,10 +115,15 @@ export const sphereViewerSlice = createSlice({
 
       state.file = action.payload.file;
       state.fileContents = action.payload.contents;
+      state.loading = false;
     },
 
-    fileContentsRead: (state, action: PayloadAction<string>) => {
-      state.fileContents = action.payload;
+    sphereIndexed: (state, action: PayloadAction<string[]>) => {
+      state.sphereIndex = action.payload;
+
+      if (!state.slug) {
+        state.loading = false;
+      }
     },
   },
 });
@@ -113,8 +134,8 @@ export const {
   noosphereInitialized,
   locationChanged,
   sphereOpened,
+  sphereIndexed,
   fileOpened,
-  fileContentsRead,
 } = sphereViewerSlice.actions;
 
 export default sphereViewerSlice.reducer;

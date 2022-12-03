@@ -1,12 +1,16 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { NoosphereContext, SphereFs } from '@subconsciousnetwork/orb';
+import {
+  NoosphereContext,
+  SphereFile,
+  SphereFs,
+} from '@subconsciousnetwork/orb';
 import {
   fileOpened,
   ipfsConfigured,
   locationChanged,
   noosphereInitialized,
+  sphereIndexed,
   sphereOpened,
-  SphereViewerState,
 } from './state.js';
 import { RootState } from './store.js';
 
@@ -45,10 +49,18 @@ export const openSphere = createAsyncThunk(
 
     await noosphere.joinSphere(id, key);
 
-    let sphere = await noosphere.getSphereContext(id);
-    let fs = await sphere.fsAt(version);
+    const sphere = await noosphere.getSphereContext(id);
+    const fs = await sphere.fsAt(version);
 
     dispatch(sphereOpened({ sphere, fs }));
+
+    const sphereIndex: string[] = [];
+
+    await fs.stream((slug: string, _file: SphereFile) => {
+      sphereIndex.push(slug);
+    });
+
+    dispatch(sphereIndexed(sphereIndex));
   }
 );
 

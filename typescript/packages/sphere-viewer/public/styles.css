@@ -1,0 +1,50 @@
+:root {
+  --color-purple: #842A9C;
+  --color-tan: #EBEBDA;
+  --color-black: #231F20;
+  --color-grey: #DFDBEB;
+  --color-blush: #EDCFEA;
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-text: var(--color-black);
+  --color-text-secondary: rgba(0, 0, 0, 0.4);
+  --color-background-tertiary: #f7f7f7;
+  --color-selected: rgba(0, 0, 0, 0.02);
+  --color-light-gradient: linear-gradient(140deg, rgba(237,207,234,1) 0%, rgba(223,219,235,1) 20%, rgba(235,235,218,1) 80%);
+  --color-dark-text: var(--color-tan);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, sans-serif;
+  --font-mono: "IBM Plex Sans", Menlo, monospace;
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --text-h1-size: 32px;
+  --text-h1-line: 32px;
+  --text-caption-size: 16px;
+  --text-caption-line: 24px;
+  --text-label-size: 14px;
+  --text-label-line: 20px;
+  --text-body-size: 20px;
+  --text-body-line: 28px;
+  --pad: 24px;
+  --pad-sm: 8px;
+  --pad-block: 16px;
+}
+
+* {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  list-style: none;
+}
+
+html {
+  background: var(--color-grey);
+  background-image: var(--color-light-gradient);
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  min-height: 100vh;
+}

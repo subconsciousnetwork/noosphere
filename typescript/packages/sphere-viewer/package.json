@@ -31,7 +31,15 @@
           "cascade": false
         }
       ],
-      "command": "vite build"
+      "command": "vite build",
+      "files": [
+        "./lib/**",
+        "./static/**",
+        "./vite.config.js"
+      ],
+      "output": [
+        "./dist/**"
+      ]
     },
     "build:tsc": {
       "dependencies": [
@@ -54,7 +62,7 @@
         "build"
       ],
       "service": true,
-      "command": "web-dev-server -r ./dist --open"
+      "command": "web-dev-server -r ./dist"
     },
     "clean": {
       "command": "rm -rf ./dist ./lib && rm -f ./tsconfig.tsbuildinfo"
