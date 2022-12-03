@@ -3,11 +3,7 @@
   "lldb.launch.cwd": "${workspaceFolder}",
   "rust-analyzer.procMacro.enable": true,
   "rust-analyzer.procMacro.ignored": {
-    "libp2p_swarm_derive": [
-      "NetworkBehaviour"
-    ],
-    "async-trait": [
-      "async_trait"
-    ]
+    "libp2p_swarm_derive": ["NetworkBehaviour"],
+    "async-trait": ["async_trait"]
   }
 }

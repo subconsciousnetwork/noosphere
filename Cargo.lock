@@ -2994,6 +2994,7 @@ dependencies = [
  "noosphere-api",
  "noosphere-core",
  "noosphere-fs",
+ "noosphere-into",
  "noosphere-storage",
  "rexie",
  "safer-ffi",
@@ -3198,6 +3199,7 @@ dependencies = [
  "tracing-subscriber",
  "ucan",
  "ucan-key-support",
+ "url 2.3.1",
  "wasm-bindgen-test",
 ]
 
@@ -4830,9 +4832,9 @@ dependencies = [
 
 [[package]]
 name = "subtext"
-version = "0.3.0"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24375f1ef632ac47caddfd9bc5ec32e525e3ff3059cc88bbff3d1b2e06730d28"
+checksum = "49f684e579d8a0d7abafa295b2287d8d68a36e3e23eec985c5231f179a4234f9"
 dependencies = [
  "anyhow",
  "async-compat",

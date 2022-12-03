@@ -22,13 +22,20 @@ pub trait WriteTargetConditionalSendSync {}
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 pub trait WriteTarget: Clone + WriteTargetConditionalSendSync {
+    /// Returns true if a file exists at the provided path
     async fn exists(&self, path: &PathBuf) -> Result<bool>;
-    async fn write<R>(&self, path: &PathBuf, contents: &mut R) -> Result<()>
+
+    /// Given a path and an [AsyncRead], write the contents of the [AsyncRead]
+    /// to the path
+    async fn write<R>(&self, path: &PathBuf, contents: R) -> Result<()>
     where
         R: AsyncRead + Unpin + WriteTargetConditionalSend;
 
+    /// Create a symbolic link between the give source path and destination path
     async fn symlink(&self, src: &PathBuf, dst: &PathBuf) -> Result<()>;
 
+    /// Spawn a [Future] in a platform-appropriate fashion and poll it to
+    /// completion
     async fn spawn<F>(future: F) -> Result<()>
     where
         F: Future<Output = Result<()>> + WriteTargetConditionalSend + 'static;

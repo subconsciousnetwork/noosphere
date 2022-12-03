@@ -29,6 +29,7 @@ use super::{AllowedUcans, Authority, Names, RevokedUcans};
 pub const SPHERE_LIFETIME: u64 = 315360000000; // 10,000 years (arbitrarily high)
 
 /// High-level Sphere I/O
+#[derive(Clone)]
 pub struct Sphere<S: BlockStore> {
     store: S,
     cid: Cid,

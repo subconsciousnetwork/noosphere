@@ -116,8 +116,8 @@ where
 
         Ok(SphereFile {
             sphere_identity: self.sphere_identity.clone(),
-            sphere_revision: self.sphere_revision,
-            memo_revision: *memo_revision,
+            sphere_version: self.sphere_revision,
+            memo_version: *memo_revision,
             memo,
             contents: StreamReader::new(stream),
         })
@@ -233,7 +233,7 @@ where
         self.require_mutation().await?;
 
         let current_file = self.read(slug).await?;
-        let previous_memo_cid = current_file.map(|file| file.memo_revision);
+        let previous_memo_cid = current_file.map(|file| file.memo_version);
 
         let mut new_memo = match previous_memo_cid {
             Some(cid) => {
@@ -280,7 +280,7 @@ where
                 let mutation = self.require_mutation().await?;
                 mutation.links_mut().remove(&String::from(slug));
 
-                Some(file.memo_revision)
+                Some(file.memo_version)
             }
             None => None,
         })

@@ -31,22 +31,22 @@
         "./src/**/*.ts"
       ],
       "output": [
-        "./lib/index.js",
-        "./lib/index.d.ts",
-        "./lib/index.js.map",
+        "./lib/index.{js,d.ts,map}",
+        "./lib/index.test.{js,d.ts,map}",
         "./tsconfig.tsbuildinfo"
       ]
     },
     "generate_wasm": {
       "command": "./scripts/generate-wasm-artifacts.sh",
       "files": [
-        "../../../rust/Cargo.toml",
+        "../../../Cargo.toml",
         "../../../rust/**/Cargo.toml",
         "../../../rust/**/*.rs",
-        "./scripts/genergate-wasm-artifacts.sh"
+        "./scripts/generate-wasm-artifacts.sh"
       ],
       "output": [
-        "lib/noosphere*.{ts,wasm,js}"
+        "lib/noosphere.{d.ts,js}",
+        "lib/noosphere_bg.{d.ts,wasm}"
       ]
     },
     "clean": {

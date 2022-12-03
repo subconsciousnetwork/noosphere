@@ -34,7 +34,7 @@ impl WriteTarget for NativeFs {
         Ok(self.root.join(path).exists())
     }
 
-    async fn write<R>(&self, path: &PathBuf, mut contents: &mut R) -> Result<()>
+    async fn write<R>(&self, path: &PathBuf, mut contents: R) -> Result<()>
     where
         R: AsyncRead + Unpin + WriteTargetConditionalSend,
     {

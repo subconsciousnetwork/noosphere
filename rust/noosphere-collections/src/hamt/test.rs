@@ -9,6 +9,7 @@ use serde_bytes::ByteBuf;
 
 use noosphere_storage::{MemoryStore, StoreStats, TrackingStore};
 
+use tokio_stream::StreamExt;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test;
 
@@ -372,6 +373,36 @@ async fn set_delete_many() {
             bytes_removed: 0
         }
     );
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+async fn into_stream() {
+    let mem = MemoryStore::default();
+
+    let mut hamt: Hamt<_, i32, i32> = Hamt::new_with_bit_width(mem, 5);
+
+    for i in 0..200 {
+        hamt.set(i, i).await.unwrap();
+    }
+
+    hamt.flush().await.unwrap();
+
+    for i in 200..400 {
+        hamt.set(i, i).await.unwrap();
+    }
+
+    // Iterating through hamt with dirty caches.
+    let mut count = 0;
+    let stream = hamt.into_stream();
+    tokio::pin!(stream);
+
+    while let Ok(Some((k, v))) = stream.try_next().await {
+        assert_eq!(k, v);
+        count += 1;
+    }
+
+    assert_eq!(count, 400);
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]

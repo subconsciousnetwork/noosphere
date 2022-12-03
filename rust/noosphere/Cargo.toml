@@ -16,7 +16,7 @@ readme = "README.md"
 crate-type = ["rlib", "staticlib", "cdylib"]
 
 [features]
-default = ["kubo-storage"]
+default = []
 headers = ["safer-ffi/headers"]
 kubo-storage = ["noosphere-storage/kubo-storage"]
 
@@ -28,7 +28,7 @@ cid = "~0.9"
 async-trait = "~0.1"
 tracing = "~0.1"
 url = { version = "^2", features = ["serde"] }
-subtext = { version = "~0.3" }
+subtext = { version = "0.3.2" }
 tokio-stream = "~0.1"
 
 noosphere-core = { version = "0.4.0", path = "../noosphere-core" }
@@ -51,6 +51,7 @@ wasm-bindgen-futures = "0.4.33"
 js-sys = "~0.3"
 tracing-wasm = "~0.2"
 console_error_panic_hook = "0.1"
+noosphere-into = { version = "0.3.0", path = "../noosphere-into" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
 version = "~0.3"

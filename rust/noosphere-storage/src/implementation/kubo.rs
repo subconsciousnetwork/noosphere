@@ -107,7 +107,7 @@ where
     /// Some gateways will redirect you to a subdomain derived from the CID
     /// being requested. This method helps us to determine if we should use a
     /// subdomain-scoped URL or an origin-based URL to find the next block.
-    fn make_block_url(&self, cid: &Cid) -> Option<Url> {
+    pub(crate) fn make_block_url(&self, cid: &Cid) -> Option<Url> {
         let mut url = if let Some(url) = &self.ipfs_api {
             url.clone()
         } else {
@@ -119,11 +119,15 @@ where
 
             if let Some(fragment) = parts.nth(0) {
                 if Cid::from_str(fragment).is_ok() {
-                    let upper_domain: String = parts.collect();
-                    let mut host = format!("{}://{}.{}", url.scheme(), cid, upper_domain);
+                    let upper_domain = parts
+                        .map(|part| part.to_string())
+                        .collect::<Vec<String>>()
+                        .join(".");
+
+                    let mut host = format!("{}.{}", cid, upper_domain);
 
                     if let Some(port) = url.port() {
-                        host = format!("{}:{}", domain, port);
+                        host = format!("{}:{}", host, port);
                     }
 
                     if let Ok(()) = url.set_host(Some(&host)) {
@@ -184,5 +188,43 @@ where
                 None => Ok(None),
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use crate::{helpers::make_disposable_store, KuboStore};
+
+    use cid::Cid;
+    use url::Url;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_derive_a_block_url_for_subdomain_gateways() {
+        let store = make_disposable_store().await.unwrap();
+        let gateway_url = Url::from_str(
+            "https://bafybeieh53mh2gt4khnrixfro7wvbvtrux4247cfwse642e36z67medkzq.ipfs.noo.pub",
+        )
+        .unwrap();
+        let test_cid =
+            Cid::from_str("bafy2bzacecsjls67zqx25dcvbu6p4z4rsdkm2k6hanhd5qowrvwmhtov2sjpo")
+                .unwrap();
+        let kubo_store = KuboStore::new(store, Some(&gateway_url));
+
+        let derived_url = kubo_store.make_block_url(&test_cid);
+
+        let expected_url = Url::from_str(
+            "https://bafy2bzacecsjls67zqx25dcvbu6p4z4rsdkm2k6hanhd5qowrvwmhtov2sjpo.ipfs.noo.pub",
+        )
+        .unwrap();
+
+        assert_eq!(derived_url, Some(expected_url));
     }
 }

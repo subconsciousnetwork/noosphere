@@ -40,7 +40,12 @@ where
     changelog: OnceCell<ChangelogIpld<MapOperation<K, V>>>,
 }
 
-impl<K: VersionedMapKey, V: VersionedMapValue, S: BlockStore> VersionedMap<K, V, S> {
+impl<K, V, S> VersionedMap<K, V, S>
+where
+    K: VersionedMapKey,
+    V: VersionedMapValue,
+    S: BlockStore,
+{
     pub async fn try_get_changelog(&self) -> Result<&ChangelogIpld<MapOperation<K, V>>> {
         self.changelog
             .get_or_try_init(async {
@@ -166,5 +171,16 @@ impl<K: VersionedMapKey, V: VersionedMapValue, S: BlockStore> VersionedMap<K, V,
         &'a self,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<(&'a K, &'a V)>> + 'a>>> {
         Ok(self.try_get_hamt().await?.stream())
+    }
+}
+
+impl<K, V, S> VersionedMap<K, V, S>
+where
+    K: VersionedMapKey + 'static,
+    V: VersionedMapValue + 'static,
+    S: BlockStore + 'static,
+{
+    pub async fn into_stream(self) -> Result<impl Stream<Item = Result<(K, V)>>> {
+        Ok(self.try_load_hamt().await?.into_stream())
     }
 }
