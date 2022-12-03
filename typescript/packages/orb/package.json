@@ -23,7 +23,7 @@
       "dependencies": [
         "generate_wasm"
       ],
-      "command": "tsc",
+      "command": "tsc --pretty",
       "files": [
         "./src/**/*.ts"
       ]
