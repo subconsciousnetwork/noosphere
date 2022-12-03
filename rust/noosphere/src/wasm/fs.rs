@@ -36,7 +36,13 @@ impl SphereFs {
 
     #[wasm_bindgen(js_name = "writeString")]
     /// Write content to a name in the sphere's namespace as a UTF-8 encoded
-    /// string
+    /// string. Note that JavaScript strings are UTF-16, so in some cases the
+    /// conversion to UTF-8 may be lossy. See [these string conversion
+    /// notes](https://rustwasm.github.io/docs/wasm-bindgen/reference/types/str.html#utf-16-vs-utf-8)
+    /// for specific details on how the conversion is performed and what to look
+    /// out for. If the conversion leads to undesired loss, you may consider
+    /// using the `write` method instead, which allows the caller to control the
+    /// conversion and save the file as raw bytes.
     pub async fn write_string(
         &mut self,
         slug: String,
