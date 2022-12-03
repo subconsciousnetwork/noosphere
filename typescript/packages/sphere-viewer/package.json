@@ -26,7 +26,10 @@
   "wireit": {
     "build": {
       "dependencies": [
-        "build:tsc"
+        {
+          "script": "build:tsc",
+          "cascade": false
+        }
       ],
       "command": "vite build"
     },
