@@ -47,7 +47,9 @@
       "dependencies": [
         "build"
       ],
-      "command": "web-test-runner --node-resolve"
+      "command": "web-test-runner --node-resolve",
+      "files": ["web-test-runner.config.js"],
+      "output": []
     }
   },
   "devDependencies": {
