@@ -8,6 +8,7 @@ pub async fn main() -> anyhow::Result<()> {
 }
 
 #[cfg(target_arch = "wasm32")]
+#[allow(unused_must_use)]
 pub fn main() {
     noosphere_cli::web::main();
 }

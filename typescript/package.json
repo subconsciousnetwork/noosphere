@@ -1,0 +1,45 @@
+{
+  "name": "@subconsciousnetwork/noosphere-packages",
+  "private": true,
+  "author": "Subconscious Inc.",
+  "license": "Apache-2.0 OR MIT",
+  "version": "0.1.0",
+  "description": "",
+  "workspaces": ["./packages/*"],
+  "scripts": {
+    "build": "wireit",
+    "clean": "wireit",
+    "serve": "wireit",
+    "test": "wireit"
+  },
+  "dependencies": {
+    "wireit": "^0.8.0",
+    "typescript": "~4.8.2",
+    "esbuild": "^0.15.9",
+    "@web/dev-server": "^0.1.34"
+  },
+  "wireit": {
+    "build": {
+      "dependencies": [
+        "./packages/orb:build",
+        "./packages/sphere-viewer:build"
+      ]
+    },
+    "serve": {
+      "dependencies": [
+        "./packages/sphere-viewer:serve"
+      ]
+    },
+    "clean": {
+      "dependencies": [
+        "./packages/orb:clean",
+        "./packages/sphere-viewer:clean"
+      ]
+    },
+    "test": {
+      "dependencies": [
+        "./packages/orb:test"
+      ]
+    }
+  }
+}

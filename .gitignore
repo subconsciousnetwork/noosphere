@@ -3,3 +3,7 @@ optimized_wasm
 dist
 .DS_Store
 noosphere.h
+lib
+node_modules
+.wireit
+*.tsbuildinfo

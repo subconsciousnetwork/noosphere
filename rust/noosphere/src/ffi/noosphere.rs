@@ -5,7 +5,10 @@ use safer_ffi::prelude::*;
 use tokio::runtime::Runtime as TokioRuntime;
 use url::Url;
 
-use crate::noosphere::{NoosphereContext, NoosphereContextConfiguration};
+use crate::{
+    noosphere::{NoosphereContext, NoosphereContextConfiguration},
+    NoosphereNetwork, NoosphereSecurity, NoosphereStorage,
+};
 
 ReprC! {
     #[ReprC::opaque]
@@ -19,13 +22,20 @@ impl NsNoosphereContext {
     pub fn new(
         global_storage_path: &str,
         sphere_storage_path: &str,
-        gateway_url: Option<&Url>,
+        gateway_api: Option<&Url>,
     ) -> Result<Self> {
         Ok(NsNoosphereContext {
-            inner: NoosphereContext::new(NoosphereContextConfiguration::Insecure {
-                global_storage_path: global_storage_path.into(),
-                sphere_storage_path: sphere_storage_path.into(),
-                gateway_url: gateway_url.cloned(),
+            inner: NoosphereContext::new(NoosphereContextConfiguration {
+                storage: NoosphereStorage::Scoped {
+                    path: sphere_storage_path.into(),
+                },
+                security: NoosphereSecurity::Insecure {
+                    path: global_storage_path.into(),
+                },
+                network: NoosphereNetwork::Http {
+                    gateway_api: gateway_api.cloned(),
+                    ipfs_api: None,
+                },
             })?,
             async_runtime: Arc::new(TokioRuntime::new()?),
         })

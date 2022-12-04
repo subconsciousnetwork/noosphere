@@ -15,3 +15,9 @@ mod web;
 
 #[cfg(target_arch = "wasm32")]
 pub use web::*;
+
+#[cfg(feature = "kubo-storage")]
+mod kubo;
+
+#[cfg(feature = "kubo-storage")]
+pub use kubo::*;

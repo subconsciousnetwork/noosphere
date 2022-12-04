@@ -1,6 +1,5 @@
 use std::{fmt::Display, path::PathBuf};
 
-use crate::platform::PlatformStorage;
 use anyhow::Result;
 use noosphere_core::data::Did;
 
@@ -40,17 +39,21 @@ impl From<StorageLayout> for PathBuf {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+use noosphere_storage::{NativeStorage, NativeStorageInit};
+
+#[cfg(not(target_arch = "wasm32"))]
 impl StorageLayout {
-    pub async fn to_storage_provider(&self) -> Result<PlatformStorage> {
-        PlatformStorage::new(noosphere_storage::NativeStorageInit::Path(PathBuf::from(
-            self,
-        )))
+    pub async fn to_storage(&self) -> Result<NativeStorage> {
+        NativeStorage::new(NativeStorageInit::Path(PathBuf::from(self)))
     }
 }
 
 #[cfg(target_arch = "wasm32")]
+use noosphere_storage::WebStorage;
+
+#[cfg(target_arch = "wasm32")]
 impl StorageLayout {
-    pub async fn to_storage_provider(&self) -> Result<PlatformStorage> {
-        PlatformStorage::new(&self.to_string()).await
+    pub async fn to_storage(&self) -> Result<WebStorage> {
+        WebStorage::new(&self.to_string()).await
     }
 }

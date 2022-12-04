@@ -8,7 +8,7 @@
     target_vendor = "apple"
 ))]
 mod inner {
-    use noosphere_storage::{NativeStorage, NativeStore};
+    use noosphere_storage::NativeStorage;
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
     use crate::key::InsecureKeyStorage;
@@ -17,7 +17,6 @@ mod inner {
     // This key material type implies insecure storage on disk
     pub type PlatformKeyMaterial = Ed25519KeyMaterial;
     pub type PlatformKeyStorage = InsecureKeyStorage;
-    pub type PlatformStore = NativeStore;
     pub type PlatformStorage = NativeStorage;
 }
 
@@ -25,14 +24,20 @@ mod inner {
 mod inner {
     use crate::key::WebCryptoKeyStorage;
 
-    use noosphere_storage::{WebStorage, WebStore};
-
     use std::sync::Arc;
     use ucan_key_support::web_crypto::WebCryptoRsaKeyMaterial;
 
     pub type PlatformKeyMaterial = Arc<WebCryptoRsaKeyMaterial>;
     pub type PlatformKeyStorage = WebCryptoKeyStorage;
-    pub type PlatformStore = WebStore;
+
+    use noosphere_storage::WebStorage;
+
+    #[cfg(feature = "kubo-storage")]
+    use noosphere_storage::KuboStorage;
+    #[cfg(feature = "kubo-storage")]
+    pub type PlatformStorage = KuboStorage<WebStorage>;
+
+    #[cfg(not(feature = "kubo-storage"))]
     pub type PlatformStorage = WebStorage;
 
     #[cfg(test)]
@@ -71,14 +76,13 @@ mod inner {
     ))
 ))]
 mod inner {
-    use noosphere_storage::{NativeStorage, NativeStore};
+    use noosphere_storage::NativeStorage;
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
     use crate::key::InsecureKeyStorage;
 
     pub type PlatformKeyMaterial = Ed25519KeyMaterial;
     pub type PlatformKeyStorage = InsecureKeyStorage;
-    pub type PlatformStore = NativeStore;
     pub type PlatformStorage = NativeStorage;
 
     #[cfg(test)]

@@ -17,6 +17,10 @@ repository = "https://github.com/subconsciousnetwork/noosphere"
 homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
+[features]
+default = ["kubo-storage"]
+kubo-storage = ["reqwest"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -32,6 +36,10 @@ libipld-core = "~0.15"
 libipld-cbor = "~0.15"
 serde = "^1"
 base64 = "=0.13.0"
+url = { version = "^2" }
+
+# Used with the 'kubo-storage' feature
+reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls"], optional = true }
 
 [dev-dependencies]
 witty-phrase-generator = "~0.2"
@@ -46,6 +54,7 @@ tokio = { version = "^1", features = [] }
 wasm-bindgen = "~0.2"
 rexie = { version = "~0.4" }
 js-sys = "~0.3"
+
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
 version = "~0.3"

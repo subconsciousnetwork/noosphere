@@ -17,7 +17,7 @@ use ucan_key_support::ed25519::Ed25519KeyMaterial;
 /// The level of access that a given user has to a related resource. Broadly,
 /// a user will always have either read/write access (to their own sphere) or
 /// else read-only access (to all other spheres).
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Access {
     ReadWrite,
     ReadOnly,

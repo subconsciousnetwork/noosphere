@@ -1,0 +1,69 @@
+{
+  "name": "@subconsciousnetwork/orb",
+  "author": "Subconscious Inc.",
+  "license": "Apache-2.0 OR MIT",
+  "version": "0.1.0",
+  "description": "A batteries-included JavaScript package for accessing the Noosphere",
+  "type": "module",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "wireit",
+    "generate_wasm": "wireit",
+    "clean": "wireit",
+    "test": "wireit"
+  },
+  "dependencies": {
+    "@web/dev-server": "^0.1.34",
+    "esbuild": "^0.15.9",
+    "typescript": "~4.8.2",
+    "wireit": "^0.9.0"
+  },
+  "wireit": {
+    "build": {
+      "dependencies": [
+        "generate_wasm"
+      ],
+      "command": "tsc --pretty",
+      "clean": "if-file-deleted",
+      "files": [
+        "../../tsconfig.base.json",
+        "tsconfig.json",
+        "./src/**/*.ts"
+      ],
+      "output": [
+        "./lib/index.js",
+        "./lib/index.d.ts",
+        "./lib/index.js.map",
+        "./tsconfig.tsbuildinfo"
+      ]
+    },
+    "generate_wasm": {
+      "command": "./scripts/generate-wasm-artifacts.sh",
+      "files": [
+        "../../../rust/Cargo.toml",
+        "../../../rust/**/Cargo.toml",
+        "../../../rust/**/*.rs",
+        "./scripts/genergate-wasm-artifacts.sh"
+      ],
+      "output": [
+        "lib/noosphere*.{ts,wasm,js}"
+      ]
+    },
+    "clean": {
+      "command": "rm -rf ./lib && rm -f ./tsconfig.tsbuildinfo"
+    },
+    "test": {
+      "dependencies": [
+        "build"
+      ],
+      "command": "web-test-runner --node-resolve",
+      "files": ["web-test-runner.config.js"],
+      "output": []
+    }
+  },
+  "devDependencies": {
+    "@esm-bundle/chai": "^4.3.4-fix.0",
+    "@web/dev-server-esbuild": "^0.3.3",
+    "@web/test-runner": "^0.15.0"
+  }
+}

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use cid::Cid;
 use noosphere_api::client::Client;
 
 use noosphere_core::{
@@ -64,6 +65,7 @@ where
         &self.author
     }
 
+    /// Get a mutable reference to the [DidParser] used in this [SphereContext]
     pub fn did_parser_mut(&mut self) -> &mut DidParser {
         &mut self.did_parser
     }
@@ -102,6 +104,14 @@ where
     /// be read-only as well.
     pub async fn fs(&self) -> Result<SphereFs<S, K>, NoosphereError> {
         SphereFs::latest(&self.sphere_identity, &self.author, &self.db)
+            .await
+            .map_err(|e| e.into())
+    }
+
+    /// Same is `fs`, but sets the [SphereFs] to point at the revision of the
+    /// sphere that corresponds to the provided [Cid].
+    pub async fn fs_at(&self, cid: &Cid) -> Result<SphereFs<S, K>, NoosphereError> {
+        SphereFs::at(&self.sphere_identity, cid, &self.author, &self.db)
             .await
             .map_err(|e| e.into())
     }
@@ -152,5 +162,25 @@ where
         let sync_strategy = GatewaySyncStrategy::default();
         sync_strategy.sync(self).await?;
         Ok(())
+    }
+}
+
+#[cfg(all(target_arch = "wasm32", feature = "gateway-storage"))]
+use noosphere_storage::KuboStorage;
+
+#[cfg(all(target_arch = "wasm32", feature = "gateway-storage"))]
+impl<K, S> From<(&SphereContext<K, S>, &Url)> for SphereContext<K, GatewayStorage<S>>
+where
+    K: KeyMaterial + Clone + 'static,
+    S: Storage,
+{
+    fn from((context, url): (&SphereContext<K, S>, &Url)) -> Self {
+        SphereContext {
+            db: (context.db.clone(), url).into(),
+            client: OnceCell::new(),
+            sphere_identity: context.sphere_identity.clone(),
+            author: context.author.clone(),
+            did_parser: DidParser::new(SUPPORTED_KEYS),
+        }
     }
 }

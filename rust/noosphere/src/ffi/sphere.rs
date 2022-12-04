@@ -82,7 +82,7 @@ pub fn ns_sphere_join(
         .block_on(noosphere.inner_mut().join_sphere(
             &Did::from(sphere_identity.to_str()),
             local_key_name.to_str(),
-            &authorization,
+            Some(&authorization),
         ))
         .unwrap();
 }
