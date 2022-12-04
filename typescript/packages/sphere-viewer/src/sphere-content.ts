@@ -47,7 +47,14 @@ export class SphereFooter extends connect(store)(LitElement) {
 
     return html`
       <header class="card-header">
-        <a href="?id=${this.sphereId}&version=${this.sphereVersion}">🡸</a>
+        <h1 class="label pad-b-sm">
+          <a href="?id=${this.sphereId}&version=${this.sphereVersion}"
+            >Sphere index</a
+          >
+        </h1>
+
+        <!-- <a href="?id=${this.sphereId}&version=${this
+          .sphereVersion}">🡸</a> -->
         <a
           href="?id=${this.sphereId}&version=${this.sphereVersion}&slug=${this
             .slug}"

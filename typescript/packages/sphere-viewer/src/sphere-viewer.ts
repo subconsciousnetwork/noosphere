@@ -17,6 +17,12 @@ export class SphereViewer extends connect(store)(LitElement) {
   @watch('sphereViewer.sphereVersion')
   sphereVersion?: string;
 
+  @watch('sphereViewer.sphereViewerVersion')
+  version?: string;
+
+  @watch('sphereViewer.sphereViewerSha')
+  sha?: string;
+
   @watch('sphereViewer.slug')
   slug?: string;
 
@@ -152,7 +158,7 @@ export class SphereViewer extends connect(store)(LitElement) {
             <div class="small color-secondary">Noosphere Lite Client</div>
             <div class="nav-end">
               <span class="capsule small color-secondary"
-                ><b>v0.1.0</b>/0xabcdef</span
+                ><b>v${this.version}</b>/${this.sha}</span
               >
             </div>
           </div>

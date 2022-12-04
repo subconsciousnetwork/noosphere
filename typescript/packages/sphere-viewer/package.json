@@ -31,11 +31,12 @@
           "cascade": false
         }
       ],
-      "command": "vite build",
+      "command": "vite build && ./scripts/finalize-index-html.sh",
       "files": [
         "./lib/**",
         "./static/**",
-        "./vite.config.js"
+        "./vite.config.js",
+        "./scripts/finalize-index-html.sh"
       ],
       "output": [
         "./dist/**"

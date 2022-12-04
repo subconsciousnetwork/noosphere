@@ -43,6 +43,7 @@ export const navigate = async (
   let state = store.getState();
 
   if (id && version && state.sphereViewer.noosphere && state.sphereViewer.key) {
+    console.log('Open sphere...');
     await store.dispatch(
       openSphere({
         id,
@@ -56,6 +57,7 @@ export const navigate = async (
   state = store.getState();
 
   if (slug && state.sphereViewer.fs) {
+    console.log('Open file...');
     await store.dispatch(
       openFile({
         fs: state.sphereViewer.fs,

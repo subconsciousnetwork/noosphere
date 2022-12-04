@@ -79,11 +79,10 @@ describe('orb', () => {
 
     expect(file).to.be.ok;
 
-    const fileContents = await file?.text();
+    const fileContents = await file?.intoText();
 
     expect(fileContents).to.be.eq("Cat's are great");
 
-    file?.free();
     fs.free();
     sphere.free();
     receipt.free();
@@ -121,9 +120,8 @@ describe('orb', () => {
       let index = entry.slice(3);
       let file = sphereContents.get(entry);
 
-      let text = await file?.text();
+      let text = await file?.intoText();
       expect(text).to.be.eq("Cat's are great " + index);
-      file?.free();
     }
 
     fs.free();

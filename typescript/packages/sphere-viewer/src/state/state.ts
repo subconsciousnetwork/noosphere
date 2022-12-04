@@ -8,6 +8,8 @@ import {
 } from '@subconsciousnetwork/orb';
 
 export interface SphereViewerState {
+  sphereViewerVersion: string;
+  sphereViewerSha: string;
   sphereId: string | null;
   sphereVersion: string | null;
   sphereIndex: string[];
@@ -17,13 +19,14 @@ export interface SphereViewerState {
   noosphere: NoosphereContext | null;
   sphere: SphereContext | null;
   fs: SphereFs | null;
-  file: SphereFile | null;
   fileContents: string | null;
   fileVersion: string | null;
   loading: boolean;
 }
 
 const initialState: SphereViewerState = {
+  sphereViewerVersion: (self as any).SPHERE_VIEWER_VERSION || '',
+  sphereViewerSha: (self as any).SPHERE_VIEWER_SHA || '',
   sphereId: null,
   sphereVersion: null,
   sphereIndex: [],
@@ -33,7 +36,6 @@ const initialState: SphereViewerState = {
   noosphere: null,
   sphere: null,
   fs: null,
-  file: null,
   fileContents: null,
   fileVersion: null,
   loading: true,
@@ -89,11 +91,6 @@ export const sphereViewerSlice = createSlice({
         state.fs.free();
       }
 
-      if (state.file) {
-        state.file.free();
-      }
-
-      state.file = null;
       state.slug = null;
       state.fileContents = null;
       state.fileVersion = null;
@@ -105,15 +102,9 @@ export const sphereViewerSlice = createSlice({
     fileOpened: (
       state,
       action: PayloadAction<{
-        file: SphereFile | null;
         contents: string | null;
       }>
     ) => {
-      if (state.file) {
-        state.file.free();
-      }
-
-      state.file = action.payload.file;
       state.fileContents = action.payload.contents;
       state.loading = false;
     },

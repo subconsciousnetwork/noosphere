@@ -2994,6 +2994,7 @@ dependencies = [
  "noosphere-api",
  "noosphere-core",
  "noosphere-fs",
+ "noosphere-into",
  "noosphere-storage",
  "rexie",
  "safer-ffi",
@@ -3198,6 +3199,7 @@ dependencies = [
  "tracing-subscriber",
  "ucan",
  "ucan-key-support",
+ "url 2.3.1",
  "wasm-bindgen-test",
 ]
 

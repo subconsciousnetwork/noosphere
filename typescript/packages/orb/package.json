@@ -40,10 +40,10 @@
     "generate_wasm": {
       "command": "./scripts/generate-wasm-artifacts.sh",
       "files": [
-        "../../../rust/Cargo.toml",
+        "../../../Cargo.toml",
         "../../../rust/**/Cargo.toml",
-        "../../../rust/**/*.rs",
-        "./scripts/genergate-wasm-artifacts.sh"
+        "../../../rust/**/src/**/*.rs",
+        "./scripts/generate-wasm-artifacts.sh"
       ],
       "output": [
         "lib/noosphere*.{ts,wasm,js}"

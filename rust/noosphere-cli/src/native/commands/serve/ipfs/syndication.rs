@@ -8,12 +8,7 @@ use noosphere_core::{
     data::{ContentType, Did},
     view::{Sphere, Timeline},
 };
-use noosphere_storage::{
-    BlockStore,
-    block_deserialize, block_serialize,
-    KeyValueStore,
-    Storage,
-};
+use noosphere_storage::{block_deserialize, block_serialize, BlockStore, KeyValueStore, Storage};
 use serde::{Deserialize, Serialize};
 use tokio::{
     io::AsyncReadExt,
@@ -195,20 +190,29 @@ where
 
             tokio::pin!(stream);
 
-            while let Some(cid) = stream.try_next().await? {
-                // TODO(#176): We need to build-up a list of blocks that aren't
-                // able to be loaded so that we can be resilient to incomplete
-                // data when syndicating to IPFS
-                syndicated_blocks.add(&cid.to_bytes());
+            loop {
+                match stream.try_next().await {
+                    Ok(Some(cid)) => {
+                        // TODO(#176): We need to build-up a list of blocks that aren't
+                        // able to be loaded so that we can be resilient to incomplete
+                        // data when syndicating to IPFS
+                        syndicated_blocks.add(&cid.to_bytes());
 
-                let block = db.require_block(&cid).await?;
+                        let block = db.require_block(&cid).await?;
 
-                car_writer.write(cid, block).await?;
+                        car_writer.write(cid, block).await?;
+                    }
+                    Err(error) => {
+                        warn!("Encountered error while streaming links: {:?}", error);
+                    }
+                    _ => break,
+                }
             }
 
-            kubo_client.syndicate_blocks(Cursor::new(car)).await?;
-
-            debug!("Syndicated sphere revision {} to IPFS", cid);
+            match kubo_client.syndicate_blocks(Cursor::new(car)).await {
+                Ok(_) => debug!("Syndicated sphere revision {} to IPFS", cid),
+                Err(error) => warn!("Failed to syndicate revision {} to IPFS: {:?}", cid, error),
+            };
         }
 
         // At the end, take another lock on the `SphereContext` in order to

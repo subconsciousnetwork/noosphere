@@ -56,8 +56,9 @@ export const openSphere = createAsyncThunk(
 
     const sphereIndex: string[] = [];
 
-    await fs.stream((slug: string, _file: SphereFile) => {
+    await fs.stream((slug: string, file: SphereFile) => {
       sphereIndex.push(slug);
+      file.free();
     });
 
     dispatch(sphereIndexed(sphereIndex));
@@ -79,17 +80,35 @@ export const openFile = createAsyncThunk(
       return;
     }
 
+    const sphereId = state.sphereViewer.sphereId;
+    const sphereVersion = state.sphereViewer.sphereVersion;
+
     dispatch(
       locationChanged({
-        id: state.sphereViewer.sphereId,
-        version: state.sphereViewer.sphereVersion,
+        id: sphereId,
+        version: sphereVersion,
         slug,
       })
     );
 
     const file = (await fs.read(slug)) || null;
-    const contents = (await file?.text()) || null;
+    const contents =
+      (await file?.intoHtml((link: string, kind: string) => {
+        console.log('hi');
+        // return link;
+        if (kind == 'hyperlink') {
+          return link;
+        }
 
-    dispatch(fileOpened({ file, contents }));
+        const url = new URL(window.location.toString());
+
+        url.searchParams.set('id', sphereId);
+        url.searchParams.set('version', sphereVersion);
+        url.searchParams.set('slug', link.slice(1));
+
+        return url.toString();
+      })) || null;
+
+    dispatch(fileOpened({ contents }));
   }
 );
