@@ -4,22 +4,7 @@ import { store } from './state/store.js';
 
 (self as any).store = store;
 
-function getQueryState(): { [index: string]: string } {
-  const query = self.location.search.substring(1);
-  return query
-    .split('&')
-    .map((part) => {
-      return part.split('=').map((subPart) => decodeURIComponent(subPart));
-    })
-    .reduce((map: { [index: string]: string }, entry) => {
-      if (entry[0] && entry[1]) {
-        map[entry[0]] = entry[1];
-      }
-      return map;
-    }, {});
-}
-
-const queryState = getQueryState();
+const queryState = Object.fromEntries(new URLSearchParams(location.search));
 
 await store.dispatch(
   connectToNoosphere({
