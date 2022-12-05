@@ -291,7 +291,9 @@ where
 
                 (
                     html! {
-                        a(href=href.to_string(), class="hyperlink", target="_blank", rel="noopener")
+                        a(href=href.to_string(), class="hyperlink", target="_blank", rel="noopener") {
+                            : href.to_string()
+                        }
                     }
                     .to_string(),
                     // TODO(#60): Discriminate by origin, if/when there is a known target publishing origin
@@ -355,6 +357,7 @@ where
 
             let subtext_ast_stream = subtext::stream::<Block<Entity>, Entity, _>(file.contents).await;
 
+            yield "<ul class=\"subtext\">".into();
 
             for await block in subtext_ast_stream {
                 if let Ok(block) = block {
@@ -378,6 +381,8 @@ where
                     // }
                 }
             }
+
+            yield "</ul>".into();
         })
     }
 }

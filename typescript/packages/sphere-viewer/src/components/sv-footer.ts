@@ -1,11 +1,11 @@
 import { html, LitElement } from 'lit';
 import { connect, watch } from 'lit-redux-watch';
 import { customElement } from 'lit/decorators.js';
-import { sharedStyles } from './shared-styles.js';
-import { store } from './state/store.js';
+import { sharedStyles } from '../styles/shared.js';
+import { store } from '../state/store.js';
 
-@customElement('sphere-footer')
-export class SphereFooter extends connect(store)(LitElement) {
+@customElement('sv-footer')
+export class SVFooter extends connect(store)(LitElement) {
   @watch('sphereViewer.sphereId')
   sphereId?: string;
 

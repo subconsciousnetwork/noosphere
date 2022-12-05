@@ -1,11 +1,11 @@
 import { css, html, LitElement } from 'lit';
 import { connect, watch } from 'lit-redux-watch';
 import { customElement } from 'lit/decorators.js';
-import { sharedStyles } from './shared-styles.js';
-import { store } from './state/store.js';
+import { sharedStyles } from '../styles/shared.js';
+import { store } from '../state/store.js';
 
-@customElement('sphere-index')
-export class SphereIndex extends connect(store)(LitElement) {
+@customElement('sv-index')
+export class SVIndex extends connect(store)(LitElement) {
   @watch('sphereViewer.sphereId')
   sphereId?: string;
 
@@ -54,11 +54,6 @@ export class SphereIndex extends connect(store)(LitElement) {
       </p>`;
     }
 
-    return html`
-      <div class="card-body">
-        <h1 class="label pad-b-sm">Sphere index</h1>
-        ${bodyContent}
-      </div>
-    `;
+    return html` <div class="card-body">${bodyContent}</div> `;
   }
 }

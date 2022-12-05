@@ -1,13 +1,14 @@
-import './sphere-content.js';
-import './sphere-footer.js';
-import './sphere-index.js';
+import './components/sv-content.js';
+import './components/sv-footer.js';
+import './components/sv-index.js';
+import './components/sv-header.js';
 
 import { customElement } from 'lit/decorators.js';
 import { LitElement, html, css } from 'lit';
 import { connect, watch } from 'lit-redux-watch';
 import { store } from './state/store.js';
 
-import { sharedStyles } from './shared-styles.js';
+import { sharedStyles } from './styles/shared.js';
 
 @customElement('sphere-viewer')
 export class SphereViewer extends connect(store)(LitElement) {
@@ -16,12 +17,6 @@ export class SphereViewer extends connect(store)(LitElement) {
 
   @watch('sphereViewer.sphereVersion')
   sphereVersion?: string;
-
-  @watch('sphereViewer.sphereViewerVersion')
-  version?: string;
-
-  @watch('sphereViewer.sphereViewerSha')
-  sha?: string;
 
   @watch('sphereViewer.slug')
   slug?: string;
@@ -138,9 +133,9 @@ export class SphereViewer extends connect(store)(LitElement) {
       </div>`;
     } else if (this.sphereId && this.sphereVersion) {
       if (this.slug) {
-        bodyContent = html`<sphere-content></sphere-content>`;
+        bodyContent = html`<sv-content></sv-content>`;
       } else {
-        bodyContent = html`<sphere-index></sphere-index>`;
+        bodyContent = html`<sv-index></sv-index>`;
       }
     } else {
       bodyContent = html`<div class="card-body center body-content message">
@@ -151,22 +146,11 @@ export class SphereViewer extends connect(store)(LitElement) {
     return html`
       <div class="container pad-container">
         <article class="card">
-          <div class="card-nav nav">
-            <div>
-              <img class="block" src="./noosphere.svg" width="64" height="64" />
-            </div>
-            <div class="small color-secondary">Noosphere Lite Client</div>
-            <div class="nav-end">
-              <span class="capsule small color-secondary"
-                ><b>v${this.version}</b>/${this.sha}</span
-              >
-            </div>
-          </div>
+          <sv-header></sv-header>
           ${bodyContent}
-          <sphere-footer></sphere-footer>
+          <sv-footer></sv-footer>
         </article>
       </div>
     `;
-    // return html` ${body} ${footer} `;
   }
 }

@@ -16,7 +16,7 @@ readme = "README.md"
 crate-type = ["rlib", "staticlib", "cdylib"]
 
 [features]
-default = ["kubo-storage"]
+default = []
 headers = ["safer-ffi/headers"]
 kubo-storage = ["noosphere-storage/kubo-storage"]
 

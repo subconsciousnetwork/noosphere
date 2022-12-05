@@ -26,10 +26,7 @@
   "wireit": {
     "build": {
       "dependencies": [
-        {
-          "script": "build:tsc",
-          "cascade": false
-        }
+        "build:tsc"
       ],
       "command": "vite build && ./scripts/finalize-index-html.sh",
       "files": [
@@ -60,7 +57,10 @@
     },
     "serve": {
       "dependencies": [
-        "build"
+        {
+          "script": "build",
+          "cascade": false
+        }
       ],
       "service": true,
       "command": "web-dev-server -r ./dist"

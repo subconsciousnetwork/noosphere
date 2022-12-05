@@ -31,9 +31,8 @@
         "./src/**/*.ts"
       ],
       "output": [
-        "./lib/index.js",
-        "./lib/index.d.ts",
-        "./lib/index.js.map",
+        "./lib/index.{js,d.ts,map}",
+        "./lib/index.test.{js,d.ts,map}",
         "./tsconfig.tsbuildinfo"
       ]
     },
@@ -42,11 +41,12 @@
       "files": [
         "../../../Cargo.toml",
         "../../../rust/**/Cargo.toml",
-        "../../../rust/**/src/**/*.rs",
+        "../../../rust/**/*.rs",
         "./scripts/generate-wasm-artifacts.sh"
       ],
       "output": [
-        "lib/noosphere*.{ts,wasm,js}"
+        "lib/noosphere.{d.ts,js}",
+        "lib/noosphere_bg.{d.ts,wasm}"
       ]
     },
     "clean": {

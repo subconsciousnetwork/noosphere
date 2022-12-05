@@ -50,11 +50,6 @@ export const sharedStyles = css`
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.07);
   }
 
-  .card-nav {
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--color-border);
-  }
-
   .card-header {
     padding: 24px;
     border-bottom: 1px solid var(--color-border);
@@ -190,6 +185,7 @@ export const sharedStyles = css`
     display: flex;
     gap: 20px;
     align-items: center;
+    padding-bottom: 24px;
   }
 
   .nav-end {

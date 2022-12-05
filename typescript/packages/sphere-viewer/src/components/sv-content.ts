@@ -2,11 +2,12 @@ import { css, html, LitElement } from 'lit';
 import { connect, watch } from 'lit-redux-watch';
 import { customElement } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
-import { sharedStyles } from './shared-styles.js';
-import { store } from './state/store.js';
+import { sharedStyles } from '../styles/shared.js';
+import { store } from '../state/store.js';
+import { subtextStyles } from '../styles/subtext.js';
 
-@customElement('sphere-content')
-export class SphereFooter extends connect(store)(LitElement) {
+@customElement('sv-content')
+export class SVContent extends connect(store)(LitElement) {
   @watch('sphereViewer.sphereId')
   sphereId?: string;
 
@@ -24,10 +25,15 @@ export class SphereFooter extends connect(store)(LitElement) {
 
   static styles = [
     sharedStyles,
+    subtextStyles,
     css`
       :host {
         display: block;
         min-height: 8em;
+      }
+
+      .slug {
+        color: var(--color-text-secondary);
       }
     `,
   ];
@@ -45,23 +51,6 @@ export class SphereFooter extends connect(store)(LitElement) {
       bodyContent = html`<p class="empty">No body content found</p>`;
     }
 
-    return html`
-      <header class="card-header">
-        <h1 class="label pad-b-sm">
-          <a href="?id=${this.sphereId}&version=${this.sphereVersion}"
-            >Sphere index</a
-          >
-        </h1>
-
-        <!-- <a href="?id=${this.sphereId}&version=${this
-          .sphereVersion}">🡸</a> -->
-        <a
-          href="?id=${this.sphereId}&version=${this.sphereVersion}&slug=${this
-            .slug}"
-          >/${this.slug}</a
-        >
-      </header>
-      <div class="card-body">${bodyContent}</div>
-    `;
+    return html` <div class="card-body">${bodyContent}</div> `;
   }
 }
