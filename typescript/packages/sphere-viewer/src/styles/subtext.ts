@@ -39,4 +39,10 @@ export const subtextStyles = css`
   .subtext .transclude-format-text > .link-text {
     font-weight: bold;
   }
+
+  .subtext .block-header {
+    font-size: 1em;
+    font-weight: bold;
+    margin: 0;
+  }
 `;

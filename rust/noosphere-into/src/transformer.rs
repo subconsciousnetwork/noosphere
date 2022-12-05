@@ -352,7 +352,10 @@ where
         Box::pin(stream! {
             match file.memo.content_type() {
                 Some(ContentType::Subtext) => (),
-                _ => yield String::new(),
+                actual => {
+                    warn!("Input did not have the correct content-type; expected {}, got {:?}", ContentType::Subtext, actual.map(|content_type| content_type.to_string()).ok_or("nothing"));
+                    yield String::new()
+                }
             };
 
             let subtext_ast_stream = subtext::stream::<Block<Entity>, Entity, _>(file.contents).await;
@@ -361,8 +364,6 @@ where
 
             for await block in subtext_ast_stream {
                 if let Ok(block) = block {
-                  // let block_string = block.to_string();
-                    debug!("Transforming block...");
                     match self.transform_block(block).await {
                       Ok(block_html) => {
                         yield block_html;
@@ -372,13 +373,6 @@ where
                         warn!("Failed to transform subtext block: {:?}", error);
                       }
                     }
-                    // if let Ok(block_html) = self.transform_block(block).await {
-                    //     debug!("BLOCK HTML: {}", block_html);
-                    //     yield block_html;
-                    //     yield "\n".into();
-                    // } else {
-                    //   error!("FAILED TO TRANSFORM BLOCK! {:?}", block_string);
-                    // }
                 }
             }
 

@@ -28,8 +28,11 @@ export class SVContent extends connect(store)(LitElement) {
     subtextStyles,
     css`
       :host {
-        display: block;
+        display: flex;
         min-height: 8em;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
       }
 
       .slug {
@@ -46,7 +49,7 @@ export class SVContent extends connect(store)(LitElement) {
     let bodyContent;
 
     if (this.fileContents?.length) {
-      bodyContent = unsafeHTML(this.fileContents);
+      bodyContent = html` ${unsafeHTML(this.fileContents)} `;
     } else {
       bodyContent = html`<p class="empty">No body content found</p>`;
     }

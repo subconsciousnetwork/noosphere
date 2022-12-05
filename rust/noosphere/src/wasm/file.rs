@@ -1,12 +1,12 @@
 use async_trait::async_trait;
+use noosphere_core::data::Header;
 use std::str::FromStr;
 use std::{pin::Pin, rc::Rc};
 use tokio_stream::StreamExt;
 use url::Url;
 
 use anyhow::{anyhow, Result};
-use js_sys::Function;
-use js_sys::Promise;
+use js_sys::{Function, Promise, Uint8Array};
 use noosphere_fs::{SphereFile as SphereFileImpl, SphereFs};
 use tokio::io::{AsyncRead, AsyncReadExt};
 use wasm_bindgen::prelude::*;
@@ -42,6 +42,18 @@ impl SphereFile {
         self.inner.sphere_revision.to_string()
     }
 
+    #[wasm_bindgen(js_name = "contentType")]
+    pub fn content_type(&self) -> Option<String> {
+        self.inner
+            .memo
+            .get_first_header(&Header::ContentType.to_string())
+    }
+
+    #[wasm_bindgen(js_name = "getFirstHeader")]
+    pub fn get_first_header(&self, name: String) -> Option<String> {
+        self.inner.memo.get_first_header(&name)
+    }
+
     #[wasm_bindgen(js_name = "intoText")]
     /// Asynchronously read the contents of the file, interpreting it as a
     /// UTF-8 encoded string.
@@ -64,6 +76,22 @@ impl SphereFile {
         let transformer = SubtextToHtmlTransformer::new(resolver, transcluder);
 
         Ok(transformer.transform_file(self.inner).collect().await)
+    }
+
+    #[wasm_bindgen(js_name = "intoBytes")]
+    pub async fn into_bytes(mut self) -> Result<Uint8Array, String> {
+        let mut bytes = Vec::new();
+
+        self.inner
+            .contents
+            .read_to_end(&mut bytes)
+            .await
+            .map_err(|error| format!("{:?}", error))?;
+
+        let js_array = Uint8Array::new(&bytes.len().into());
+        js_array.copy_from(&bytes);
+
+        Ok(js_array)
     }
 }
 

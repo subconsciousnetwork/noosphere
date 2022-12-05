@@ -127,11 +127,14 @@ export class SphereViewer extends connect(store)(LitElement) {
   render() {
     let bodyContent;
 
-    if (this.loading) {
-      bodyContent = html`<div class="card-body center body-content message">
-        <div class="loading-indicator"><span>Loading...</span></div>
-      </div>`;
-    } else if (this.sphereId && this.sphereVersion) {
+    // TODO: Only do this if it saves us from layout flashing
+    // if (this.loading) {
+    //   bodyContent = html`<div class="card-body center body-content message">
+    //     <div class="loading-indicator"><span>Loading...</span></div>
+    //   </div>`;
+    // } else
+
+    if (this.sphereId && this.sphereVersion) {
       if (this.slug) {
         bodyContent = html`<sv-content></sv-content>`;
       } else {
