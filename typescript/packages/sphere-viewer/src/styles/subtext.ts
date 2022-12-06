@@ -27,8 +27,6 @@ export const subtextStyles = css`
   }
 
   .subtext .transclude {
-    font-size: var(--text-caption-size);
-    line-height: var(--text-caption-line);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     display: block;
