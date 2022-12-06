@@ -75,7 +75,7 @@ pub trait Transformer {
     async fn transform_transclude(&self, transclude: Transclude) -> Result<String> {
         match transclude {
             Transclude::Text(text_transclude) => Ok(html! {
-                li(class="transclude-item") {
+                aside(class="transclude") {
                     a(class="transclude-format-text", href=&text_transclude.href) {
                         @ if let Some(title) = &text_transclude.title {
                             span(class="title") : title
@@ -228,19 +228,19 @@ where
                 div(class="block-list") : Raw(&content_html)
             }
             .to_string(),
-            Block::Blank(_) => html! { p(class="block-blank") }.to_string(),
+            Block::Blank(_) => String::new(),
         };
 
         let transclude_html = transclude_html_strings.join("\n");
 
         Ok(html! {
             @if !content_html.is_empty() || !transclude_html.is_empty() {
-                li(class="block") {
+                section(class="block") {
                     @if !content_html.is_empty() {
                         section(class="block-content") : Raw(&content_html);
                     }
                     @if !transclude_html.is_empty() {
-                        ul(class="block-transcludes") : Raw(&transclude_html);
+                        section(class="block-transcludes") : Raw(&transclude_html);
                     }
                 }
             }
@@ -307,6 +307,12 @@ where
                 let link = Link::Slashlink(slashlink);
                 let href = self.resolver.resolve(&link).await?;
 
+                let text = text
+                    .strip_prefix("[[")
+                    .unwrap_or_default()
+                    .strip_suffix("]]")
+                    .unwrap_or_default();
+
                 // TODO(subconsciousnetwork/subconscious#328): For now, we are
                 // not transcluding wikilinks; decide if we should eventually
                 //let transclude = self.make_transclude(&slug).await?;
@@ -314,7 +320,15 @@ where
                 (
                     html! {
                         a(href=href.to_string(), class="wikilink") {
-                            : text.to_string()
+                            span(class="wikilink-open-bracket") {
+                                : "[["
+                            }
+                            span(class="wikilink-text") {
+                                : text
+                            }
+                            span(class="wikilink-close-bracket") {
+                                : "]]"
+                            }
                         }
                     }
                     .to_string(),
@@ -360,7 +374,7 @@ where
 
             let subtext_ast_stream = subtext::stream::<Block<Entity>, Entity, _>(file.contents).await;
 
-            yield "<ul class=\"subtext\">".into();
+            yield "<article class=\"subtext\">".into();
 
             for await block in subtext_ast_stream {
                 if let Ok(block) = block {
@@ -376,7 +390,7 @@ where
                 }
             }
 
-            yield "</ul>".into();
+            yield "</article>".into();
         })
     }
 }

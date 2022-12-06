@@ -31,7 +31,7 @@
       "command": "vite build && ./scripts/finalize-index-html.sh",
       "files": [
         "./lib/**",
-        "./static/**",
+        "./public/**",
         "./vite.config.js",
         "./scripts/finalize-index-html.sh"
       ],

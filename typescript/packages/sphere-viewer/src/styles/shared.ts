@@ -43,6 +43,18 @@ export const sharedStyles = css`
     padding-bottom: var(--pad-sm);
   }
 
+  .flex {
+    display: flex;
+  }
+
+  .justify-center {
+    justify-content: center;
+  }
+
+  .justify-end {
+    justify-content: end;
+  }
+
   .card {
     background: #fff;
     border-radius: var(--radius-lg);
@@ -52,6 +64,11 @@ export const sharedStyles = css`
 
   .card-header {
     padding: 24px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .card-nav {
+    padding: 16px 24px;
     border-bottom: 1px solid var(--color-border);
   }
 
@@ -160,6 +177,7 @@ export const sharedStyles = css`
   }
 
   .button {
+    cursor: pointer;
     background: var(--color-blush);
     border-radius: var(--radius-sm);
     color: var(--color-purple);
@@ -182,10 +200,11 @@ export const sharedStyles = css`
   }
 
   .nav {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 3fr 1fr;
     gap: 20px;
     align-items: center;
-    padding-bottom: 24px;
+    justify-content: center;
   }
 
   .nav-end {

@@ -27,14 +27,13 @@ export class SVContent extends connect(store)(LitElement) {
     sharedStyles,
     subtextStyles,
     css`
-      :host {
+      .empty {
         display: flex;
         min-height: 8em;
         flex-direction: column;
         align-items: center;
         justify-content: center;
       }
-
       .slug {
         color: var(--color-text-secondary);
       }
@@ -51,7 +50,9 @@ export class SVContent extends connect(store)(LitElement) {
     if (this.fileContents?.length) {
       bodyContent = html` ${unsafeHTML(this.fileContents)} `;
     } else {
-      bodyContent = html`<p class="empty">No body content found</p>`;
+      bodyContent = html`<div class="empty">
+        <p class="empty">No body content found</p>
+      </div>`;
     }
 
     return html` <div class="card-body">${bodyContent}</div> `;

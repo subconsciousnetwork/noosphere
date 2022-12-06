@@ -28,7 +28,7 @@ cid = "~0.9"
 async-trait = "~0.1"
 tracing = "~0.1"
 url = { version = "^2", features = ["serde"] }
-subtext = { version = "~0.3" }
+subtext = { version = "0.3.1" }
 tokio-stream = "~0.1"
 
 noosphere-core = { version = "0.4.0", path = "../noosphere-core" }

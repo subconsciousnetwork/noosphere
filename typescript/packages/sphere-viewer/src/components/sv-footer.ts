@@ -104,16 +104,18 @@ export class SVFooter extends connect(store)(LitElement) {
         </p>
         <ul class="group small">
           <li class="row">
-            <a href="#" class="row-button">
-              <div class="label">
-                Sphere ID
-                <span class="linkout">↗</span>
-              </div>
+            <div class="pad-row">
+              <div class="label">Sphere ID</div>
               <div class="mono trunc color-text">${this.sphereId}</div>
-            </a>
+            </div>
           </li>
           <li class="row">
-            <a href="#" class="row-button">
+            <a
+              href="https://explore.ipld.io/#/explore/${this.sphereVersion}"
+              class="row-button"
+              target="_blank"
+              rel="noopener"
+            >
               <div class="label">
                 Sphere Version
                 <span class="linkout">↗</span>

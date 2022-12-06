@@ -1,17 +1,42 @@
 import { css } from 'lit';
 
 export const subtextStyles = css`
-  .subtext > .block:not(:last-child) {
-    margin-bottom: 1em;
+  .subtext {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pad-block);
   }
 
   .subtext blockquote {
     font-style: italic;
+  }
+
+  .subtext .block-list {
     padding-left: 1em;
   }
 
-  .subtext .block-transcludes {
+  .subtext .block-list:before {
+    color: var(--color-text-secondary);
+    content: '-';
+    position: absolute;
+    margin-left: -1em;
+  }
+
+  .subtext .block-transcludes:not(:first-child) {
     margin-top: 1em;
+  }
+
+  .subtext .transclude {
+    font-size: var(--text-caption-size);
+    line-height: var(--text-caption-line);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    display: block;
+    padding: 1em;
+  }
+
+  .subtext .block:last-child .block-transcludes {
+    margin-bottom: 0;
   }
 
   .subtext .block-transcludes > .transclude-item {
@@ -25,19 +50,27 @@ export const subtextStyles = css`
   }
 
   .subtext .transclude-format-text {
-    font-size: 0.85em;
-  }
-
-  .subtext .transclude-format-text > * {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: var(--pad-xs);
   }
 
   .subtext .transclude-format-text > .excerpt {
-    font-style: italic;
+    color: var(--color-text);
   }
 
   .subtext .transclude-format-text > .link-text {
+    color: var(--color-text-secondary);
+  }
+
+  .subtext .transclude-format-text > .title {
     font-weight: bold;
+  }
+
+  .subtext .block-blank {
+    display: block;
+    position: relative;
+    margin-bottom: 1em;
   }
 
   .subtext .block-header {

@@ -4832,9 +4832,9 @@ dependencies = [
 
 [[package]]
 name = "subtext"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24375f1ef632ac47caddfd9bc5ec32e525e3ff3059cc88bbff3d1b2e06730d28"
+checksum = "9915c5653bb2ccc8d766a33e0fdcadad4120f19114a9554b6b90d8dcd24ef99a"
 dependencies = [
  "anyhow",
  "async-compat",

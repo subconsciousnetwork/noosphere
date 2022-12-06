@@ -45,9 +45,10 @@ export class SVIndex extends connect(store)(LitElement) {
           </li>
         `
       );
-      bodyContent = html`<ul class="group">
-        ${entries}
-      </ul>`;
+      bodyContent = html` <h1 class="label pad-b-sm">Sphere index</h1>
+        <ul class="group">
+          ${entries}
+        </ul>`;
     } else {
       bodyContent = html`<p class="empty">
         This sphere doesn't have any entries yet

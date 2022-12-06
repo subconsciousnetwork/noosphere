@@ -24,10 +24,22 @@ export class SVHeader extends connect(store)(LitElement) {
   static styles = [
     sharedStyles,
     css`
-      .slug {
-        font-size: 0.85em;
-        font-weight: bold;
-        color: var(--color-text-secondary);
+      .icon-back {
+        display: block;
+        width: 32px;
+        height: 32px;
+      }
+
+      .icon-back:after {
+        content: '';
+        display: block;
+        width: 50%;
+        height: 50%;
+        border: 3px solid purple;
+        border-bottom-width: 0;
+        border-right-width: 0;
+        transform-origin: top right;
+        transform: translate(10%, 10%) rotate(-45deg);
       }
     `,
   ];
@@ -41,31 +53,42 @@ export class SVHeader extends connect(store)(LitElement) {
 
     if (this.slug) {
       headerContent = html`
-        <h1 class="label">
-          <a href="?id=${this.sphereId}&version=${this.sphereVersion}"
-            >Sphere index</a
+        <header class="card-header">
+          <a
+            href="?id=${this.sphereId}&version=${this.sphereVersion}&slug=${this
+              .slug}"
+            ><span class="slug">/${this.slug}</span></a
           >
-        </h1>
-
-        <span class="slug">/${this.slug}</span>
+        </header>
       `;
     } else {
-      headerContent = html` <h1 class="label">Sphere index</h1> `;
+      headerContent = html``;
     }
 
-    return html`<header class="card-header">
-      <div class="card-nav nav">
-        <div>
+    let backButton;
+
+    if (this.slug) {
+      backButton = html`
+        <a
+          class="icon-back"
+          href="?id=${this.sphereId}&version=${this.sphereVersion}"
+        ></a>
+      `;
+    } else {
+      backButton = html``;
+    }
+
+    return html`<nav class="card-nav nav">
+        <div class="nav-start">${backButton}</div>
+        <div class="flex justify-center">
           <img class="block" src="./noosphere.svg" width="64" height="64" />
         </div>
-        <div class="small color-secondary">Noosphere Lite Client</div>
-        <div class="nav-end">
+        <div class="flex justify-end">
           <span class="capsule small color-secondary"
             ><b>v${this.version}</b>/${this.sha}</span
           >
         </div>
-      </div>
-      ${headerContent}
-    </header>`;
+      </nav>
+      ${headerContent} `;
   }
 }

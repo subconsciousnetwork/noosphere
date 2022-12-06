@@ -26,6 +26,7 @@
   --text-body-line: 28px;
   --pad: 24px;
   --pad-sm: 8px;
+  --pad-xs: 4px;
   --pad-block: 16px;
 }
 
@@ -38,10 +39,11 @@
 }
 
 html {
-  background: var(--color-grey);
+  background-color: var(--color-grey);
   background-image: var(--color-light-gradient);
   background-repeat: no-repeat;
   background-size: cover;
+  background-attachment: fixed;
   color: var(--color-text);
   font-family: var(--font-sans);
   font-size: var(--text-body-size);
