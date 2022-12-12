@@ -37,9 +37,10 @@ impl IpfsClient for KuboClient {
         let response = self.client.request(request).await?;
 
         let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
-        let pin_ls_response: PinLsResponse = serde_json::from_slice(body_bytes.as_ref())?;
-
-        Ok(pin_ls_response.keys.contains_key(&cid_base64))
+        match serde_json::from_slice(body_bytes.as_ref()) {
+            Ok(PinLsResponse { keys }) => Ok(keys.contains_key(&cid_base64)),
+            Err(_) => Ok(false),
+        }
     }
 
     async fn server_identity(&self) -> Result<String> {
@@ -54,9 +55,10 @@ impl IpfsClient for KuboClient {
         let response = self.client.request(request).await?;
 
         let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
-        let id_response: IdResponse = serde_json::from_slice(body_bytes.as_ref())?;
 
-        Ok(id_response.public_key)
+        match serde_json::from_slice(body_bytes.as_ref())? {
+            IdResponse { public_key, .. } => Ok(public_key),
+        }
     }
 
     async fn syndicate_blocks<R>(&self, car: R) -> Result<()>
@@ -151,5 +153,15 @@ mod tests {
 
         assert!(kubo_client.block_is_pinned(&foo_cid).await.unwrap());
         assert!(kubo_client.block_is_pinned(&bar_cid).await.unwrap());
+    }
+
+    #[tokio::test]
+    pub async fn it_gives_a_useful_result_when_a_block_is_not_pinned() {
+        initialize_tracing();
+
+        let (cid, _) = block_serialize::<DagCborCodec, _>(vec![1, 2, 3]).unwrap();
+
+        let kubo_client = KuboClient::new(&Url::parse("http://127.0.0.1:5001").unwrap()).unwrap();
+        assert!(!kubo_client.block_is_pinned(&cid).await.unwrap());
     }
 }
