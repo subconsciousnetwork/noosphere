@@ -1,12 +1,16 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { NoosphereContext, SphereFs } from '@subconsciousnetwork/orb';
+import {
+  NoosphereContext,
+  SphereFile,
+  SphereFs,
+} from '@subconsciousnetwork/orb';
 import {
   fileOpened,
   ipfsConfigured,
   locationChanged,
   noosphereInitialized,
+  sphereIndexed,
   sphereOpened,
-  SphereViewerState,
 } from './state.js';
 import { RootState } from './store.js';
 
@@ -39,16 +43,39 @@ export const openSphere = createAsyncThunk(
       id: string;
       version: string;
     },
-    { dispatch }
+    { dispatch, getState }
   ) => {
     dispatch(locationChanged({ id, version, slug: null }));
 
+    const state = getState() as RootState;
+
+    if (
+      state.sphereViewer.sphereId == id &&
+      state.sphereViewer.sphereVersion == version &&
+      state.sphereViewer.sphere
+    ) {
+      return;
+    }
+
     await noosphere.joinSphere(id, key);
 
-    let sphere = await noosphere.getSphereContext(id);
-    let fs = await sphere.fsAt(version);
+    const sphere = await noosphere.getSphereContext(id);
+    const fs = await sphere.fsAt(version);
 
     dispatch(sphereOpened({ sphere, fs }));
+
+    const sphereIndex = new Promise<string[]>(async (resolve, _) => {
+      const sphereIndex: string[] = [];
+
+      await fs.stream((slug: string, file: SphereFile) => {
+        sphereIndex.push(slug);
+        file.free();
+      });
+
+      resolve(sphereIndex);
+    });
+
+    dispatch(sphereIndexed(sphereIndex));
   }
 );
 
@@ -67,17 +94,35 @@ export const openFile = createAsyncThunk(
       return;
     }
 
+    const sphereId = state.sphereViewer.sphereId;
+    const sphereVersion = state.sphereViewer.sphereVersion;
+
     dispatch(
       locationChanged({
-        id: state.sphereViewer.sphereId,
-        version: state.sphereViewer.sphereVersion,
+        id: sphereId,
+        version: sphereVersion,
         slug,
       })
     );
 
     const file = (await fs.read(slug)) || null;
-    const contents = (await file?.text()) || null;
+    const version = file?.memoVersion() || null;
+    const contents =
+      file?.intoHtml((link: string) => {
+        const url = new URL(window.location.toString());
 
-    dispatch(fileOpened({ file, contents }));
+        url.searchParams.set('id', sphereId);
+        url.searchParams.set('version', sphereVersion);
+        url.searchParams.set('slug', link.slice(1));
+
+        return url.toString();
+      }) || Promise.resolve(null);
+
+    dispatch(
+      fileOpened({
+        contents,
+        version,
+      })
+    );
   }
 );

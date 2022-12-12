@@ -43,7 +43,7 @@ impl WriteTarget for MemoryWriteTarget {
         Ok(self.vfs.lock().await.contains_key(path))
     }
 
-    async fn write<R>(&self, path: &PathBuf, contents: &mut R) -> Result<()>
+    async fn write<R>(&self, path: &PathBuf, mut contents: R) -> Result<()>
     where
         R: AsyncRead + Unpin + WriteTargetConditionalSend,
     {

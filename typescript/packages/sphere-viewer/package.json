@@ -21,17 +21,24 @@
     "typescript": "~4.8.2",
     "vite": "^3.2.3",
     "vite-plugin-wasm": "^3.1.0",
+    "vite-plugin-top-level-await": "^1.2.2",
     "wireit": "^0.9.0"
   },
   "wireit": {
     "build": {
       "dependencies": [
-        {
-          "script": "build:tsc",
-          "cascade": false
-        }
+        "build:tsc"
       ],
-      "command": "vite build"
+      "command": "vite build && ./scripts/finalize-index-html.sh",
+      "files": [
+        "./lib/**",
+        "./public/**",
+        "./vite.config.js",
+        "./scripts/finalize-index-html.sh"
+      ],
+      "output": [
+        "./dist/**"
+      ]
     },
     "build:tsc": {
       "dependencies": [
@@ -51,10 +58,13 @@
     },
     "serve": {
       "dependencies": [
-        "build"
+        {
+          "script": "build",
+          "cascade": false
+        }
       ],
       "service": true,
-      "command": "web-dev-server -r ./dist --open"
+      "command": "web-dev-server -r ./dist"
     },
     "clean": {
       "command": "rm -rf ./dist ./lib && rm -f ./tsconfig.tsbuildinfo"

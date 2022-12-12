@@ -8,29 +8,37 @@ import {
 } from '@subconsciousnetwork/orb';
 
 export interface SphereViewerState {
+  sphereViewerVersion: string;
+  sphereViewerSha: string;
   sphereId: string | null;
   sphereVersion: string | null;
+  sphereIndex: Promise<string[]>;
   slug: string | null;
   ipfsApi: string | null;
   key: string | null;
   noosphere: NoosphereContext | null;
   sphere: SphereContext | null;
   fs: SphereFs | null;
-  file: SphereFile | null;
-  fileContents: string | null;
+  fileContents: Promise<string | null>;
+  fileVersion: string | null;
+  loading: Promise<void>;
 }
 
 const initialState: SphereViewerState = {
+  sphereViewerVersion: (self as any).SPHERE_VIEWER_VERSION || '',
+  sphereViewerSha: (self as any).SPHERE_VIEWER_SHA || '',
   sphereId: null,
   sphereVersion: null,
+  sphereIndex: Promise.resolve([]),
   slug: null,
   ipfsApi: null,
   key: null,
   noosphere: null,
   sphere: null,
   fs: null,
-  file: null,
-  fileContents: null,
+  fileContents: Promise.resolve(null),
+  fileVersion: null,
+  loading: new Promise(() => {}),
 };
 
 export const sphereViewerSlice = createSlice({
@@ -66,8 +74,10 @@ export const sphereViewerSlice = createSlice({
       state.sphereId = action.payload.id;
       state.sphereVersion = action.payload.version;
       state.slug = action.payload.slug;
+      state.loading = Promise.resolve();
 
-      state.fileContents = null;
+      state.fileContents = Promise.resolve(null);
+      state.fileVersion = null;
     },
 
     sphereOpened: (
@@ -82,6 +92,10 @@ export const sphereViewerSlice = createSlice({
         state.fs.free();
       }
 
+      state.slug = null;
+      state.fileContents = Promise.resolve(null);
+      state.fileVersion = null;
+
       state.sphere = action.payload.sphere;
       state.fs = action.payload.fs;
     },
@@ -89,20 +103,21 @@ export const sphereViewerSlice = createSlice({
     fileOpened: (
       state,
       action: PayloadAction<{
-        file: SphereFile | null;
-        contents: string | null;
+        contents: Promise<string | null>;
+        version: string | null;
       }>
     ) => {
-      if (state.file) {
-        state.file.free();
-      }
-
-      state.file = action.payload.file;
       state.fileContents = action.payload.contents;
+      state.fileVersion = action.payload.version;
+      state.loading = state.fileContents.then(() => {});
     },
 
-    fileContentsRead: (state, action: PayloadAction<string>) => {
-      state.fileContents = action.payload;
+    sphereIndexed: (state, action: PayloadAction<Promise<string[]>>) => {
+      state.sphereIndex = action.payload;
+
+      if (!state.slug) {
+        state.loading = state.sphereIndex.then(() => {});
+      }
     },
   },
 });
@@ -113,8 +128,8 @@ export const {
   noosphereInitialized,
   locationChanged,
   sphereOpened,
+  sphereIndexed,
   fileOpened,
-  fileContentsRead,
 } = sphereViewerSlice.actions;
 
 export default sphereViewerSlice.reducer;

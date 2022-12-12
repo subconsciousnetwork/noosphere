@@ -372,6 +372,10 @@ where
         self.root.stream(&self.store)
     }
 
+    pub fn into_stream(self) -> impl Stream<Item = Result<(K, V)>> {
+        self.root.into_stream(self.store)
+    }
+
     /// Consumes this HAMT and returns the Blockstore it owns.
     pub fn into_store(self) -> BS {
         self.store

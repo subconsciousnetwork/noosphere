@@ -8,15 +8,16 @@ use noosphere_storage::{SphereDb, Storage};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 
-use crate::{html::transform::SubtextToHtmlTransformer, write::WriteTarget};
-
-use super::transform::SphereToHtmlTransformer;
+use crate::{
+    file_to_html_stream, sphere_to_html_document_stream, HtmlOutput, StaticHtmlTransform,
+    TransformStream, WriteTarget,
+};
 
 static DEFAULT_STYLES: &[u8] = include_bytes!("./static/styles.css");
 
-/// Given a sphere identity, storage and a WriteTarget implementation, produce
-/// rendered HTML output up to and including the complete historical revisions
-/// of the slug-named content of the sphere.
+/// Given a sphere [Did], [SphereDb] and a [WriteTarget], produce rendered HTML
+/// output up to and including the complete historical revisions of the
+/// slug-named content of the sphere.
 pub async fn sphere_into_html<S, W>(
     sphere_identity: &Did,
     db: &SphereDb<S>,
@@ -95,19 +96,25 @@ where
                     }
 
                     let fs = SphereFs::at(&sphere_identity, &sphere_cid, &author, &db).await?;
+                    let sphere_file = fs
+                        .read(&slug)
+                        .await?
+                        .ok_or_else(|| anyhow!("No file found for {}", slug))?;
 
-                    let transformer = SubtextToHtmlTransformer::new(&fs);
+                    let transform = StaticHtmlTransform::new(fs);
+                    let reader = TransformStream(file_to_html_stream(
+                        transform,
+                        sphere_file,
+                        HtmlOutput::Document,
+                    ))
+                    .into_reader();
 
-                    if let Some(html_stream) = transformer.transform(&slug).await? {
+                    write_target.write(&file_name, reader).await?;
+
+                    if latest_revision {
                         write_target
-                            .write(&file_name, &mut Box::pin(html_stream))
+                            .symlink(&format!("permalink/{}", cid).into(), &PathBuf::from(slug))
                             .await?;
-
-                        if latest_revision {
-                            write_target
-                                .symlink(&format!("permalink/{}", cid).into(), &PathBuf::from(slug))
-                                .await?;
-                        }
                     }
 
                     // TODO(#56): Support backlinks somehow; probably as a dynamic
@@ -124,18 +131,19 @@ where
         futures::future::try_join_all(tasks).await?;
 
         let fs = SphereFs::at(sphere_identity, &sphere_cid, &author, db).await?;
-        let sphere_transformer = SphereToHtmlTransformer::new(&fs);
+        let transform = StaticHtmlTransform::new(fs);
+        let reader = TransformStream(sphere_to_html_document_stream(
+            transform,
+            Sphere::at(&sphere_cid, db),
+        ))
+        .into_reader();
 
-        if let Some(read) = sphere_transformer.transform().await? {
+        write_target.write(&sphere_index, reader).await?;
+
+        if latest_revision {
             write_target
-                .write(&sphere_index, &mut Box::pin(read))
+                .symlink(&sphere_index, &PathBuf::from("index.html"))
                 .await?;
-
-            if latest_revision {
-                write_target
-                    .symlink(&sphere_index, &PathBuf::from("index.html"))
-                    .await?;
-            }
         }
 
         next_sphere_cid = sphere.try_as_memo().await?.parent;
@@ -243,29 +251,32 @@ pub mod tests {
 
         let html = std::str::from_utf8(&bytes).unwrap();
 
-        assert_eq!(
-            html,
-            r#"<!doctype html>
+        println!("");
+        println!("{}", html);
+        println!("");
+
+        let expected = r#"<!doctype html>
 <html>
 <head><meta charset="utf-8"><title>Untitled note</title><link rel="stylesheet" media="all" href="/theme/styles.css"></head>
 <body>
 <article role="main" class="noosphere-content" data-content-type="text/subtext">
 <ol class="blocks">
-<li class="block"><section class="block-content"><h1 class="block-header"><span class="text">Cats</span></h1></section></li>
-<li class="block"><section class="block-content"><p class="block-blank"></p></section></li>
-<li class="block"><section class="block-content"><blockquote class="block-quote"><span class="text">It is said that cats are </span>
+<article class="subtext"><section class="block"><section class="block-content"><h1 class="block-header"><span class="text">Cats</span></h1></section></section>
+
+<section class="block"><section class="block-content"><blockquote class="block-quote"><span class="text">It is said that cats are </span>
 <a href="/divine" class="slashlink">/divine</a>
-<span class="text"> creatures</span></blockquote></section><ul class="block-transcludes"><li class="transclude-item"><a class="transclude-format-text" href="/divine"><span class="link-text">/divine</span></a></li></ul></li>
-<li class="block"><section class="block-content"><p class="block-blank"></p></section></li>
-<li class="block"><section class="block-content"><p class="block-paragraph"><span class="text">Cats </span>
-<a href="/are" class="wikilink">[[are]]</a>
-<span class="text"> great</span></p></section></li>
-<li class="block"><section class="block-content"><p class="block-blank"></p></section></li>
-<li class="block"><ul class="block-transcludes"><li class="transclude-item"><a class="transclude-format-text" href="/animals"><span class="title">Animals</span><span class="excerpt">Animals are multicellular, eukaryotic organisms in the biological kingdom Animalia.</span><span class="link-text">/animals</span></a></li></ul></li>
-</ol>
+<span class="text"> creatures</span></blockquote></section><section class="block-transcludes"><aside class="transclude"><a class="transclude-format-text" href="/divine"><span class="link-text">/divine</span></a></aside></section></section>
+
+<section class="block"><section class="block-content"><p class="block-paragraph"><span class="text">Cats </span>
+<a href="/are" class="wikilink"><span class="wikilink-open-bracket">[[</span><span class="wikilink-text">are</span><span class="wikilink-close-bracket">]]</span></a>
+<span class="text"> great</span></p></section></section>
+
+<section class="block"><section class="block-transcludes"><aside class="transclude"><a class="transclude-format-text" href="/animals"><span class="title">Animals</span><span class="excerpt">Animals are multicellular, eukaryotic organisms in the biological kingdom Animalia.</span><span class="link-text">/animals</span></a></aside></section></section>
+</article></ol>
 </body>
-</html>"#
-        );
+</html>"#;
+
+        assert_eq!(html, expected);
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]

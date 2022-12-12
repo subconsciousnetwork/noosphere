@@ -204,6 +204,45 @@ where
         })
     }
 
+    pub(crate) fn into_stream<S>(self, store: S) -> impl Stream<Item = Result<(K, V)>>
+    where
+        S: BlockStore,
+    {
+        try_stream! {
+            let mut remaining = self.pointers;
+
+            while let Some(pointer) = remaining.pop() {
+                match pointer {
+                    Pointer::Dirty(node) => {
+                        remaining.extend(node.pointers);
+                    },
+                    Pointer::Link { cid, mut cache } => {
+                        let node = if let Some(cached_node) = cache.take() {
+                            cached_node
+                        } else {
+                            match store.load::<DagCborCodec, _>(&cid).await {
+                                Ok(node) => Ok(node),
+                                Err(error) => {
+                                    #[cfg(feature = "ignore-dead-links")]
+                                    continue;
+                                    #[cfg(not(feature = "ignore-dead-links"))]
+                                    Err(error)
+                                }
+                            }?
+                        };
+                        remaining.extend(node.pointers);
+                    }
+                    Pointer::Values(kvs) => {
+                        for kv in kvs {
+                            let (key, value) = kv.take();
+                            yield (key, value);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Search for a key.
     async fn search<Q: ?Sized + TargetConditionalSendSync, S: BlockStore>(
         &self,

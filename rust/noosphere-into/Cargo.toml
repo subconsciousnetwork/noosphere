@@ -20,10 +20,12 @@ readme = "README.md"
 noosphere-core = { version = "0.4.0", path = "../noosphere-core" }
 noosphere-storage = { version = "0.3.0", path = "../noosphere-storage" }
 noosphere-fs = { version = "0.3.0", path = "../noosphere-fs" }
-subtext = { version = "~0.3", features = ["stream"] }
+subtext = { version = "0.3.2", features = ["stream"] }
+async-trait = "~0.1"
+url = "2"
+tracing = "~0.1"
 
 anyhow = "^1"
-async-trait = "~0.1"
 
 horrorshow = "~0.8"
 cid = "~0.9"

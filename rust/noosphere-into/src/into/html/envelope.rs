@@ -1,11 +1,11 @@
 use horrorshow::html;
 use noosphere_core::data::{ContentType, Header, MemoIpld};
 
-/// Generate an HTML "envelope" for content described by the given memo.
+/// Generate an HTML "envelope" for content described by the given [MemoIpld].
 /// Currently, only Subtext and Sphere content types are explicitly supported.
 /// This envelope is made up of two parts because the content inside will be
 /// streamed for most content types.
-pub fn html_document_envelope(memo: MemoIpld) -> (String, String) {
+pub fn html_document_envelope(memo: &MemoIpld) -> (String, String) {
     let content_type = memo.content_type();
 
     let title = if let Some(title) = memo.get_first_header(&Header::Title.to_string()) {

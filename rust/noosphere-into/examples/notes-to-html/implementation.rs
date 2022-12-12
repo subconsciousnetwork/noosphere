@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use axum::{http::StatusCode, response::IntoResponse, routing::get_service};
 use noosphere_fs::SphereFs;
-use noosphere_into::{html::sphere_into_html, write::NativeFs};
+use noosphere_into::{sphere_into_html, NativeFs};
 use std::{net::SocketAddr, os::unix::prelude::OsStrExt, path::Path};
 use tempfile::TempDir;
 use tokio::fs::{self, File};

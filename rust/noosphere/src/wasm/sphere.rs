@@ -24,6 +24,8 @@ pub struct SphereContext {
 #[wasm_bindgen]
 impl SphereContext {
     #[wasm_bindgen]
+    /// Get a `SphereFs` that gives you access to sphere content at the latest
+    /// version of the sphere.
     pub async fn fs(&self) -> Result<SphereFs, String> {
         let context = self.inner.lock().await;
         Ok(SphereFs {
@@ -32,6 +34,10 @@ impl SphereContext {
     }
 
     #[wasm_bindgen(js_name = "fsAt")]
+    /// Get a `SphereFs` that gives you access to sphere content at the version
+    /// specified. The version must be a base32
+    /// [CID](https://docs.ipfs.tech/concepts/content-addressing/#identifier-formats)
+    /// string.
     pub async fn fs_at(&self, version: String) -> Result<SphereFs, String> {
         let context = self.inner.lock().await;
         let cid = Cid::try_from(version).map_err(|error| format!("{:?}", error))?;

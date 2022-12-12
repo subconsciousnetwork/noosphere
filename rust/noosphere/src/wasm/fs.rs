@@ -31,6 +31,7 @@ impl SphereFs {
 
         Ok(file.map(|file| SphereFile {
             inner: file.boxed(),
+            fs: self.inner.clone(),
         }))
     }
 
@@ -110,7 +111,10 @@ impl SphereFs {
 
         while let Some(Ok((slug, file))) = stream.next().await {
             let file = file.boxed();
-            let file = SphereFile { inner: file };
+            let file = SphereFile {
+                inner: file,
+                fs: self.inner.clone(),
+            };
             let slug = JsValue::from(slug);
 
             let file = JsValue::from(file);
