@@ -30,7 +30,7 @@ in order to build these packages. The most reliable way to ensure you have this 
 nvm install --lts
 ```
 
-As an extra step, you can make the versions of Node.js and NPM you just installed:
+As an extra step, you may wish to make the versions of Node.js and NPM you just installed into the default ones available when you open your shell:
 
 ```sh
 nvm alias default lts/hydrogen
