@@ -2,10 +2,16 @@
   "name": "@subconsciousnetwork/orb",
   "author": "Subconscious Inc.",
   "license": "Apache-2.0 OR MIT",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "description": "A batteries-included JavaScript package for accessing the Noosphere",
   "type": "module",
   "main": "lib/index.js",
+  "module": "lib/index.js",
+  "files": [
+    "/lib/index.{d.ts,js,js.map}",
+    "/lib/noosphere.{d.ts,js}",
+    "/lib/noosphere_bg.{wasm.d.ts,wasm}"
+  ],
   "scripts": {
     "build": "wireit",
     "generate_wasm": "wireit",

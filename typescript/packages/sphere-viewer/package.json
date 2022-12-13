@@ -4,6 +4,7 @@
   "license": "Apache-2.0 OR MIT",
   "version": "0.1.0",
   "description": "A demo of Orb.js that renders Noosphere content from any IPFS gateway",
+  "private": true,
   "type": "module",
   "scripts": {
     "build": "wireit",
