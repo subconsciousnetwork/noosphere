@@ -88,27 +88,7 @@ jobs:
   # modulemap for Apple use cases
   noosphere-header-generation:
     name: 'Generate Noosphere C header'
-    runs-on: macos-12
-    steps:
-      - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          toolchain: stable
-          override: true
-          profile: minimal
-      - uses: ConorMacBride/install-package@v1
-        with:
-          brew: protobuf cmake
-      - name: 'Generate the header'
-        run: |
-          cd rust/noosphere/include/noosphere
-          cargo run --example generate_header --features headers --locked
-          cd -
-      - uses: actions/upload-artifact@v3
-        with:
-          name: include
-          path: rust/noosphere/include
+    uses: './.github/workflows/noosphere_c_header.yaml'
 
   # Generate Apple "universal" libraries for Noosphere for supported targets
   noosphere-apple-lipo:
