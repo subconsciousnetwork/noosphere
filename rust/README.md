@@ -13,6 +13,31 @@ Most other language implementations of Noosphere bind to this Rust
 implementation internally, so making changes to Noosphere for a package
 targetting another language will most likely involve writing some Rust.
 
+## Rust Components
+
+```mermaid
+flowchart TD
+
+noosphere((Noosphere))
+cli((CLI))
+
+noosphere --> api
+noosphere --> core
+noosphere --> fs
+noosphere --> storage
+noosphere --> into
+cli --> api 
+cli --> core
+cli --> fs 
+cli --> storage 
+cli --> ns 
+cli --> noosphere 
+into --> core
+into --> storage
+into --> fs 
+core --> collections
+```
+
 ## Environment Setup
 
 ### Platform Packages
