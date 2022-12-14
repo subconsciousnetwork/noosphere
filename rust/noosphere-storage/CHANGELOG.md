@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.3.0...noosphere-storage-v0.4.0) (2022-12-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* `SphereFile` fields referring to a `revision` now refer to a `version` instead.
+
+### Features
+
+* Beautify the Sphere Viewer demo app ([#186](https://github.com/subconsciousnetwork/noosphere/issues/186)) ([3e30fdb](https://github.com/subconsciousnetwork/noosphere/commit/3e30fdb5e2b6758397f05343491a36512a4f4a0c))
+* Introduce web bindings and `orb` NPM package ([#182](https://github.com/subconsciousnetwork/noosphere/issues/182)) ([44170a2](https://github.com/subconsciousnetwork/noosphere/commit/44170a27be2e1d180b1cee153937ab2cef16a591))
+
 ## [0.3.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.2.0...noosphere-storage-v0.3.0) (2022-11-30)
 
 

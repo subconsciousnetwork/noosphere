@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.2.0...noosphere-collections-v0.3.0) (2022-12-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* `SphereFile` fields referring to a `revision` now refer to a `version` instead.
+
+### Features
+
+* Beautify the Sphere Viewer demo app ([#186](https://github.com/subconsciousnetwork/noosphere/issues/186)) ([3e30fdb](https://github.com/subconsciousnetwork/noosphere/commit/3e30fdb5e2b6758397f05343491a36512a4f4a0c))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.3.0 to 0.4.0
+
 ## [0.2.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.1.0...noosphere-collections-v0.2.0) (2022-11-30)
 
 
