@@ -39,8 +39,8 @@ jobs:
         id: release
         uses: cdata/release-please-action@main
         with:
-          config-file: ./rust/release-please-config.json
-          manifest-file: ./rust/.release-please-manifest.json
+          config-file: rust/release-please-config.json
+          manifest-file: rust/.release-please-manifest.json
           token: ${{ secrets.GITHUB_TOKEN }}
           default-branch: main
           command: manifest
@@ -67,7 +67,7 @@ jobs:
       # NOTE: The release has to be published before adding build artifacts,
       # otherwise the upload causes a different release to be made (???)
       - name: 'Publish release'
-        run: gh release edit ${{ needs['release-please'].outputs.noosphere_cli_release_tag_name }} --draft=false --repo=subconsciousnetwork/noosphere
+        run: gh release edit ${{ needs['release-please'].outputs.noosphere_cli_release_tag_name }} --draft=false --repo=cdata/noosphere
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -99,7 +99,7 @@ jobs:
       # NOTE: The release has to be published before adding build artifacts,
       # otherwise the upload causes a different release to be made (???)
       - name: 'Publish release'
-        run: gh release edit ${{ needs['release-please'].outputs.noosphere_release_tag_name }} --draft=false --repo=subconsciousnetwork/noosphere
+        run: gh release edit ${{ needs['release-please'].outputs.noosphere_release_tag_name }} --draft=false --repo=cdata/noosphere
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
