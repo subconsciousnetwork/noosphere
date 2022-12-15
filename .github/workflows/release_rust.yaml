@@ -39,8 +39,8 @@ jobs:
         id: release
         uses: cdata/release-please-action@main
         with:
-          config-file: ./rust/release-please-config.json
-          manifest-file: ./rust/.release-please-manifest.json
+          config-file: rust/release-please-config.json
+          manifest-file: rust/.release-please-manifest.json
           token: ${{ secrets.GITHUB_TOKEN }}
           default-branch: main
           command: manifest
