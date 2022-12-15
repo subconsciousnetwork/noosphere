@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.11.0](https://github.com/cdata/noosphere/compare/noosphere-v0.10.0...noosphere-v0.11.0) (2022-12-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* Commentz
+
+### Features
+
+* Commentz ([ebdac27](https://github.com/cdata/noosphere/commit/ebdac27ae45a9dd5b147285fb888faf094f44555))
+
 ## [0.10.0](https://github.com/cdata/noosphere/compare/noosphere-v0.9.0...noosphere-v0.10.0) (2022-12-15)
 
 
