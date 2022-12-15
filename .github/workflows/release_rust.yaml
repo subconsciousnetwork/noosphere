@@ -145,9 +145,13 @@ jobs:
     needs: ['release-please']
     if: ${{ needs['release-please'].outputs.noosphere_released }}
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      pull-requests: write
+      contents: write
     steps:
-      - uses: chainguard-dev/actions/setup-gitsign@main
       - uses: actions/checkout@v3
+      - uses: chainguard-dev/actions/setup-gitsign@main
       - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
@@ -161,6 +165,7 @@ jobs:
           cargo install cargo-quickinstall
           cargo quickinstall toml-cli
       - name: 'Update TypeScript Noosphere version'
+        id: update-noosphere-version
         run: |
           export NOOSPHERE_METADATA_FILE="./typescript/packages/orb/.noosphere_metadata.json"
           export CURRENT_VERSION=`jq .version $NOOSPHERE_METADATA_FILE | xargs echo`
@@ -170,17 +175,30 @@ jobs:
           if [ $COMMIT_PREFIX = "ERROR" ]; then
             exit 1
           else
-            COMMIT_MESSAGE="$COMMIT_PREFIX Updating noosphere version"
-
             echo "$( jq --arg VERSION \"$LATEST_VERSION\" '.version = $VERSION' $NOOSPHERE_METADATA_FILE )" > $NOOSPHERE_METADATA_FILE
+            echo "commit-prefix=$COMMIT_PREFIX" > $GITHUB_OUTPUT
+            echo "noosphere-version=$LATEST_VERSION" > $GITHUB_OUTPUT
 
-            git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-            git config --global user.name "${{ github.actor }}"
+            # COMMIT_MESSAGE="$COMMIT_PREFIX Updating noosphere version"
 
-            git add $NOOSPHERE_METADATA_FILE
-            git commit -m "$COMMIT_MESSAGE"
-            git push origin main
+            # git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+            # git config --global user.name "${{ github.actor }}"
+
+            # git add $NOOSPHERE_METADATA_FILE
+            # git commit -m "$COMMIT_MESSAGE"
+            # git push origin main
           fi
+      - name: 'Create PR for updated file'
+        uses: peter-evans/create-pull-request@v4.0.2
+        with:
+          commit-message: '${{ steps.update-noosphere-version.outputs.commit-prefix }} Update `noosphere` version to ${{ steps.update-noosphere-version.outputs.noosphere-version }}'
+          title: 'Auto-generated PR: Update `noosphere` version for TypeScript packages'
+          body: >
+            This is an automatically generated PR.
+
+            When merged, it will update the release version of the `noosphere` Rust package associated with the pending release of our TypeScript packages.
+
+            NOTE: the commit message of the change has been specifically chosen to reflect the severity of changes in the Rust dependency, so make sure to preserve it when merging this PR!
 
   # Publishes crates to crates.io in dependency order. This command is
   # idempotent and won't re-publish crates that are already published, so it's
