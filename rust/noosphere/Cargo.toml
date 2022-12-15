@@ -1,6 +1,6 @@
 [package]
 name = "noosphere"
-version = "0.9.0"
+version = "0.10.0"
 edition = "2021"
 description = "A high-level package for dealing with accessing the Noosphere"
 keywords = ["noosphere"]
