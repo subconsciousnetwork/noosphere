@@ -174,7 +174,7 @@ jobs:
             echo "$( jq --arg VERSION \"$LATEST_VERSION\" '.version = $VERSION' $NOOSPHERE_METADATA_FILE )" > $NOOSPHERE_METADATA_FILE
 
             git add $NOOSPHERE_METADATA_FILE
-            git commit -m $COMMIT_MESSAGE
+            git commit -m "$COMMIT_MESSAGE"
             git push origin main
           fi
 

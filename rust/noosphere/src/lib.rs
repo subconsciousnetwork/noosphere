@@ -1,6 +1,7 @@
 /// Test comment
 /// More comment
 /// Yet more comment
+/// omg comment
 #[macro_use]
 extern crate tracing;
 
