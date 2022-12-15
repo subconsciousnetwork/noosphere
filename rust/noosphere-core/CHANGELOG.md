@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.6.0](https://github.com/cdata/noosphere/compare/noosphere-core-v0.5.0...noosphere-core-v0.6.0) (2022-12-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* `SphereFile` fields referring to a `revision` now refer to a `version` instead.
+* Several critical dependencies of this library were updated to new versions that contain breaking changes.
+* The `StorageProvider` trait has been replaced by the `Storage` trait. This new trait allows for distinct backing implementations of `BlockStore` and `KeyValueStore`.
+* The `.sphere` directory has a new layout; the files previously used to store metadata have been replaced with database metadata; the `blocks` directory is now called `storage`. At this time the easiest migration path is to initialize a new sphere and copy your existing files into it.
+* `SphereIpld` identity is now a `Did`
+* Many APIs that previously asked for bare strings when a DID string was expected now expect a newtype called `Did` that wraps a string.
+* The `noosphere-api` Client now holds an owned key instead of a reference.
+* initial work on NameSystem, wrapping the underlying DHT network. (#122)
+
+### Features
+
+* `SphereFs` is initialized with key material ([#140](https://github.com/cdata/noosphere/issues/140)) ([af48061](https://github.com/cdata/noosphere/commit/af4806114ca8f7703e0a888c7f369a4a4ed69c00))
+* Add `noosphere` crate-based Swift package ([#131](https://github.com/cdata/noosphere/issues/131)) ([e1204c2](https://github.com/cdata/noosphere/commit/e1204c2a5822c3c0dbb7e61bbacffb2c1f49d8d8))
+* Beautify the Sphere Viewer demo app ([#186](https://github.com/cdata/noosphere/issues/186)) ([3e30fdb](https://github.com/cdata/noosphere/commit/3e30fdb5e2b6758397f05343491a36512a4f4a0c))
+* initial work on NameSystem, wrapping the underlying DHT network. ([#122](https://github.com/cdata/noosphere/issues/122)) ([656fb23](https://github.com/cdata/noosphere/commit/656fb23a5ce5a75b7f1de59444c1d866a9308d83))
+* Introduce pet names to spheres ([#154](https://github.com/cdata/noosphere/issues/154)) ([7495796](https://github.com/cdata/noosphere/commit/74957968af7f7e51a6aa731192431fbf5e01215e))
+* Introduce web bindings and `orb` NPM package ([#182](https://github.com/cdata/noosphere/issues/182)) ([44170a2](https://github.com/cdata/noosphere/commit/44170a27be2e1d180b1cee153937ab2cef16a591))
+* Mutation and hydration for names ([#168](https://github.com/cdata/noosphere/issues/168)) ([5e2a1ca](https://github.com/cdata/noosphere/commit/5e2a1ca369875c425c0612c4ac7df0a942f8fcab))
+* Re-implement `noosphere-cli` in terms of `noosphere` ([#162](https://github.com/cdata/noosphere/issues/162)) ([1e83bbb](https://github.com/cdata/noosphere/commit/1e83bbb689642b878f4f6909d7dd4a6df56b29f9))
+* Refactor storage interfaces ([#178](https://github.com/cdata/noosphere/issues/178)) ([4db55c4](https://github.com/cdata/noosphere/commit/4db55c4cba56b329a638a4227e7f3247ad8d319c))
+* Syndicate sphere revisions to IPFS Kubo ([#177](https://github.com/cdata/noosphere/issues/177)) ([e269e04](https://github.com/cdata/noosphere/commit/e269e0484b73e0f5507406d57a2c06cf849bee3d))
+
+
+### Miscellaneous Chores
+
+* Update IPLD-adjacent dependencies ([#180](https://github.com/cdata/noosphere/issues/180)) ([1a1114b](https://github.com/cdata/noosphere/commit/1a1114b0c6277ea2c0d879e43191e962eb2e462b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.4.0 to 0.5.0
+    * noosphere-collections bumped from 0.3.0 to 0.4.0
+
 ## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.4.0...noosphere-core-v0.5.0) (2022-12-14)
 
 
