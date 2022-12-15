@@ -4,6 +4,12 @@
   * dependencies
     * noosphere-core bumped from 0.1.0 to 0.2.0
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.3.0 to 0.4.0
+    * noosphere-core bumped from 0.4.0 to 0.5.0
+    * noosphere bumped from 0.4.0 to 0.5.0
+
 ## [0.3.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.2.0...noosphere-ns-v0.3.0) (2022-11-30)
 
 

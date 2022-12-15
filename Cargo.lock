@@ -2982,7 +2982,7 @@ checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
 name = "noosphere"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3017,7 +3017,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-api"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "anyhow",
  "cid 0.9.0",
@@ -3039,7 +3039,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-cli"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-compat",
@@ -3087,7 +3087,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-collections"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-once-cell 0.3.1",
@@ -3113,7 +3113,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-core"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-once-cell 0.3.1",
@@ -3150,7 +3150,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-fs"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -3173,7 +3173,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-into"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "async-compat",
@@ -3205,7 +3205,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-ns"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3234,7 +3234,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-storage"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "async-std",

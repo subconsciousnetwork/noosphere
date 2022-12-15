@@ -1,5 +1,10 @@
 # Changelog
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.4.0 to 0.5.0
+    * noosphere-storage bumped from 0.3.0 to 0.4.0
+
 ## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.4.0...noosphere-api-v0.5.0) (2022-11-30)
 
 
