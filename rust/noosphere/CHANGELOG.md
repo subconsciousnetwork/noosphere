@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.12.0](https://github.com/cdata/noosphere/compare/noosphere-v0.11.0...noosphere-v0.12.0) (2022-12-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* This is another comment
+* Commentz
+* commmmment
+* So many comments
+* More comments in file
+* New comment in file
+* `SphereFile` fields referring to a `revision` now refer to a `version` instead.
+* Several critical dependencies of this library were updated to new versions that contain breaking changes.
+* The `StorageProvider` trait has been replaced by the `Storage` trait. This new trait allows for distinct backing implementations of `BlockStore` and `KeyValueStore`.
+* The `.sphere` directory has a new layout; the files previously used to store metadata have been replaced with database metadata; the `blocks` directory is now called `storage`. At this time the easiest migration path is to initialize a new sphere and copy your existing files into it.
+* `SphereIpld` identity is now a `Did`
+* Some FFI interfaces now have simplified interfaces.
+* Many APIs that previously asked for bare strings when a DID string was expected now expect a newtype called `Did` that wraps a string.
+* The `noosphere-api` Client now holds an owned key instead of a reference.
+
+### Features
+
+* `SphereFs` is initialized with key material ([#140](https://github.com/cdata/noosphere/issues/140)) ([af48061](https://github.com/cdata/noosphere/commit/af4806114ca8f7703e0a888c7f369a4a4ed69c00))
+* Add `noosphere` crate-based Swift package ([#131](https://github.com/cdata/noosphere/issues/131)) ([e1204c2](https://github.com/cdata/noosphere/commit/e1204c2a5822c3c0dbb7e61bbacffb2c1f49d8d8))
+* Add `SphereFS` read/write to FFI ([#141](https://github.com/cdata/noosphere/issues/141)) ([26e34ac](https://github.com/cdata/noosphere/commit/26e34acfe70cac099acfa6dc8c2cf156c46fdae0))
+* Beautify the Sphere Viewer demo app ([#186](https://github.com/cdata/noosphere/issues/186)) ([3e30fdb](https://github.com/cdata/noosphere/commit/3e30fdb5e2b6758397f05343491a36512a4f4a0c))
+* Commentz ([ebdac27](https://github.com/cdata/noosphere/commit/ebdac27ae45a9dd5b147285fb888faf094f44555))
+* commmmment ([4f4416d](https://github.com/cdata/noosphere/commit/4f4416d3c54c783aa6b63503e4e18799faa6e696))
+* Introduce pet names to spheres ([#154](https://github.com/cdata/noosphere/issues/154)) ([7495796](https://github.com/cdata/noosphere/commit/74957968af7f7e51a6aa731192431fbf5e01215e))
+* Introduce web bindings and `orb` NPM package ([#182](https://github.com/cdata/noosphere/issues/182)) ([44170a2](https://github.com/cdata/noosphere/commit/44170a27be2e1d180b1cee153937ab2cef16a591))
+* More comments in file ([5607ee9](https://github.com/cdata/noosphere/commit/5607ee904431a0f8306977b79800ce534d6f3082))
+* New comment in file ([4071de4](https://github.com/cdata/noosphere/commit/4071de4eaac23db901de93a7294833ba08ef9ea6))
+* **noosphere:** Introduce `noosphere` crate ([#123](https://github.com/cdata/noosphere/issues/123)) ([ad9daa6](https://github.com/cdata/noosphere/commit/ad9daa697067069197d12ee8e7f11bdbedc3662d))
+* Re-implement `noosphere-cli` in terms of `noosphere` ([#162](https://github.com/cdata/noosphere/issues/162)) ([1e83bbb](https://github.com/cdata/noosphere/commit/1e83bbb689642b878f4f6909d7dd4a6df56b29f9))
+* Refactor storage interfaces ([#178](https://github.com/cdata/noosphere/issues/178)) ([4db55c4](https://github.com/cdata/noosphere/commit/4db55c4cba56b329a638a4227e7f3247ad8d319c))
+* So many comments ([1ea6e04](https://github.com/cdata/noosphere/commit/1ea6e047ba3504e10c21c52b82928ba488815bb2))
+* Syndicate sphere revisions to IPFS Kubo ([#177](https://github.com/cdata/noosphere/issues/177)) ([e269e04](https://github.com/cdata/noosphere/commit/e269e0484b73e0f5507406d57a2c06cf849bee3d))
+* This is another comment ([e320c2c](https://github.com/cdata/noosphere/commit/e320c2c4529cd23992bad0fdb670dd781f4abdd7))
+
+
+### Miscellaneous Chores
+
+* Update IPLD-adjacent dependencies ([#180](https://github.com/cdata/noosphere/issues/180)) ([1a1114b](https://github.com/cdata/noosphere/commit/1a1114b0c6277ea2c0d879e43191e962eb2e462b))
+
 ## [0.11.0](https://github.com/cdata/noosphere/compare/noosphere-v0.10.0...noosphere-v0.11.0) (2022-12-15)
 
 
