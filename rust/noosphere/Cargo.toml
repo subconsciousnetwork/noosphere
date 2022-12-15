@@ -40,6 +40,8 @@ ucan-key-support = { version = "0.1.0" }
 
 [dev-dependencies]
 libipld-core = "~0.15"
+semver = "1.0.14"
+clap = { version = "4.0.29", features = ["derive"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # TODO: We should eventually support gateway storage as a specialty target only,
@@ -69,3 +71,7 @@ tempfile = "^3"
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "~0.3"
 witty-phrase-generator = "~0.2"
+
+[[example]]
+name = "version_diff"
+test = true

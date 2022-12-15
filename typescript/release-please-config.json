@@ -1,0 +1,11 @@
+{
+  "plugins": ["npm-workspace"],
+  "changelog-path": "CHANGELOG.md",
+  "release-type": "node",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "packages": {
+    "typescript/packages/orb": {}
+  },
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
+}

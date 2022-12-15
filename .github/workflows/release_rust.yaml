@@ -39,6 +39,8 @@ jobs:
         id: release
         uses: cdata/release-please-action@main
         with:
+          config-file: ./rust/release-please-config.json
+          manifest-file: ./rust/.release-please-manifest.json
           token: ${{ secrets.GITHUB_TOKEN }}
           default-branch: main
           command: manifest
@@ -129,14 +131,52 @@ jobs:
         run: |
           URL="https://github.com/subconsciousnetwork/noosphere/releases/download/${{ needs.release-please.outputs.noosphere_release_tag_name }}/libnoosphere-apple-xcframework.zip"
 
-          sed -i '' -e "s#url: \"[^\"]*\",#url: \"$URL\",#" ./Package.swift
-          sed -i '' -e "s#checksum: \"[^\"]*\"),#checksum: \"${{ steps.generate-checksum.checksum }}\"),#" ./Package.swift
+          sed -i -e "s#url: \"[^\"]*\",#url: \"$URL\",#" ./Package.swift
+          sed -i -e "s#checksum: \"[^\"]*\"),#checksum: \"${{ steps.generate-checksum.checksum }}\"),#" ./Package.swift
       # TODO(#135): Evaluate if we want to automatically check this change in
       # and push it to the project repository
       - uses: actions/upload-artifact@v3
         with:
           name: swift-package-manifest
           path: ./Package.swift
+
+  update-typescript-noosphere-version:
+    name: 'Update TypeScript Noosphere version'
+    needs: ['release-please']
+    if: ${{ needs['release-please'].outputs.noosphere_released }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: stable
+      - name: 'Install environment packages'
+        run: |
+          sudo apt-get update -qqy
+          sudo apt-get install jq
+          cargo install quickinstall
+          cargo quickinstall toml-cli
+      - name: 'Update TypeScript Noosphere version'
+        run: |
+          NOOSPHERE_METADATA_FILE="./typescript/packages/orb/.noosphere-metadata.json"
+          CURRENT_VERSION=`jq .version $NOOSPHERE_METADATA_FILE | xargs echo`
+          LATEST_VERSION=`toml get ./rust/noosphere/Cargo.toml . | jq '.package.version' | xargs echo`
+          COMMIT_PREFIX=`cargo run --package noosphere --example version_diff -- --left $CURRENT_VERSION --right $LATEST_VERSION`
+
+          if [ $COMMIT_PREFIX = "ERROR" ]; then
+            exit 1
+          else
+            COMMIT_MESSAGE="$COMMIT_PREFIX Updating noosphere version"
+
+            echo "$( jq --arg VERSION \"$LATEST_VERSION\" '.version = $VERSION' $NOOSPHERE_METADATA_FILE )" > $NOOSPHERE_METADATA_FILE
+
+            git add $NOOSPHERE_METADATA_FILE
+            git commit -m $COMMIT_MESSAGE
+            git push origin main
+          fi
 
   # Publishes crates to crates.io in dependency order. This command is
   # idempotent and won't re-publish crates that are already published, so it's
