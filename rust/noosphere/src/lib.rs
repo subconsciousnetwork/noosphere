@@ -2,6 +2,7 @@
 /// More comment
 /// Yet more comment
 /// omg comment
+/// commentz
 #[macro_use]
 extern crate tracing;
 

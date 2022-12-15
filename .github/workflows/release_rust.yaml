@@ -173,6 +173,9 @@ jobs:
 
             echo "$( jq --arg VERSION \"$LATEST_VERSION\" '.version = $VERSION' $NOOSPHERE_METADATA_FILE )" > $NOOSPHERE_METADATA_FILE
 
+            git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+            git config --global user.name "${{ github.actor }}"
+
             git add $NOOSPHERE_METADATA_FILE
             git commit -m "$COMMIT_MESSAGE"
             git push origin main
