@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.0](https://github.com/cdata/noosphere/compare/noosphere-v0.12.0...noosphere-v0.13.0) (2022-12-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* WAT
+
+### Features
+
+* WAT ([1cbf3a0](https://github.com/cdata/noosphere/commit/1cbf3a0e4b1dc95d2b252e2806cb1f4589026640))
+
 ## [0.12.0](https://github.com/cdata/noosphere/compare/noosphere-v0.11.0...noosphere-v0.12.0) (2022-12-15)
 
 
