@@ -146,6 +146,7 @@ jobs:
     if: ${{ needs['release-please'].outputs.noosphere_released }}
     runs-on: ubuntu-latest
     steps:
+      - uses: chainguard-dev/actions/setup-gitsign@main
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
