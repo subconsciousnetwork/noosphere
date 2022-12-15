@@ -10,6 +10,10 @@
     * noosphere-core bumped from 0.4.0 to 0.5.0
     * noosphere bumped from 0.4.0 to 0.5.0
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere bumped from 0.6.0 to 0.7.0
+
 ## [0.4.0](https://github.com/cdata/noosphere/compare/noosphere-ns-v0.3.1...noosphere-ns-v0.4.0) (2022-12-15)
 
 
