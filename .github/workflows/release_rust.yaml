@@ -17,7 +17,7 @@ jobs:
   release-please:
     name: 'Prepare a release'
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.repository_owner == 'subconsciousnetwork'
+    if: github.ref == 'refs/heads/main' && github.repository_owner == 'cdata'
     outputs:
       noosphere_cli_released: ${{ steps.release.outputs['rust/noosphere-cli--release_created'] }}
       noosphere_cli_release_tag_name: ${{ steps.release.outputs['rust/noosphere-cli--tag_name'] }}
