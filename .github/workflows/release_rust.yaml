@@ -157,7 +157,7 @@ jobs:
         run: |
           sudo apt-get update -qqy
           sudo apt-get install jq
-          cargo install quickinstall
+          cargo install cargo-quickinstall
           cargo quickinstall toml-cli
       - name: 'Update TypeScript Noosphere version'
         run: |
