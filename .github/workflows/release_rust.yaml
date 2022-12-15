@@ -175,9 +175,9 @@ jobs:
           if [ $COMMIT_PREFIX = "ERROR" ]; then
             exit 1
           else
-            echo "$( jq --arg VERSION \"$LATEST_VERSION\" '.version = $VERSION' $NOOSPHERE_METADATA_FILE )" > $NOOSPHERE_METADATA_FILE
-            echo "commit-prefix=$COMMIT_PREFIX" > $GITHUB_OUTPUT
-            echo "noosphere-version=$LATEST_VERSION" > $GITHUB_OUTPUT
+            echo "$( jq --arg VERSION $LATEST_VERSION '.version = $VERSION' $NOOSPHERE_METADATA_FILE )" > $NOOSPHERE_METADATA_FILE
+            echo "commit-prefix=$COMMIT_PREFIX" >> $GITHUB_OUTPUT
+            echo "noosphere-version=$LATEST_VERSION" >> $GITHUB_OUTPUT
 
             # COMMIT_MESSAGE="$COMMIT_PREFIX Updating noosphere version"
 
@@ -191,12 +191,15 @@ jobs:
       - name: 'Create PR for updated file'
         uses: peter-evans/create-pull-request@v4.0.2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: '${{ steps.update-noosphere-version.outputs.commit-prefix }} Update `noosphere` version to ${{ steps.update-noosphere-version.outputs.noosphere-version }}'
-          title: 'Auto-generated PR: Update `noosphere` version for TypeScript packages'
+          title: '🤖 Update `noosphere` version for TypeScript packages'
           body: >
             This is an automatically generated PR.
 
-            When merged, it will update the release version of the `noosphere` Rust package associated with the pending release of our TypeScript packages.
+
+            This change updates the release version of the `noosphere` Rust package that is associated with the pending release of our TypeScript packages.
+
 
             NOTE: the commit message of the change has been specifically chosen to reflect the severity of changes in the Rust dependency, so make sure to preserve it when merging this PR!
 
