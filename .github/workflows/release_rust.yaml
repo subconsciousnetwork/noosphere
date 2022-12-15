@@ -161,7 +161,7 @@ jobs:
           cargo quickinstall toml-cli
       - name: 'Update TypeScript Noosphere version'
         run: |
-          export NOOSPHERE_METADATA_FILE="./typescript/packages/orb/.noosphere-metadata.json"
+          export NOOSPHERE_METADATA_FILE="./typescript/packages/orb/.noosphere_metadata.json"
           export CURRENT_VERSION=`jq .version $NOOSPHERE_METADATA_FILE | xargs echo`
           export LATEST_VERSION=`toml get ./rust/noosphere/Cargo.toml . | jq '.package.version' | xargs echo`
           export COMMIT_PREFIX=`cargo run --package noosphere --example version_diff -- --left $CURRENT_VERSION --right $LATEST_VERSION`
