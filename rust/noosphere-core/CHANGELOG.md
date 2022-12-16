@@ -1,5 +1,9 @@
 # Changelog
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-collections bumped from 0.4.0 to 0.5.0
+
 ## [0.6.0](https://github.com/cdata/noosphere/compare/noosphere-core-v0.5.0...noosphere-core-v0.6.0) (2022-12-15)
 
 

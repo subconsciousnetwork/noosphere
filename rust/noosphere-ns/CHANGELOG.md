@@ -42,6 +42,38 @@
   * dependencies
     * noosphere bumped from 0.13.0 to 0.14.0
 
+## [0.5.0](https://github.com/cdata/noosphere/compare/noosphere-ns-v0.4.8...noosphere-ns-v0.5.0) (2022-12-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* Several critical dependencies of this library were updated to new versions that contain breaking changes.
+* The `StorageProvider` trait has been replaced by the `Storage` trait. This new trait allows for distinct backing implementations of `BlockStore` and `KeyValueStore`.
+* The `.sphere` directory has a new layout; the files previously used to store metadata have been replaced with database metadata; the `blocks` directory is now called `storage`. At this time the easiest migration path is to initialize a new sphere and copy your existing files into it.
+* initial work on NameSystem, wrapping the underlying DHT network. (#122)
+
+### Features
+
+* Expose replication/publication/ttl intervals to NameSystemBuilder ([#130](https://github.com/cdata/noosphere/issues/130)) ([e20680e](https://github.com/cdata/noosphere/commit/e20680e225d53d8c658a9c6c2ba5dcb80d2a314e))
+* Implement a RecordValidator trait for the NameSystem DHT ([#129](https://github.com/cdata/noosphere/issues/129)) ([ba5560c](https://github.com/cdata/noosphere/commit/ba5560c031f2251a984eeaa0e0a7c95ad63e3c70))
+* initial work on NameSystem, wrapping the underlying DHT network. ([#122](https://github.com/cdata/noosphere/issues/122)) ([656fb23](https://github.com/cdata/noosphere/commit/656fb23a5ce5a75b7f1de59444c1d866a9308d83))
+* Introduce a `bootstrap` CLI in `noosphere-ns` to spin up DHT ([#143](https://github.com/cdata/noosphere/issues/143)) ([c5f2710](https://github.com/cdata/noosphere/commit/c5f27103cf6b8f597da0a3707fed45a494023920))
+* Re-implement `noosphere-cli` in terms of `noosphere` ([#162](https://github.com/cdata/noosphere/issues/162)) ([1e83bbb](https://github.com/cdata/noosphere/commit/1e83bbb689642b878f4f6909d7dd4a6df56b29f9))
+* Refactor storage interfaces ([#178](https://github.com/cdata/noosphere/issues/178)) ([4db55c4](https://github.com/cdata/noosphere/commit/4db55c4cba56b329a638a4227e7f3247ad8d319c))
+
+
+### Miscellaneous Chores
+
+* Update IPLD-adjacent dependencies ([#180](https://github.com/cdata/noosphere/issues/180)) ([1a1114b](https://github.com/cdata/noosphere/commit/1a1114b0c6277ea2c0d879e43191e962eb2e462b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.6.0 to 0.6.1
+    * noosphere bumped from 0.14.0 to 0.15.0
+
 ## [0.4.0](https://github.com/cdata/noosphere/compare/noosphere-ns-v0.3.1...noosphere-ns-v0.4.0) (2022-12-15)
 
 
