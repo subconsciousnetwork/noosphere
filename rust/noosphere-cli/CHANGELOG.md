@@ -36,6 +36,10 @@
   * dependencies
     * noosphere bumped from 0.13.0 to 0.14.0
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere bumped from 0.15.0 to 0.16.0
+
 ## [0.9.0](https://github.com/cdata/noosphere/compare/noosphere-cli-v0.8.7...noosphere-cli-v0.9.0) (2022-12-16)
 
 
