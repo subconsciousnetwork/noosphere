@@ -3029,7 +3029,7 @@ checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
 name = "noosphere"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3088,7 +3088,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-cli"
-version = "0.8.6"
+version = "0.8.7"
 dependencies = [
  "anyhow",
  "async-compat",
@@ -3254,7 +3254,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-ns"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "anyhow",
  "async-trait",
