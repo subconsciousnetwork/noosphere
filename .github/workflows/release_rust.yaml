@@ -158,6 +158,15 @@ jobs:
           override: true
           profile: minimal
           toolchain: stable
+      - name: Import Subconscious Ops GPG key
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.SUBCONSCIOUS_OPS_GPG_KEY }}
+          passphrase: ${{ secrets.SUBCONSCIOUS_OPS_GPG_PASSWORD }}
+          git_config_global: true
+          git_user_signingkey: true
+          git_commit_gpgsign: true
       - name: 'Install environment packages'
         run: |
           sudo apt-get update -qqy
@@ -178,30 +187,23 @@ jobs:
             echo "$( jq --arg VERSION $LATEST_VERSION '.version = $VERSION' $NOOSPHERE_METADATA_FILE )" > $NOOSPHERE_METADATA_FILE
             echo "commit-prefix=$COMMIT_PREFIX" >> $GITHUB_OUTPUT
             echo "noosphere-version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-
-            # COMMIT_MESSAGE="$COMMIT_PREFIX Updating noosphere version"
-
-            # git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-            # git config --global user.name "${{ github.actor }}"
-
-            # git add $NOOSPHERE_METADATA_FILE
-            # git commit -m "$COMMIT_MESSAGE"
-            # git push origin main
           fi
       - name: 'Create PR for updated file'
         uses: peter-evans/create-pull-request@v4.0.2
         with:
+          committer: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
+          author: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: '${{ steps.update-noosphere-version.outputs.commit-prefix }} Update `noosphere` version to ${{ steps.update-noosphere-version.outputs.noosphere-version }}'
-          title: '🤖 Update `noosphere` version for TypeScript packages'
+          title: 'Update `noosphere` version for TypeScript packages'
           body: >
-            This is an automatically generated PR.
+            This PR was generated automatically in response to the release of the Rust `noosphere` crate.
 
 
-            This change updates the release version of the `noosphere` Rust package that is associated with the pending release of our TypeScript packages.
+            This change updates the release version of the `noosphere` crate that is associated with a pending release of our TypeScript/NPM packages. You should make a call to land this PR or not __before__ performing a release of any TypeScript/NPM packages, as it weighs in the balance when considering how to increment the versions of those packages.
 
 
-            NOTE: the commit message of the change has been specifically chosen to reflect the severity of changes in the Rust dependency, so make sure to preserve it when merging this PR!
+            NOTE: the commit message for this change has been specifically chosen to reflect the severity of changes in the Rust dependency, so make sure to preserve it when merging this PR!
 
   # Publishes crates to crates.io in dependency order. This command is
   # idempotent and won't re-publish crates that are already published, so it's

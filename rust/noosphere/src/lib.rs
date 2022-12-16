@@ -6,6 +6,7 @@
 /// Another comment
 /// Wat
 /// Blah blah
+/// Such comment
 #[macro_use]
 extern crate tracing;
 
