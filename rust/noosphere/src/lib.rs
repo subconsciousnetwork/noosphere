@@ -8,6 +8,7 @@
 /// Blah blah
 /// Such comment
 /// Hootie Toot
+/// Flim flam
 #[macro_use]
 extern crate tracing;
 

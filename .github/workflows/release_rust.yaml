@@ -187,14 +187,17 @@ jobs:
             echo "$( jq --arg VERSION $LATEST_VERSION '.version = $VERSION' $NOOSPHERE_METADATA_FILE )" > $NOOSPHERE_METADATA_FILE
             echo "commit-prefix=$COMMIT_PREFIX" >> $GITHUB_OUTPUT
             echo "noosphere-version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+
+            git add $NOOSPHERE_METADATA_FILE
+            git commit -S -m '${{ steps.update-noosphere-version.outputs.commit-prefix }} Update `noosphere` version to ${{ steps.update-noosphere-version.outputs.noosphere-version }}'
           fi
       - name: 'Create PR for updated file'
         uses: peter-evans/create-pull-request@v4.0.2
         with:
-          committer: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
-          author: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
+          # committer: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
+          # author: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: '${{ steps.update-noosphere-version.outputs.commit-prefix }} Update `noosphere` version to ${{ steps.update-noosphere-version.outputs.noosphere-version }}'
+          # commit-message: '${{ steps.update-noosphere-version.outputs.commit-prefix }} Update `noosphere` version to ${{ steps.update-noosphere-version.outputs.noosphere-version }}'
           title: '${{ steps.update-noosphere-version.outputs.commit-prefix }} Update `noosphere` version to ${{ steps.update-noosphere-version.outputs.noosphere-version }} for TypeScript packages'
           body: >
             This PR was generated automatically in response to the release of the Rust `noosphere` crate.
