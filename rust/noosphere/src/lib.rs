@@ -9,6 +9,7 @@
 /// Such comment
 /// Hootie Toot
 /// Flim flam
+/// Spam
 #[macro_use]
 extern crate tracing;
 
