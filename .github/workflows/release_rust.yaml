@@ -195,12 +195,14 @@ jobs:
           author: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: '${{ steps.update-noosphere-version.outputs.commit-prefix }} Update `noosphere` version to ${{ steps.update-noosphere-version.outputs.noosphere-version }}'
-          title: 'Update `noosphere` version for TypeScript packages'
+          title: '${{ steps.update-noosphere-version.outputs.commit-prefix }} Update `noosphere` version to ${{ steps.update-noosphere-version.outputs.noosphere-version }} for TypeScript packages'
           body: >
             This PR was generated automatically in response to the release of the Rust `noosphere` crate.
 
 
-            This change updates the release version of the `noosphere` crate that is associated with a pending release of our TypeScript/NPM packages. You should make a call to land this PR or not __before__ performing a release of any TypeScript/NPM packages, as it weighs in the balance when considering how to increment the versions of those packages.
+            This change updates the release version of the `noosphere` crate that is associated with a pending release of our TypeScript/NPM packages.
+
+            You should make a call to land this PR (or not) __before__ performing a release of any TypeScript/NPM packages, as it weighs in the balance when considering how to increment the versions of those packages.
 
 
             NOTE: the commit message for this change has been specifically chosen to reflect the severity of changes in the Rust dependency, so make sure to preserve it when merging this PR!

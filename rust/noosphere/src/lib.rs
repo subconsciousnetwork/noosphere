@@ -7,6 +7,7 @@
 /// Wat
 /// Blah blah
 /// Such comment
+/// Hootie Toot
 #[macro_use]
 extern crate tracing;
 
