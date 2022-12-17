@@ -162,23 +162,26 @@ jobs:
         run: |
           sudo apt-get update -qqy
           sudo apt-get install jq
-          cargo install cargo-quickinstall
-          cargo quickinstall toml-cli
-      - name: Import Subconscious Ops GPG key
-        id: import-gpg
-        uses: crazy-max/ghaction-import-gpg@v5
-        with:
-          gpg_private_key: ${{ secrets.SUBCONSCIOUS_OPS_GPG_KEY }}
-          passphrase: ${{ secrets.SUBCONSCIOUS_OPS_GPG_PASSWORD }}
-          git_config_global: true
-          git_user_signingkey: true
-          git_commit_gpgsign: true
+
+          curl -sSLf "$(curl -sSLf https://api.github.com/repos/tomwright/dasel/releases/latest | grep browser_download_url | grep linux_amd64 | grep -v .gz | cut -d\" -f 4)" -L -o dasel && chmod +x dasel
+
+          # cargo install cargo-quickinstall
+          # cargo quickinstall toml-cli
+      # - name: Import Subconscious Ops GPG key
+      #   id: import-gpg
+      #   uses: crazy-max/ghaction-import-gpg@v5
+      #   with:
+      #     gpg_private_key: ${{ secrets.SUBCONSCIOUS_OPS_GPG_KEY }}
+      #     passphrase: ${{ secrets.SUBCONSCIOUS_OPS_GPG_PASSWORD }}
+      #     git_config_global: true
+      #     git_user_signingkey: true
+      #     git_commit_gpgsign: true
       - name: 'Update TypeScript Noosphere version'
         id: update-noosphere-version
         run: |
           export NOOSPHERE_METADATA_FILE="./typescript/packages/orb/.noosphere_metadata.json"
           export CURRENT_VERSION=`jq .version $NOOSPHERE_METADATA_FILE | xargs echo`
-          export LATEST_VERSION=`toml get ./rust/noosphere/Cargo.toml . | jq '.package.version' | xargs echo`
+          export LATEST_VERSION=`./dasel -f ./rust/noosphere/Cargo.toml .package.version | xargs echo`
           export COMMIT_PREFIX=`cargo run --package noosphere --example version_diff -- --left $CURRENT_VERSION --right $LATEST_VERSION`
 
           if [ $COMMIT_PREFIX = "ERROR" ]; then
@@ -191,8 +194,8 @@ jobs:
       - name: 'Create PR for updated file'
         uses: peter-evans/create-pull-request@v4.0.2
         with:
-          committer: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
-          author: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
+          # committer: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
+          # author: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: '${{ steps.update-noosphere-version.outputs.commit-prefix }} Update `noosphere` version to ${{ steps.update-noosphere-version.outputs.noosphere-version }}'
           title: '${{ steps.update-noosphere-version.outputs.commit-prefix }} Update `noosphere` version to ${{ steps.update-noosphere-version.outputs.noosphere-version }} for TypeScript packages'
@@ -202,10 +205,11 @@ jobs:
 
             This change updates the release version of the `noosphere` crate that is associated with a pending release of our TypeScript/NPM packages.
 
-            You should make a call to land this PR (or not) __before__ performing a release of any TypeScript/NPM packages, as it weighs in the balance when considering how to increment the versions of those packages.
+
+            You should make a call to land this PR (or defer it) __before__ performing a release of any TypeScript/NPM packages, as it weighs in the balance when considering how to increment the versions of those packages.
 
 
-            NOTE: the commit message for this change has been specifically chosen to reflect the severity of changes in the Rust dependency, so make sure to preserve it when merging this PR!
+            **NOTE:** the commit message for this change has been specifically chosen to reflect the severity of changes in the Rust dependency, so make sure to preserve it when merging this PR!
 
   # Publishes crates to crates.io in dependency order. This command is
   # idempotent and won't re-publish crates that are already published, so it's
