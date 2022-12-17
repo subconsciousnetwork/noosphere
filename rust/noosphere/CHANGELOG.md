@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.20.0](https://github.com/cdata/noosphere/compare/noosphere-v0.19.0...noosphere-v0.20.0) (2022-12-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* Bjork
+
+### Features
+
+* Bjork ([85bae9e](https://github.com/cdata/noosphere/commit/85bae9e939285a278d3ae859f48fac4a9a45f8ce))
+
 ## [0.19.0](https://github.com/cdata/noosphere/compare/noosphere-v0.18.0...noosphere-v0.19.0) (2022-12-17)
 
 
