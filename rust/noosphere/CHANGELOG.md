@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.19.0](https://github.com/cdata/noosphere/compare/noosphere-v0.18.0...noosphere-v0.19.0) (2022-12-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* Splork
+
+### Features
+
+* Splork ([3c33749](https://github.com/cdata/noosphere/commit/3c3374909357f62520420d29df3c72bfa1db42b3))
+
 ## [0.18.0](https://github.com/cdata/noosphere/compare/noosphere-v0.17.0...noosphere-v0.18.0) (2022-12-17)
 
 
