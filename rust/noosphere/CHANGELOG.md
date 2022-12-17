@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.18.0](https://github.com/cdata/noosphere/compare/noosphere-v0.17.0...noosphere-v0.18.0) (2022-12-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* Spork spork sprok
+
+### Features
+
+* Spork spork sprok ([18ad3ad](https://github.com/cdata/noosphere/commit/18ad3ad937539c6255c6825790d639a4b539683c))
+
 ## [0.17.0](https://github.com/cdata/noosphere/compare/noosphere-v0.16.0...noosphere-v0.17.0) (2022-12-16)
 
 
