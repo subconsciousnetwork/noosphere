@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 use url::Url;
 
 #[cfg(doc)]
-use noosphere_storage::KeyValueStore;
+use crate::KeyValueStore;
 
 use crate::BlockStore;
 use crate::Storage;

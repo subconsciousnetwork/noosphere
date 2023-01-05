@@ -47,16 +47,3 @@ pub fn get_keys_dir() -> Result<PathBuf> {
         .ok_or_else(|| anyhow!("Could not discover home directory."))?
         .join(".noosphere"))
 }
-
-pub fn filter_bootstrap_peers(self_address: &Multiaddr, peers: &[Multiaddr]) -> Vec<Multiaddr> {
-    peers
-        .iter()
-        .filter_map(|addr| {
-            if addr != self_address {
-                Some(addr.to_owned())
-            } else {
-                None
-            }
-        })
-        .collect()
-}

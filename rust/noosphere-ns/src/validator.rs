@@ -14,9 +14,9 @@ impl<S> Validator<S>
 where
     S: Storage,
 {
-    pub fn new(store: &SphereDb<S>) -> Self {
+    pub fn new(store: SphereDb<S>) -> Self {
         Validator {
-            store: store.to_owned(),
+            store,
             did_parser: DidParser::new(SUPPORTED_KEYS),
         }
     }

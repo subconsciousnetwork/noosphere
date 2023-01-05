@@ -1,6 +1,6 @@
 use crate::dht::channel::{Message, MessageClient, MessageProcessor};
 use crate::dht::errors::DHTError;
-use libp2p::swarm::NetworkInfo;
+use libp2p::{swarm::NetworkInfo, Multiaddr};
 
 use std::{fmt, str};
 
@@ -47,8 +47,12 @@ impl fmt::Display for DHTRecord {
 
 #[derive(Debug)]
 pub enum DHTRequest {
+    AddPeers { peers: Vec<Multiaddr> },
+    StartListening { address: Multiaddr },
+    StopListening { address: Multiaddr },
     Bootstrap,
     //WaitForPeers(usize),
+    GetAddresses { external: bool },
     GetNetworkInfo,
     GetRecord { key: Vec<u8> },
     PutRecord { key: Vec<u8>, value: Vec<u8> },
@@ -60,7 +64,25 @@ impl fmt::Display for DHTRequest {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             //DHTRequest::WaitForPeers(peers) => write!(fmt, "DHTRequest::WaitForPeers({})", peers),
+            DHTRequest::AddPeers { peers } => {
+                write!(fmt, "DHTRequest::AddPeers {{ peers={:?} }}", peers)
+            }
+            DHTRequest::StartListening { address } => {
+                write!(
+                    fmt,
+                    "DHTRequest::StartListening {{ address={:?} }}",
+                    address
+                )
+            }
+            DHTRequest::StopListening { address } => {
+                write!(fmt, "DHTRequest::StopListening {{ address={:?} }}", address)
+            }
             DHTRequest::Bootstrap => write!(fmt, "DHTRequest::Bootstrap"),
+            DHTRequest::GetAddresses { external } => write!(
+                fmt,
+                "DHTRequest::GetAddresses {{ external={:?} }}",
+                external
+            ),
             DHTRequest::GetNetworkInfo => write!(fmt, "DHTRequest::GetNetworkInfo"),
             DHTRequest::GetRecord { key } => write!(
                 fmt,
@@ -90,6 +112,7 @@ impl fmt::Display for DHTRequest {
 #[derive(Debug)]
 pub enum DHTResponse {
     Success,
+    GetAddresses(Vec<Multiaddr>),
     GetNetworkInfo(DHTNetworkInfo),
     GetRecord(DHTRecord),
     PutRecord {
@@ -108,6 +131,9 @@ impl fmt::Display for DHTResponse {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DHTResponse::Success => write!(fmt, "DHTResponse::Success"),
+            DHTResponse::GetAddresses(addresses) => {
+                write!(fmt, "DHTResponse::GetAddresses {{ {:?} }}", addresses)
+            }
             DHTResponse::GetNetworkInfo(info) => {
                 write!(fmt, "DHTResponse::GetNetworkInfo {:?}", info)
             }

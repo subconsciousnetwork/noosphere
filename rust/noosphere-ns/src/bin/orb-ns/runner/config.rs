@@ -1,37 +1,18 @@
-use crate::cli::{CLICommand, CLIConfig, CLIConfigNode};
+use crate::cli::{CLICommand, CLIConfigFile, CLIConfigFileNode};
 use crate::utils;
 use anyhow::{anyhow, Result};
-use futures::future::try_join_all;
 use noosphere::key::InsecureKeyStorage;
-use noosphere_ns::Multiaddr;
-
+use noosphere_ns::{DHTConfig, Multiaddr, BOOTSTRAP_PEERS};
 
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
-/// DHT node configuration that contains resolved
-/// data, ready to instantiate a [DHTNode].
+/// Configuration for a name system node configuration containing
+/// resolved data.
 pub struct RunnerNodeConfig {
     pub key_material: Ed25519KeyMaterial,
     pub listening_address: Multiaddr,
-}
-
-impl RunnerNodeConfig {
-    fn new(key_material: Ed25519KeyMaterial, listening_address: Multiaddr) -> Self {
-        RunnerNodeConfig {
-            key_material,
-            listening_address,
-        }
-    }
-
-    pub(crate) async fn try_from_key_name(
-        key_storage: &InsecureKeyStorage,
-        key_name: &str,
-        port: u16,
-    ) -> Result<Self> {
-        let key_material = utils::get_key_material(key_storage, key_name).await?;
-        let listening_address = utils::create_listening_address(port);
-        Ok(RunnerNodeConfig::new(key_material, listening_address))
-    }
+    pub peers: Vec<Multiaddr>,
+    pub dht_config: DHTConfig,
 }
 
 /// Configuration for [Runner], hydrated/resolved from CLI.
@@ -44,16 +25,30 @@ impl RunnerConfig {
         RunnerConfig { nodes }
     }
 
-    async fn try_from_config(key_storage: &InsecureKeyStorage, config: CLIConfig) -> Result<Self> {
-        let futures: Vec<_> = config
-            .nodes
-            .iter()
-            .map(|config_node| {
-                let port = config_node.port.unwrap_or(0);
-                RunnerNodeConfig::try_from_key_name(key_storage, &config_node.key, port)
+    async fn try_from_config(
+        key_storage: &InsecureKeyStorage,
+        config: CLIConfigFile,
+    ) -> Result<Self> {
+        let mut nodes: Vec<RunnerNodeConfig> = vec![];
+        for config_node in config.nodes {
+            let dht_config = config_node.dht_config;
+            let port = config_node.port.unwrap_or(0);
+            let key_material = utils::get_key_material(key_storage, &config_node.key).await?;
+            let listening_address = utils::create_listening_address(port);
+            let mut peers = config_node.peers;
+            if let Some(ref global_peers) = config.peers {
+                peers.append(&mut global_peers.clone());
+            }
+            peers.sort();
+            peers.dedup();
+
+            nodes.push(RunnerNodeConfig {
+                key_material,
+                listening_address,
+                peers,
+                dht_config,
             })
-            .collect();
-        let nodes = try_join_all(futures).await?;
+        }
         Ok(RunnerConfig::new(nodes))
     }
 
@@ -65,22 +60,32 @@ impl RunnerConfig {
             CLICommand::Run {
                 config,
                 key,
+                mut bootstrap,
                 mut port,
             } => match config {
                 Some(config_path) => {
                     let toml_str = tokio::fs::read_to_string(&config_path).await?;
-                    let config: CLIConfig = toml::from_str(&toml_str)?;
+                    let config: CLIConfigFile = toml::from_str(&toml_str)?;
                     Ok(RunnerConfig::try_from_config(key_storage, config).await?)
                 }
                 None => {
                     let key_name: String =
                         key.ok_or_else(|| anyhow!("--key or --config must be provided."))?;
 
-                    let config = CLIConfig {
-                        nodes: vec![CLIConfigNode {
+                    let peers = if let Some(bootstrap_peers) = bootstrap.take() {
+                        bootstrap_peers
+                    } else {
+                        BOOTSTRAP_PEERS[..].to_vec()
+                    };
+
+                    let config = CLIConfigFile {
+                        nodes: vec![CLIConfigFileNode {
                             key: key_name.clone(),
                             port: port.take(),
+                            peers,
+                            dht_config: Default::default(),
                         }],
+                        peers: None,
                     };
                     Ok(RunnerConfig::try_from_config(key_storage, config).await?)
                 }
@@ -149,6 +154,7 @@ mod tests {
                 config: None,
                 key: Some(String::from("single-test-key")),
                 port: Some(6666),
+                bootstrap: None,
             },
         )
         .await?;
@@ -163,6 +169,17 @@ mod tests {
             "/ip4/127.0.0.1/tcp/6666".to_string().parse()?,
             "expected port"
         );
+        assert_eq!(
+            node_config.peers.len(),
+            1,
+            "expected default bootstrap peers"
+        );
+
+        assert_eq!(
+            node_config.peers.get(0),
+            BOOTSTRAP_PEERS[..].get(0),
+            "expected default bootstrap peers"
+        );
 
         Ok(())
     }
@@ -171,9 +188,17 @@ mod tests {
     async fn try_from_command_with_config() -> Result<()> {
         let env = Env::new_with_config(
             r#"
+peers = [
+    "/ip4/127.0.0.1/tcp/9999"
+]
+
 [[nodes]]
 key = "my-bootstrap-key-1"
 port = 10000
+peers = [
+    "/ip4/127.0.0.1/tcp/10001"
+]
+
 [[nodes]]
 key = "my-bootstrap-key-2"
 port = 20000
@@ -190,6 +215,7 @@ port = 20000
                 config: env.config_path.to_owned(),
                 key: None,
                 port: None,
+                bootstrap: None,
             },
         )
         .await?;
@@ -204,6 +230,19 @@ port = 20000
             "/ip4/127.0.0.1/tcp/10000".to_string().parse()?,
             "expected port"
         );
+        assert!(
+            node_config
+                .peers
+                .contains(&("/ip4/127.0.0.1/tcp/10001".to_string().parse()?)),
+            "expected explicit peer"
+        );
+        assert!(
+            node_config
+                .peers
+                .contains(&("/ip4/127.0.0.1/tcp/9999".to_string().parse()?)),
+            "expected global peer"
+        );
+        assert_eq!(node_config.peers.len(), 2, "expected 2 peers");
 
         let node_config = rc.nodes.get(1).unwrap();
         assert!(
@@ -215,6 +254,13 @@ port = 20000
             "/ip4/127.0.0.1/tcp/20000".to_string().parse()?,
             "expected port"
         );
+        assert!(
+            node_config
+                .peers
+                .contains(&("/ip4/127.0.0.1/tcp/9999".to_string().parse()?)),
+            "expected global peer"
+        );
+        assert_eq!(node_config.peers.len(), 1, "expected only global peer");
 
         Ok(())
     }
@@ -238,21 +284,25 @@ port = 20000
                 config: None,
                 key: None,
                 port: Some(6666),
+                bootstrap: None,
             },
             CLICommand::Run {
                 config: None,
                 key: Some(String::from("key-does-not-exist")),
                 port: Some(6666),
+                bootstrap: None,
             },
             CLICommand::Run {
                 config: env.config_path.to_owned(),
                 key: None,
                 port: None,
+                bootstrap: None,
             },
             CLICommand::Run {
                 config: Some(env.dir_path.join("invalid_path")),
                 key: None,
                 port: None,
+                bootstrap: None,
             },
         ];
 

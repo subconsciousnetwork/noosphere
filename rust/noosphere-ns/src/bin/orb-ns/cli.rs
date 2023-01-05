@@ -1,6 +1,7 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use clap::{Parser, Subcommand};
+use noosphere_ns::{DHTConfig, Multiaddr};
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -28,6 +29,11 @@ pub enum CLICommand {
         /// If no configuration path provided, the listening port of this DHT node.
         #[clap(short, long)]
         port: Option<u16>,
+
+        /// If no configuration path provided, a list of bootstrap peers to connect to
+        /// instead of the default bootstrap peers.
+        #[clap(short, long)]
+        bootstrap: Option<Vec<Multiaddr>>,
     },
 
     /// Utility to create keys compatible with Noosphere.
@@ -39,12 +45,17 @@ pub enum CLICommand {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CLIConfigNode {
-    pub key: String,
-    pub port: Option<u16>,
+pub struct CLIConfigFile {
+    pub peers: Option<Vec<Multiaddr>>,
+    pub nodes: Vec<CLIConfigFileNode>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CLIConfig {
-    pub nodes: Vec<CLIConfigNode>,
+pub struct CLIConfigFileNode {
+    pub key: String,
+    pub port: Option<u16>,
+    #[serde(default)]
+    pub peers: Vec<Multiaddr>,
+    #[serde(default)]
+    pub dht_config: DHTConfig,
 }

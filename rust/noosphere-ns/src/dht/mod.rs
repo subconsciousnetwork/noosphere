@@ -4,13 +4,13 @@ mod errors;
 mod keys;
 mod node;
 mod processor;
+mod rpc;
 mod swarm;
-mod types;
 mod validator;
 
 pub use config::DHTConfig;
 pub use errors::DHTError;
 pub use keys::DHTKeyMaterial;
 pub use node::{DHTNode, DHTStatus};
-pub use types::{DHTNetworkInfo, DHTRecord};
-pub use validator::{DefaultRecordValidator, RecordValidator};
+pub use rpc::{DHTNetworkInfo, DHTRecord};
+pub use validator::{AllowAllValidator, RecordValidator};
