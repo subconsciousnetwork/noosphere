@@ -1,18 +1,14 @@
-use libp2p::Multiaddr;
+use serde::Deserialize;
 
 #[cfg(doc)]
 use libp2p::kad::KademliaConfig;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct DHTConfig {
     /// If bootstrap peers are provided, how often,
     /// in seconds, should the bootstrap process execute
     /// to keep routing tables fresh.
     pub bootstrap_interval: u64,
-    /// The local network interface and TCP port to listen
-    /// for incoming DHT connections. If `None`, can run
-    /// a limited set of queries on the network.
-    pub listening_address: Option<Multiaddr>,
     /// How frequently, in seconds, the DHT attempts to
     /// dial peers found in its kbucket. Outside of tests,
     /// should not be lower than 5 seconds.
@@ -40,7 +36,6 @@ impl Default for DHTConfig {
     fn default() -> Self {
         Self {
             bootstrap_interval: 5 * 60, // 5 mins
-            listening_address: None,
             peer_dialing_interval: 5,
             publication_interval: 60 * 60 * 24, // 1 day
             query_timeout: 5 * 60,              // 5 mins

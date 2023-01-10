@@ -3,10 +3,10 @@ use crate::dht::{
     errors::DHTError,
     keys::DHTKeyMaterial,
     processor::DHTProcessor,
-    types::{DHTMessageClient, DHTNetworkInfo, DHTRecord, DHTRequest, DHTResponse},
-    DHTConfig, DefaultRecordValidator, RecordValidator,
+    rpc::{DHTMessageClient, DHTNetworkInfo, DHTRecord, DHTRequest, DHTResponse},
+    DHTConfig, RecordValidator,
 };
-use libp2p;
+use libp2p::{multiaddr::Protocol, Multiaddr, PeerId};
 use std::time::Duration;
 use tokio;
 
@@ -27,125 +27,73 @@ pub enum DHTStatus {
     Error(String),
 }
 
-/// Represents a DHT node running in a network thread.
+/// A node that participates in a DHT network.
 ///
 /// # Example
 ///
 /// ```
-/// use noosphere_ns::dht::{DefaultRecordValidator, DHTConfig, DHTNode};
+/// use noosphere_ns::dht::{RecordValidator, DHTConfig, DHTNode};
 /// use noosphere_core::authority::generate_ed25519_key;
 /// use libp2p::{self, Multiaddr};
 /// use std::str::FromStr;
+/// use async_trait::async_trait;
 /// use tokio;
+///
+/// #[derive(Clone)]
+/// struct NoopValidator {}
+///
+/// #[async_trait]
+/// impl RecordValidator for NoopValidator {
+///     async fn validate(&mut self, data: &[u8]) -> bool {
+///         true
+///     }
+/// }
 ///
 /// #[tokio::main]
 /// async fn main() {
-///     let key = generate_ed25519_key();
 ///     // Note: not a real bootstrap node
 ///     let bootstrap_peers: Vec<Multiaddr> = vec!["/ip4/127.0.0.50/tcp/33333/p2p/12D3KooWH8WgH9mgbMXrKX4veokUznvEn6Ycwg4qaGNi83nLkoUK".parse().unwrap()];
-///     let validator = DHTNode::<DefaultRecordValidator>::validator();
-///     let config = DHTConfig {
-///         listening_address: Some("/ip4/127.0.0.1/tcp/10000".parse().unwrap()),
-///         ..Default::default()
-///     };
-///     let mut node = DHTNode::new(&key, Some(&bootstrap_peers), validator, &config).unwrap();
-///     node.run();
+///     let key = generate_ed25519_key();
+///     let config = DHTConfig::default();
+///     let validator = NoopValidator {};
+///
+///     let mut node = DHTNode::new(&key, DHTConfig::default(), Some(validator)).unwrap();
+///     node.add_peers(bootstrap_peers).await.unwrap();
+///     node.start_listening("/ip4/127.0.0.1/tcp/0".parse().unwrap()).await.unwrap();
+///     node.bootstrap().await.unwrap();
 /// }
 /// ```
-pub struct DHTNode<V: RecordValidator + 'static> {
+pub struct DHTNode {
     config: DHTConfig,
-    state: DHTStatus,
-    client: Option<DHTMessageClient>,
-    thread_handle: Option<tokio::task::JoinHandle<Result<(), DHTError>>>,
-    keypair: libp2p::identity::Keypair,
-    peer_id: libp2p::PeerId,
-    p2p_address: Option<libp2p::Multiaddr>,
-    bootstrap_peers: Option<Vec<libp2p::Multiaddr>>,
-    validator: Option<V>,
+    client: DHTMessageClient,
+    thread_handle: tokio::task::JoinHandle<Result<(), DHTError>>,
+    peer_id: PeerId,
 }
 
-impl<V> DHTNode<V>
-where
-    V: RecordValidator + 'static,
-{
-    /// Creates a new [DHTNode].
-    /// `bootstrap_peers` is a collection of [String]s in [libp2p::Multiaddr] form of initial
-    /// peers to connect to during bootstrapping. This collection would be empty in the
-    /// standalone bootstrap node scenario.
-    /// `validator` is an object implementing [RecordValidator]. Default validator can be
-    /// created via `DHTNode::validator()`.
-    /// `config` is a [DHTConfig] of various configurations for the node.
-    pub fn new<K: DHTKeyMaterial>(
+impl DHTNode {
+    pub fn new<K: DHTKeyMaterial, V: RecordValidator + 'static>(
         key_material: &K,
-        bootstrap_peers: Option<&Vec<libp2p::Multiaddr>>,
-        validator: V,
-        config: &DHTConfig,
+        config: DHTConfig,
+        validator: Option<V>,
     ) -> Result<Self, DHTError> {
         let keypair = key_material.to_dht_keypair()?;
-        let peer_id = libp2p::PeerId::from(keypair.public());
-        let peers: Option<Vec<libp2p::Multiaddr>> = bootstrap_peers.map(|peers| peers.to_vec());
+        let peer_id = PeerId::from(keypair.public());
 
-        let p2p_address: Option<libp2p::Multiaddr> =
-            if let Some(listening_address) = config.listening_address.as_ref() {
-                let mut p2p_address = listening_address.to_owned();
-                p2p_address.push(libp2p::multiaddr::Protocol::P2p(peer_id.into()));
-                Some(p2p_address)
-            } else {
-                None
-            };
+        let channels = message_channel::<DHTRequest, DHTResponse, DHTError>();
+        let thread_handle = DHTProcessor::spawn(
+            &keypair,
+            peer_id.clone(),
+            validator,
+            config.clone(),
+            channels.1,
+        )?;
 
         Ok(DHTNode {
-            keypair,
             peer_id,
-            p2p_address,
-            config: config.to_owned(),
-            bootstrap_peers: peers,
-            state: DHTStatus::Initialized,
-            client: None,
-            thread_handle: None,
-            validator: Some(validator),
+            config,
+            client: channels.0,
+            thread_handle,
         })
-    }
-
-    /// Start the DHT network.
-    pub fn run(&mut self) -> Result<(), DHTError> {
-        let (client, processor) = message_channel::<DHTRequest, DHTResponse, DHTError>();
-        self.ensure_state(DHTStatus::Initialized)?;
-        self.client = Some(client);
-        self.thread_handle = Some(DHTProcessor::spawn(
-            &self.keypair,
-            &self.peer_id,
-            &self.p2p_address,
-            &self.bootstrap_peers,
-            self.validator.take(),
-            &self.config,
-            processor,
-        )?);
-        self.state = DHTStatus::Active;
-        Ok(())
-    }
-
-    /// Teardown the network processing thread.
-    pub fn terminate(&mut self) -> Result<(), DHTError> {
-        self.ensure_state(DHTStatus::Active)?;
-        if let Some(thread_handle) = self.thread_handle.take() {
-            thread_handle.abort();
-        }
-        self.state = DHTStatus::Terminated;
-        Ok(())
-    }
-
-    /// Adds additional bootstrap peers. Can only be executed before calling [DHTNode::run].
-    pub fn add_peers(&mut self, new_peers: &[libp2p::Multiaddr]) -> Result<(), DHTError> {
-        self.ensure_state(DHTStatus::Initialized)?;
-        let mut new_peers_list: Vec<libp2p::Multiaddr> = new_peers.to_vec();
-
-        if let Some(ref mut peers) = self.bootstrap_peers {
-            peers.append(&mut new_peers_list);
-        } else {
-            self.bootstrap_peers = Some(new_peers_list);
-        }
-        Ok(())
     }
 
     /// Returns a reference to the [DHTConfig] used to
@@ -154,18 +102,57 @@ where
         &self.config
     }
 
-    /// Returns the [libp2p::PeerId] of the current node.
-    pub fn peer_id(&self) -> &libp2p::PeerId {
+    /// Returns the [PeerId] of the current node.
+    pub fn peer_id(&self) -> &PeerId {
         &self.peer_id
     }
 
-    /// Returns the listening address of this node.
-    pub fn p2p_address(&self) -> Option<&libp2p::Multiaddr> {
-        self.p2p_address.as_ref()
+    /// Returns the listening addresses of this node.
+    pub async fn addresses(&self) -> Result<Vec<Multiaddr>, DHTError> {
+        let request = DHTRequest::GetAddresses { external: false };
+        let response = self.send_request(request).await?;
+        ensure_response!(response, DHTResponse::GetAddresses(addresses) => Ok(addresses))
     }
 
-    pub fn status(&self) -> DHTStatus {
-        self.state.clone()
+    /// Returns the listening addresses of this node as a P2P address.
+    pub async fn p2p_addresses(&self) -> Result<Vec<Multiaddr>, DHTError> {
+        let peer_id = self.peer_id();
+        Ok(self
+            .addresses()
+            .await?
+            .into_iter()
+            .map(|mut addr| {
+                addr.push(Protocol::P2p(peer_id.to_owned().into()));
+                addr
+            })
+            .collect::<Vec<Multiaddr>>())
+    }
+
+    /// Adds additional peers to the DHT routing table. At least
+    /// one peer is needed to connect to the network.
+    pub async fn add_peers(&self, peers: Vec<Multiaddr>) -> Result<(), DHTError> {
+        let request = DHTRequest::AddPeers { peers };
+        let response = self.send_request(request).await?;
+        ensure_response!(response, DHTResponse::Success => Ok(()))
+    }
+
+    /// Allow this node to act as a server node and listen
+    /// for incoming connections on the provided [Multiaddr].
+    pub async fn start_listening(&self, listening_address: Multiaddr) -> Result<(), DHTError> {
+        let request = DHTRequest::StartListening {
+            address: listening_address,
+        };
+        let response = self.send_request(request).await?;
+        ensure_response!(response, DHTResponse::Success => Ok(()))
+    }
+
+    /// Stops listening on the provided address.
+    pub async fn stop_listening(&self, listening_address: Multiaddr) -> Result<(), DHTError> {
+        let request = DHTRequest::StopListening {
+            address: listening_address,
+        };
+        let response = self.send_request(request).await?;
+        ensure_response!(response, DHTResponse::Success => Ok(()))
     }
 
     /// Resolves once there are at least `requested_peers` peers
@@ -237,50 +224,23 @@ where
 
     /// Queries the network to find peers that are providing `key`.
     /// Fails if node is not in an active state.
-    pub async fn get_providers(&self, key: &[u8]) -> Result<Vec<libp2p::PeerId>, DHTError> {
+    pub async fn get_providers(&self, key: &[u8]) -> Result<Vec<PeerId>, DHTError> {
         let request = DHTRequest::GetProviders { key: key.to_vec() };
         let response = self.send_request(request).await?;
         ensure_response!(response, DHTResponse::GetProviders { providers, key: _ } => Ok(providers))
     }
 
     async fn send_request(&self, request: DHTRequest) -> Result<DHTResponse, DHTError> {
-        self.ensure_state(DHTStatus::Active)?;
         self.client
-            .as_ref()
-            .expect("active DHT has client")
             .send_request_async(request)
             .await
             .map_err(DHTError::from)
             .and_then(|res| res)
     }
-
-    /// Returns `Ok(())` if current status matches expected status.
-    /// Otherwise, returns a [DHTError].
-    fn ensure_state(&self, expected_status: DHTStatus) -> Result<(), DHTError> {
-        if self.state != expected_status {
-            if expected_status == DHTStatus::Active {
-                Err(DHTError::NotConnected)
-            } else {
-                Err(DHTError::Error("invalid state".into()))
-            }
-        } else {
-            Ok(())
-        }
-    }
-
-    /// Returns an instance of [DefaultRecordValidator].
-    pub fn validator() -> DefaultRecordValidator {
-        DefaultRecordValidator {}
-    }
 }
 
-impl<V> Drop for DHTNode<V>
-where
-    V: RecordValidator + 'static,
-{
+impl Drop for DHTNode {
     fn drop(&mut self) {
-        if let Some(thread_handle) = self.thread_handle.take() {
-            thread_handle.abort();
-        }
+        self.thread_handle.abort();
     }
 }

@@ -1,5 +1,5 @@
 use crate::utils::generate_capability;
-use anyhow::{anyhow, Error};
+use anyhow::{anyhow, Error as AnyhowError};
 use cid::Cid;
 use noosphere_core::authority::SPHERE_SEMANTICS;
 use noosphere_storage::{SphereDb, Storage};
@@ -36,11 +36,11 @@ use ucan::{chain::ProofChain, crypto::did::DidParser, Ucan};
 ///   }],
 ///   // Additional UCAN proofs needed to validate.
 ///   "prf": [],
-///   // Facts contain a single entry with an "address" field containing
+///   // Facts contain a single entry with an "link" field containing
 ///   // the content address of a sphere revision (CID) associated with
 ///   // the sphere this record maps to.
 ///   "fct": [{
-///     "address": "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72"
+///     "link": "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72"
 ///   }]
 /// }
 /// ```
@@ -49,7 +49,7 @@ pub struct NSRecord {
     /// The wrapped UCAN token describing this record.
     pub(crate) token: Ucan,
     /// The resolved sphere revision this record maps to.
-    pub(crate) address: Option<Cid>,
+    pub(crate) link: Option<Cid>,
 }
 
 impl NSRecord {
@@ -57,20 +57,20 @@ impl NSRecord {
     pub fn new(token: Ucan) -> Self {
         // Cache the revision address if "fct" contains an entry matching
         // the following object without any authority validation:
-        // `{ "address": "{VALID_CID}" }`
-        let mut address = None;
+        // `{ "link": "{VALID_CID}" }`
+        let mut link = None;
         for ref fact in token.facts() {
             if let Value::Object(map) = fact {
-                if let Some(Value::String(addr)) = map.get(&String::from("address")) {
+                if let Some(Value::String(addr)) = map.get(&String::from("link")) {
                     if let Ok(cid) = Cid::from_str(addr) {
-                        address = Some(cid);
+                        link = Some(cid);
                         break;
                     }
                 }
             }
         }
 
-        Self { token, address }
+        Self { token, link }
     }
 
     /// Validates the underlying [Ucan] token, ensuring that
@@ -80,7 +80,7 @@ impl NSRecord {
         &self,
         store: &SphereDb<S>,
         did_parser: &mut DidParser,
-    ) -> Result<(), Error> {
+    ) -> Result<(), AnyhowError> {
         if self.is_expired() {
             return Err(anyhow!("Token is expired."));
         }
@@ -105,7 +105,7 @@ impl NSRecord {
             return Err(anyhow!("Token is not authorized to publish this sphere."));
         }
 
-        if self.address.is_none() {
+        if self.link.is_none() {
             return Err(anyhow!(
                 "Missing a valid fact entry with record sphere revision. {} {:?}",
                 identity,
@@ -122,14 +122,19 @@ impl NSRecord {
         self.token.audience()
     }
 
-    /// The sphere revision ([Cid]) that the sphere's identity maps to.
-    pub fn address(&self) -> Option<&Cid> {
-        self.address.as_ref()
+    /// The sphere revision address ([Cid]) that the sphere's identity maps to.
+    pub fn link(&self) -> Option<&Cid> {
+        self.link.as_ref()
     }
 
     /// Returns true if the [Ucan] token is past its expiration.
     pub fn is_expired(&self) -> bool {
         self.token.is_expired()
+    }
+
+    /// Encodes the underlying Ucan token back into a JWT string.
+    pub fn try_to_string(&self) -> Result<String, AnyhowError> {
+        self.token.encode()
     }
 }
 
@@ -142,7 +147,7 @@ impl From<Ucan> for NSRecord {
 
 /// Deserialize an encoded UCAN token byte vec into a [NSRecord].
 impl TryFrom<Vec<u8>> for NSRecord {
-    type Error = anyhow::Error;
+    type Error = AnyhowError;
 
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         NSRecord::try_from(&bytes[..])
@@ -151,7 +156,7 @@ impl TryFrom<Vec<u8>> for NSRecord {
 
 /// Serialize a [NSRecord] into an encoded UCAN token byte vec.
 impl TryFrom<NSRecord> for Vec<u8> {
-    type Error = anyhow::Error;
+    type Error = AnyhowError;
 
     fn try_from(record: NSRecord) -> Result<Self, Self::Error> {
         Vec::try_from(&record)
@@ -160,7 +165,7 @@ impl TryFrom<NSRecord> for Vec<u8> {
 
 /// Serialize a [NSRecord] reference into an encoded UCAN token byte vec.
 impl TryFrom<&NSRecord> for Vec<u8> {
-    type Error = anyhow::Error;
+    type Error = AnyhowError;
 
     fn try_from(record: &NSRecord) -> Result<Vec<u8>, Self::Error> {
         Ok(Vec::from(record.token.encode()?))
@@ -169,7 +174,7 @@ impl TryFrom<&NSRecord> for Vec<u8> {
 
 /// Deserialize an encoded UCAN token byte vec reference into a [NSRecord].
 impl TryFrom<&[u8]> for NSRecord {
-    type Error = anyhow::Error;
+    type Error = AnyhowError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         NSRecord::try_from(str::from_utf8(bytes)?)
@@ -178,7 +183,7 @@ impl TryFrom<&[u8]> for NSRecord {
 
 /// Deserialize an encoded UCAN token string reference into a [NSRecord].
 impl<'a> TryFrom<&'a str> for NSRecord {
-    type Error = anyhow::Error;
+    type Error = AnyhowError;
 
     fn try_from(ucan_token: &str) -> Result<Self, Self::Error> {
         NSRecord::from_str(ucan_token)
@@ -187,16 +192,25 @@ impl<'a> TryFrom<&'a str> for NSRecord {
 
 /// Deserialize an encoded UCAN token string into a [NSRecord].
 impl TryFrom<String> for NSRecord {
-    type Error = anyhow::Error;
+    type Error = AnyhowError;
 
     fn try_from(ucan_token: String) -> Result<Self, Self::Error> {
         NSRecord::from_str(ucan_token.as_str())
     }
 }
 
+/// Serialize an NSRecord into a JWT-encoded string.
+impl TryFrom<NSRecord> for String {
+    type Error = AnyhowError;
+
+    fn try_from(record: NSRecord) -> Result<String, Self::Error> {
+        record.try_to_string()
+    }
+}
+
 /// Deserialize an encoded UCAN token string reference into a [NSRecord].
 impl FromStr for NSRecord {
-    type Err = anyhow::Error;
+    type Err = AnyhowError;
 
     fn from_str(ucan_token: &str) -> Result<Self, Self::Err> {
         // Wait for next release of `ucan` which includes traits and
@@ -209,7 +223,10 @@ impl FromStr for NSRecord {
 #[cfg(test)]
 mod test {
     use super::*;
-    use noosphere_core::authority::{generate_ed25519_key, SUPPORTED_KEYS};
+    use noosphere_core::{
+        authority::{generate_ed25519_key, SUPPORTED_KEYS},
+        data::Did,
+    };
     use noosphere_storage::{MemoryStorage, SphereDb};
     use serde_json::json;
     use std::str::FromStr;
@@ -235,13 +252,13 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_nsrecord_self_signed() -> Result<(), Error> {
+    async fn test_nsrecord_self_signed() -> Result<(), AnyhowError> {
         let sphere_key = generate_ed25519_key();
-        let sphere_identity = sphere_key.get_did().await?;
+        let sphere_identity = Did::from(sphere_key.get_did().await?);
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
         let capability = generate_capability(&sphere_identity);
         let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
-        let fact = json!({ "address": cid_address });
+        let fact = json!({ "link": cid_address });
         let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
         let record = NSRecord::new(
@@ -256,22 +273,22 @@ mod test {
                 .await?,
         );
 
-        assert_eq!(record.identity(), &sphere_identity);
-        assert_eq!(record.address(), Some(&Cid::from_str(cid_address).unwrap()));
+        assert_eq!(&Did::from(record.identity()), &sphere_identity);
+        assert_eq!(record.link(), Some(&Cid::from_str(cid_address).unwrap()));
         record.validate(&store, &mut did_parser).await?;
         Ok(())
     }
 
     #[tokio::test]
-    async fn test_nsrecord_delegated() -> Result<(), Error> {
+    async fn test_nsrecord_delegated() -> Result<(), AnyhowError> {
         let owner_key = generate_ed25519_key();
-        let owner_identity = owner_key.get_did().await?;
+        let owner_identity = Did::from(owner_key.get_did().await?);
         let sphere_key = generate_ed25519_key();
-        let sphere_identity = sphere_key.get_did().await?;
+        let sphere_identity = Did::from(sphere_key.get_did().await?);
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
         let capability = generate_capability(&sphere_identity);
         let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
-        let fact = json!({ "address": cid_address });
+        let fact = json!({ "link": cid_address });
         let mut store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
         // First verify that `owner` cannot publish for `sphere`
@@ -289,7 +306,7 @@ mod test {
         );
 
         assert_eq!(record.identity(), &sphere_identity);
-        assert_eq!(record.address(), Some(&Cid::from_str(cid_address).unwrap()));
+        assert_eq!(record.link(), Some(&Cid::from_str(cid_address).unwrap()));
         if record.validate(&store, &mut did_parser).await.is_ok() {
             panic!("Owner should not have authorization to publish record")
         }
@@ -320,16 +337,16 @@ mod test {
                 .await?,
         );
         assert_eq!(record.identity(), &sphere_identity);
-        assert_eq!(record.address(), Some(&Cid::from_str(cid_address).unwrap()));
+        assert_eq!(record.link(), Some(&Cid::from_str(cid_address).unwrap()));
         record.validate(&store, &mut did_parser).await?;
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn test_nsrecord_failures() -> Result<(), Error> {
+    async fn test_nsrecord_failures() -> Result<(), AnyhowError> {
         let sphere_key = generate_ed25519_key();
-        let sphere_identity = sphere_key.get_did().await?;
+        let sphere_identity = Did::from(sphere_key.get_did().await?);
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
         let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
         let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
@@ -351,7 +368,7 @@ mod test {
         )
         .await;
 
-        let capability = generate_capability(&generate_ed25519_key().get_did().await?);
+        let capability = generate_capability(&Did(generate_ed25519_key().get_did().await?));
         expect_failure(
             "fails when capability resource does not match sphere identity",
             &store,
@@ -361,7 +378,7 @@ mod test {
                 .for_audience(&sphere_identity)
                 .with_lifetime(1000)
                 .claiming_capability(&capability)
-                .with_fact(json!({ "address": cid_address }))
+                .with_fact(json!({ "link": cid_address }))
                 .build()?
                 .sign()
                 .await?,
@@ -378,7 +395,7 @@ mod test {
                 .for_audience(&sphere_identity)
                 .with_lifetime(1000)
                 .claiming_capability(&sphere_capability)
-                .with_fact(json!({ "address": cid_address }))
+                .with_fact(json!({ "link": cid_address }))
                 .build()?
                 .sign()
                 .await?,
@@ -389,12 +406,12 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_nsrecord_convert() -> Result<(), Error> {
+    async fn test_nsrecord_convert() -> Result<(), AnyhowError> {
         let sphere_key = generate_ed25519_key();
-        let sphere_identity = sphere_key.get_did().await?;
+        let sphere_identity = Did::from(sphere_key.get_did().await?);
         let capability = generate_capability(&sphere_identity);
         let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
-        let fact = json!({ "address": cid_address });
+        let fact = json!({ "link": cid_address });
 
         let ucan = UcanBuilder::default()
             .issued_by(&sphere_key)
@@ -413,7 +430,7 @@ mod test {
         // NSRecord::try_from::<Vec<u8>>()
         let record = NSRecord::try_from(bytes.clone())?;
         assert_eq!(base.identity(), record.identity(), "try_from::<Vec<u8>>()");
-        assert_eq!(base.address(), record.address(), "try_from::<Vec<u8>>()");
+        assert_eq!(base.link(), record.link(), "try_from::<Vec<u8>>()");
 
         // NSRecord::try_into::<Vec<u8>>()
         let rec_bytes: Vec<u8> = base.clone().try_into()?;
@@ -422,7 +439,7 @@ mod test {
         // NSRecord::try_from::<&[u8]>()
         let record = NSRecord::try_from(&bytes[..])?;
         assert_eq!(base.identity(), record.identity(), "try_from::<&[u8]>()");
-        assert_eq!(base.address(), record.address(), "try_from::<&[u8]>()");
+        assert_eq!(base.link(), record.link(), "try_from::<&[u8]>()");
 
         // &NSRecord::try_into::<Vec<u8>>()
         let rec_bytes: Vec<u8> = (&base).try_into()?;
@@ -431,22 +448,22 @@ mod test {
         // NSRecord::from::<Ucan>()
         let record = NSRecord::from(ucan);
         assert_eq!(base.identity(), record.identity(), "from::<Ucan>()");
-        assert_eq!(base.address(), record.address(), "from::<Ucan>()");
+        assert_eq!(base.link(), record.link(), "from::<Ucan>()");
 
         // NSRecord::try_from::<&str>()
         let record = NSRecord::try_from(encoded.as_str())?;
         assert_eq!(base.identity(), record.identity(), "try_from::<&str>()");
-        assert_eq!(base.address(), record.address(), "try_from::<&str>()");
+        assert_eq!(base.link(), record.link(), "try_from::<&str>()");
 
         // NSRecord::try_from::<String>()
         let record = NSRecord::try_from(encoded.clone())?;
         assert_eq!(base.identity(), record.identity(), "try_from::<String>()");
-        assert_eq!(base.address(), record.address(), "try_from::<String>()");
+        assert_eq!(base.link(), record.link(), "try_from::<String>()");
 
         // NSRecord::from_str()
         let record = NSRecord::from_str(encoded.as_str())?;
         assert_eq!(base.identity(), record.identity(), "from_str()");
-        assert_eq!(base.address(), record.address(), "from_str()");
+        assert_eq!(base.link(), record.link(), "from_str()");
 
         Ok(())
     }

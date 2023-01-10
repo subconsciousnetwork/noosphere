@@ -32,13 +32,14 @@ pub trait RecordValidator: Send + Sync {
     async fn validate(&mut self, record_value: &[u8]) -> bool;
 }
 
-/// A default implementation of [RecordValidator] that allows all records.
+/// An implementation of [RecordValidator] that allows all records.
+/// Used for tests.
 #[derive(Clone)]
-pub struct DefaultRecordValidator {}
+pub struct AllowAllValidator {}
 
 #[async_trait]
-impl RecordValidator for DefaultRecordValidator {
-    async fn validate(&mut self, _record_value: &[u8]) -> bool {
+impl RecordValidator for AllowAllValidator {
+    async fn validate(&mut self, _data: &[u8]) -> bool {
         true
     }
 }

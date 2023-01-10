@@ -1,10 +1,11 @@
 use crate::dht::{
     errors::DHTError,
+    rpc::{DHTMessage, DHTMessageProcessor, DHTRecord, DHTRequest, DHTResponse},
     swarm::{build_swarm, DHTEvent, DHTSwarm, DHTSwarmEvent},
-    types::{DHTMessage, DHTMessageProcessor, DHTRecord, DHTRequest, DHTResponse},
     DHTConfig, RecordValidator,
 };
 use libp2p::{
+    core::transport::ListenerId,
     futures::StreamExt,
     identify::Event as IdentifyEvent,
     kad::{
@@ -17,7 +18,7 @@ use libp2p::{
         dial_opts::{DialOpts, PeerCondition},
         SwarmEvent,
     },
-    PeerId,
+    Multiaddr, PeerId,
 };
 use std::fmt;
 use std::{collections::HashMap, time::Duration};
@@ -28,10 +29,10 @@ use tokio;
 pub struct DHTProcessor<V: RecordValidator + 'static> {
     config: DHTConfig,
     peer_id: PeerId,
-    p2p_address: Option<libp2p::Multiaddr>,
     processor: DHTMessageProcessor,
     swarm: DHTSwarm,
     requests: HashMap<kad::QueryId, DHTMessage>,
+    listeners: HashMap<Multiaddr, ListenerId>,
     kad_last_range: Option<(Distance, Distance)>,
     validator: Option<V>,
 }
@@ -62,58 +63,31 @@ where
     /// [DHTNode].
     pub(crate) fn spawn(
         keypair: &libp2p::identity::Keypair,
-        peer_id: &PeerId,
-        p2p_address: &Option<libp2p::Multiaddr>,
-        bootstrap_peers: &Option<Vec<libp2p::Multiaddr>>,
+        peer_id: PeerId,
         validator: Option<V>,
-        config: &DHTConfig,
+        config: DHTConfig,
         processor: DHTMessageProcessor,
     ) -> Result<tokio::task::JoinHandle<Result<(), DHTError>>, DHTError> {
-        let swarm = build_swarm(keypair, peer_id, config)?;
-        let peers = bootstrap_peers.to_owned();
+        let swarm = build_swarm(keypair, &peer_id, &config)?;
 
         let mut node = DHTProcessor {
-            peer_id: peer_id.to_owned(),
-            p2p_address: p2p_address.to_owned(),
-            config: config.to_owned(),
+            peer_id,
+            config,
             processor,
             swarm,
             requests: HashMap::default(),
+            listeners: HashMap::default(),
             kad_last_range: None,
             validator,
         };
 
-        Ok(tokio::spawn(async move {
-            node.initialize(peers).await;
-            node.process().await
-        }))
-    }
-
-    /// Sets up the [DHTProcessor]. Adds bootstrap peers to the routing table.
-    async fn initialize(&mut self, bootstrap_peers: Option<Vec<libp2p::Multiaddr>>) {
-        // Add the bootnodes to the local routing table.
-        if let Some(peers) = bootstrap_peers {
-            for multiaddress in peers {
-                let mut addr = multiaddress.to_owned();
-                if let Some(libp2p::multiaddr::Protocol::P2p(p2p_hash)) = addr.pop() {
-                    let peer_id = PeerId::from_multihash(p2p_hash).unwrap();
-                    // Do not add a peer with the same peer id, for example
-                    // a set of N bootstrap nodes using a static list of
-                    // N addresses/peer IDs.
-                    if peer_id != self.peer_id {
-                        self.swarm.behaviour_mut().kad.add_address(&peer_id, addr);
-                    }
-                }
-            }
-        }
+        Ok(tokio::spawn(async move { node.process().await }))
     }
 
     /// Begin processing requests and connections on the DHT network
     /// in the current thread. Executes until the loop is broken, via
     /// either an unhandlable error or a terminate message (not yet implemented).
     async fn process(&mut self) -> Result<(), DHTError> {
-        self.start_listening()?;
-
         // Queue up bootstrapping this node both immediately, and every
         // `bootstrap_interval` seconds.
         let mut bootstrap_tick =
@@ -155,6 +129,35 @@ where
 
         // Process client requests.
         match message.request {
+            DHTRequest::AddPeers { ref peers } => {
+                let result = self.add_peers(peers).await.map(|_| DHTResponse::Success);
+                message.respond(result);
+            }
+            DHTRequest::StartListening { ref address } => {
+                let result = self.start_listening(address).map(|_| DHTResponse::Success);
+                message.respond(result);
+            }
+            DHTRequest::StopListening { ref address } => {
+                let result = self.stop_listening(address).map(|_| DHTResponse::Success);
+                message.respond(result);
+            }
+            DHTRequest::GetAddresses { external } => {
+                let listeners: Vec<Multiaddr> = if external {
+                    self.swarm
+                        .external_addresses()
+                        .map(|addr_record| addr_record.addr.to_owned())
+                        .collect::<Vec<Multiaddr>>()
+                } else {
+                    self.swarm
+                        .listeners()
+                        .map(|addr| addr.to_owned())
+                        .collect::<Vec<Multiaddr>>()
+                };
+                message.respond(Ok(DHTResponse::GetAddresses(listeners)));
+            }
+            DHTRequest::Bootstrap => {
+                message.respond(self.execute_bootstrap().map(|_| DHTResponse::Success));
+            }
             DHTRequest::GetProviders { ref key } => {
                 store_request!(
                     self,
@@ -174,9 +177,6 @@ where
                 }
             }
             */
-            DHTRequest::Bootstrap => {
-                message.respond(self.execute_bootstrap().map(|_| DHTResponse::Success));
-            }
             DHTRequest::GetNetworkInfo => {
                 let info = self.swarm.network_info();
                 message.respond(Ok(DHTResponse::GetNetworkInfo(info.into())));
@@ -477,18 +477,43 @@ where
         }
     }
 
-    fn start_listening(&mut self) -> Result<(), DHTError> {
-        match self.p2p_address.as_ref() {
-            Some(p2p_address) => {
-                let addr = p2p_address.to_owned();
-                dht_event_trace(self, &format!("Start listening on {}", addr));
-                self.swarm
-                    .listen_on(addr)
-                    .map(|_| ())
-                    .map_err(DHTError::from)
-            }
-            None => Ok(()),
+    /// Starts listening on the provided address.
+    fn start_listening(&mut self, address: &libp2p::Multiaddr) -> Result<(), DHTError> {
+        dht_event_trace(self, &format!("Start listening on {}", address));
+        let listener_id = self.swarm.listen_on(address.to_owned())?;
+
+        // The swarm's `listeners()` iterator does not contain ListenerId,
+        // needed for `remove_listener()`, so we track redundantly here.
+        if let Some(previous_id) = self.listeners.insert(address.to_owned(), listener_id) {
+            assert!(self.swarm.remove_listener(previous_id));
         }
+        Ok(())
+    }
+
+    /// Stops listening on the provided address.
+    fn stop_listening(&mut self, address: &libp2p::Multiaddr) -> Result<(), DHTError> {
+        dht_event_trace(self, &format!("Stop listening on {}", address));
+        if let Some(listener_id) = self.listeners.get(address) {
+            assert!(self.swarm.remove_listener(listener_id.to_owned()));
+        }
+        Ok(())
+    }
+
+    /// Adds bootstrap peers to the routing table.
+    async fn add_peers(&mut self, peers: &[libp2p::Multiaddr]) -> Result<(), DHTError> {
+        for multiaddress in peers {
+            let mut addr = multiaddress.to_owned();
+            if let Some(libp2p::multiaddr::Protocol::P2p(p2p_hash)) = addr.pop() {
+                let peer_id = PeerId::from_multihash(p2p_hash).unwrap();
+                // Do not add a peer with the same peer id, for example
+                // a set of N bootstrap nodes using a static list of
+                // N addresses/peer IDs.
+                if peer_id != self.peer_id {
+                    self.swarm.behaviour_mut().kad.add_address(&peer_id, addr);
+                }
+            }
+        }
+        Ok(())
     }
 
     fn execute_bootstrap(&mut self) -> Result<(), DHTError> {

@@ -1,27 +1,21 @@
 #![cfg(not(target_arch = "wasm32"))]
 #![cfg(test)]
 use async_trait::async_trait;
-use noosphere_ns::dht::{
-    DHTError, DHTNetworkInfo, DHTNode, DHTStatus, DefaultRecordValidator, RecordValidator,
-};
+use noosphere_ns::dht::{AllowAllValidator, DHTError, DHTNetworkInfo, DHTNode, RecordValidator};
 pub mod utils;
 use noosphere_core::authority::generate_ed25519_key;
 
-use utils::{create_nodes_with_bootstrap, create_test_config, initialize_network, swarm_command};
+use ucan_key_support::ed25519::Ed25519KeyMaterial;
+use utils::{create_nodes_with_peers, create_test_dht_config, initialize_network, swarm_command};
 
 /// Testing a detached DHTNode as a server with no peers.
 #[test_log::test(tokio::test)]
 async fn test_dhtnode_base_case() -> Result<(), DHTError> {
-    let mut node = DHTNode::new(
+    let node = DHTNode::new::<Ed25519KeyMaterial, AllowAllValidator>(
         &generate_ed25519_key(),
+        create_test_dht_config(),
         None,
-        DHTNode::<DefaultRecordValidator>::validator(),
-        &create_test_config(),
     )?;
-    assert_eq!(node.status(), DHTStatus::Initialized, "DHT is initialized");
-    node.run()?;
-    assert_eq!(node.status(), DHTStatus::Active, "DHT is active");
-
     let info = node.network_info().await?;
     assert_eq!(
         info,
@@ -36,9 +30,6 @@ async fn test_dhtnode_base_case() -> Result<(), DHTError> {
     if node.bootstrap().await.is_err() {
         panic!("bootstrap() should succeed, even without peers to bootstrap.");
     }
-
-    node.terminate()?;
-    assert_eq!(node.status(), DHTStatus::Terminated, "DHT is terminated");
     Ok(())
 }
 
@@ -47,12 +38,8 @@ async fn test_dhtnode_base_case() -> Result<(), DHTError> {
 #[test_log::test(tokio::test)]
 async fn test_dhtnode_bootstrap() -> Result<(), DHTError> {
     let num_clients = 5;
-    let (mut bootstrap_nodes, mut client_nodes) = initialize_network(
-        1,
-        num_clients,
-        DHTNode::<DefaultRecordValidator>::validator(),
-    )
-    .await?;
+    let (mut bootstrap_nodes, mut client_nodes, _bootstrap_addresses) =
+        initialize_network::<AllowAllValidator>(1, num_clients, None).await?;
     let bootstrap = bootstrap_nodes.pop().unwrap();
 
     for info in swarm_command(&mut client_nodes, |c| c.network_info()).await? {
@@ -78,12 +65,8 @@ async fn test_dhtnode_bootstrap() -> Result<(), DHTError> {
 #[test_log::test(tokio::test)]
 async fn test_dhtnode_simple() -> Result<(), DHTError> {
     let num_clients = 2;
-    let (mut _bootstrap_nodes, mut client_nodes) = initialize_network(
-        1,
-        num_clients,
-        DHTNode::<DefaultRecordValidator>::validator(),
-    )
-    .await?;
+    let (mut _bootstrap_nodes, mut client_nodes, _bootstrap_addresses) =
+        initialize_network::<AllowAllValidator>(1, num_clients, None).await?;
 
     let client_a = client_nodes.pop().unwrap();
     let client_b = client_nodes.pop().unwrap();
@@ -99,12 +82,8 @@ async fn test_dhtnode_simple() -> Result<(), DHTError> {
 #[test_log::test(tokio::test)]
 async fn test_dhtnode_providers() -> Result<(), DHTError> {
     let num_clients = 2;
-    let (mut _bootstrap_nodes, mut client_nodes) = initialize_network(
-        1,
-        num_clients,
-        DHTNode::<DefaultRecordValidator>::validator(),
-    )
-    .await?;
+    let (mut _bootstrap_nodes, mut client_nodes, _bootstrap_addresses) =
+        initialize_network::<AllowAllValidator>(1, num_clients, None).await?;
 
     let client_a = client_nodes.pop().unwrap();
     let client_b = client_nodes.pop().unwrap();
@@ -130,17 +109,14 @@ async fn test_dhtnode_validator() -> Result<(), DHTError> {
     }
 
     let num_clients = 2;
-    let (bootstrap_nodes, mut client_nodes) =
-        initialize_network(1, num_clients, MyValidator {}).await?;
+    let (_bootstrap_nodes, mut client_nodes, bootstrap_addresses) =
+        initialize_network(1, num_clients, Some(MyValidator {})).await?;
 
-    let unfiltered_client: DHTNode<DefaultRecordValidator> = {
-        let node = create_nodes_with_bootstrap(
-            1,
-            &bootstrap_nodes,
-            DHTNode::<DefaultRecordValidator>::validator(),
-        )?
-        .pop()
-        .unwrap();
+    let unfiltered_client = {
+        let node = create_nodes_with_peers::<AllowAllValidator>(1, &bootstrap_addresses, None)
+            .await?
+            .pop()
+            .unwrap();
         node.bootstrap().await?;
         node.wait_for_peers(1).await?;
         node
