@@ -1,5 +1,5 @@
 ![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue?label=License)
-[![Tests](https://img.shields.io/github/workflow/status/subconsciousnetwork/noosphere/Run%20test%20suite/main?label=Tests)](https://github.com/subconsciousnetwork/noosphere/actions/workflows/run_test_suite.yaml?query=branch%3Amain)
+[![Tests](https://img.shields.io/github/actions/workflow/status/subconsciousnetwork/noosphere/run_test_suite.yaml?branch=main)](https://github.com/subconsciousnetwork/noosphere/actions/workflows/run_test_suite.yaml?query=branch%3Amain)
 [![Discord](https://img.shields.io/discord/1003419732516552724.svg?logo=discord&colorB=7289DA&label=Chat)](https://discord.gg/HmHypb6DCj)
 
 <picture>
