@@ -1,22 +1,8 @@
 use anyhow::{anyhow, Result};
 
 use noosphere::key::{InsecureKeyStorage, KeyStorage};
-use std::future::Future;
 use std::path::PathBuf;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
-
-/// Runs a future that may await into an `Err`, or otherwise is a long-running,
-/// empty future. That future will be held until a Ctrl+C signal
-/// is received.
-pub async fn run_until_abort(future: impl Future<Output = Result<()>>) -> Result<()> {
-    // Allow aborting (ctrl+c) during the initial run,
-    // and after (when we want to wait exclusively for ctrl+c signal)
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {},
-        result = future => { result?; }
-    };
-    Ok(())
-}
 
 pub async fn get_key_material(
     key_storage: &InsecureKeyStorage,

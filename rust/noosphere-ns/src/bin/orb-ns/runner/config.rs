@@ -1,4 +1,4 @@
-use crate::cli::{CLICommand, CLIConfigFile, CLIConfigFileNode};
+use crate::cli::{CLICommand, CLIConfigFile};
 use crate::utils;
 use anyhow::{anyhow, Result};
 use noosphere::key::InsecureKeyStorage;
@@ -7,8 +7,7 @@ use std::net::SocketAddr;
 
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
-/// Configuration for a name system node configuration containing
-/// resolved data.
+/// Configuration for [NameSystemRunner], hydrated/resolved from CLI.
 pub struct RunnerNodeConfig {
     pub key_material: Ed25519KeyMaterial,
     pub api_address: Option<SocketAddr>,
@@ -17,82 +16,74 @@ pub struct RunnerNodeConfig {
     pub dht_config: DHTConfig,
 }
 
-/// Configuration for [Runner], hydrated/resolved from CLI.
-pub struct RunnerConfig {
-    pub nodes: Vec<RunnerNodeConfig>,
-}
-
-impl RunnerConfig {
-    fn new(nodes: Vec<RunnerNodeConfig>) -> Self {
-        RunnerConfig { nodes }
-    }
-
+impl RunnerNodeConfig {
+    /// Create a [RunnerNodeConfig] from a [CLIConfigFile].
     async fn try_from_config(
         key_storage: &InsecureKeyStorage,
         config: CLIConfigFile,
     ) -> Result<Self> {
-        let mut nodes: Vec<RunnerNodeConfig> = vec![];
-        for config_node in config.nodes {
-            let dht_config = config_node.dht_config;
-            let key_material = utils::get_key_material(key_storage, &config_node.key).await?;
-            let listening_address = config_node.listening_address;
-            let api_address = config_node.api_address;
-            let mut peers = config_node.peers;
-            if let Some(ref global_peers) = config.peers {
-                peers.append(&mut global_peers.clone());
-            }
-            peers.sort();
-            peers.dedup();
-
-            nodes.push(RunnerNodeConfig {
-                api_address,
-                key_material,
-                listening_address,
-                peers,
-                dht_config,
-            });
+        let key_material = utils::get_key_material(key_storage, &config.key).await?;
+        let dht_config = config.dht_config;
+        let listening_address = config.listening_address;
+        let api_address = config.api_address;
+        let mut peers = config.peers;
+        if !config.no_default_peers {
+            peers.extend_from_slice(&BOOTSTRAP_PEERS[..]);
         }
-        Ok(RunnerConfig::new(nodes))
+
+        Ok(RunnerNodeConfig {
+            api_address,
+            key_material,
+            listening_address,
+            peers,
+            dht_config,
+        })
     }
 
+    /// Create a [RunnerNodeConfig] from a [CLICommand].
     pub async fn try_from_command(
-        key_storage: &InsecureKeyStorage,
         command: CLICommand,
-    ) -> Result<RunnerConfig> {
+        key_storage: &InsecureKeyStorage,
+    ) -> Result<RunnerNodeConfig> {
         match command {
             CLICommand::Run {
                 config,
                 key,
-                bootstrap,
+                peers,
+                no_default_peers,
                 listening_address,
                 api_address,
             } => match config {
                 Some(config_path) => {
                     let toml_str = tokio::fs::read_to_string(&config_path).await?;
                     let config: CLIConfigFile = toml::from_str(&toml_str)?;
-                    Ok(RunnerConfig::try_from_config(key_storage, config).await?)
+                    Ok(RunnerNodeConfig::try_from_config(key_storage, config).await?)
                 }
                 None => {
                     let key_name: String =
                         key.ok_or_else(|| anyhow!("--key or --config must be provided."))?;
 
-                    let peers = if let Some(bootstrap_peers) = bootstrap {
-                        bootstrap_peers
+                    let bootstrap_peers = if let Some(peers) = peers {
+                        peers
                     } else {
-                        BOOTSTRAP_PEERS[..].to_vec()
+                        vec![]
+                    };
+
+                    let dht_config = if cfg!(test) {
+                        DHTConfig::default()
+                    } else {
+                        DHTConfig::default()
                     };
 
                     let config = CLIConfigFile {
-                        nodes: vec![CLIConfigFileNode {
-                            key: key_name.clone(),
-                            listening_address,
-                            api_address,
-                            peers,
-                            dht_config: Default::default(),
-                        }],
-                        peers: None,
+                        key: key_name.clone(),
+                        listening_address,
+                        api_address,
+                        peers: bootstrap_peers,
+                        no_default_peers,
+                        dht_config,
                     };
-                    Ok(RunnerConfig::try_from_config(key_storage, config).await?)
+                    Ok(RunnerNodeConfig::try_from_config(key_storage, config).await?)
                 }
             },
             _ => Err(anyhow!(
@@ -153,36 +144,31 @@ mod tests {
         let env = Env::new()?;
         let expected_key = env.create_key("single-test-key").await?;
 
-        let rc = RunnerConfig::try_from_command(
-            &env.key_storage,
+        let config = RunnerNodeConfig::try_from_command(
             CLICommand::Run {
                 api_address: None,
                 config: None,
                 key: Some(String::from("single-test-key")),
                 listening_address: Some("/ip4/127.0.0.1/tcp/6666".parse()?),
-                bootstrap: None,
+                peers: None,
+                no_default_peers: false,
             },
+            &env.key_storage,
         )
         .await?;
 
-        let node_config = rc.nodes.get(0).unwrap();
         assert!(
-            keys_equal(&node_config.key_material, &expected_key).await?,
+            keys_equal(&config.key_material, &expected_key).await?,
             "expected key material"
         );
         assert_eq!(
-            node_config.listening_address.as_ref().unwrap(),
+            config.listening_address.as_ref().unwrap(),
             &"/ip4/127.0.0.1/tcp/6666".parse()?,
             "expected listening_address"
         );
+        assert_eq!(config.peers.len(), 1, "expected default bootstrap peers");
         assert_eq!(
-            node_config.peers.len(),
-            1,
-            "expected default bootstrap peers"
-        );
-
-        assert_eq!(
-            node_config.peers.get(0),
+            config.peers.get(0),
             BOOTSTRAP_PEERS[..].get(0),
             "expected default bootstrap peers"
         );
@@ -194,81 +180,87 @@ mod tests {
     async fn try_from_command_with_config() -> Result<()> {
         let env = Env::new_with_config(
             r#"
-peers = [
-    "/ip4/127.0.0.1/tcp/9999"
-]
-
-[[nodes]]
 key = "my-bootstrap-key-1"
 listening_address = 10000
 peers = [
     "/ip4/127.0.0.1/tcp/10001"
 ]
-
-[[nodes]]
-key = "my-bootstrap-key-2"
-listening_address = 20000
 "#,
         )
         .await?;
 
         let key_1 = env.create_key("my-bootstrap-key-1").await?;
-        let key_2 = env.create_key("my-bootstrap-key-2").await?;
 
-        let rc = RunnerConfig::try_from_command(
-            &env.key_storage,
+        let config = RunnerNodeConfig::try_from_command(
             CLICommand::Run {
                 api_address: None,
                 config: env.config_path.to_owned(),
                 key: None,
                 listening_address: None,
-                bootstrap: None,
+                peers: None,
+                no_default_peers: false,
             },
+            &env.key_storage,
         )
         .await?;
 
-        let node_config = rc.nodes.get(0).unwrap();
         assert!(
-            keys_equal(&node_config.key_material, &key_1).await?,
+            keys_equal(&config.key_material, &key_1).await?,
             "expected key material"
         );
         assert_eq!(
-            node_config.listening_address.as_ref().unwrap(),
+            config.listening_address.as_ref().unwrap(),
             &"/ip4/127.0.0.1/tcp/10000".parse()?,
             "expected listening_address"
         );
         assert!(
-            node_config
+            config
                 .peers
                 .contains(&("/ip4/127.0.0.1/tcp/10001".to_string().parse()?)),
             "expected explicit peer"
         );
         assert!(
-            node_config
-                .peers
-                .contains(&("/ip4/127.0.0.1/tcp/9999".to_string().parse()?)),
-            "expected global peer"
+            config.peers.contains(&BOOTSTRAP_PEERS[..].get(0).unwrap()),
+            "expected default peer"
         );
-        assert_eq!(node_config.peers.len(), 2, "expected 2 peers");
+        assert_eq!(config.peers.len(), 2, "expected 2 peers");
+        Ok(())
+    }
 
-        let node_config = rc.nodes.get(1).unwrap();
-        assert!(
-            keys_equal(&node_config.key_material, &key_2).await?,
-            "expected key material"
-        );
-        assert_eq!(
-            node_config.listening_address.as_ref().unwrap(),
-            &"/ip4/127.0.0.1/tcp/20000".parse()?,
-            "expected listening_address"
-        );
-        assert!(
-            node_config
-                .peers
-                .contains(&("/ip4/127.0.0.1/tcp/9999".to_string().parse()?)),
-            "expected global peer"
-        );
-        assert_eq!(node_config.peers.len(), 1, "expected only global peer");
+    #[tokio::test]
+    async fn try_from_command_with_config_no_default_peers() -> Result<()> {
+        let env = Env::new_with_config(
+            r#"
+key = "my-bootstrap-key-1"
+listening_address = 10000
+peers = [
+    "/ip4/127.0.0.1/tcp/10001"
+]
+no_default_peers = true
+"#,
+        )
+        .await?;
 
+        let _ = env.create_key("my-bootstrap-key-1").await?;
+        let config = RunnerNodeConfig::try_from_command(
+            CLICommand::Run {
+                api_address: None,
+                config: env.config_path.to_owned(),
+                key: None,
+                listening_address: None,
+                peers: None,
+                no_default_peers: false,
+            },
+            &env.key_storage,
+        )
+        .await?;
+        assert!(
+            config
+                .peers
+                .contains(&("/ip4/127.0.0.1/tcp/10001".to_string().parse()?)),
+            "expected explicit peer"
+        );
+        assert_eq!(config.peers.len(), 1, "expected 1 peer");
         Ok(())
     }
 
@@ -276,12 +268,8 @@ listening_address = 20000
     async fn try_from_command_validation() -> Result<()> {
         let env = Env::new_with_config(
             r#"
-[[nodes]]
 key = "my-bootstrap-key-1"
 listening_address = 10000
-[[nodes]]
-key = "my-bootstrap-key-2"
-listening_address = 20000
 "#,
         )
         .await?;
@@ -292,34 +280,38 @@ listening_address = 20000
                 config: None,
                 key: None,
                 listening_address: Some("/ip4/127.0.0.1/tcp/6666".parse()?),
-                bootstrap: None,
+                peers: None,
+                no_default_peers: false,
             },
             CLICommand::Run {
                 api_address: None,
                 config: None,
                 key: Some(String::from("key-does-not-exist")),
                 listening_address: Some("/ip4/127.0.0.1/tcp/6666".parse()?),
-                bootstrap: None,
+                peers: None,
+                no_default_peers: false,
             },
             CLICommand::Run {
                 api_address: None,
                 config: env.config_path.to_owned(),
                 key: None,
                 listening_address: None,
-                bootstrap: None,
+                peers: None,
+                no_default_peers: false,
             },
             CLICommand::Run {
                 api_address: None,
                 config: Some(env.dir_path.join("invalid_path")),
                 key: None,
                 listening_address: None,
-                bootstrap: None,
+                peers: None,
+                no_default_peers: false,
             },
         ];
 
         for command in commands {
             assert!(
-                RunnerConfig::try_from_command(&env.key_storage, command)
+                RunnerNodeConfig::try_from_command(command, &env.key_storage)
                     .await
                     .is_err(),
                 "expected failure from try_from_command"
