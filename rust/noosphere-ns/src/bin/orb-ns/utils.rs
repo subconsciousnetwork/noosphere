@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 
 use noosphere::key::{InsecureKeyStorage, KeyStorage};
-use noosphere_ns::Multiaddr;
 use std::future::Future;
 use std::path::PathBuf;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
@@ -34,12 +33,6 @@ pub async fn get_key_material(
             key_name
         ))
     }
-}
-
-pub fn create_listening_address(port: u16) -> Multiaddr {
-    format!("/ip4/127.0.0.1/tcp/{}", port)
-        .parse()
-        .expect("parseable")
 }
 
 pub fn get_keys_dir() -> Result<PathBuf> {

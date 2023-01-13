@@ -1,5 +1,12 @@
+use crate::NameSystemClient;
+use anyhow;
+use libp2p::{
+    multiaddr::{Multiaddr, Protocol},
+    PeerId,
+};
 use noosphere_core::authority::{SphereAction, SphereReference};
 use serde_json;
+use tokio::time;
 use ucan::capability::{Capability, Resource, With};
 
 #[cfg(doc)]
@@ -49,4 +56,28 @@ pub fn generate_capability(identity: &str) -> Capability<SphereReference, Sphere
 /// ```
 pub fn generate_fact(address: &str) -> serde_json::Value {
     serde_json::json!({ "link": address })
+}
+
+/// A utility for [NameSystemClient] in tests.
+/// Async function returns once there are at least
+/// `requested_peers` peers in the network.
+pub async fn wait_for_peers<T: NameSystemClient>(
+    client: &T,
+    requested_peers: usize,
+) -> anyhow::Result<()> {
+    // TODO(#101) Need to add a mechanism for non-Query based requests,
+    // like sending events, or triggering a peer check on
+    // new connection established. For now, we poll here.
+    loop {
+        let peers = client.peers().await?;
+        if peers.len() >= requested_peers {
+            return Ok(());
+        }
+        time::sleep(time::Duration::from_secs(1)).await;
+    }
+}
+
+pub(crate) fn make_p2p_address(mut addr: Multiaddr, peer_id: PeerId) -> Multiaddr {
+    addr.push(Protocol::P2p(peer_id.into()));
+    addr
 }

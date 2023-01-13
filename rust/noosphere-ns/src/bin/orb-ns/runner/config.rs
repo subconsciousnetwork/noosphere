@@ -1,3 +1,5 @@
+use std::net::TcpListener;
+
 use crate::cli::{CLICommand, CLIConfigFile, CLIConfigFileNode};
 use crate::utils;
 use anyhow::{anyhow, Result};
@@ -10,6 +12,7 @@ use ucan_key_support::ed25519::Ed25519KeyMaterial;
 /// resolved data.
 pub struct RunnerNodeConfig {
     pub key_material: Ed25519KeyMaterial,
+    pub api_listener: Option<TcpListener>,
     pub listening_address: Multiaddr,
     pub peers: Vec<Multiaddr>,
     pub dht_config: DHTConfig,
@@ -34,7 +37,14 @@ impl RunnerConfig {
             let dht_config = config_node.dht_config;
             let port = config_node.port.unwrap_or(0);
             let key_material = utils::get_key_material(key_storage, &config_node.key).await?;
-            let listening_address = utils::create_listening_address(port);
+            let api_port = if let Some(api_port) = config_node.api_port {
+                Some(TcpListener::bind(format!("127.0.0.1:{}", api_port))?)
+            } else {
+                None
+            };
+            let listening_address = format!("/ip4/127.0.0.1/tcp/{}", port)
+                .parse()
+                .expect("parseable");
             let mut peers = config_node.peers;
             if let Some(ref global_peers) = config.peers {
                 peers.append(&mut global_peers.clone());
@@ -43,11 +53,12 @@ impl RunnerConfig {
             peers.dedup();
 
             nodes.push(RunnerNodeConfig {
+                api_listener: api_port,
                 key_material,
                 listening_address,
                 peers,
                 dht_config,
-            })
+            });
         }
         Ok(RunnerConfig::new(nodes))
     }
@@ -62,6 +73,7 @@ impl RunnerConfig {
                 key,
                 mut bootstrap,
                 mut port,
+                mut api_port,
             } => match config {
                 Some(config_path) => {
                     let toml_str = tokio::fs::read_to_string(&config_path).await?;
@@ -82,6 +94,7 @@ impl RunnerConfig {
                         nodes: vec![CLIConfigFileNode {
                             key: key_name.clone(),
                             port: port.take(),
+                            api_port: api_port.take(),
                             peers,
                             dht_config: Default::default(),
                         }],
@@ -151,6 +164,7 @@ mod tests {
         let rc = RunnerConfig::try_from_command(
             &env.key_storage,
             CLICommand::Run {
+                api_port: None,
                 config: None,
                 key: Some(String::from("single-test-key")),
                 port: Some(6666),
@@ -212,6 +226,7 @@ port = 20000
         let rc = RunnerConfig::try_from_command(
             &env.key_storage,
             CLICommand::Run {
+                api_port: None,
                 config: env.config_path.to_owned(),
                 key: None,
                 port: None,
@@ -281,24 +296,28 @@ port = 20000
 
         let commands = [
             CLICommand::Run {
+                api_port: None,
                 config: None,
                 key: None,
                 port: Some(6666),
                 bootstrap: None,
             },
             CLICommand::Run {
+                api_port: None,
                 config: None,
                 key: Some(String::from("key-does-not-exist")),
                 port: Some(6666),
                 bootstrap: None,
             },
             CLICommand::Run {
+                api_port: None,
                 config: env.config_path.to_owned(),
                 key: None,
                 port: None,
                 bootstrap: None,
             },
             CLICommand::Run {
+                api_port: None,
                 config: Some(env.dir_path.join("invalid_path")),
                 key: None,
                 port: None,

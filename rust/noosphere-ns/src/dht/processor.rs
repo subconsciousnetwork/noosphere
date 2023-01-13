@@ -1,7 +1,8 @@
 use crate::dht::{
     errors::DHTError,
-    rpc::{DHTMessage, DHTMessageProcessor, DHTRecord, DHTRequest, DHTResponse},
+    rpc::{DHTMessage, DHTMessageProcessor, DHTRequest, DHTResponse},
     swarm::{build_swarm, DHTEvent, DHTSwarm, DHTSwarmEvent},
+    types::{DHTRecord, Peer},
     DHTConfig, RecordValidator,
 };
 use libp2p::{
@@ -14,6 +15,7 @@ use libp2p::{
         record::{store::RecordStore, Key},
         KademliaEvent, PeerRecord, QueryResult, Quorum, Record,
     },
+    multiaddr::Protocol,
     swarm::{
         dial_opts::{DialOpts, PeerCondition},
         SwarmEvent,
@@ -32,9 +34,10 @@ pub struct DHTProcessor<V: RecordValidator + 'static> {
     processor: DHTMessageProcessor,
     swarm: DHTSwarm,
     requests: HashMap<kad::QueryId, DHTMessage>,
-    listeners: HashMap<Multiaddr, ListenerId>,
     kad_last_range: Option<(Distance, Distance)>,
     validator: Option<V>,
+    active_listener: Option<ListenerId>,
+    pending_listener_request: Option<DHTMessage>,
 }
 
 // Temporary(?), exploring processing both requests that
@@ -76,9 +79,10 @@ where
             processor,
             swarm,
             requests: HashMap::default(),
-            listeners: HashMap::default(),
+            active_listener: None,
             kad_last_range: None,
             validator,
+            pending_listener_request: None,
         };
 
         Ok(tokio::spawn(async move { node.process().await }))
@@ -134,24 +138,26 @@ where
                 message.respond(result);
             }
             DHTRequest::StartListening { ref address } => {
-                let result = self.start_listening(address).map(|_| DHTResponse::Success);
-                message.respond(result);
+                if let Err(e) = self.listen(address) {
+                    message.respond(Err(e));
+                } else {
+                    if let Some(current_pending) = self.pending_listener_request.take() {
+                        current_pending.respond(Err(DHTError::Error(String::from(
+                            "Subsequent listener request overrides previous request.",
+                        ))));
+                    }
+                    self.pending_listener_request = Some(message);
+                }
             }
-            DHTRequest::StopListening { ref address } => {
-                let result = self.stop_listening(address).map(|_| DHTResponse::Success);
+            DHTRequest::StopListening => {
+                let result = self.stop_listening().map(|_| DHTResponse::Success);
                 message.respond(result);
             }
             DHTRequest::GetAddresses { external } => {
                 let listeners: Vec<Multiaddr> = if external {
-                    self.swarm
-                        .external_addresses()
-                        .map(|addr_record| addr_record.addr.to_owned())
-                        .collect::<Vec<Multiaddr>>()
+                    self.get_external_addresses()
                 } else {
-                    self.swarm
-                        .listeners()
-                        .map(|addr| addr.to_owned())
-                        .collect::<Vec<Multiaddr>>()
+                    self.get_addresses()
                 };
                 message.respond(Ok(DHTResponse::GetAddresses(listeners)));
             }
@@ -180,6 +186,16 @@ where
             DHTRequest::GetNetworkInfo => {
                 let info = self.swarm.network_info();
                 message.respond(Ok(DHTResponse::GetNetworkInfo(info.into())));
+            }
+            DHTRequest::GetPeers => {
+                let peers = self
+                    .swarm
+                    .connected_peers()
+                    .map(|peer_id| Peer {
+                        peer_id: peer_id.to_owned(),
+                    })
+                    .collect();
+                message.respond(Ok(DHTResponse::GetPeers(peers)));
             }
             DHTRequest::StartProviding { ref key } => {
                 store_request!(
@@ -233,7 +249,25 @@ where
             SwarmEvent::Behaviour(DHTEvent::Kademlia(e)) => self.process_kad_event(e).await,
             SwarmEvent::Behaviour(DHTEvent::Identify(e)) => self.process_identify_event(e),
             // The following events are currently handled only for debug logging.
-            SwarmEvent::NewListenAddr { address: _, .. } => {}
+            SwarmEvent::NewListenAddr {
+                address: new_address,
+                listener_id: new_listener_id,
+            } => {
+                let matches_pending = match (
+                    self.active_listener.as_ref(),
+                    self.pending_listener_request.as_ref(),
+                ) {
+                    (Some(active_listener), Some(_)) => &new_listener_id == active_listener,
+                    _ => false,
+                };
+
+                if matches_pending {
+                    let pending = self.pending_listener_request.take().unwrap();
+                    let mut address = new_address.clone();
+                    address.push(Protocol::P2p(self.peer_id.into()));
+                    pending.respond(Ok(DHTResponse::Address(address)));
+                }
+            }
             SwarmEvent::ConnectionEstablished { peer_id: _, .. } => {}
             SwarmEvent::ConnectionClosed {
                 peer_id: _,
@@ -493,25 +527,36 @@ where
     }
 
     /// Starts listening on the provided address.
-    fn start_listening(&mut self, address: &libp2p::Multiaddr) -> Result<(), DHTError> {
+    fn listen(&mut self, address: &libp2p::Multiaddr) -> Result<(), DHTError> {
         dht_event_trace(self, &format!("Start listening on {}", address));
-        let listener_id = self.swarm.listen_on(address.to_owned())?;
 
-        // The swarm's `listeners()` iterator does not contain ListenerId,
-        // needed for `remove_listener()`, so we track redundantly here.
-        if let Some(previous_id) = self.listeners.insert(address.to_owned(), listener_id) {
-            assert!(self.swarm.remove_listener(previous_id));
-        }
+        self.stop_listening()?;
+        let listener_id = self.swarm.listen_on(address.to_owned())?;
+        self.active_listener = Some(listener_id);
         Ok(())
     }
 
     /// Stops listening on the provided address.
-    fn stop_listening(&mut self, address: &libp2p::Multiaddr) -> Result<(), DHTError> {
-        dht_event_trace(self, &format!("Stop listening on {}", address));
-        if let Some(listener_id) = self.listeners.get(address) {
-            assert!(self.swarm.remove_listener(listener_id.to_owned()));
+    fn stop_listening(&mut self) -> Result<(), DHTError> {
+        dht_event_trace(self, &format!("Stop listening"));
+        if let Some(active_listener) = self.active_listener.take() {
+            assert!(self.swarm.remove_listener(active_listener));
         }
         Ok(())
+    }
+
+    fn get_addresses(&mut self) -> Vec<Multiaddr> {
+        self.swarm
+            .listeners()
+            .map(|addr| addr.to_owned())
+            .collect::<Vec<Multiaddr>>()
+    }
+
+    fn get_external_addresses(&mut self) -> Vec<Multiaddr> {
+        self.swarm
+            .external_addresses()
+            .map(|addr_record| addr_record.addr.to_owned())
+            .collect::<Vec<Multiaddr>>()
     }
 
     /// Adds bootstrap peers to the routing table.

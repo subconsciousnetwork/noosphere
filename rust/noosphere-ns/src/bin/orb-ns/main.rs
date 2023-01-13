@@ -13,7 +13,7 @@ mod utils;
 #[cfg(not(target_arch = "wasm32"))]
 mod inner {
     pub use crate::cli::{CLICommand, CLI};
-    pub use crate::runner::{Runner, RunnerConfig};
+    pub use crate::runner::{run, RunnerConfig};
     pub use anyhow::{anyhow, Result};
     pub use clap::Parser;
     pub use noosphere::key::{InsecureKeyStorage, KeyStorage};
@@ -30,9 +30,8 @@ async fn main() -> Result<()> {
 
     match CLI::parse().command {
         command @ CLICommand::Run { .. } => {
-            let mut runner =
-                Runner::from(RunnerConfig::try_from_command(&key_storage, command).await?);
-            utils::run_until_abort(runner.run()).await?;
+            let config = RunnerConfig::try_from_command(&key_storage, command).await?;
+            utils::run_until_abort(async move { run(config).await }).await?;
             Ok(())
         }
         CLICommand::KeyGen { key } => {

@@ -63,6 +63,8 @@ brew install openssl protobuf cmake jq binaryen
 **Importantly:** you need an up-to-date Rust toolchain. The most reliable way to
 ensure you have this is to follow the instructions on https://rustup.rs/
 
+*Minimum supported rustc version: 1.65.0*
+
 If you wish to compile for targets other than your local platform target, you
 can use rustup to get other targets easily. For example:
 
