@@ -104,7 +104,7 @@ impl NSRecord {
         link: &Cid,
         proofs: Option<&Vec<Ucan>>,
     ) -> Result<NSRecord, AnyhowError> {
-        let capability = generate_capability(&sphere_id);
+        let capability = generate_capability(sphere_id);
         let fact = generate_fact(&link.to_string());
 
         let mut builder = UcanBuilder::default()
@@ -419,7 +419,7 @@ mod test {
                 .for_audience(&sphere_identity)
                 .with_lifetime(1000)
                 .claiming_capability(&capability)
-                .with_fact(generate_fact(&cid_address))
+                .with_fact(generate_fact(cid_address))
                 .build()?
                 .sign()
                 .await?,
@@ -436,7 +436,7 @@ mod test {
                 .for_audience(&sphere_identity)
                 .with_lifetime(1000)
                 .claiming_capability(&sphere_capability)
-                .with_fact(generate_fact(&cid_address))
+                .with_fact(generate_fact(cid_address))
                 .build()?
                 .sign()
                 .await?,
@@ -452,7 +452,7 @@ mod test {
         let sphere_identity = Did::from(sphere_key.get_did().await?);
         let capability = generate_capability(&sphere_identity);
         let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
-        let fact = generate_fact(&cid_address);
+        let fact = generate_fact(cid_address);
 
         let ucan = UcanBuilder::default()
             .issued_by(&sphere_key)

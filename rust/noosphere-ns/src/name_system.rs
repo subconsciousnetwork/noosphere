@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use tokio::sync::{Mutex, MutexGuard};
 
 pub static BOOTSTRAP_PEERS_ADDRESSES: [&str; 1] =
-    ["/ip4/134.122.20.28/tcp/6666/p2p/12D3KooWAKxaCWsSGauqhCZXyeYjDSQ6jna2SmVhLn4J7uQFdvot"];
+    ["/ip4/134.122.20.28/tcp/6666/p2p/12D3KooWPyjAB3XWUboGmLLPkR53fTyj4GaNi65RvQ61BVwqV4HG"];
 
 lazy_static! {
     /// Noosphere Name System's maintained list of peers to
@@ -198,8 +198,8 @@ impl NameSystemClient for NameSystem {
             .dht
             .addresses()
             .await
-            .map_err(|e| <DHTError as Into<anyhow::Error>>::into(e))?;
-        if addresses.len() >= 1 {
+            .map_err(<DHTError as Into<anyhow::Error>>::into)?;
+        if !addresses.is_empty() {
             let peer_id = self.peer_id().to_owned();
             let address = make_p2p_address(addresses.swap_remove(0), peer_id);
             Ok(Some(address))
@@ -298,7 +298,7 @@ mod test {
             let ns = NameSystemBuilder::default()
                 .key_material(&key_material)
                 .store(&store)
-                .bootstrap_peers(&vec![bootstrap_address.clone()])
+                .bootstrap_peers(&[bootstrap_address.clone()])
                 .use_test_config()
                 .build()
                 .await

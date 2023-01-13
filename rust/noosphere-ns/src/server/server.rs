@@ -6,6 +6,7 @@ use axum::{Extension, Router, Server};
 use std::net::TcpListener;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tower_http::trace::TraceLayer;
 
 pub struct APIServer {
     _handle: tokio::task::JoinHandle<Result<()>>,
@@ -36,7 +37,8 @@ async fn run(ns: Arc<Mutex<NameSystem>>, listener: TcpListener) -> Result<()> {
         .route(&Route::GetRecord.to_string(), get(handlers::get_record))
         .route(&Route::PostRecord.to_string(), post(handlers::post_record))
         .route(&Route::Bootstrap.to_string(), post(handlers::bootstrap))
-        .layer(Extension(ns));
+        .layer(Extension(ns))
+        .layer(TraceLayer::new_for_http());
 
     Server::from_tcp(listener)?
         .serve(app.into_make_service())

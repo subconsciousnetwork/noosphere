@@ -75,7 +75,7 @@ impl DHTNode {
         let channels = message_channel::<DHTRequest, DHTResponse, DHTError>();
         let thread_handle = DHTProcessor::spawn(
             &keypair,
-            peer_id.clone(),
+            peer_id,
             validator,
             config.clone(),
             channels.1,

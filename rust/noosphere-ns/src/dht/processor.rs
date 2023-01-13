@@ -263,7 +263,7 @@ where
 
                 if matches_pending {
                     let pending = self.pending_listener_request.take().unwrap();
-                    let mut address = new_address.clone();
+                    let mut address = new_address;
                     address.push(Protocol::P2p(self.peer_id.into()));
                     pending.respond(Ok(DHTResponse::Address(address)));
                 }
@@ -390,7 +390,7 @@ where
                 QueryResult::GetProviders(Ok(result)) => match result {
                     kad::GetProvidersOk::FoundProviders { providers, .. } => {
                         // Respond once we find any providers for now.
-                        if providers.len() > 0 {
+                        if !providers.is_empty() {
                             if let Some(message) = self.requests.remove(&id) {
                                 message.respond(Ok(DHTResponse::GetProviders {
                                     providers: providers.into_iter().collect(),
@@ -538,7 +538,7 @@ where
 
     /// Stops listening on the provided address.
     fn stop_listening(&mut self) -> Result<(), DHTError> {
-        dht_event_trace(self, &format!("Stop listening"));
+        dht_event_trace(self, &"Stop listening".to_string());
         if let Some(active_listener) = self.active_listener.take() {
             assert!(self.swarm.remove_listener(active_listener));
         }

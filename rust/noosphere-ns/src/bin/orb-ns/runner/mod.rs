@@ -2,37 +2,25 @@ mod config;
 
 use anyhow::Result;
 pub use config::RunnerConfig;
+use futures::stream::empty;
+use futures::StreamExt;
 use noosphere_ns::{Multiaddr, NameSystem, NameSystemClient};
 use noosphere_storage::{MemoryStorage, SphereDb};
-use std::net::TcpListener;
-use std::sync::Arc;
+use std::{net::TcpListener, sync::Arc};
 use tokio::sync::Mutex;
+use tracing::*;
 
-#[cfg(feature = "api_server")]
-mod inner {
-    use super::*;
-    pub use noosphere_ns::server::APIServer;
+#[cfg(feature = "api-server")]
+use noosphere_ns::server::APIServer;
 
-    pub fn serve(ns: Arc<Mutex<NameSystem>>, listener: TcpListener) -> APIServer {
-        APIServer::serve(ns, listener)
+#[cfg(not(feature = "api-server"))]
+struct APIServer;
+#[cfg(not(feature = "api-server"))]
+impl APIServer {
+    pub fn serve(_ns: Arc<Mutex<NameSystem>>, _listener: TcpListener) -> Self {
+        APIServer {}
     }
 }
-#[cfg(not(feature = "api_server"))]
-mod inner {
-    use super::*;
-    pub struct APIServer {
-        _ns: Arc<Mutex<NameSystem>>,
-        _listener: TcpListener,
-    }
-    pub fn serve(ns: Arc<Mutex<NameSystem>>, listener: TcpListener) -> APIServer {
-        APIServer {
-            _ns: ns,
-            _listener: listener,
-        }
-    }
-}
-
-use inner::*;
 
 struct ActiveNameSystem {
     name_system: Arc<Mutex<NameSystem>>,
@@ -53,19 +41,29 @@ pub async fn run(mut config: RunnerConfig) -> Result<()> {
             node_config.dht_config.to_owned(),
         )?;
 
-        // Request address from DHT to resolve default port (0) to
-        // selected port.
-        let address = node
-            .listen(node_config.listening_address.to_owned())
-            .await?;
-        node.add_peers(node_config.peers.to_owned()).await?;
+        if let Some(listening_address) = node_config.listening_address.take() {
+            // Request address from DHT to resolve default port (0) to
+            // selected port.
+            let address = node.listen(listening_address.to_owned()).await?;
+            info!("Listening on {}...", address);
+            addresses.push(address);
+        }
 
-        println!("Listening on {}...", address);
+        node.add_peers(node_config.peers.to_owned()).await?;
 
         let wrapped_node = Arc::new(Mutex::new(node));
 
-        let api_thread = if let Some(api_listener) = node_config.api_listener.take() {
-            Some(serve(wrapped_node.clone(), api_listener))
+        let api_thread = if cfg!(feature = "api-server") {
+            if let Some(api_address) = node_config.api_address.take() {
+                let api_listener = TcpListener::bind(api_address)?;
+                info!(
+                    "Operator API listening on {}...",
+                    api_listener.local_addr()?
+                );
+                Some(APIServer::serve(wrapped_node.clone(), api_listener))
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -74,35 +72,26 @@ pub async fn run(mut config: RunnerConfig) -> Result<()> {
             name_system: wrapped_node,
             _api_thread: api_thread,
         });
-        addresses.push(address);
     }
 
-    println!("Bootstrapping...");
-    for (i, ns) in name_systems.iter_mut().enumerate() {
-        let mut local_peers = addresses.clone();
-        // Remove a node's own address from peers
-        // TODO is this necessary?
-        local_peers.remove(i);
-
+    info!("Bootstrapping...");
+    for (_i, ns) in name_systems.iter_mut().enumerate() {
         let node = ns.name_system.lock().await;
 
-        if local_peers.len() != 0 {
+        if !addresses.is_empty() {
             // Add both local peers (other nodes hosted in this process)
             // and provided bootstrap peers
-            node.add_peers(local_peers).await?;
+            node.add_peers(addresses.clone()).await?;
         }
 
         node.bootstrap().await?;
     }
-    println!("Bootstrapped.");
+    info!("Bootstrapped.");
 
-    let mut tick = tokio::time::interval(tokio::time::Duration::from_secs(1));
-
-    loop {
-        tick.tick().await;
-        let ns = name_systems.get(0).unwrap().name_system.lock().await;
-        println!("network check  {:#?}", ns.network_info().await?);
-    }
+    // Construct an empty stream to keep this runner function alive.
+    // This is where we could add streaming events from the DHT.
+    let mut empty_stream = empty::<()>();
+    while let None = empty_stream.next().await {}
 
     Ok(())
 }
