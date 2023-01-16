@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use itertools::Itertools;
 use noosphere_core::data::Did;
 use noosphere_fs::{SphereFile, SphereFs};
 use safer_ffi::prelude::*;
@@ -237,6 +238,39 @@ pub fn ns_sphere_file_header_values_read(
         .get_header(name.to_str())
         .into_iter()
         .map(|header| header.try_into().unwrap())
+        .collect::<Vec<char_p::Box>>()
+        .into_boxed_slice()
+        .into()
+}
+
+#[ffi_export]
+/// Get the first header value for a given name in the file, if any
+pub fn ns_sphere_file_header_value_first(
+    sphere_file: &NsSphereFile,
+    name: char_p::Ref<'_>,
+) -> Option<char_p::Box> {
+    sphere_file
+        .inner
+        .memo
+        .get_first_header(name.to_str())
+        .into_iter()
+        .nth(0)
+        .map(|value| value.try_into().unwrap())
+}
+
+#[ffi_export]
+/// Read all the headers associated with a file as an array of strings. Note
+/// that headers will be reduced to a single entry in cases where multiple
+/// headers share the same name.
+pub fn ns_sphere_file_header_names_read(sphere_file: &NsSphereFile) -> c_slice::Box<char_p::Box> {
+    sphere_file
+        .inner
+        .memo
+        .headers
+        .iter()
+        .map(|(name, _)| name)
+        .unique()
+        .map(|name| name.to_owned().try_into().unwrap())
         .collect::<Vec<char_p::Box>>()
         .into_boxed_slice()
         .into()
