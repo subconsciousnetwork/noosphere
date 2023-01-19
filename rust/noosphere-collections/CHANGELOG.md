@@ -1,5 +1,9 @@
 # Changelog
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.4.0 to 0.4.1
+
 ## [0.3.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.2.0...noosphere-collections-v0.3.0) (2022-12-14)
 
 

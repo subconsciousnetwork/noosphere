@@ -8,6 +8,14 @@
   * dependencies
     * noosphere-api bumped from 0.1.0 to 0.2.0
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.5.0 to 0.5.1
+    * noosphere-fs bumped from 0.4.0 to 0.4.1
+    * noosphere-storage bumped from 0.4.0 to 0.4.1
+    * noosphere-api bumped from 0.5.1 to 0.5.2
+    * noosphere bumped from 0.5.0 to 0.5.1
+
 ## [0.6.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.5.0...noosphere-cli-v0.6.0) (2022-12-14)
 
 
