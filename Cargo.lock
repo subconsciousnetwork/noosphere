@@ -2988,6 +2988,7 @@ dependencies = [
  "async-trait",
  "cid 0.9.0",
  "console_error_panic_hook",
+ "itertools",
  "js-sys",
  "lazy_static",
  "libipld-core 0.15.0",
