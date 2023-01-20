@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.5.0...noosphere-v0.5.1) (2023-01-19)
+
+
+### Features
+
+* Extend C FFI for header enumeration ([#202](https://github.com/subconsciousnetwork/noosphere/issues/202)) ([b404ec0](https://github.com/subconsciousnetwork/noosphere/commit/b404ec0d117e2467bfbe4a3bda4253e1c57f584e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-into bumped from 0.4.0 to 0.4.1
+
 ## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.4.0...noosphere-v0.5.0) (2022-12-14)
 
 

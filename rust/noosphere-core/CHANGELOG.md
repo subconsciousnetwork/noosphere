@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.5.0...noosphere-core-v0.5.1) (2023-01-19)
+
+
+### Features
+
+* Improvements to the NameSystem based on initial gateway integration ([#196](https://github.com/subconsciousnetwork/noosphere/issues/196)) ([4a6898e](https://github.com/subconsciousnetwork/noosphere/commit/4a6898e0aa8e1d96780226d384a6876eac122658))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.4.0 to 0.4.1
+    * noosphere-collections bumped from 0.3.0 to 0.3.1
+
 ## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.4.0...noosphere-core-v0.5.0) (2022-12-14)
 
 
