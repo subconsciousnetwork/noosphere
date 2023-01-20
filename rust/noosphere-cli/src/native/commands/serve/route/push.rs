@@ -18,7 +18,8 @@ use ucan::capability::{Capability, Resource, With};
 use ucan::crypto::KeyMaterial;
 
 use crate::native::commands::serve::{
-    authority::GatewayAuthority, extractor::Cbor, gateway::GatewayScope, ipfs::SyndicationJob,
+    authority::GatewayAuthority, extractor::Cbor, gateway::GatewayScope,
+    ipfs::SyndicationJob,
 };
 
 // #[debug_handler]
