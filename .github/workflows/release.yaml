@@ -30,6 +30,7 @@ jobs:
         steps.release.outputs['rust/noosphere-collections--release_created'] ||
         steps.release.outputs['rust/noosphere-core--release_created'] ||
         steps.release.outputs['rust/noosphere-fs--release_created'] ||
+        steps.release.outputs['rust/noosphere-ipfs--release_created'] ||
         steps.release.outputs['rust/noosphere-into--release_created'] ||
         steps.release.outputs['rust/noosphere-ns--release_created'] ||
         steps.release.outputs['rust/noosphere-storage--release_created'] }}

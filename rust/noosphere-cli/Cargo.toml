@@ -29,7 +29,6 @@ tempfile = "^3"
 clap = { version = "^4", features = ["derive", "cargo"] }
 anyhow = "^1"
 
-async-compat = { version = "~0.2" }
 tokio = { version = "^1", features = ["full"] }
 tokio-stream = "~0.1"
 axum = { version = "~0.5", features = ["headers", "macros"] }
@@ -38,13 +37,9 @@ tower-http = { version = "~0.3", features = ["cors", "trace"] }
 async-trait = "~0.1"
 tracing = "~0.1"
 tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
-ipfs-api-prelude = "~0.5"
-hyper = "~0.14"
-hyper-multipart-rfc7578 = "~0.8"
 multipart = "~0.18"
 wnfs = { version = "0.1.9" }
 iroh-car = { version = "0.1.3" }
-
 
 url = { version = "^2", features = [ "serde" ] }
 whoami = "^1"
@@ -56,6 +51,7 @@ witty-phrase-generator = "~0.2"
 toml_edit = { version = "~0.15", features = [ "serde" ] }
 globset = "~0.4"
 
+noosphere-ipfs = { version = "0.0.1", path = "../noosphere-ipfs" }
 noosphere-core = { version = "0.5.1", path = "../noosphere-core" }
 noosphere-fs = { version = "0.4.1", path = "../noosphere-fs" }
 noosphere-storage = { version = "0.4.1", path = "../noosphere-storage" }

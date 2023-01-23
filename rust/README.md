@@ -67,7 +67,7 @@ If you wish to compile for targets other than your local platform target, you
 can use rustup to get other targets easily. For example:
 
 ```sh
-rustup target install wasm32-unknown-unknown
+rustup target add wasm32-unknown-unknown
 ```
 
 If you would like install the full set of targets used by this project at this

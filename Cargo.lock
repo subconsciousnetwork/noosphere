@@ -3043,16 +3043,12 @@ name = "noosphere-cli"
 version = "0.6.1"
 dependencies = [
  "anyhow",
- "async-compat",
  "async-trait",
  "axum 0.5.17",
  "cid 0.9.0",
  "clap",
  "globset",
  "home",
- "hyper 0.14.22",
- "hyper-multipart-rfc7578",
- "ipfs-api-prelude",
  "iroh-car",
  "libipld-cbor 0.15.0",
  "libipld-core 0.15.0",
@@ -3062,6 +3058,7 @@ dependencies = [
  "noosphere-api",
  "noosphere-core",
  "noosphere-fs",
+ "noosphere-ipfs",
  "noosphere-storage",
  "path-absolutize",
  "pathdiff",
@@ -3202,6 +3199,27 @@ dependencies = [
  "ucan-key-support",
  "url 2.3.1",
  "wasm-bindgen-test",
+]
+
+[[package]]
+name = "noosphere-ipfs"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "async-compat",
+ "async-trait",
+ "cid 0.9.0",
+ "hyper 0.14.22",
+ "hyper-multipart-rfc7578",
+ "ipfs-api-prelude",
+ "iroh-car",
+ "libipld-cbor 0.15.0",
+ "noosphere-storage",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "url 2.3.1",
 ]
 
 [[package]]

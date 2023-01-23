@@ -8,6 +8,7 @@ use noosphere_core::{
     data::{ContentType, Did},
     view::{Sphere, Timeline},
 };
+use noosphere_ipfs::{IpfsClient, KuboClient};
 use noosphere_storage::{block_deserialize, block_serialize, BlockStore, KeyValueStore, Storage};
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -25,9 +26,7 @@ use url::Url;
 use iroh_car::{CarHeader, CarWriter};
 use wnfs::private::BloomFilter;
 
-use crate::native::commands::{config::COUNTERPART, serve::ipfs::IpfsClient};
-
-use super::KuboClient;
+use crate::native::commands::config::COUNTERPART;
 
 /// A [SyndicationJob] is a request to syndicate the blocks of a _counterpart_
 /// sphere to the broader IPFS network.
