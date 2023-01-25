@@ -48,15 +48,17 @@ where
 {
     pub async fn try_get_changelog(&self) -> Result<&ChangelogIpld<MapOperation<K, V>>> {
         self.changelog
-            .get_or_try_init(async {
-                let ipld = self
-                    .store
-                    .load::<DagCborCodec, VersionedMapIpld<K, V>>(&self.cid)
-                    .await?;
-                self.store
-                    .load::<DagCborCodec, ChangelogIpld<MapOperation<K, V>>>(&ipld.changelog)
-                    .await
-            })
+            .get_or_try_init(async { self.try_load_changelog().await })
+            .await
+    }
+
+    pub async fn try_load_changelog(&self) -> Result<ChangelogIpld<MapOperation<K, V>>> {
+        let ipld = self
+            .store
+            .load::<DagCborCodec, VersionedMapIpld<K, V>>(&self.cid)
+            .await?;
+        self.store
+            .load::<DagCborCodec, ChangelogIpld<MapOperation<K, V>>>(&ipld.changelog)
             .await
     }
 

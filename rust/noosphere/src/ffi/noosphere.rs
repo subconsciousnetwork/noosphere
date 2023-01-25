@@ -10,12 +10,11 @@ use crate::{
     NoosphereNetwork, NoosphereSecurity, NoosphereStorage,
 };
 
-ReprC! {
-    #[ReprC::opaque]
-    pub struct NsNoosphereContext {
-        inner: NoosphereContext,
-        async_runtime: Arc<TokioRuntime>
-    }
+#[derive_ReprC]
+#[ReprC::opaque]
+pub struct NsNoosphereContext {
+    inner: NoosphereContext,
+    async_runtime: Arc<TokioRuntime>,
 }
 
 impl NsNoosphereContext {
@@ -60,14 +59,19 @@ impl NsNoosphereContext {
 /// invoke almost all other API functions.
 ///
 /// In order to initialize the [NoosphereContext], you must provide two
-/// namespace strings: one for "global" Noosphere configuration, and another
-/// for sphere storage. Note that at this time "global" configuration is only
-/// used for insecure, on-disk key storage and we will probably deprecate such
+/// namespace strings: one for "global" Noosphere configuration, and another for
+/// sphere storage. Note that at this time "global" configuration is only used
+/// for insecure, on-disk key storage and we will probably deprecate such
 /// configuration at a future date.
 ///
 /// You can also initialize the [NoosphereContext] with an optional third
-/// argument: a URL string that refers to a Noosphere Gateway API somewhere
-/// on the network that one or more local spheres may have access to.
+/// argument: a URL string that refers to a Noosphere Gateway API somewhere on
+/// the network that one or more local spheres may have access to.
+///
+/// For this and all other ns_* functions that return a pointer, the pointer
+/// should be considered to refer to owned data unless specified otherwise in
+/// documentation. This means that you _must_ manually free all data given to
+/// you by the FFI (using the appropriate ns-prefixed "free" function).
 pub fn ns_initialize(
     global_storage_path: char_p::Ref<'_>,
     sphere_storage_path: char_p::Ref<'_>,

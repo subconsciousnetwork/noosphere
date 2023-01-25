@@ -3117,6 +3117,7 @@ dependencies = [
  "async-once-cell 0.3.1",
  "async-recursion",
  "async-std",
+ "async-stream",
  "async-trait",
  "base64 0.13.0",
  "byteorder",
@@ -4397,6 +4398,7 @@ dependencies = [
  "proc-macro-hack",
  "require_unsafe_in_body",
  "safer_ffi-proc_macro",
+ "uninit",
 ]
 
 [[package]]
@@ -5516,6 +5518,12 @@ name = "unicode-xid"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f962df74c8c05a667b5ee8bcf162993134c104e96440b663c8daa176dc772d8c"
+
+[[package]]
+name = "uninit"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac20c07bcac4f505f1e4fbd2e55b54f6297a35a27538f107cb3d4254b4514146"
 
 [[package]]
 name = "universal-hash"

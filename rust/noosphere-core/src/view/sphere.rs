@@ -1,5 +1,7 @@
 use anyhow::{anyhow, Result};
+use async_stream::try_stream;
 use cid::Cid;
+use futures::Stream;
 use libipld_cbor::DagCborCodec;
 
 use ucan::{
@@ -16,8 +18,8 @@ use crate::{
         SphereAction, SphereReference, SPHERE_SEMANTICS,
     },
     data::{
-        AuthorityIpld, Bundle, CidKey, ContentType, DelegationIpld, Did, Header, MemoIpld,
-        RevocationIpld, SphereIpld, TryBundle, Version,
+        AuthorityIpld, Bundle, ChangelogIpld, CidKey, ContentType, DelegationIpld, Did, Header,
+        MapOperation, MemoIpld, RevocationIpld, SphereIpld, TryBundle, Version,
     },
     view::{Links, SphereMutation, SphereRevision, Timeline},
 };
@@ -543,6 +545,29 @@ impl<S: BlockStore> Sphere<S> {
             Sphere::at(&sphere_cid, &self.store),
             Authorization::Ucan(ucan),
         ))
+    }
+
+    /// Consume the [Sphere] and get a [Stream] that yields the [ChangelogIpld]
+    /// for content slugs at each version of the sphere.
+    pub fn into_link_changelog_stream(
+        self,
+        since: Option<&Cid>,
+    ) -> impl Stream<Item = Result<(Cid, ChangelogIpld<MapOperation<String, Cid>>)>> {
+        let since = since.cloned();
+
+        try_stream! {
+            let timeline = Timeline::new(&self.store);
+            let timeslice = timeline.slice(&self.cid, since.as_ref());
+
+            let items = timeslice.try_to_chronological().await?;
+
+            for (cid, _) in items {
+                let links = Sphere::at(&cid, &self.store).try_get_links().await?;
+                let changelog = links.try_load_changelog().await?;
+
+                yield (cid, changelog);
+            }
+        }
     }
 }
 

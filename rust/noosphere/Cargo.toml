@@ -61,7 +61,7 @@ features = [
 ]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-safer-ffi = { version = "~0.0.10", features = ["proc_macros"] }
+safer-ffi = { version = "~0.0.10", features = ["proc_macros", "out-refs"] }
 tokio = { version = "^1", features = ["full"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
