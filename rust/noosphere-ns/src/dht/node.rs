@@ -219,7 +219,7 @@ impl DHTNode {
     pub async fn start_providing(&self, key: &[u8]) -> Result<(), DHTError> {
         let request = DHTRequest::StartProviding { key: key.to_vec() };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::StartProviding { key: _ } => Ok(()))
+        ensure_response!(response, DHTResponse::Success => Ok(()))
     }
 
     /// Queries the network to find peers that are providing `key`.
@@ -227,7 +227,7 @@ impl DHTNode {
     pub async fn get_providers(&self, key: &[u8]) -> Result<Vec<PeerId>, DHTError> {
         let request = DHTRequest::GetProviders { key: key.to_vec() };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::GetProviders { providers, key: _ } => Ok(providers))
+        ensure_response!(response, DHTResponse::GetProviders { providers } => Ok(providers))
     }
 
     async fn send_request(&self, request: DHTRequest) -> Result<DHTResponse, DHTError> {

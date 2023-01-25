@@ -9,14 +9,11 @@ use libp2p::{
     identity::Keypair,
     kad::{self, Kademlia, KademliaConfig, KademliaEvent, KademliaStoreInserts},
     mplex, noise,
-    swarm::SwarmBuilder,
-    swarm::{self, ConnectionHandler, IntoConnectionHandler, SwarmEvent},
-    tcp, yamux, NetworkBehaviour, PeerId, Transport,
+    swarm::{self, ConnectionHandler, IntoConnectionHandler, NetworkBehaviour, SwarmEvent},
+    tcp, yamux, PeerId, Swarm, Transport,
 };
 use std::time::Duration;
-use std::{boxed::Box, future::Future, pin::Pin};
 use std::{io, result::Result};
-use tokio;
 
 #[derive(Debug)]
 pub enum DHTEvent {
@@ -93,9 +90,8 @@ pub type DHTSwarm = libp2p::swarm::Swarm<DHTBehaviour>;
 /// Creates the Transport mechanism that describes how peers communicate.
 /// Currently, mostly an inlined form of `libp2p::tokio_development_transport`.
 fn build_transport(keypair: &Keypair) -> Result<Boxed<(PeerId, StreamMuxerBox)>, io::Error> {
-    let transport = dns::TokioDnsConfig::system(tcp::TokioTcpTransport::new(
-        tcp::GenTcpConfig::new().nodelay(true),
-    ))?;
+    let transport =
+        dns::TokioDnsConfig::system(tcp::tokio::Transport::new(tcp::Config::new().nodelay(true)))?;
 
     let noise_keys = noise::Keypair::<noise::X25519Spec>::new()
         .into_authentic(keypair)
@@ -118,23 +114,8 @@ pub fn build_swarm(
     local_peer_id: &PeerId,
     config: &DHTConfig,
 ) -> Result<DHTSwarm, DHTError> {
-    struct ExecutorHandle {
-        handle: tokio::runtime::Handle,
-    }
-
-    impl libp2p::core::Executor for ExecutorHandle {
-        fn exec(&self, future: Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
-            self.handle.spawn(future);
-        }
-    }
-
     let transport = build_transport(keypair).map_err(DHTError::from)?;
     let behaviour = DHTBehaviour::new(keypair, local_peer_id, config);
-
-    let handle = tokio::runtime::Handle::current();
-    let executor_handle = Box::new(ExecutorHandle { handle });
-    let swarm = SwarmBuilder::new(transport, behaviour, local_peer_id.to_owned())
-        .executor(executor_handle)
-        .build();
+    let swarm = Swarm::with_tokio_executor(transport, behaviour, local_peer_id.to_owned());
     Ok(swarm)
 }
