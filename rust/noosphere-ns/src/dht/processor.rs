@@ -196,10 +196,7 @@ where
                     self,
                     message,
                     Ok::<kad::QueryId, DHTError>(
-                        self.swarm
-                            .behaviour_mut()
-                            .kad
-                            .get_record(Key::new(key), Quorum::One)
+                        self.swarm.behaviour_mut().kad.get_record(Key::new(key))
                     )
                 );
             }
@@ -276,23 +273,34 @@ where
 
     async fn process_kad_event(&mut self, event: KademliaEvent) {
         match event {
-            KademliaEvent::OutboundQueryCompleted { id, result, .. } => match result {
-                QueryResult::GetRecord(Ok(ok)) => {
-                    for PeerRecord {
-                        record: Record { key, value, .. },
-                        ..
-                    } in ok.records
-                    {
-                        if let Some(message) = self.requests.remove(&id) {
-                            let is_valid = self.validate(&value).await;
-                            // We don't want to propagate validation errors for all
-                            // possible invalid records, but handle it similarly as if
-                            // no record at all was found.
-                            message.respond(Ok(DHTResponse::GetRecord(DHTRecord {
-                                key: key.to_vec(),
-                                value: if is_valid { Some(value) } else { None },
-                            })));
+            KademliaEvent::OutboundQueryProgressed { id, result, .. } => match result {
+                QueryResult::GetRecord(Ok(kad::GetRecordOk::FoundRecord(PeerRecord {
+                    record: Record { key, value, .. },
+                    ..
+                }))) => {
+                    if let Some(message) = self.requests.remove(&id) {
+                        let is_valid = self.validate(&value).await;
+                        // We don't want to propagate validation errors for all
+                        // possible invalid records, but handle it similarly as if
+                        // no record at all was found.
+                        message.respond(Ok(DHTResponse::GetRecord(DHTRecord {
+                            key: key.to_vec(),
+                            value: if is_valid { Some(value) } else { None },
+                        })));
+                    };
+                }
+                QueryResult::GetRecord(Ok(kad::GetRecordOk::FinishedWithNoAdditionalRecord {
+                    ..
+                })) => {
+                    if let Some(message) = self.requests.remove(&id) {
+                        let key = {
+                            if let DHTRequest::GetRecord { ref key, .. } = message.request {
+                                key.to_owned()
+                            } else {
+                                panic!("Request must be GetRecord");
+                            }
                         };
+                        message.respond(Ok(DHTResponse::GetRecord(DHTRecord { key, value: None })));
                     }
                 }
                 QueryResult::GetRecord(Err(e)) => {
@@ -335,9 +343,9 @@ where
                         message.respond(Err(DHTError::from(e)));
                     }
                 }
-                QueryResult::StartProviding(Ok(kad::AddProviderOk { key })) => {
+                QueryResult::StartProviding(Ok(kad::AddProviderOk { .. })) => {
                     if let Some(message) = self.requests.remove(&id) {
-                        message.respond(Ok(DHTResponse::StartProviding { key: key.to_vec() }));
+                        message.respond(Ok(DHTResponse::Success));
                     }
                 }
                 QueryResult::StartProviding(Err(e)) => {
@@ -345,18 +353,25 @@ where
                         message.respond(Err(DHTError::from(e)));
                     }
                 }
-                QueryResult::GetProviders(Ok(kad::GetProvidersOk {
-                    providers,
-                    key,
-                    closest_peers: _,
-                })) => {
-                    if let Some(message) = self.requests.remove(&id) {
-                        message.respond(Ok(DHTResponse::GetProviders {
-                            providers: providers.into_iter().collect(),
-                            key: key.to_vec(),
-                        }));
+                QueryResult::GetProviders(Ok(result)) => match result {
+                    kad::GetProvidersOk::FoundProviders { providers, .. } => {
+                        // Respond once we find any providers for now.
+                        if providers.len() > 0 {
+                            if let Some(message) = self.requests.remove(&id) {
+                                message.respond(Ok(DHTResponse::GetProviders {
+                                    providers: providers.into_iter().collect(),
+                                }));
+                            }
+                        }
                     }
-                }
+                    kad::GetProvidersOk::FinishedWithNoAdditionalRecord { .. } => {
+                        // If this message has not been sent yet, then no providers
+                        // have been discovered.
+                        if let Some(message) = self.requests.remove(&id) {
+                            message.respond(Ok(DHTResponse::GetProviders { providers: vec![] }));
+                        }
+                    }
+                },
                 QueryResult::GetProviders(Err(e)) => {
                     if let Some(message) = self.requests.remove(&id) {
                         message.respond(Err(DHTError::from(e)));

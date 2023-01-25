@@ -115,16 +115,8 @@ pub enum DHTResponse {
     GetAddresses(Vec<Multiaddr>),
     GetNetworkInfo(DHTNetworkInfo),
     GetRecord(DHTRecord),
-    PutRecord {
-        key: Vec<u8>,
-    },
-    StartProviding {
-        key: Vec<u8>,
-    },
-    GetProviders {
-        key: Vec<u8>,
-        providers: Vec<libp2p::PeerId>,
-    },
+    PutRecord { key: Vec<u8> },
+    GetProviders { providers: Vec<libp2p::PeerId> },
 }
 
 impl fmt::Display for DHTResponse {
@@ -145,15 +137,9 @@ impl fmt::Display for DHTResponse {
                 "DHTResponse::PutRecord {{ key={:?} }}",
                 str::from_utf8(key)
             ),
-            DHTResponse::StartProviding { key } => write!(
+            DHTResponse::GetProviders { providers } => write!(
                 fmt,
-                "DHTResponse::StartProviding {{ key={:?} }}",
-                str::from_utf8(key)
-            ),
-            DHTResponse::GetProviders { key, providers } => write!(
-                fmt,
-                "DHTResponse::GetProviders {{ key={:?}, providers={:?} }}",
-                str::from_utf8(key),
+                "DHTResponse::GetProviders {{ providers={:?} }}",
                 providers
             ),
         }

@@ -90,7 +90,6 @@ async fn test_dhtnode_providers() -> Result<(), DHTError> {
     client_a.start_providing(b"foo").await?;
 
     let providers = client_b.get_providers(b"foo").await?;
-    println!("{:#?}", providers);
     assert_eq!(providers.len(), 1);
     assert_eq!(&providers[0], client_a.peer_id());
     Ok(())
