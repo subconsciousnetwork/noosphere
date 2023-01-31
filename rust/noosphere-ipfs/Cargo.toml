@@ -26,7 +26,7 @@ anyhow = "^1"
 async-compat = { version = "~0.2" }
 async-trait = "~0.1"
 cid = "~0.9"
-hyper = "~0.14"
+hyper = { version = "~0.14", features = ["full"] }
 hyper-multipart-rfc7578 = "~0.8"
 ipfs-api-prelude = "~0.5"
 serde = "^1"
