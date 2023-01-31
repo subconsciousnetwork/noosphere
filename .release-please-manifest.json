@@ -1,6 +1,6 @@
 {
   "rust/noosphere-api": "0.5.3",
-  "rust/noosphere-cli": "0.6.2",
+  "rust/noosphere-cli": "0.6.3",
   "rust/noosphere-collections": "0.3.1",
   "rust/noosphere-core": "0.6.0",
   "rust/noosphere-into": "0.4.2",
@@ -8,5 +8,5 @@
   "rust/noosphere-storage": "0.4.1",
   "rust/noosphere-fs": "0.5.0",
   "rust/noosphere": "0.6.0",
-  "rust/noosphere-ipfs": "0.1.0"
+  "rust/noosphere-ipfs": "0.1.1"
 }
