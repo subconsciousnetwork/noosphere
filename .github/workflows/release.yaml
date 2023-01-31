@@ -130,8 +130,8 @@ jobs:
         run: |
           URL="https://github.com/subconsciousnetwork/noosphere/releases/download/${{ needs.release-please.outputs.noosphere_release_tag_name }}/libnoosphere-apple-xcframework.zip"
 
-          sed -i '' -e "s#url: \"[^\"]*\",#url: \"$URL\",#" ./Package.swift
-          sed -i '' -e "s#checksum: \"[^\"]*\"),#checksum: \"${{ steps.generate-checksum.checksum }}\"),#" ./Package.swift
+          sed -i -e "s#url: \"[^\"]*\",#url: \"$URL\",#" ./Package.swift
+          sed -i -e "s#checksum: \"[^\"]*\"),#checksum: \"${{ steps.generate-checksum.checksum }}\"),#" ./Package.swift
       # TODO(#135): Evaluate if we want to automatically check this change in
       # and push it to the project repository
       - uses: actions/upload-artifact@v3
