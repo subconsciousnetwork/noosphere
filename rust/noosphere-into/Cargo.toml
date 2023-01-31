@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-into"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 description = "Transformations of Noosphere content into various target formats"
 keywords = ["html", "ipld", "noosphere", "subtext", "transcode"]
@@ -17,9 +17,9 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [dependencies]
-noosphere-core = { version = "0.5.1", path = "../noosphere-core" }
+noosphere-core = { version = "0.6.0", path = "../noosphere-core" }
 noosphere-storage = { version = "0.4.1", path = "../noosphere-storage" }
-noosphere-fs = { version = "0.4.1", path = "../noosphere-fs" }
+noosphere-fs = { version = "0.5.0", path = "../noosphere-fs" }
 subtext = { version = "0.3.2", features = ["stream"] }
 async-trait = "~0.1"
 url = "2"

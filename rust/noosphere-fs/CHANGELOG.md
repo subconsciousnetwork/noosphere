@@ -5,6 +5,24 @@
     * noosphere-core bumped from 0.5.0 to 0.5.1
     * noosphere-storage bumped from 0.4.0 to 0.4.1
 
+## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-fs-v0.4.1...noosphere-fs-v0.5.0) (2023-01-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* Sphere sync and change diff in C FFI (#210)
+
+### Features
+
+* Sphere sync and change diff in C FFI ([#210](https://github.com/subconsciousnetwork/noosphere/issues/210)) ([306d39c](https://github.com/subconsciousnetwork/noosphere/commit/306d39cdf6727fbeb34a49740b55f56834f4df07))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.5.1 to 0.6.0
+
 ## [0.4.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-fs-v0.3.0...noosphere-fs-v0.4.0) (2022-12-14)
 
 
