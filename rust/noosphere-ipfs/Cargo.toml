@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-ipfs"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
 description = "An interface for an IPFS client."
 keywords = [

@@ -10,6 +10,26 @@
     * noosphere-core bumped from 0.4.0 to 0.5.0
     * noosphere bumped from 0.4.0 to 0.5.0
 
+## [0.4.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.3.2...noosphere-ns-v0.4.0) (2023-01-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* upgrade libp2p to 0.50.0 (#209)
+
+### Features
+
+* DHT configuration and status API ([#207](https://github.com/subconsciousnetwork/noosphere/issues/207)) ([7e671cf](https://github.com/subconsciousnetwork/noosphere/commit/7e671cfe06768e7faadd9d2573a11c899ae9cb22))
+* upgrade libp2p to 0.50.0 ([#209](https://github.com/subconsciousnetwork/noosphere/issues/209)) ([14ab195](https://github.com/subconsciousnetwork/noosphere/commit/14ab195b797bcb23d1ed25a8eacc3fc37e30c0ce))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.5.1 to 0.6.0
+    * noosphere bumped from 0.5.1 to 0.6.0
+
 ## [0.3.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.3.1...noosphere-ns-v0.3.2) (2023-01-19)
 
 

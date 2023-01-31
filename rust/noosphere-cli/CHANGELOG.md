@@ -16,6 +16,24 @@
     * noosphere-api bumped from 0.5.1 to 0.5.2
     * noosphere bumped from 0.5.0 to 0.5.1
 
+## [0.6.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.6.1...noosphere-cli-v0.6.2) (2023-01-31)
+
+
+### Features
+
+* Introduce `noosphere-ipfs` crate ([#203](https://github.com/subconsciousnetwork/noosphere/issues/203)) ([ad1945b](https://github.com/subconsciousnetwork/noosphere/commit/ad1945bb7d64f169b6dac96807bf8d8e0c3ab482))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.0.1 to 0.1.0
+    * noosphere-core bumped from 0.5.1 to 0.6.0
+    * noosphere-fs bumped from 0.4.1 to 0.5.0
+    * noosphere-api bumped from 0.5.2 to 0.5.3
+    * noosphere bumped from 0.5.1 to 0.6.0
+
 ## [0.6.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.5.0...noosphere-cli-v0.6.0) (2022-12-14)
 
 

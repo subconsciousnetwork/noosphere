@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.5.1...noosphere-core-v0.6.0) (2023-01-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* Sphere sync and change diff in C FFI (#210)
+
+### Features
+
+* Sphere sync and change diff in C FFI ([#210](https://github.com/subconsciousnetwork/noosphere/issues/210)) ([306d39c](https://github.com/subconsciousnetwork/noosphere/commit/306d39cdf6727fbeb34a49740b55f56834f4df07))
+
 ## [0.5.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.5.0...noosphere-core-v0.5.1) (2023-01-19)
 
 
