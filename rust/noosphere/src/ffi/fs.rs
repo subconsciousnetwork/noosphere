@@ -1,22 +1,22 @@
 use anyhow::anyhow;
+use cid::Cid;
 use itertools::Itertools;
 use noosphere_core::data::Did;
 use noosphere_fs::{SphereFile, SphereFs};
-use safer_ffi::prelude::*;
+use safer_ffi::{char_p::InvalidNulTerminator, prelude::*};
 use std::{pin::Pin, str::FromStr};
 use subtext::{Peer, Slashlink};
 use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::{
-    ffi::{NsHeaders, NsNoosphereContext},
+    ffi::{NsError, NsHeaders, NsNoosphereContext, TryOrInitialize},
     platform::{PlatformKeyMaterial, PlatformStorage},
 };
 
-ReprC! {
-    #[ReprC::opaque]
-    pub struct NsSphereFs {
-        inner: SphereFs<PlatformStorage, PlatformKeyMaterial>
-    }
+#[derive_ReprC]
+#[ReprC::opaque]
+pub struct NsSphereFs {
+    inner: SphereFs<PlatformStorage, PlatformKeyMaterial>,
 }
 
 impl NsSphereFs {
@@ -29,11 +29,10 @@ impl NsSphereFs {
     }
 }
 
-ReprC! {
-    #[ReprC::opaque]
-    pub struct NsSphereFile {
-        inner: SphereFile<Pin<Box<dyn AsyncRead>>>
-    }
+#[derive_ReprC]
+#[ReprC::opaque]
+pub struct NsSphereFile {
+    inner: SphereFile<Pin<Box<dyn AsyncRead>>>,
 }
 
 impl NsSphereFile {
@@ -55,10 +54,10 @@ impl NsSphereFile {
 pub fn ns_sphere_fs_open(
     noosphere: &NsNoosphereContext,
     sphere_identity: char_p::Ref<'_>,
-) -> repr_c::Box<NsSphereFs> {
-    noosphere
-        .async_runtime()
-        .block_on(async {
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<repr_c::Box<NsSphereFs>> {
+    error_out.try_or_initialize(|| {
+        let fs = noosphere.async_runtime().block_on(async {
             let sphere_context = noosphere
                 .inner()
                 .get_sphere_context(&Did(sphere_identity.to_str().into()))
@@ -69,8 +68,10 @@ pub fn ns_sphere_fs_open(
             Ok(repr_c::Box::new(NsSphereFs {
                 inner: sphere_context.fs().await?,
             })) as Result<_, anyhow::Error>
-        })
-        .unwrap()
+        })?;
+
+        Ok(fs)
+    })
 }
 
 #[ffi_export]
@@ -171,6 +172,26 @@ pub fn ns_sphere_fs_write(
 }
 
 #[ffi_export]
+/// Unlinks a slug from the content space. Note that this does not remove the
+/// blocks that were previously associated with the content found at the given
+/// slug, because they will still be available at an earlier revision of the
+/// sphere. In order to commit the change, you must save. Note that this call is
+/// a no-op if there is no matching slug linked in the sphere.
+pub fn ns_sphere_fs_remove(
+    noosphere: &NsNoosphereContext,
+    sphere_fs: &mut NsSphereFs,
+    slug: char_p::Ref<'_>,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) {
+    error_out.try_or_initialize(|| {
+        noosphere
+            .async_runtime()
+            .block_on(async { sphere_fs.inner_mut().remove(slug.to_str()).await })?;
+        Ok(())
+    });
+}
+
+#[ffi_export]
 /// Save any writes performed on the [NsSphereFs] instance. If additional
 /// headers are specified, they will be appended to the headers in the memo that
 /// is created to wrap the latest sphere revision.
@@ -194,6 +215,84 @@ pub fn ns_sphere_fs_save(
         ),
         Err(error) => println!("Sphere save failed: {}", error),
     }
+}
+
+#[ffi_export]
+/// Get an array of all of the slugs in a sphere at the current version.
+pub fn ns_sphere_fs_list(
+    noosphere: &NsNoosphereContext,
+    sphere_fs: &NsSphereFs,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> c_slice::Box<char_p::Box> {
+    let possible_output = error_out.try_or_initialize(|| {
+        noosphere.async_runtime().block_on(async {
+            let slug_set = sphere_fs.inner().list().await;
+            let mut all_slugs: Vec<char_p::Box> = Vec::new();
+
+            for slug in slug_set.into_iter() {
+                all_slugs.push(
+                    slug.try_into()
+                        .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?,
+                );
+            }
+
+            Ok(all_slugs)
+        })
+    });
+
+    match possible_output {
+        Some(slugs) => slugs,
+        None => Vec::new(),
+    }
+    .into_boxed_slice()
+    .into()
+}
+
+#[ffi_export]
+/// Get an array of all of the slugs that changed in a given sphere since a
+/// given revision of that sphere (excluding the given revision). The revision
+/// should be provided as a base64-encoded CID v1 string. If no revision is
+/// provided, the entire history will be considered (back to and including the
+/// first revision).
+///
+/// Note that a slug change may mean the slug was added, updated or removed.
+/// Also Note also that multiple changes to the same slug will be reduced to a
+/// single entry in the array that is returned.
+pub fn ns_sphere_fs_changes(
+    noosphere: &NsNoosphereContext,
+    sphere_fs: &NsSphereFs,
+    since_cid: Option<char_p::Ref<'_>>,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> c_slice::Box<char_p::Box> {
+    let possible_output = error_out.try_or_initialize(|| {
+        noosphere.async_runtime().block_on(async {
+            let since = match since_cid {
+                Some(cid_string) => {
+                    Some(Cid::from_str(cid_string.to_str()).map_err(|error| anyhow!(error))?)
+                }
+                None => None,
+            };
+
+            let changed_slug_set = sphere_fs.inner().changes(since.as_ref()).await;
+            let mut changed_slugs: Vec<char_p::Box> = Vec::new();
+
+            for slug in changed_slug_set.into_iter() {
+                changed_slugs.push(
+                    slug.try_into()
+                        .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?,
+                );
+            }
+
+            Ok(changed_slugs)
+        })
+    });
+
+    match possible_output {
+        Some(slugs) => slugs,
+        None => Vec::new(),
+    }
+    .into_boxed_slice()
+    .into()
 }
 
 #[ffi_export]
@@ -274,4 +373,21 @@ pub fn ns_sphere_file_header_names_read(sphere_file: &NsSphereFile) -> c_slice::
         .collect::<Vec<char_p::Box>>()
         .into_boxed_slice()
         .into()
+}
+
+#[ffi_export]
+/// Get the base64-encoded CID v1 string for the memo that refers to the content
+/// of this [SphereFile].
+pub fn ns_sphere_file_version_get(
+    sphere_file: &NsSphereFile,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<char_p::Box> {
+    error_out.try_or_initialize(|| {
+        sphere_file
+            .inner
+            .memo_version
+            .to_string()
+            .try_into()
+            .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into())
+    })
 }

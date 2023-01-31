@@ -3,13 +3,13 @@ use async_stream::try_stream;
 use libipld_cbor::DagCborCodec;
 use noosphere_core::{
     authority::{Access, Author},
-    data::{BodyChunkIpld, ContentType, Did, Header, MemoIpld},
+    data::{BodyChunkIpld, ContentType, Did, Header, MapOperation, MemoIpld},
     view::{Sphere, SphereMutation},
 };
 use noosphere_storage::{BlockStore, SphereDb, Storage};
 use once_cell::sync::OnceCell;
-use std::str::FromStr;
-use tokio_stream::Stream;
+use std::{collections::BTreeSet, str::FromStr};
+use tokio_stream::{Stream, StreamExt};
 use tokio_util::io::StreamReader;
 use ucan::crypto::KeyMaterial;
 
@@ -318,6 +318,68 @@ where
         Ok(new_sphere_revision)
     }
 
+    /// Get a [BTreeSet] whose members are all the slugs that have values as of
+    /// this version of the sphere. Note that the full space of slugs may be
+    /// very large; for a more space-efficient approach, use [SphereFs::stream]
+    /// or [SphereFs::into_stream] to incrementally access all slugs in the
+    /// sphere.
+    ///
+    /// This method is forgiving of missing or corrupted data, and will yield
+    /// an incomplete set of links in the case that some or all links are
+    /// not able to be accessed.
+    pub async fn list(&self) -> BTreeSet<String> {
+        let link_stream = self.stream();
+
+        tokio::pin!(link_stream);
+
+        link_stream
+            .fold(BTreeSet::new(), |mut links, another_link| {
+                match another_link {
+                    Ok((slug, _)) => {
+                        links.insert(slug);
+                    }
+                    Err(error) => warn!(
+                        "Could not read a link from {}: {}",
+                        self.sphere_identity, error
+                    ),
+                };
+                links
+            })
+            .await
+    }
+
+    /// Get a [BTreeSet] whose members are all the slugs whose values have
+    /// changed at least once since the provided version of the sphere
+    /// (exclusive of the provided version; use `None` to get all slugs changed
+    /// since the beginning of the sphere's history).
+    ///
+    /// This method is forgiving of missing or corrupted history, and will yield
+    /// an incomplete set of changes in the case that some or all changes are
+    /// not able to be accessed.
+    ///
+    /// Note that this operation will scale in memory consumption and duration
+    /// proportionally to the size of the sphere and the length of its history.
+    /// For a more efficient method of accessing changes, consider using
+    /// [SphereFs::change_stream] instead.
+    pub async fn changes(&self, since: Option<&Cid>) -> BTreeSet<String> {
+        let change_stream = self.change_stream(since);
+
+        tokio::pin!(change_stream);
+
+        change_stream
+            .fold(BTreeSet::new(), |mut all, some| {
+                match some {
+                    Ok((_, mut changes)) => all.append(&mut changes),
+                    Err(error) => warn!(
+                        "Could not read some changes from {}: {}",
+                        self.sphere_identity, error
+                    ),
+                };
+                all
+            })
+            .await
+    }
+
     /// Get a stream that yields every slug in the namespace along with its
     /// corresponding [SphereFile]. This is useful for iterating over sphere
     /// content incrementally without having to load the entire index into
@@ -353,6 +415,35 @@ where
                 let file = self.get_file(revision).await?;
 
                 yield (key.clone(), file);
+            }
+        }
+    }
+
+    /// Get a stream that yields the set of slugs that changed at each revision
+    /// of the backing sphere, up to but excluding an optional CID. To stream
+    /// the entire history, pass `None` as the parameter.
+    pub fn change_stream<'a>(
+        &'a self,
+        since: Option<&'a Cid>,
+    ) -> impl Stream<Item = Result<(Cid, BTreeSet<String>)>> + 'a {
+        try_stream! {
+            let since = since.cloned();
+            let sphere = Sphere::at(&self.sphere_revision, &self.db);
+            let stream = sphere.into_link_changelog_stream(since.as_ref());
+
+            for await change in stream {
+                let (cid, changelog) = change?;
+                let mut changed_slugs = BTreeSet::new();
+
+                for operation in changelog.changes {
+                    let slug = match operation {
+                        MapOperation::Add { key, .. } => key,
+                        MapOperation::Remove { key } => key,
+                    };
+                    changed_slugs.insert(slug);
+                }
+
+                yield (cid, changed_slugs);
             }
         }
     }
@@ -510,6 +601,126 @@ pub mod tests {
         file.contents.read_to_string(&mut value).await.unwrap();
 
         assert_eq!("Cats are great", value.as_str());
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_list_all_slugs_currently_in_a_sphere() {
+        let storage_provider = MemoryStorage::default();
+        let mut db = SphereDb::new(&storage_provider).await.unwrap();
+
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await.unwrap();
+
+        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
+
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
+        let author = Author {
+            key: owner_key,
+            authorization: Some(proof),
+        };
+
+        db.set_version(&sphere_identity, sphere.cid())
+            .await
+            .unwrap();
+
+        let mut fs = SphereFs::latest(&sphere_identity, &author, &db)
+            .await
+            .unwrap();
+
+        let changes = vec![
+            vec!["dogs", "birds"],
+            vec!["cats", "dogs"],
+            vec!["birds"],
+            vec!["cows", "beetles"],
+        ];
+
+        for change in changes {
+            for slug in change {
+                fs.write(
+                    slug,
+                    &ContentType::Subtext.to_string(),
+                    b"are cool".as_ref(),
+                    None,
+                )
+                .await
+                .unwrap();
+            }
+
+            fs.save(None).await.unwrap();
+        }
+
+        let slugs = fs.list().await;
+
+        assert_eq!(slugs.len(), 5);
+
+        fs.remove("dogs").await.unwrap();
+        fs.save(None).await.unwrap();
+
+        let slugs = fs.list().await;
+
+        assert_eq!(slugs.len(), 4);
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_list_all_changes_to_slugs_in_a_sphere() {
+        let storage_provider = MemoryStorage::default();
+        let mut db = SphereDb::new(&storage_provider).await.unwrap();
+
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await.unwrap();
+
+        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
+
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
+        let author = Author {
+            key: owner_key,
+            authorization: Some(proof),
+        };
+
+        db.set_version(&sphere_identity, sphere.cid())
+            .await
+            .unwrap();
+
+        let mut fs = SphereFs::latest(&sphere_identity, &author, &db)
+            .await
+            .unwrap();
+
+        let changes = vec![
+            vec!["dogs", "birds"],
+            vec!["cats", "dogs"],
+            vec!["birds"],
+            vec!["cows", "beetles"],
+        ];
+
+        let mut versions = Vec::new();
+
+        for change in changes {
+            for slug in change {
+                fs.write(
+                    slug,
+                    &ContentType::Subtext.to_string(),
+                    b"are cool".as_ref(),
+                    None,
+                )
+                .await
+                .unwrap();
+            }
+
+            versions.push(fs.save(None).await.unwrap());
+        }
+
+        let changes = fs.changes(Some(&versions[2])).await;
+
+        assert_eq!(changes.len(), 3);
+
+        fs.remove("dogs").await.unwrap();
+        fs.save(None).await.unwrap();
+
+        let changes = fs.changes(Some(&versions[2])).await;
+
+        assert_eq!(changes.len(), 4);
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]

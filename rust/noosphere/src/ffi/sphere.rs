@@ -1,16 +1,17 @@
+use anyhow::anyhow;
 use cid::Cid;
 use noosphere_core::authority::Authorization;
 use noosphere_core::data::Did;
+use safer_ffi::char_p::InvalidNulTerminator;
 use safer_ffi::prelude::*;
 
-use crate::ffi::NsNoosphereContext;
+use crate::ffi::{NsError, NsNoosphereContext, TryOrInitialize};
 use crate::sphere::SphereReceipt;
 
-ReprC! {
-    #[ReprC::opaque]
-    pub struct NsSphereReceipt {
-        inner: SphereReceipt
-    }
+#[derive_ReprC]
+#[ReprC::opaque]
+pub struct NsSphereReceipt {
+    inner: SphereReceipt,
 }
 
 impl From<SphereReceipt> for NsSphereReceipt {
@@ -85,4 +86,64 @@ pub fn ns_sphere_join(
             Some(&authorization),
         ))
         .unwrap();
+}
+
+#[ffi_export]
+/// Get the version of a given sphere that is considered the most recent version
+/// in local history. If a version is recorded, it is returned as a
+/// base64-encoded CID v1 string.
+pub fn ns_sphere_version_get(
+    noosphere: &NsNoosphereContext,
+    sphere_identity: char_p::Ref<'_>,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<char_p::Box> {
+    error_out.try_or_initialize(|| {
+        noosphere.async_runtime().block_on(async {
+            let sphere_context = noosphere
+                .inner()
+                .get_sphere_context(&Did(sphere_identity.to_str().into()))
+                .await?;
+
+            let sphere_context = sphere_context.lock().await;
+            sphere_context
+                .sphere()
+                .await?
+                .cid()
+                .to_string()
+                .try_into()
+                .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into())
+        })
+    })
+}
+
+#[ffi_export]
+/// Sync a sphere with a gateway. A gateway URL must have been configured when
+/// the [NoosphereContext] was initialized. And, the sphere must have already
+/// been created or joined by the caller so that it is locally initialized (it's
+/// okay if this was done in an earlier session). The returned string is the
+/// base64-encoded CID v1 of the latest locally-available sphere revision after
+/// the synchronization process has successfully completed.
+pub fn ns_sphere_sync(
+    noosphere: &mut NsNoosphereContext,
+    sphere_identity: char_p::Ref<'_>,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<char_p::Box> {
+    error_out.try_or_initialize(|| {
+        let cid = noosphere.async_runtime().block_on(async {
+            let sphere_context = noosphere
+                .inner()
+                .get_sphere_context(&Did(sphere_identity.to_str().into()))
+                .await?;
+
+            let mut sphere_context = sphere_context.lock().await;
+
+            sphere_context.sync().await?;
+
+            Ok(sphere_context.sphere().await?.cid().to_string()) as Result<String, anyhow::Error>
+        })?;
+
+        Ok(cid
+            .try_into()
+            .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?)
+    })
 }

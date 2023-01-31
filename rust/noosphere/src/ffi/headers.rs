@@ -1,10 +1,9 @@
 use safer_ffi::prelude::*;
 
-ReprC! {
-    #[ReprC::opaque]
-    pub struct NsHeaders {
-        inner: Vec<(String, String)>
-    }
+#[derive_ReprC]
+#[ReprC::opaque]
+pub struct NsHeaders {
+    inner: Vec<(String, String)>,
 }
 
 impl NsHeaders {
