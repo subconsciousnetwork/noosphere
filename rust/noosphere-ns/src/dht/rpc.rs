@@ -1,58 +1,19 @@
 use crate::dht::channel::{Message, MessageClient, MessageProcessor};
 use crate::dht::errors::DHTError;
-use libp2p::{swarm::NetworkInfo, Multiaddr};
+use crate::dht::types::{DHTRecord, NetworkInfo, Peer};
+use libp2p::Multiaddr;
 
 use std::{fmt, str};
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct DHTNetworkInfo {
-    pub num_peers: usize,
-    pub num_connections: u32,
-    pub num_pending: u32,
-    pub num_established: u32,
-}
-
-impl From<NetworkInfo> for DHTNetworkInfo {
-    fn from(info: NetworkInfo) -> Self {
-        let c = info.connection_counters();
-        DHTNetworkInfo {
-            num_peers: info.num_peers(),
-            num_connections: c.num_connections(),
-            num_pending: c.num_pending(),
-            num_established: c.num_established(),
-        }
-    }
-}
-#[derive(Debug, Clone)]
-pub struct DHTRecord {
-    pub key: Vec<u8>,
-    pub value: Option<Vec<u8>>,
-}
-
-impl fmt::Display for DHTRecord {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let value = if let Some(value) = self.value.as_ref() {
-            str::from_utf8(value)
-        } else {
-            Ok("None")
-        };
-        write!(
-            fmt,
-            "DHTRecord {{ key: {:?}, value: {:?} }}",
-            str::from_utf8(&self.key),
-            value
-        )
-    }
-}
 
 #[derive(Debug)]
 pub enum DHTRequest {
     AddPeers { peers: Vec<Multiaddr> },
     StartListening { address: Multiaddr },
-    StopListening { address: Multiaddr },
+    StopListening,
     Bootstrap,
     //WaitForPeers(usize),
     GetAddresses { external: bool },
+    GetPeers,
     GetNetworkInfo,
     GetRecord { key: Vec<u8> },
     PutRecord { key: Vec<u8>, value: Vec<u8> },
@@ -74,8 +35,8 @@ impl fmt::Display for DHTRequest {
                     address
                 )
             }
-            DHTRequest::StopListening { address } => {
-                write!(fmt, "DHTRequest::StopListening {{ address={:?} }}", address)
+            DHTRequest::StopListening => {
+                write!(fmt, "DHTRequest::StopListening")
             }
             DHTRequest::Bootstrap => write!(fmt, "DHTRequest::Bootstrap"),
             DHTRequest::GetAddresses { external } => write!(
@@ -83,6 +44,7 @@ impl fmt::Display for DHTRequest {
                 "DHTRequest::GetAddresses {{ external={:?} }}",
                 external
             ),
+            DHTRequest::GetPeers => write!(fmt, "DHTRequest::GetPeers"),
             DHTRequest::GetNetworkInfo => write!(fmt, "DHTRequest::GetNetworkInfo"),
             DHTRequest::GetRecord { key } => write!(
                 fmt,
@@ -112,8 +74,10 @@ impl fmt::Display for DHTRequest {
 #[derive(Debug)]
 pub enum DHTResponse {
     Success,
+    Address(Multiaddr),
     GetAddresses(Vec<Multiaddr>),
-    GetNetworkInfo(DHTNetworkInfo),
+    GetNetworkInfo(NetworkInfo),
+    GetPeers(Vec<Peer>),
     GetRecord(DHTRecord),
     PutRecord { key: Vec<u8> },
     GetProviders { providers: Vec<libp2p::PeerId> },
@@ -123,8 +87,14 @@ impl fmt::Display for DHTResponse {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DHTResponse::Success => write!(fmt, "DHTResponse::Success"),
+            DHTResponse::Address(address) => {
+                write!(fmt, "DHTResponse::Address {{ {:?} }}", address)
+            }
             DHTResponse::GetAddresses(addresses) => {
                 write!(fmt, "DHTResponse::GetAddresses {{ {:?} }}", addresses)
+            }
+            DHTResponse::GetPeers(peers) => {
+                write!(fmt, "DHTResponse::GetPeers{:?}", peers)
             }
             DHTResponse::GetNetworkInfo(info) => {
                 write!(fmt, "DHTResponse::GetNetworkInfo {:?}", info)

@@ -1,7 +1,7 @@
 #![cfg(not(target_arch = "wasm32"))]
 #![cfg(test)]
 use async_trait::async_trait;
-use noosphere_ns::dht::{AllowAllValidator, DHTError, DHTNetworkInfo, DHTNode, RecordValidator};
+use noosphere_ns::dht::{AllowAllValidator, DHTError, DHTNode, NetworkInfo, RecordValidator};
 pub mod utils;
 use noosphere_core::authority::generate_ed25519_key;
 
@@ -19,7 +19,7 @@ async fn test_dhtnode_base_case() -> Result<(), DHTError> {
     let info = node.network_info().await?;
     assert_eq!(
         info,
-        DHTNetworkInfo {
+        NetworkInfo {
             num_connections: 0,
             num_established: 0,
             num_peers: 0,

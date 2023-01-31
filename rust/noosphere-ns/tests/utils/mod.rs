@@ -57,8 +57,7 @@ pub async fn create_nodes_with_peers<V: RecordValidator + Clone + 'static>(
         let config = create_test_dht_config();
         let node = DHTNode::new(&key_material, config, validator.clone())?;
         node.add_peers(bootstrap_addresses.to_vec()).await?;
-        node.start_listening(generate_default_listening_address())
-            .await?;
+        node.listen(generate_default_listening_address()).await?;
         client_nodes.push(node);
     }
     Ok(client_nodes)
@@ -76,11 +75,8 @@ pub async fn create_bootstrap_nodes<V: RecordValidator + Clone + 'static>(
         let key_material = generate_ed25519_key();
         let config = create_test_dht_config();
         let node = DHTNode::new(&key_material, config, validator.clone())?;
-        node.start_listening(generate_default_listening_address())
-            .await?;
-
-        let p2p_addresses = node.p2p_addresses().await?;
-        addresses.push(p2p_addresses.first().unwrap().to_owned());
+        let address = node.listen(generate_default_listening_address()).await?;
+        addresses.push(address);
         nodes.push(node);
     }
 

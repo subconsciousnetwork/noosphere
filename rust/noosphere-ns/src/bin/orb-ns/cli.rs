@@ -30,6 +30,11 @@ pub enum CLICommand {
         #[clap(short, long)]
         port: Option<u16>,
 
+        /// If no configuration path provided, the HTTP listening port of the
+        /// API web server associated with this DHT node.
+        #[clap(long)]
+        api_port: Option<u16>,
+
         /// If no configuration path provided, a list of bootstrap peers to connect to
         /// instead of the default bootstrap peers.
         #[clap(short, long)]
@@ -54,6 +59,7 @@ pub struct CLIConfigFile {
 pub struct CLIConfigFileNode {
     pub key: String,
     pub port: Option<u16>,
+    pub api_port: Option<u16>,
     #[serde(default)]
     pub peers: Vec<Multiaddr>,
     #[serde(default)]

@@ -1,10 +1,15 @@
-use crate::utils::generate_capability;
+use crate::utils::{generate_capability, generate_fact};
 use anyhow::{anyhow, Error as AnyhowError};
 use cid::Cid;
-use noosphere_core::authority::SPHERE_SEMANTICS;
+use noosphere_core::{authority::SPHERE_SEMANTICS, data::Did, view::SPHERE_LIFETIME};
 use noosphere_storage::{SphereDb, Storage};
+use serde::{
+    de::{self, Deserialize, Deserializer},
+    ser::{self, Serialize, Serializer},
+};
 use serde_json::Value;
 use std::{convert::TryFrom, str, str::FromStr};
+use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 use ucan::{chain::ProofChain, crypto::did::DidParser, Ucan};
 
 /// An [NSRecord] is the internal representation of a mapping from a
@@ -73,6 +78,50 @@ impl NSRecord {
         Self { token, link }
     }
 
+    /// Creates and signs a new NSRecord from an issuer key.
+    ///
+    /// ```
+    /// use noosphere_ns::NSRecord;
+    /// use noosphere_core::{data::Did, authority::generate_ed25519_key};
+    /// use noosphere_storage::{SphereDb, MemoryStorage};
+    /// use ucan_key_support::ed25519::Ed25519KeyMaterial;
+    /// use ucan::crypto::KeyMaterial;
+    /// use cid::Cid;
+    /// use tokio;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let sphere_key = generate_ed25519_key();
+    ///     let sphere_id = Did::from(sphere_key.get_did().await.unwrap());
+    ///     let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+    ///     let link: Cid = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72".parse().unwrap();
+    ///     let record = NSRecord::from_issuer(&sphere_key, &sphere_id, &link, None).await.unwrap();
+    /// }  
+    /// ```
+    pub async fn from_issuer<K: KeyMaterial>(
+        issuer: &K,
+        sphere_id: &Did,
+        link: &Cid,
+        proofs: Option<&Vec<Ucan>>,
+    ) -> Result<NSRecord, AnyhowError> {
+        let capability = generate_capability(&sphere_id);
+        let fact = generate_fact(&link.to_string());
+
+        let mut builder = UcanBuilder::default()
+            .issued_by(issuer)
+            .for_audience(sphere_id)
+            .with_lifetime(SPHERE_LIFETIME)
+            .claiming_capability(&capability)
+            .with_fact(fact);
+
+        if let Some(proofs) = proofs {
+            for token in proofs {
+                builder = builder.witnessed_by(token);
+            }
+        }
+        Ok(builder.build()?.sign().await?.into())
+    }
+
     /// Validates the underlying [Ucan] token, ensuring that
     /// the sphere's owner authorized the publishing of a new
     /// content address. Returns an `Err` if validation fails.
@@ -135,6 +184,27 @@ impl NSRecord {
     /// Encodes the underlying Ucan token back into a JWT string.
     pub fn try_to_string(&self) -> Result<String, AnyhowError> {
         self.token.encode()
+    }
+}
+
+impl Serialize for NSRecord {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let encoded = self.try_to_string().map_err(ser::Error::custom)?;
+        serializer.serialize_str(&encoded)
+    }
+}
+
+impl<'de> Deserialize<'de> for NSRecord {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let record = NSRecord::try_from(s).map_err(de::Error::custom)?;
+        Ok(record)
     }
 }
 
@@ -255,27 +325,17 @@ mod test {
     async fn test_nsrecord_self_signed() -> Result<(), AnyhowError> {
         let sphere_key = generate_ed25519_key();
         let sphere_identity = Did::from(sphere_key.get_did().await?);
-        let mut did_parser = DidParser::new(SUPPORTED_KEYS);
-        let capability = generate_capability(&sphere_identity);
-        let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
-        let fact = json!({ "link": cid_address });
+        let link = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
+        let cid_link: Cid = link.parse()?;
         let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
-        let record = NSRecord::new(
-            UcanBuilder::default()
-                .issued_by(&sphere_key)
-                .for_audience(&sphere_identity)
-                .with_lifetime(1000)
-                .claiming_capability(&capability)
-                .with_fact(fact)
-                .build()?
-                .sign()
-                .await?,
-        );
+        let record = NSRecord::from_issuer(&sphere_key, &sphere_identity, &cid_link, None).await?;
 
         assert_eq!(&Did::from(record.identity()), &sphere_identity);
-        assert_eq!(record.link(), Some(&Cid::from_str(cid_address).unwrap()));
-        record.validate(&store, &mut did_parser).await?;
+        assert_eq!(record.link(), Some(&cid_link));
+        record
+            .validate(&store, &mut DidParser::new(SUPPORTED_KEYS))
+            .await?;
         Ok(())
     }
 
@@ -286,27 +346,16 @@ mod test {
         let sphere_key = generate_ed25519_key();
         let sphere_identity = Did::from(sphere_key.get_did().await?);
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
-        let capability = generate_capability(&sphere_identity);
-        let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
-        let fact = json!({ "link": cid_address });
+        let link = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
+        let cid_link: Cid = link.parse()?;
         let mut store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
         // First verify that `owner` cannot publish for `sphere`
         // without delegation.
-        let record = NSRecord::new(
-            UcanBuilder::default()
-                .issued_by(&owner_key)
-                .for_audience(&sphere_identity)
-                .with_lifetime(1000)
-                .claiming_capability(&capability)
-                .with_fact(fact.clone())
-                .build()?
-                .sign()
-                .await?,
-        );
+        let record = NSRecord::from_issuer(&owner_key, &sphere_identity, &cid_link, None).await?;
 
         assert_eq!(record.identity(), &sphere_identity);
-        assert_eq!(record.link(), Some(&Cid::from_str(cid_address).unwrap()));
+        assert_eq!(record.link(), Some(&cid_link));
         if record.validate(&store, &mut did_parser).await.is_ok() {
             panic!("Owner should not have authorization to publish record")
         }
@@ -316,7 +365,7 @@ mod test {
         let delegate_ucan = UcanBuilder::default()
             .issued_by(&sphere_key)
             .for_audience(&owner_identity)
-            .with_lifetime(1000)
+            .with_lifetime(SPHERE_LIFETIME)
             .claiming_capability(&delegate_capability)
             .build()?
             .sign()
@@ -324,20 +373,12 @@ mod test {
         let _ = store.write_token(&delegate_ucan.encode()?).await?;
 
         // Attempt `owner` publishing `sphere` with the proper authorization
-        let record = NSRecord::new(
-            UcanBuilder::default()
-                .issued_by(&owner_key)
-                .for_audience(&sphere_identity)
-                .with_lifetime(1000)
-                .claiming_capability(&capability)
-                .witnessed_by(&delegate_ucan)
-                .with_fact(fact.clone())
-                .build()?
-                .sign()
-                .await?,
-        );
+        let proofs = vec![delegate_ucan];
+        let record =
+            NSRecord::from_issuer(&owner_key, &sphere_identity, &cid_link, Some(&proofs)).await?;
+
         assert_eq!(record.identity(), &sphere_identity);
-        assert_eq!(record.link(), Some(&Cid::from_str(cid_address).unwrap()));
+        assert_eq!(record.link(), Some(&cid_link));
         record.validate(&store, &mut did_parser).await?;
 
         Ok(())
@@ -378,7 +419,7 @@ mod test {
                 .for_audience(&sphere_identity)
                 .with_lifetime(1000)
                 .claiming_capability(&capability)
-                .with_fact(json!({ "link": cid_address }))
+                .with_fact(generate_fact(&cid_address))
                 .build()?
                 .sign()
                 .await?,
@@ -395,7 +436,7 @@ mod test {
                 .for_audience(&sphere_identity)
                 .with_lifetime(1000)
                 .claiming_capability(&sphere_capability)
-                .with_fact(json!({ "link": cid_address }))
+                .with_fact(generate_fact(&cid_address))
                 .build()?
                 .sign()
                 .await?,
@@ -411,7 +452,7 @@ mod test {
         let sphere_identity = Did::from(sphere_key.get_did().await?);
         let capability = generate_capability(&sphere_identity);
         let cid_address = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
-        let fact = json!({ "link": cid_address });
+        let fact = generate_fact(&cid_address);
 
         let ucan = UcanBuilder::default()
             .issued_by(&sphere_key)
@@ -426,6 +467,14 @@ mod test {
         let base = NSRecord::new(ucan.clone());
         let encoded = ucan.encode()?;
         let bytes = Vec::from(encoded.clone());
+
+        // NSRecord::serialize
+        // NSRecord::deserialize
+        let serialized = serde_json::to_string(&base)?;
+        assert_eq!(format!("\"{}\"", encoded), serialized, "serialize()");
+        let record: NSRecord = serde_json::from_str(&serialized)?;
+        assert_eq!(base.identity(), record.identity(), "deserialize()");
+        assert_eq!(base.link(), record.link(), "deserialize()");
 
         // NSRecord::try_from::<Vec<u8>>()
         let record = NSRecord::try_from(bytes.clone())?;

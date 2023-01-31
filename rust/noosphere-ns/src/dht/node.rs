@@ -3,10 +3,11 @@ use crate::dht::{
     errors::DHTError,
     keys::DHTKeyMaterial,
     processor::DHTProcessor,
-    rpc::{DHTMessageClient, DHTNetworkInfo, DHTRecord, DHTRequest, DHTResponse},
+    rpc::{DHTMessageClient, DHTRequest, DHTResponse},
+    types::{DHTRecord, NetworkInfo, Peer},
     DHTConfig, RecordValidator,
 };
-use libp2p::{multiaddr::Protocol, Multiaddr, PeerId};
+use libp2p::{Multiaddr, PeerId};
 use std::time::Duration;
 use tokio;
 
@@ -17,14 +18,6 @@ macro_rules! ensure_response {
             _ => Err(DHTError::Error("Unexpected".into())),
         }
     };
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum DHTStatus {
-    Initialized,
-    Active,
-    Terminated,
-    Error(String),
 }
 
 /// A node that participates in a DHT network.
@@ -59,7 +52,7 @@ pub enum DHTStatus {
 ///
 ///     let mut node = DHTNode::new(&key, DHTConfig::default(), Some(validator)).unwrap();
 ///     node.add_peers(bootstrap_peers).await.unwrap();
-///     node.start_listening("/ip4/127.0.0.1/tcp/0".parse().unwrap()).await.unwrap();
+///     node.listen("/ip4/127.0.0.1/tcp/0".parse().unwrap()).await.unwrap();
 ///     node.bootstrap().await.unwrap();
 /// }
 /// ```
@@ -114,18 +107,11 @@ impl DHTNode {
         ensure_response!(response, DHTResponse::GetAddresses(addresses) => Ok(addresses))
     }
 
-    /// Returns the listening addresses of this node as a P2P address.
-    pub async fn p2p_addresses(&self) -> Result<Vec<Multiaddr>, DHTError> {
-        let peer_id = self.peer_id();
-        Ok(self
-            .addresses()
-            .await?
-            .into_iter()
-            .map(|mut addr| {
-                addr.push(Protocol::P2p(peer_id.to_owned().into()));
-                addr
-            })
-            .collect::<Vec<Multiaddr>>())
+    /// Returns the external listening addresses of this node, if any.
+    pub async fn external_addresses(&self) -> Result<Vec<Multiaddr>, DHTError> {
+        let request = DHTRequest::GetAddresses { external: false };
+        let response = self.send_request(request).await?;
+        ensure_response!(response, DHTResponse::GetAddresses(addresses) => Ok(addresses))
     }
 
     /// Adds additional peers to the DHT routing table. At least
@@ -138,19 +124,17 @@ impl DHTNode {
 
     /// Allow this node to act as a server node and listen
     /// for incoming connections on the provided [Multiaddr].
-    pub async fn start_listening(&self, listening_address: Multiaddr) -> Result<(), DHTError> {
+    pub async fn listen(&self, listening_address: Multiaddr) -> Result<Multiaddr, DHTError> {
         let request = DHTRequest::StartListening {
             address: listening_address,
         };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::Success => Ok(()))
+        ensure_response!(response, DHTResponse::Address(addr) => Ok(addr))
     }
 
     /// Stops listening on the provided address.
-    pub async fn stop_listening(&self, listening_address: Multiaddr) -> Result<(), DHTError> {
-        let request = DHTRequest::StopListening {
-            address: listening_address,
-        };
+    pub async fn stop_listening(&self) -> Result<(), DHTError> {
+        let request = DHTRequest::StopListening;
         let response = self.send_request(request).await?;
         ensure_response!(response, DHTResponse::Success => Ok(()))
     }
@@ -184,10 +168,18 @@ impl DHTNode {
 
     /// Returns the current state of the network.
     /// Fails if node is not in an active state.
-    pub async fn network_info(&self) -> Result<DHTNetworkInfo, DHTError> {
+    pub async fn network_info(&self) -> Result<NetworkInfo, DHTError> {
         let request = DHTRequest::GetNetworkInfo;
         let response = self.send_request(request).await?;
         ensure_response!(response, DHTResponse::GetNetworkInfo(info) => Ok(info))
+    }
+
+    /// Returns the current state of the network.
+    /// Fails if node is not in an active state.
+    pub async fn peers(&self) -> Result<Vec<Peer>, DHTError> {
+        let request = DHTRequest::GetPeers;
+        let response = self.send_request(request).await?;
+        ensure_response!(response, DHTResponse::GetPeers(peers) => Ok(peers))
     }
 
     /// Sets the record keyed by `key` with `value` and propagates

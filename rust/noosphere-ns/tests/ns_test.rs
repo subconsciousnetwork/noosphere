@@ -4,8 +4,8 @@ pub mod utils;
 use anyhow::Result;
 use noosphere_core::{authority::generate_ed25519_key, data::Did, view::SPHERE_LIFETIME};
 use noosphere_ns::{
-    utils::{generate_capability, generate_fact},
-    Multiaddr, NSRecord, NameSystem,
+    utils::{generate_capability, generate_fact, wait_for_peers},
+    Multiaddr, NSRecord, NameSystem, NameSystemClient,
 };
 use noosphere_storage::{derive_cid, MemoryStorage, SphereDb};
 use utils::{create_test_dht_config, generate_default_listening_address};
@@ -13,6 +13,7 @@ use utils::{create_test_dht_config, generate_default_listening_address};
 use futures::future::try_join_all;
 use libipld_cbor::DagCborCodec;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore, time::now, Ucan};
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
@@ -48,12 +49,10 @@ async fn generate_name_system(
     let _ = store.write_token(&delegation.encode()?).await?;
 
     let ns_key = generate_ed25519_key();
-    let mut ns = NameSystem::new(&ns_key, store.to_owned(), create_test_dht_config())?;
-    ns.start_listening(generate_default_listening_address())
-        .await?;
+    let ns = NameSystem::new(&ns_key, store.to_owned(), create_test_dht_config())?;
+    ns.listen(generate_default_listening_address()).await?;
     ns.add_peers(bootstrap_addresses.to_vec()).await?;
     ns.bootstrap().await?;
-
     Ok(NSData {
         ns,
         owner_key,
@@ -73,13 +72,12 @@ async fn generate_name_systems_network(
 
     let bootstrap_node = {
         let key = generate_ed25519_key();
-        let mut node = NameSystem::new(&key, store.clone(), create_test_dht_config())?;
-        node.start_listening(generate_default_listening_address())
-            .await?;
+        let node = NameSystem::new(&key, store.clone(), create_test_dht_config())?;
+        node.listen(generate_default_listening_address()).await?;
         node
     };
-    let p2p_addresses = bootstrap_node.p2p_addresses().await?;
-    let bootstrap_addresses = vec![p2p_addresses.first().unwrap().to_owned()];
+    let address = bootstrap_node.address().await?.unwrap();
+    let bootstrap_addresses = vec![address];
 
     for _ in 0..ns_count {
         let ns_data = generate_name_system(&mut store, &bootstrap_addresses).await?;
@@ -271,19 +269,27 @@ async fn it_is_thread_safe() -> Result<()> {
         .await
         .insert(ns_1.owner_id.clone(), ucan_record.clone());
 
-    let arc_ns = Arc::new(ns_1.ns);
+    wait_for_peers(&ns_1.ns, 1).await?;
+    let network_info = ns_1.ns.network_info().await?;
+    assert_eq!(network_info.num_peers, 1, "expected number of peers");
+
+    let arc_ns = Arc::new(Mutex::new(ns_1.ns));
     let mut join_handles = vec![];
     for _ in 0..10 {
-        let ns = arc_ns.clone();
+        let name_system = arc_ns.clone();
         let identity = ns_1.owner_id.clone();
         let record = ucan_record.clone();
         join_handles.push(tokio::spawn(async move {
-            ns.put_record(record).await?;
-            ns.get_record(&identity).await
+            let ns = name_system.lock().await;
+            ns.put_record(record).await.unwrap();
+            let record = ns.get_record(&identity).await.unwrap();
+            let network_info = ns.network_info().await.unwrap();
+            (record, network_info)
         }));
     }
-    for result in try_join_all(join_handles).await? {
-        assert_eq!(result.unwrap().unwrap().link().unwrap(), &address);
+    for (record, n_info) in try_join_all(join_handles).await? {
+        assert_eq!(record.unwrap().link().unwrap(), &address);
+        assert_eq!(n_info, network_info);
     }
 
     Ok(())
