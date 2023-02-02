@@ -266,6 +266,7 @@ final class NoosphereTests: XCTestCase {
         let changes_to_make = [
             [
                 ["add", "foo", "bar"],
+                ["add", "baz", "vim"],
                 ["add", "hello", "world"]
             ],
             [

@@ -565,6 +565,13 @@ impl<S: BlockStore> Sphere<S> {
                 let links = Sphere::at(&cid, &self.store).try_get_links().await?;
                 let changelog = links.try_load_changelog().await?;
 
+                match since {
+                    Some(since) if since == cid => {
+                        continue;
+                    },
+                    _ => ()
+                };
+
                 yield (cid, changelog);
             }
         }
@@ -576,6 +583,7 @@ mod tests {
     use cid::Cid;
     use libipld_core::raw::RawCodec;
     use serde_bytes::Bytes;
+    use tokio_stream::StreamExt;
     use ucan::{
         builder::UcanBuilder,
         capability::{Capability, Resource, With},
@@ -856,6 +864,50 @@ mod tests {
                 sphere = parent;
             }
         }
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_excludes_since_when_resolving_changes() {
+        let mut store = MemoryStore::default();
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await.unwrap();
+
+        let (mut sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let mut lineage = vec![*sphere.cid()];
+
+        for i in 0..5u8 {
+            let mut mutation = SphereMutation::new(&owner_did);
+            mutation.links_mut().set(
+                &format!("foo/{i}"),
+                &store.save::<RawCodec, _>(Bytes::new(&[i])).await.unwrap(),
+            );
+            let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+            let next_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
+
+            sphere = Sphere::at(&next_cid, &store);
+            lineage.push(next_cid);
+        }
+
+        let since = lineage[2];
+
+        let stream = sphere.into_link_changelog_stream(Some(&since));
+
+        tokio::pin!(stream);
+
+        let change_revisions = stream
+            .fold(Vec::new(), |mut all, next| {
+                match next {
+                    Ok((cid, _)) => all.push(cid),
+                    Err(error) => unreachable!("{}", error),
+                };
+                all
+            })
+            .await;
+
+        assert_eq!(change_revisions.len(), 3);
+        assert_eq!(change_revisions.contains(&since), false);
+        assert_eq!(change_revisions, lineage.split_at(3).1);
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
