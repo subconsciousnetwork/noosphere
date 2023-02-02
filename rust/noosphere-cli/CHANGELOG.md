@@ -20,6 +20,13 @@
   * dependencies
     * noosphere-ipfs bumped from 0.1.0 to 0.1.1
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.6.0 to 0.6.1
+    * noosphere-fs bumped from 0.5.0 to 0.5.1
+    * noosphere-api bumped from 0.5.3 to 0.5.4
+    * noosphere bumped from 0.6.0 to 0.6.1
+
 ## [0.6.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.6.1...noosphere-cli-v0.6.2) (2023-01-31)
 
 
