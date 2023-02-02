@@ -1,5 +1,9 @@
 # Changelog
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-into bumped from 0.4.2 to 0.4.3
+
 ## [0.6.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.5.1...noosphere-v0.6.0) (2023-01-31)
 
 

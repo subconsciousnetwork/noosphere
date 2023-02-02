@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.6.0...noosphere-core-v0.6.1) (2023-02-02)
+
+
+### Bug Fixes
+
+* Ensure that sphere changes exclude `since` ([#216](https://github.com/subconsciousnetwork/noosphere/issues/216)) ([31fee07](https://github.com/subconsciousnetwork/noosphere/commit/31fee07424a019db21773947a5fe5a17a80f1c45))
+
 ## [0.6.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.5.1...noosphere-core-v0.6.0) (2023-01-31)
 
 

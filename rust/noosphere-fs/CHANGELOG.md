@@ -5,6 +5,20 @@
     * noosphere-core bumped from 0.5.0 to 0.5.1
     * noosphere-storage bumped from 0.4.0 to 0.4.1
 
+## [0.5.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-fs-v0.5.0...noosphere-fs-v0.5.1) (2023-02-02)
+
+
+### Bug Fixes
+
+* Ensure that sphere changes exclude `since` ([#216](https://github.com/subconsciousnetwork/noosphere/issues/216)) ([31fee07](https://github.com/subconsciousnetwork/noosphere/commit/31fee07424a019db21773947a5fe5a17a80f1c45))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.6.0 to 0.6.1
+
 ## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-fs-v0.4.1...noosphere-fs-v0.5.0) (2023-01-31)
 
 
