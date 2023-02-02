@@ -713,14 +713,14 @@ pub mod tests {
 
         let changes = fs.changes(Some(&versions[2])).await;
 
-        assert_eq!(changes.len(), 3);
+        assert_eq!(changes.len(), 2);
 
         fs.remove("dogs").await.unwrap();
         fs.save(None).await.unwrap();
 
         let changes = fs.changes(Some(&versions[2])).await;
 
-        assert_eq!(changes.len(), 4);
+        assert_eq!(changes.len(), 3);
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]

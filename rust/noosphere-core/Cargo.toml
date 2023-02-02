@@ -62,3 +62,6 @@ tokio = { version = "^1", features = ["full"] }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # NOTE: This is needed so that rand can be included in WASM builds
 getrandom = { version = "~0.2", features = ["js"] }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+tokio = { version = "^1", features = ["sync"] }

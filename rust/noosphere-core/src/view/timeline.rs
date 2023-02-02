@@ -90,3 +90,67 @@ impl<'a, S: BlockStore> Display for Timeslice<'a, S> {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use cid::Cid;
+    use libipld_core::raw::RawCodec;
+    use noosphere_storage::{BlockStore, MemoryStore};
+    use serde_bytes::Bytes;
+    use ucan::crypto::KeyMaterial;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    use crate::{
+        authority::generate_ed25519_key,
+        view::{Sphere, SphereMutation},
+    };
+
+    use super::Timeline;
+
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_includes_the_revision_delimiters() {
+        let mut store = MemoryStore::default();
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await.unwrap();
+
+        let (mut sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let mut lineage = vec![*sphere.cid()];
+
+        for i in 0..5u8 {
+            let mut mutation = SphereMutation::new(&owner_did);
+            mutation.links_mut().set(
+                &format!("foo/{i}"),
+                &store.save::<RawCodec, _>(Bytes::new(&[i])).await.unwrap(),
+            );
+            let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+            let next_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
+
+            sphere = Sphere::at(&next_cid, &store);
+            lineage.push(next_cid);
+        }
+
+        let past = lineage[1];
+        let future = lineage[3];
+
+        let timeline = Timeline::new(&store);
+        let timeslice = timeline.slice(&future, Some(&past));
+
+        let items: Vec<Cid> = timeslice
+            .try_to_chronological()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|(cid, _)| cid)
+            .collect();
+
+        assert_eq!(items.len(), 3);
+
+        assert_eq!(items[0], past);
+        assert_eq!(items[2], future);
+    }
+}
