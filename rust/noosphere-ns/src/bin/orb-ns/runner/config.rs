@@ -1,10 +1,9 @@
-use std::net::TcpListener;
-
 use crate::cli::{CLICommand, CLIConfigFile, CLIConfigFileNode};
 use crate::utils;
 use anyhow::{anyhow, Result};
 use noosphere::key::InsecureKeyStorage;
 use noosphere_ns::{DHTConfig, Multiaddr, BOOTSTRAP_PEERS};
+use std::net::SocketAddr;
 
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
@@ -12,8 +11,8 @@ use ucan_key_support::ed25519::Ed25519KeyMaterial;
 /// resolved data.
 pub struct RunnerNodeConfig {
     pub key_material: Ed25519KeyMaterial,
-    pub api_listener: Option<TcpListener>,
-    pub listening_address: Multiaddr,
+    pub api_address: Option<SocketAddr>,
+    pub listening_address: Option<Multiaddr>,
     pub peers: Vec<Multiaddr>,
     pub dht_config: DHTConfig,
 }
@@ -35,16 +34,9 @@ impl RunnerConfig {
         let mut nodes: Vec<RunnerNodeConfig> = vec![];
         for config_node in config.nodes {
             let dht_config = config_node.dht_config;
-            let port = config_node.port.unwrap_or(0);
             let key_material = utils::get_key_material(key_storage, &config_node.key).await?;
-            let api_port = if let Some(api_port) = config_node.api_port {
-                Some(TcpListener::bind(format!("127.0.0.1:{}", api_port))?)
-            } else {
-                None
-            };
-            let listening_address = format!("/ip4/127.0.0.1/tcp/{}", port)
-                .parse()
-                .expect("parseable");
+            let listening_address = config_node.listening_address;
+            let api_address = config_node.api_address;
             let mut peers = config_node.peers;
             if let Some(ref global_peers) = config.peers {
                 peers.append(&mut global_peers.clone());
@@ -53,7 +45,7 @@ impl RunnerConfig {
             peers.dedup();
 
             nodes.push(RunnerNodeConfig {
-                api_listener: api_port,
+                api_address,
                 key_material,
                 listening_address,
                 peers,
@@ -71,9 +63,9 @@ impl RunnerConfig {
             CLICommand::Run {
                 config,
                 key,
-                mut bootstrap,
-                mut port,
-                mut api_port,
+                bootstrap,
+                listening_address,
+                api_address,
             } => match config {
                 Some(config_path) => {
                     let toml_str = tokio::fs::read_to_string(&config_path).await?;
@@ -84,7 +76,7 @@ impl RunnerConfig {
                     let key_name: String =
                         key.ok_or_else(|| anyhow!("--key or --config must be provided."))?;
 
-                    let peers = if let Some(bootstrap_peers) = bootstrap.take() {
+                    let peers = if let Some(bootstrap_peers) = bootstrap {
                         bootstrap_peers
                     } else {
                         BOOTSTRAP_PEERS[..].to_vec()
@@ -93,8 +85,8 @@ impl RunnerConfig {
                     let config = CLIConfigFile {
                         nodes: vec![CLIConfigFileNode {
                             key: key_name.clone(),
-                            port: port.take(),
-                            api_port: api_port.take(),
+                            listening_address,
+                            api_address,
                             peers,
                             dht_config: Default::default(),
                         }],
@@ -164,10 +156,10 @@ mod tests {
         let rc = RunnerConfig::try_from_command(
             &env.key_storage,
             CLICommand::Run {
-                api_port: None,
+                api_address: None,
                 config: None,
                 key: Some(String::from("single-test-key")),
-                port: Some(6666),
+                listening_address: Some("/ip4/127.0.0.1/tcp/6666".parse()?),
                 bootstrap: None,
             },
         )
@@ -179,9 +171,9 @@ mod tests {
             "expected key material"
         );
         assert_eq!(
-            node_config.listening_address,
-            "/ip4/127.0.0.1/tcp/6666".to_string().parse()?,
-            "expected port"
+            node_config.listening_address.as_ref().unwrap(),
+            &"/ip4/127.0.0.1/tcp/6666".parse()?,
+            "expected listening_address"
         );
         assert_eq!(
             node_config.peers.len(),
@@ -208,14 +200,14 @@ peers = [
 
 [[nodes]]
 key = "my-bootstrap-key-1"
-port = 10000
+listening_address = 10000
 peers = [
     "/ip4/127.0.0.1/tcp/10001"
 ]
 
 [[nodes]]
 key = "my-bootstrap-key-2"
-port = 20000
+listening_address = 20000
 "#,
         )
         .await?;
@@ -226,10 +218,10 @@ port = 20000
         let rc = RunnerConfig::try_from_command(
             &env.key_storage,
             CLICommand::Run {
-                api_port: None,
+                api_address: None,
                 config: env.config_path.to_owned(),
                 key: None,
-                port: None,
+                listening_address: None,
                 bootstrap: None,
             },
         )
@@ -241,9 +233,9 @@ port = 20000
             "expected key material"
         );
         assert_eq!(
-            node_config.listening_address,
-            "/ip4/127.0.0.1/tcp/10000".to_string().parse()?,
-            "expected port"
+            node_config.listening_address.as_ref().unwrap(),
+            &"/ip4/127.0.0.1/tcp/10000".parse()?,
+            "expected listening_address"
         );
         assert!(
             node_config
@@ -265,9 +257,9 @@ port = 20000
             "expected key material"
         );
         assert_eq!(
-            node_config.listening_address,
-            "/ip4/127.0.0.1/tcp/20000".to_string().parse()?,
-            "expected port"
+            node_config.listening_address.as_ref().unwrap(),
+            &"/ip4/127.0.0.1/tcp/20000".parse()?,
+            "expected listening_address"
         );
         assert!(
             node_config
@@ -286,41 +278,41 @@ port = 20000
             r#"
 [[nodes]]
 key = "my-bootstrap-key-1"
-port = 10000
+listening_address = 10000
 [[nodes]]
 key = "my-bootstrap-key-2"
-port = 20000
+listening_address = 20000
 "#,
         )
         .await?;
 
         let commands = [
             CLICommand::Run {
-                api_port: None,
+                api_address: None,
                 config: None,
                 key: None,
-                port: Some(6666),
+                listening_address: Some("/ip4/127.0.0.1/tcp/6666".parse()?),
                 bootstrap: None,
             },
             CLICommand::Run {
-                api_port: None,
+                api_address: None,
                 config: None,
                 key: Some(String::from("key-does-not-exist")),
-                port: Some(6666),
+                listening_address: Some("/ip4/127.0.0.1/tcp/6666".parse()?),
                 bootstrap: None,
             },
             CLICommand::Run {
-                api_port: None,
+                api_address: None,
                 config: env.config_path.to_owned(),
                 key: None,
-                port: None,
+                listening_address: None,
                 bootstrap: None,
             },
             CLICommand::Run {
-                api_port: None,
+                api_address: None,
                 config: Some(env.dir_path.join("invalid_path")),
                 key: None,
-                port: None,
+                listening_address: None,
                 bootstrap: None,
             },
         ];

@@ -5,19 +5,16 @@ use std::future::Future;
 use std::path::PathBuf;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
-/// Runs `future` until a Ctrl+C signal is received either during
-/// `future`'s execution, or after, or if `future` returns an `Err`.
+/// Runs a future that may await into an `Err`, or otherwise is a long-running,
+/// empty future. That future will be held until a Ctrl+C signal
+/// is received.
 pub async fn run_until_abort(future: impl Future<Output = Result<()>>) -> Result<()> {
     // Allow aborting (ctrl+c) during the initial run,
     // and after (when we want to wait exclusively for ctrl+c signal)
-    let mut aborted = false;
     tokio::select! {
-        _ = tokio::signal::ctrl_c() => { aborted = true; },
+        _ = tokio::signal::ctrl_c() => {},
         result = future => { result?; }
     };
-    if !aborted {
-        tokio::signal::ctrl_c().await?;
-    }
     Ok(())
 }
 

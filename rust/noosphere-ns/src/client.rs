@@ -71,7 +71,7 @@ macro_rules! ns_client_tests {
         #[tokio::test]
         async fn name_system_client_network_info() -> Result<()> {
             let (_data, client) = $before_each().await?;
-            crate::client::test::test_network_info::<$type>(client).await
+            $crate::client::test::test_network_info::<$type>(client).await
         }
 
         #[tokio::test]
@@ -134,7 +134,7 @@ pub mod test {
                 .key_material(&key_material)
                 .store(&store)
                 .listening_port(0)
-                .bootstrap_peers(&vec![listener_address.clone()])
+                .bootstrap_peers(&[listener_address.clone()])
                 .use_test_config()
                 .build()
                 .await
@@ -169,7 +169,6 @@ pub mod test {
             .parse()
             .unwrap();
         let record = NSRecord::from_issuer(&sphere_key, &sphere_id, &link, None).await?;
-
         client.put_record(record).await?;
 
         let retrieved = client

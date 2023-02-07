@@ -73,7 +73,7 @@ impl NameSystemClient for HTTPClient {
         Ok(self.client.post(url).send().await?.json().await?)
     }
 
-    /// Stops listening for connections on provided address.
+    /// Stops listening for connections.
     async fn stop_listening(&self) -> Result<()> {
         let mut url = self.api_base.clone();
         let path = Route::StopListening.to_string();
