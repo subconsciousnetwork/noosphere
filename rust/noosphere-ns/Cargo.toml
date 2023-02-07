@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-ns"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 description = "A P2P name system for Noosphere"
 keywords = [
@@ -36,9 +36,9 @@ ucan = { version = "0.1.0" }
 ucan-key-support = { version = "0.1.0" }
 tokio = { version = "1.15", features = ["io-util", "io-std", "sync", "macros", "rt", "rt-multi-thread"] }
 noosphere-storage = { version = "0.4.1", path = "../noosphere-storage" }
-noosphere-core = { version = "0.6.1", path = "../noosphere-core" }
+noosphere-core = { version = "0.6.2", path = "../noosphere-core" }
 # noosphere_ns::bin
-noosphere = { version = "0.6.1", path = "../noosphere", optional = true }
+noosphere = { version = "0.6.2", path = "../noosphere", optional = true }
 clap = { version = "^4.1", features = ["derive"], optional = true }
 home = { version = "~0.5", optional = true }
 toml = { version = "~0.5", optional = true }

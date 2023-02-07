@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-cli"
-version = "0.6.4"
+version = "0.6.5"
 edition = "2021"
 description = "Reference client and pedagogical tool to demonstrate the principles of the Noosphere protocol"
 keywords = ["cli", "sync", "noosphere", "p2p", "ucan"]
@@ -52,11 +52,11 @@ toml_edit = { version = "~0.15", features = [ "serde" ] }
 globset = "~0.4"
 
 noosphere-ipfs = { version = "0.1.1", path = "../noosphere-ipfs" }
-noosphere-core = { version = "0.6.1", path = "../noosphere-core" }
-noosphere-fs = { version = "0.5.1", path = "../noosphere-fs" }
+noosphere-core = { version = "0.6.2", path = "../noosphere-core" }
+noosphere-fs = { version = "0.5.2", path = "../noosphere-fs" }
 noosphere-storage = { version = "0.4.1", path = "../noosphere-storage" }
-noosphere-api = { version = "0.5.4", path = "../noosphere-api" }
-noosphere = { version = "0.6.1", path = "../noosphere" }
+noosphere-api = { version = "0.5.5", path = "../noosphere-api" }
+noosphere = { version = "0.6.2", path = "../noosphere" }
 ucan = { version = "0.1.0" }
 ucan-key-support = { version = "0.1.0" }
 cid = "~0.9"
