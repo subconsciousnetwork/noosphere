@@ -1,3 +1,6 @@
+// See: https://github.com/getditto/safer_ffi/issues/31#issuecomment-782070270
+#![allow(improper_ctypes_definitions)]
+
 use anyhow::anyhow;
 use cid::Cid;
 use itertools::Itertools;
@@ -93,39 +96,45 @@ pub fn ns_sphere_fs_read(
     noosphere: &NsNoosphereContext,
     sphere_fs: &NsSphereFs,
     slashlink: char_p::Ref<'_>,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<repr_c::Box<NsSphereFile>> {
-    noosphere
-        .async_runtime()
-        .block_on(async {
-            let slashlink = match Slashlink::from_str(slashlink.to_str()) {
-                Ok(slashlink) => slashlink,
-                _ => return Ok(None),
-            };
+    match error_out.try_or_initialize(|| {
+        noosphere
+            .async_runtime()
+            .block_on(async {
+                let slashlink = match Slashlink::from_str(slashlink.to_str()) {
+                    Ok(slashlink) => slashlink,
+                    _ => return Ok(None),
+                };
 
-            if Peer::None != slashlink.peer {
-                return Err(anyhow!("Peer in slashlink not yet supported"));
-            }
+                if Peer::None != slashlink.peer {
+                    return Err(anyhow!("Peer in slashlink not yet supported"));
+                }
 
-            let slug = match slashlink.slug {
-                Some(slug) => slug,
-                None => return Err(anyhow!("No slug specified in slashlink!")),
-            };
+                let slug = match slashlink.slug {
+                    Some(slug) => slug,
+                    None => return Err(anyhow!("No slug specified in slashlink!")),
+                };
 
-            println!(
-                "Reading sphere {} slug {}...",
-                sphere_fs.inner().identity(),
-                slug
-            );
+                println!(
+                    "Reading sphere {} slug {}...",
+                    sphere_fs.inner().identity(),
+                    slug
+                );
 
-            let file = sphere_fs.inner().read(&slug).await?;
+                let file = sphere_fs.inner().read(&slug).await?;
 
-            Ok(file.map(|sphere_file| {
-                repr_c::Box::new(NsSphereFile {
-                    inner: sphere_file.boxed(),
-                })
-            }))
-        })
-        .unwrap()
+                Ok(file.map(|sphere_file| {
+                    repr_c::Box::new(NsSphereFile {
+                        inner: sphere_file.boxed(),
+                    })
+                }))
+            })
+            .map_err(|error| error.into())
+    }) {
+        Some(maybe_file) => maybe_file,
+        None => None,
+    }
 }
 
 #[ffi_export]
@@ -145,30 +154,33 @@ pub fn ns_sphere_fs_write(
     content_type: char_p::Ref<'_>,
     bytes: c_slice::Ref<'_, u8>,
     additional_headers: Option<&NsHeaders>,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) {
-    noosphere.async_runtime().block_on(async {
-        let slug = slug.to_str();
+    error_out.try_or_initialize(|| {
+        noosphere.async_runtime().block_on(async {
+            let slug = slug.to_str();
 
-        println!(
-            "Writing sphere {} slug {}...",
-            sphere_fs.inner().identity(),
-            slug
-        );
+            println!(
+                "Writing sphere {} slug {}...",
+                sphere_fs.inner().identity(),
+                slug
+            );
 
-        match sphere_fs
-            .inner_mut()
-            .write(
-                slug,
-                content_type.to_str().try_into().unwrap(),
-                bytes.as_ref(),
-                additional_headers.map(|headers| headers.inner().clone()),
-            )
-            .await
-        {
-            Ok(_) => println!("Updated {:?}...", slug),
-            Err(error) => println!("Sphere write failed: {}", error),
-        }
-    })
+            sphere_fs
+                .inner_mut()
+                .write(
+                    slug,
+                    content_type.to_str(),
+                    bytes.as_ref(),
+                    additional_headers.map(|headers| headers.inner().clone()),
+                )
+                .await?;
+
+            println!("Updated {:?}...", slug);
+
+            Ok(())
+        })
+    });
 }
 
 #[ffi_export]
@@ -202,19 +214,23 @@ pub fn ns_sphere_fs_save(
     noosphere: &NsNoosphereContext,
     sphere_fs: &mut NsSphereFs,
     additional_headers: Option<&NsHeaders>,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) {
-    match noosphere.async_runtime().block_on(
-        sphere_fs
-            .inner_mut()
-            .save(additional_headers.map(|headers| headers.inner().clone())),
-    ) {
-        Ok(cid) => println!(
+    error_out.try_or_initialize(|| {
+        let cid = noosphere.async_runtime().block_on(
+            sphere_fs
+                .inner_mut()
+                .save(additional_headers.map(|headers| headers.inner().clone())),
+        )?;
+
+        println!(
             "Saved sphere {}; new revision is {}",
             sphere_fs.inner().identity(),
             cid
-        ),
-        Err(error) => println!("Sphere save failed: {}", error),
-    }
+        );
+
+        Ok(())
+    });
 }
 
 #[ffi_export]
@@ -309,18 +325,21 @@ pub fn ns_sphere_file_free(sphere_file: repr_c::Box<NsSphereFile>) {
 pub fn ns_sphere_file_contents_read(
     noosphere: &NsNoosphereContext,
     sphere_file: &mut NsSphereFile,
-) -> c_slice::Box<u8> {
-    noosphere.async_runtime().block_on(async {
-        let mut buffer = Vec::new();
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<c_slice::Box<u8>> {
+    error_out.try_or_initialize(|| {
+        noosphere.async_runtime().block_on(async {
+            let mut buffer = Vec::new();
 
-        sphere_file
-            .inner_mut()
-            .contents
-            .read_to_end(&mut buffer)
-            .await
-            .unwrap();
+            sphere_file
+                .inner_mut()
+                .contents
+                .read_to_end(&mut buffer)
+                .await
+                .map_err(|error| anyhow!(error))?;
 
-        buffer.into_boxed_slice().into()
+            Ok(buffer.into_boxed_slice().into())
+        })
     })
 }
 
@@ -336,7 +355,7 @@ pub fn ns_sphere_file_header_values_read(
         .memo
         .get_header(name.to_str())
         .into_iter()
-        .map(|header| header.try_into().unwrap())
+        .filter_map(|header| header.try_into().ok())
         .collect::<Vec<char_p::Box>>()
         .into_boxed_slice()
         .into()
@@ -353,8 +372,8 @@ pub fn ns_sphere_file_header_value_first(
         .memo
         .get_first_header(name.to_str())
         .into_iter()
+        .filter_map(|value| value.try_into().ok())
         .nth(0)
-        .map(|value| value.try_into().unwrap())
 }
 
 #[ffi_export]
@@ -369,7 +388,7 @@ pub fn ns_sphere_file_header_names_read(sphere_file: &NsSphereFile) -> c_slice::
         .iter()
         .map(|(name, _)| name)
         .unique()
-        .map(|name| name.to_owned().try_into().unwrap())
+        .filter_map(|name| name.to_owned().try_into().ok())
         .collect::<Vec<char_p::Box>>()
         .into_boxed_slice()
         .into()

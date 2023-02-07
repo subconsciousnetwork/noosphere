@@ -134,7 +134,8 @@ impl MemoIpld {
             .collect()
     }
 
-    /// Retrieve the first header (if any) that matches the given string name
+    /// Retrieve the first header value (if any) that matches the given header
+    /// name
     pub fn get_first_header(&self, name: &str) -> Option<String> {
         let lower_name = name.to_lowercase();
 

@@ -23,24 +23,34 @@ impl From<SphereReceipt> for NsSphereReceipt {
 #[ffi_export]
 /// Read the sphere identity (a DID encoded as a UTF-8 string) from a
 /// [SphereReceipt]
-pub fn ns_sphere_receipt_identity<'a>(sphere_receipt: &'a NsSphereReceipt) -> char_p::Box {
-    sphere_receipt
-        .inner
-        .identity
-        .to_string()
-        .try_into()
-        .unwrap()
+pub fn ns_sphere_receipt_identity<'a>(
+    sphere_receipt: &'a NsSphereReceipt,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<char_p::Box> {
+    error_out.try_or_initialize(|| {
+        sphere_receipt
+            .inner
+            .identity
+            .to_string()
+            .try_into()
+            .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into())
+    })
 }
 
 #[ffi_export]
 /// Read the mnemonic from a [SphereReceipt]
-pub fn ns_sphere_receipt_mnemonic<'a>(sphere_receipt: &'a NsSphereReceipt) -> char_p::Box {
-    sphere_receipt
-        .inner
-        .mnemonic
-        .to_string()
-        .try_into()
-        .unwrap()
+pub fn ns_sphere_receipt_mnemonic<'a>(
+    sphere_receipt: &'a NsSphereReceipt,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<char_p::Box> {
+    error_out.try_or_initialize(|| {
+        sphere_receipt
+            .inner
+            .mnemonic
+            .to_string()
+            .try_into()
+            .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into())
+    })
 }
 
 #[ffi_export]
@@ -57,14 +67,16 @@ pub fn ns_sphere_receipt_free(sphere_receipt: repr_c::Box<NsSphereReceipt>) {
 pub fn ns_sphere_create(
     noosphere: &mut NsNoosphereContext,
     owner_key_name: char_p::Ref<'_>,
-) -> repr_c::Box<NsSphereReceipt> {
-    repr_c::Box::new(
-        noosphere
-            .async_runtime()
-            .block_on(noosphere.inner_mut().create_sphere(owner_key_name.to_str()))
-            .unwrap()
-            .into(),
-    )
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<repr_c::Box<NsSphereReceipt>> {
+    error_out.try_or_initialize(|| {
+        Ok(repr_c::Box::new(
+            noosphere
+                .async_runtime()
+                .block_on(noosphere.inner_mut().create_sphere(owner_key_name.to_str()))
+                .map(|receipt| receipt.into())?,
+        ))
+    })
 }
 
 #[ffi_export]
@@ -76,16 +88,21 @@ pub fn ns_sphere_join(
     sphere_identity: char_p::Ref<'_>,
     local_key_name: char_p::Ref<'_>,
     authorization: char_p::Ref<'_>,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) {
-    let authorization = Authorization::Cid(Cid::try_from(authorization.to_str()).unwrap());
-    noosphere
-        .async_runtime()
-        .block_on(noosphere.inner_mut().join_sphere(
-            &Did::from(sphere_identity.to_str()),
-            local_key_name.to_str(),
-            Some(&authorization),
-        ))
-        .unwrap();
+    error_out.try_or_initialize(|| {
+        let authorization = Authorization::Cid(
+            Cid::try_from(authorization.to_str()).map_err(|error| anyhow!(error))?,
+        );
+        noosphere
+            .async_runtime()
+            .block_on(noosphere.inner_mut().join_sphere(
+                &Did::from(sphere_identity.to_str()),
+                local_key_name.to_str(),
+                Some(&authorization),
+            ))
+            .map_err(|error| error.into())
+    });
 }
 
 #[ffi_export]
