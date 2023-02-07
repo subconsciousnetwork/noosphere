@@ -4,6 +4,20 @@
   * dependencies
     * noosphere-into bumped from 0.4.2 to 0.4.3
 
+## [0.6.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.6.1...noosphere-v0.6.2) (2023-02-07)
+
+
+### Features
+
+* General error handling in C FFI ([#219](https://github.com/subconsciousnetwork/noosphere/issues/219)) ([0a1952b](https://github.com/subconsciousnetwork/noosphere/commit/0a1952b34895071d2203505c95750d453bb110c6))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-into bumped from 0.4.3 to 0.4.4
+
 ## [0.6.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.5.1...noosphere-v0.6.0) (2023-01-31)
 
 

@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-fs"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2021"
 description = "A high-level, FS-like view over Noosphere content"
 keywords = ["fs", "ipld", "noosphere", "p2p", "async"]
@@ -19,7 +19,7 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [dependencies]
-noosphere-core = { version = "0.6.1", path = "../noosphere-core" }
+noosphere-core = { version = "0.6.2", path = "../noosphere-core" }
 noosphere-storage = { version = "0.4.1", path = "../noosphere-storage" }
 
 tokio = { version = "^1", features = ["sync", "io-util"] }

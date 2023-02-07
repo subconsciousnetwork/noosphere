@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.6.1...noosphere-core-v0.6.2) (2023-02-07)
+
+
+### Features
+
+* General error handling in C FFI ([#219](https://github.com/subconsciousnetwork/noosphere/issues/219)) ([0a1952b](https://github.com/subconsciousnetwork/noosphere/commit/0a1952b34895071d2203505c95750d453bb110c6))
+
 ## [0.6.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.6.0...noosphere-core-v0.6.1) (2023-02-02)
 
 

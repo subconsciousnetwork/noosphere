@@ -15,6 +15,21 @@
     * noosphere-core bumped from 0.6.0 to 0.6.1
     * noosphere bumped from 0.6.0 to 0.6.1
 
+## [0.4.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.4.1...noosphere-ns-v0.4.2) (2023-02-07)
+
+
+### Features
+
+* Integration of orb-ns CLI into the Name System's operator API ([#218](https://github.com/subconsciousnetwork/noosphere/issues/218)) ([7f83fad](https://github.com/subconsciousnetwork/noosphere/commit/7f83fad1f318ec45eb47de76ca855f9eab4fe688))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.6.1 to 0.6.2
+    * noosphere bumped from 0.6.1 to 0.6.2
+
 ## [0.4.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.3.2...noosphere-ns-v0.4.0) (2023-01-31)
 
 
