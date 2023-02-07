@@ -6,14 +6,14 @@ final class NoosphereTests: XCTestCase {
         // This is a basic integration test to ensure that file writing and
         // reading from swift works as intended
 
-        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil)
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
 
-        ns_key_create(noosphere, "bob")
+        ns_key_create(noosphere, "bob", nil)
 
-        let sphere_receipt = ns_sphere_create(noosphere, "bob")
+        let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
 
-        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt)
-        let sphere_mnemonic_ptr = ns_sphere_receipt_mnemonic(sphere_receipt)
+        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
+        let sphere_mnemonic_ptr = ns_sphere_receipt_mnemonic(sphere_receipt, nil)
 
         let sphere_identity = String.init(cString: sphere_identity_ptr!)
         let sphere_mnemonic = String.init(cString: sphere_mnemonic_ptr!)
@@ -31,19 +31,19 @@ final class NoosphereTests: XCTestCase {
             let bodyRaw = slice_ref_uint8(
                 ptr: pointer, len: file_bytes.count
             )
-            ns_sphere_fs_write(noosphere, sphere_fs, "hello", "text/subtext", bodyRaw, nil)
+            ns_sphere_fs_write(noosphere, sphere_fs, "hello", "text/subtext", bodyRaw, nil, nil)
         })
 
-        ns_sphere_fs_save(noosphere, sphere_fs, nil)
+        ns_sphere_fs_save(noosphere, sphere_fs, nil, nil)
 
-        let file = ns_sphere_fs_read(noosphere, sphere_fs, "/hello")
+        let file = ns_sphere_fs_read(noosphere, sphere_fs, "/hello", nil)
 
         let content_type_values = ns_sphere_file_header_values_read(file, "Content-Type")
         let content_type = String.init(cString: content_type_values.ptr.pointee!)
 
         print("Content-Type:", content_type)
 
-        let contents = ns_sphere_file_contents_read(noosphere, file)
+        let contents = ns_sphere_file_contents_read(noosphere, file, nil)
         let data: Data = .init(bytes: contents.ptr, count: contents.len)
         let subtext = String.init(decoding: data, as: UTF8.self)
 
@@ -62,14 +62,14 @@ final class NoosphereTests: XCTestCase {
     }
     
     func testIterateOverAllHeadersForAFile() throws {
-        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil)
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
 
-        ns_key_create(noosphere, "bob")
+        ns_key_create(noosphere, "bob", nil)
 
-        let sphere_receipt = ns_sphere_create(noosphere, "bob")
+        let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
 
-        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt)
-        let sphere_mnemonic_ptr = ns_sphere_receipt_mnemonic(sphere_receipt)
+        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
+        let sphere_mnemonic_ptr = ns_sphere_receipt_mnemonic(sphere_receipt, nil)
 
         let sphere_fs = ns_sphere_fs_open(noosphere, sphere_identity_ptr, nil)
 
@@ -86,12 +86,12 @@ final class NoosphereTests: XCTestCase {
             let bodyRaw = slice_ref_uint8(
                 ptr: pointer, len: file_bytes.count
             )
-            ns_sphere_fs_write(noosphere, sphere_fs, "hello", "text/subtext", bodyRaw, file_headers_in)
+            ns_sphere_fs_write(noosphere, sphere_fs, "hello", "text/subtext", bodyRaw, file_headers_in, nil)
         })
 
-        ns_sphere_fs_save(noosphere, sphere_fs, nil)
+        ns_sphere_fs_save(noosphere, sphere_fs, nil, nil)
 
-        let file = ns_sphere_fs_read(noosphere, sphere_fs, "/hello")
+        let file = ns_sphere_fs_read(noosphere, sphere_fs, "/hello", nil)
 
         let file_header_names = ns_sphere_file_header_names_read(file)
         
@@ -136,7 +136,7 @@ final class NoosphereTests: XCTestCase {
     }
     
     func testHandlingAnErrorCondition() throws {
-        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil)
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
 
         let bad_sphere_identity = "doesnotexist"
         
@@ -158,13 +158,13 @@ final class NoosphereTests: XCTestCase {
     }
     
     func testGetAllSlugsInASphere() throws {
-        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil)
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
 
-        ns_key_create(noosphere, "bob")
+        ns_key_create(noosphere, "bob", nil)
 
-        let sphere_receipt = ns_sphere_create(noosphere, "bob")
+        let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
 
-        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt)
+        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
 
         let sphere_fs = ns_sphere_fs_open(noosphere, sphere_identity_ptr, nil)
 
@@ -206,6 +206,7 @@ final class NoosphereTests: XCTestCase {
                             operation[1],
                             "text/subtext",
                             bodyRaw,
+                            nil,
                             nil
                         )
                     })
@@ -216,7 +217,7 @@ final class NoosphereTests: XCTestCase {
                 }
             }
             
-            ns_sphere_fs_save(noosphere, sphere_fs, nil)
+            ns_sphere_fs_save(noosphere, sphere_fs, nil, nil)
         
             let sphere_version_ptr = ns_sphere_version_get(noosphere, sphere_identity_ptr, nil)
             sphere_versions.append(String.init(cString: sphere_version_ptr!))
@@ -253,13 +254,13 @@ final class NoosphereTests: XCTestCase {
     }
     
     func testGettingChangedSlugsAcrossRevisions() throws {
-        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil)
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
 
-        ns_key_create(noosphere, "bob")
+        ns_key_create(noosphere, "bob", nil)
 
-        let sphere_receipt = ns_sphere_create(noosphere, "bob")
+        let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
 
-        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt)
+        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
 
         let sphere_fs = ns_sphere_fs_open(noosphere, sphere_identity_ptr, nil)
 
@@ -302,6 +303,7 @@ final class NoosphereTests: XCTestCase {
                             operation[1],
                             "text/subtext",
                             bodyRaw,
+                            nil,
                             nil
                         )
                     })
@@ -312,7 +314,7 @@ final class NoosphereTests: XCTestCase {
                 }
             }
             
-            ns_sphere_fs_save(noosphere, sphere_fs, nil)
+            ns_sphere_fs_save(noosphere, sphere_fs, nil, nil)
             let sphere_version_ptr = ns_sphere_version_get(noosphere, sphere_identity_ptr, nil)
             sphere_versions.append(String.init(cString: sphere_version_ptr!))
             ns_string_free(sphere_version_ptr)
@@ -349,13 +351,13 @@ final class NoosphereTests: XCTestCase {
     }
     
     func testGettingVersionOfSphereFile() throws {
-        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil)
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
 
-        ns_key_create(noosphere, "bob")
+        ns_key_create(noosphere, "bob", nil)
 
-        let sphere_receipt = ns_sphere_create(noosphere, "bob")
+        let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
 
-        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt)
+        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
         let sphere_fs = ns_sphere_fs_open(noosphere, sphere_identity_ptr, nil)
         
         ns_string_free(sphere_identity_ptr)
@@ -369,12 +371,12 @@ final class NoosphereTests: XCTestCase {
             let bodyRaw = slice_ref_uint8(
                 ptr: pointer, len: file_bytes.count
             )
-            ns_sphere_fs_write(noosphere, sphere_fs, "hello", "text/subtext", bodyRaw, nil)
+            ns_sphere_fs_write(noosphere, sphere_fs, "hello", "text/subtext", bodyRaw, nil, nil)
         })
 
-        ns_sphere_fs_save(noosphere, sphere_fs, nil)
+        ns_sphere_fs_save(noosphere, sphere_fs, nil, nil)
 
-        var file = ns_sphere_fs_read(noosphere, sphere_fs, "/hello")
+        var file = ns_sphere_fs_read(noosphere, sphere_fs, "/hello", nil)
         var version_ptr = ns_sphere_file_version_get(file, nil)
         let version_one = String.init(cString: version_ptr!)
         
@@ -389,12 +391,12 @@ final class NoosphereTests: XCTestCase {
             let bodyRaw = slice_ref_uint8(
                 ptr: pointer, len: file_bytes.count
             )
-            ns_sphere_fs_write(noosphere, sphere_fs, "hello", "text/subtext", bodyRaw, nil)
+            ns_sphere_fs_write(noosphere, sphere_fs, "hello", "text/subtext", bodyRaw, nil, nil)
         })
 
-        ns_sphere_fs_save(noosphere, sphere_fs, nil)
+        ns_sphere_fs_save(noosphere, sphere_fs, nil, nil)
 
-        file = ns_sphere_fs_read(noosphere, sphere_fs, "/hello")
+        file = ns_sphere_fs_read(noosphere, sphere_fs, "/hello", nil)
         version_ptr = ns_sphere_file_version_get(file, nil)
         let version_two = String.init(cString: version_ptr!)
         

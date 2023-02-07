@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use safer_ffi::prelude::*;
 use tokio::runtime::Runtime as TokioRuntime;
 use url::Url;
 
 use crate::{
+    ffi::{NsError, TryOrInitialize},
     noosphere::{NoosphereContext, NoosphereContextConfiguration},
     NoosphereNetwork, NoosphereSecurity, NoosphereStorage,
 };
@@ -76,17 +77,20 @@ pub fn ns_initialize(
     global_storage_path: char_p::Ref<'_>,
     sphere_storage_path: char_p::Ref<'_>,
     gateway_url: Option<char_p::Ref<'_>>,
-) -> repr_c::Box<NsNoosphereContext> {
-    repr_c::Box::new(
-        NsNoosphereContext::new(
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<repr_c::Box<NsNoosphereContext>> {
+    error_out.try_or_initialize(|| {
+        let gateway_url = match gateway_url {
+            Some(raw_url) => Some(Url::parse(raw_url.to_str()).map_err(|error| anyhow!(error))?),
+            None => None,
+        };
+
+        Ok(repr_c::Box::new(NsNoosphereContext::new(
             global_storage_path.to_str(),
             sphere_storage_path.to_str(),
-            gateway_url
-                .map(|value| Url::parse(value.to_str()).unwrap())
-                .as_ref(),
-        )
-        .unwrap(),
-    )
+            gateway_url.as_ref(),
+        )?))
+    })
 }
 
 #[ffi_export]
