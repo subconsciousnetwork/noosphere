@@ -125,7 +125,7 @@ jobs:
         id: generate-checksum
         run: |
           CHECKSUM=`openssl dgst -r -sha256 ./libnoosphere-apple-xcframework.zip | cut -d " " -f 1`
-          echo "checksum=\"$CHECKSUM\"" >> $GITHUB_OUTPUT
+          echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
       - name: 'Modify Package.swift'
         run: |
           URL="https://github.com/subconsciousnetwork/noosphere/releases/download/${{ needs.release-please.outputs.noosphere_release_tag_name }}/libnoosphere-apple-xcframework.zip"
