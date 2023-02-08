@@ -1,7 +1,6 @@
 FROM rust:1.65 as builder
 
-RUN mkdir -p /workspace/rust
-WORKDIR /workspace
+WORKDIR /noosphere
 
 COPY "./Cargo.toml" "./Cargo.lock" .
 COPY ./rust ./rust
@@ -17,7 +16,7 @@ RUN mkdir -p /root/sphere
 VOLUME ["/root/.noosphere", "/root/sphere"]
 EXPOSE 4433
 
-COPY --from=builder /workspace/rust/target/release/orb /usr/bin/orb
+COPY --from=builder /noosphere/target/release/orb /usr/bin/orb
 COPY ./images/orb/start.sh /start.sh
 
 RUN chmod +x /start.sh
