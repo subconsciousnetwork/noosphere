@@ -18,6 +18,27 @@ mod inner {
     pub type PlatformKeyMaterial = Ed25519KeyMaterial;
     pub type PlatformKeyStorage = InsecureKeyStorage;
     pub type PlatformStorage = NativeStorage;
+
+    #[cfg(test)]
+    use anyhow::Result;
+
+    #[cfg(test)]
+    use std::path::PathBuf;
+
+    #[cfg(test)]
+    use tempfile::TempDir;
+
+    #[cfg(test)]
+    pub async fn make_temporary_platform_primitives(
+    ) -> Result<(PathBuf, PlatformKeyStorage, (TempDir, TempDir))> {
+        let sphere_dir = TempDir::new().unwrap();
+
+        let key_dir = TempDir::new().unwrap();
+
+        let key_storage = InsecureKeyStorage::new(key_dir.path())?;
+
+        Ok((sphere_dir.path().into(), key_storage, (sphere_dir, key_dir)))
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
