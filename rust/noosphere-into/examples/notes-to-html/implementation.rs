@@ -2,10 +2,15 @@ use anyhow::{anyhow, Result};
 use axum::{http::StatusCode, response::IntoResponse, routing::get_service};
 use noosphere_fs::SphereFs;
 use noosphere_into::{sphere_into_html, NativeFs};
-use std::{net::SocketAddr, os::unix::prelude::OsStrExt, path::Path};
+use std::{ffi::OsStr, net::SocketAddr, path::Path};
 use tempfile::TempDir;
 use tokio::fs::{self, File};
 use tower_http::services::ServeDir;
+
+#[cfg(unix)]
+use std::os::unix::prelude::OsStrExt;
+#[cfg(windows)]
+use std::os::windows::prelude::OsStrExt;
 
 use noosphere_core::{
     authority::{generate_ed25519_key, Author},
@@ -51,18 +56,18 @@ pub async fn main() -> Result<()> {
         }
 
         let file_path = entry.path();
-        let slug = std::str::from_utf8(
+        let slug = os_str_to_str(
             file_path
                 .file_stem()
-                .ok_or_else(|| anyhow!("No slug able to be derived for {:?}", entry.file_name()))?
-                .as_bytes(),
-        )?;
+                .ok_or_else(|| anyhow!("No slug able to be derived for {:?}", entry.file_name()))?)
+                .map_err(|_| anyhow!("Could not parse slug into UTF-8"))?;
+
         let file = File::open(&file_path).await?;
-        let title = capitalize(slug);
+        let title = capitalize(&slug);
 
         sphere_fs
             .write(
-                slug,
+                &slug,
                 &ContentType::Subtext.to_string(),
                 file,
                 Some(vec![(Header::Title.to_string(), title)]),
@@ -101,4 +106,13 @@ pub fn capitalize(s: &str) -> String {
         None => String::new(),
         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
     }
+}
+
+fn os_str_to_str(os_str: &OsStr) -> Result<String, std::str::Utf8Error> {
+    #[cfg(unix)]
+    let out = String::from(std::str::from_utf8(os_str.as_bytes())?);
+    #[cfg(windows)]
+    let out = String::from_utf16_lossy(&os_str.encode_wide().collect::<Vec<u16>>());
+
+    Ok(out)
 }

@@ -26,7 +26,7 @@ impl Display for StorageLayout {
 impl From<&StorageLayout> for PathBuf {
     fn from(layout: &StorageLayout) -> Self {
         match layout {
-            StorageLayout::Scoped(path, scope) => path.join(scope.as_str()),
+            StorageLayout::Scoped(path, scope) => get_scoped_path(path, scope),
             StorageLayout::Unscoped(path) => path.join(".sphere/storage"),
         }
     }
@@ -56,4 +56,16 @@ impl StorageLayout {
     pub async fn to_storage(&self) -> Result<WebStorage> {
         WebStorage::new(&self.to_string()).await
     }
+}
+
+fn get_scoped_path(path: &PathBuf, scope: &Did) -> PathBuf {
+    #[cfg(not(windows))]
+    let path_buf = path.join(scope.as_str());
+    
+    #[cfg(windows)]
+    /// Windows does not allow `:` in file paths.
+    /// Replace `:` in scope/key with `_`.
+    let path_buf = path.join(scope.as_str().replace(":", "_"));
+
+    path_buf
 }
