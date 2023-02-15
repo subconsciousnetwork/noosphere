@@ -25,15 +25,6 @@ async fn await_or_timeout<T>(
     }
 }
 
-/// Creates a DHTConfig with appropriate settings for
-/// running tests.
-pub fn create_test_dht_config() -> DHTConfig {
-    DHTConfig {
-        peer_dialing_interval: 1,
-        ..Default::default()
-    }
-}
-
 pub async fn swarm_command<'a, TFuture, F, T, E>(
     nodes: &'a mut [DHTNode],
     func: F,
@@ -54,7 +45,7 @@ pub async fn create_nodes_with_peers<V: RecordValidator + Clone + 'static>(
     let mut client_nodes: Vec<DHTNode> = vec![];
     for _ in 0..client_count {
         let key_material = generate_ed25519_key();
-        let config = create_test_dht_config();
+        let config = DHTConfig::default();
         let node = DHTNode::new(&key_material, config, validator.clone())?;
         node.add_peers(bootstrap_addresses.to_vec()).await?;
         node.listen(generate_default_listening_address()).await?;
@@ -73,7 +64,7 @@ pub async fn create_bootstrap_nodes<V: RecordValidator + Clone + 'static>(
     let mut addresses: Vec<Multiaddr> = vec![];
     for _ in 0..count {
         let key_material = generate_ed25519_key();
-        let config = create_test_dht_config();
+        let config = DHTConfig::default();
         let node = DHTNode::new(&key_material, config, validator.clone())?;
         let address = node.listen(generate_default_listening_address()).await?;
         addresses.push(address);

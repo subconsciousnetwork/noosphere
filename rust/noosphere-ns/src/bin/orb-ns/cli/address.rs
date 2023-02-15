@@ -121,6 +121,7 @@ impl<'de> Deserialize<'de> for CLIAddress {
                     Err(de::Error::custom("Could not parse as CLIAddress."))
                 }
             }
+            // serde_json parses numbers as i64 or u64.
             fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
             where
                 E: de::Error,
@@ -131,6 +132,7 @@ impl<'de> Deserialize<'de> for CLIAddress {
                     Err(E::custom(format!("u16 out of range: {}", value)))
                 }
             }
+            // serde_json parses numbers as i64 or u64.
             fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
             where
                 E: de::Error,
@@ -239,7 +241,6 @@ impl TryFrom<CLIAddress> for Multiaddr {
 pub mod test {
     use super::*;
     use anyhow::Result;
-    //use serde::Deserialize;
 
     #[test]
     fn cli_address_to_socket_addr() -> Result<()> {

@@ -1,6 +1,6 @@
 #![cfg(not(target_arch = "wasm32"))]
 
-use crate::cli_address::{deserialize_multiaddr, deserialize_socket_addr, parse_cli_address};
+use crate::cli::address::{deserialize_multiaddr, deserialize_socket_addr, parse_cli_address};
 use clap::{Parser, Subcommand};
 use noosphere_core::data::Did;
 use noosphere_ns::{DHTConfig, Multiaddr, NSRecord};
@@ -18,7 +18,7 @@ pub struct CLI {
 
 #[derive(Subcommand)]
 pub enum CLICommand {
-    /// Run DHT nodes in the Noosphere Name System.
+    /// Run a node in the Noosphere Name System.
     Run {
         /// The path to the bootstrap configuration, a TOML file, containing
         /// entries for keyname/port pairs.
@@ -46,10 +46,15 @@ pub enum CLICommand {
         )]
         api_address: Option<SocketAddr>,
 
-        /// If no configuration path provided, a list of bootstrap peers to connect to
-        /// instead of the default bootstrap peers.
+        /// If no configuration path provided, a list of bootstrap peers
+        /// to connect to in addition to the default bootstrap peers.
         #[arg(short, long)]
-        bootstrap: Option<Vec<Multiaddr>>,
+        peers: Option<Vec<Multiaddr>>,
+
+        /// If no configuration path provided, disables the usage of
+        /// the default bootstrap peers.
+        #[arg(long, default_value_t = false)]
+        no_default_peers: bool,
     },
 
     /// Utility to create keys compatible with Noosphere.
@@ -100,12 +105,6 @@ pub enum CLIPeers {
 
 #[derive(Debug, Deserialize)]
 pub struct CLIConfigFile {
-    pub peers: Option<Vec<Multiaddr>>,
-    pub nodes: Vec<CLIConfigFileNode>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CLIConfigFileNode {
     pub key: String,
     #[serde(default, deserialize_with = "deserialize_multiaddr")]
     pub listening_address: Option<Multiaddr>,
@@ -113,6 +112,8 @@ pub struct CLIConfigFileNode {
     pub api_address: Option<SocketAddr>,
     #[serde(default)]
     pub peers: Vec<Multiaddr>,
+    #[serde(default)]
+    pub no_default_peers: bool,
     #[serde(default)]
     pub dht_config: DHTConfig,
 }

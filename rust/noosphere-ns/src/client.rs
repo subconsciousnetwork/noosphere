@@ -77,7 +77,7 @@ macro_rules! ns_client_tests {
         #[tokio::test]
         async fn name_system_client_listeners() -> Result<()> {
             let (_data, client) = $before_each().await?;
-            crate::client::test::test_listeners::<$type>(client).await
+            $crate::client::test::test_listeners::<$type>(client).await
         }
 
         #[tokio::test]

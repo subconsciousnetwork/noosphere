@@ -34,9 +34,10 @@ pub struct DHTConfig {
 impl Default for DHTConfig {
     /// Creates a new [DHTConfig] with defaults applied.
     fn default() -> Self {
+        let peer_dialing_interval = if cfg!(test) { 1 } else { 5 };
         Self {
             bootstrap_interval: 5 * 60, // 5 mins
-            peer_dialing_interval: 5,
+            peer_dialing_interval,
             publication_interval: 60 * 60 * 24, // 1 day
             query_timeout: 5 * 60,              // 5 mins
             replication_interval: 60 * 60,      // 1 hour

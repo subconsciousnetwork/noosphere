@@ -1,19 +1,21 @@
 #![cfg(not(target_arch = "wasm32"))]
 #![cfg(test)]
 use async_trait::async_trait;
-use noosphere_ns::dht::{AllowAllValidator, DHTError, DHTNode, NetworkInfo, RecordValidator};
+use noosphere_ns::dht::{
+    AllowAllValidator, DHTConfig, DHTError, DHTNode, NetworkInfo, RecordValidator,
+};
 pub mod utils;
 use noosphere_core::authority::generate_ed25519_key;
 
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
-use utils::{create_nodes_with_peers, create_test_dht_config, initialize_network, swarm_command};
+use utils::{create_nodes_with_peers, initialize_network, swarm_command};
 
 /// Testing a detached DHTNode as a server with no peers.
 #[test_log::test(tokio::test)]
 async fn test_dhtnode_base_case() -> Result<(), DHTError> {
     let node = DHTNode::new::<Ed25519KeyMaterial, AllowAllValidator>(
         &generate_ed25519_key(),
-        create_test_dht_config(),
+        DHTConfig::default(),
         None,
     )?;
     let info = node.network_info().await?;

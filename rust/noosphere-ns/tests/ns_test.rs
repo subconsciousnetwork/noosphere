@@ -5,10 +5,10 @@ use anyhow::Result;
 use noosphere_core::{authority::generate_ed25519_key, data::Did, view::SPHERE_LIFETIME};
 use noosphere_ns::{
     utils::{generate_capability, generate_fact, wait_for_peers},
-    Multiaddr, NSRecord, NameSystem, NameSystemClient,
+    DHTConfig, Multiaddr, NSRecord, NameSystem, NameSystemClient,
 };
 use noosphere_storage::{derive_cid, MemoryStorage, SphereDb};
-use utils::{create_test_dht_config, generate_default_listening_address};
+use utils::generate_default_listening_address;
 
 use futures::future::try_join_all;
 use libipld_cbor::DagCborCodec;
@@ -49,7 +49,7 @@ async fn generate_name_system(
     let _ = store.write_token(&delegation.encode()?).await?;
 
     let ns_key = generate_ed25519_key();
-    let ns = NameSystem::new(&ns_key, store.to_owned(), create_test_dht_config())?;
+    let ns = NameSystem::new(&ns_key, store.to_owned(), DHTConfig::default())?;
     ns.listen(generate_default_listening_address()).await?;
     ns.add_peers(bootstrap_addresses.to_vec()).await?;
     ns.bootstrap().await?;
@@ -72,7 +72,7 @@ async fn generate_name_systems_network(
 
     let bootstrap_node = {
         let key = generate_ed25519_key();
-        let node = NameSystem::new(&key, store.clone(), create_test_dht_config())?;
+        let node = NameSystem::new(&key, store.clone(), DHTConfig::default())?;
         node.listen(generate_default_listening_address()).await?;
         node
     };
