@@ -67,4 +67,9 @@ pub trait KeyValueStore: Clone + KeyValueSendSync {
             None => Err(anyhow!("No value found for '{required}'")),
         }
     }
+
+    /// Flushes pending writes if there are any
+    async fn flush(&self) -> Result<()> {
+        Ok(())
+    }
 }

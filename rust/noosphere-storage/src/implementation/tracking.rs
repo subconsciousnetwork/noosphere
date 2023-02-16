@@ -3,7 +3,7 @@ use async_std::sync::Mutex;
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use crate::store::Store;
+use crate::{store::Store, MemoryStorage, MemoryStore, Storage};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StoreStats {
@@ -13,23 +13,24 @@ pub struct StoreStats {
     pub bytes_read: usize,
     pub bytes_written: usize,
     pub bytes_removed: usize,
+    pub flushes: usize,
 }
 
 /// This is a store wrapper that tracks I/O. It is inspired by the testing
 /// utility originally created for the Forest HAMT implementation. This wrapper
 /// is all runtime overhead and should only be used for testing.
 #[derive(Debug, Clone)]
-pub struct TrackingStore<Storage: Store> {
+pub struct TrackingStore<S: Store> {
     stats: Arc<Mutex<StoreStats>>,
-    store: Storage,
+    store: S,
 }
 
-impl<Storage: Store> TrackingStore<Storage> {
+impl<S: Store> TrackingStore<S> {
     pub async fn to_stats(&self) -> StoreStats {
         self.stats.lock().await.clone()
     }
 
-    pub fn wrap(store: Storage) -> Self {
+    pub fn wrap(store: S) -> Self {
         TrackingStore {
             store,
             stats: Default::default(),
@@ -39,7 +40,7 @@ impl<Storage: Store> TrackingStore<Storage> {
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<Storage: Store> Store for TrackingStore<Storage> {
+impl<S: Store> Store for TrackingStore<S> {
     async fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let mut stats = self.stats.lock().await;
         stats.reads += 1;
@@ -65,5 +66,40 @@ impl<Storage: Store> Store for TrackingStore<Storage> {
             stats.bytes_removed += bytes.len();
         }
         Ok(value)
+    }
+
+    async fn flush(&self) -> Result<()> {
+        let mut stats = self.stats.lock().await;
+        stats.flushes += 1;
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+pub struct TrackingStorage<S: Storage> {
+    storage: S,
+}
+
+impl TrackingStorage<MemoryStorage> {
+    pub fn wrap(other: MemoryStorage) -> Self {
+        TrackingStorage { storage: other }
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl Storage for TrackingStorage<MemoryStorage> {
+    type BlockStore = TrackingStore<MemoryStore>;
+
+    type KeyValueStore = TrackingStore<MemoryStore>;
+
+    async fn get_block_store(&self, name: &str) -> Result<Self::BlockStore> {
+        let block_store = TrackingStore::wrap(self.storage.get_block_store(name).await?);
+        Ok(block_store)
+    }
+
+    async fn get_key_value_store(&self, name: &str) -> Result<Self::KeyValueStore> {
+        let key_value_store = TrackingStore::wrap(self.storage.get_key_value_store(name).await?);
+        Ok(key_value_store)
     }
 }

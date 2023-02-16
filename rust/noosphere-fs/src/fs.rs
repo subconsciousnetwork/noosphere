@@ -312,6 +312,7 @@ where
         self.db
             .set_version(&self.sphere_identity, &new_sphere_revision)
             .await?;
+        self.db.flush().await?;
         self.sphere_revision = new_sphere_revision;
         self.mutation = OnceCell::new();
 
@@ -459,7 +460,7 @@ pub mod tests {
         view::Sphere,
     };
     use noosphere_storage::MemoryStorage;
-    use noosphere_storage::SphereDb;
+    use noosphere_storage::{SphereDb, TrackingStorage};
     use tokio::io::AsyncReadExt;
     use tokio_stream::StreamExt;
     use ucan::crypto::KeyMaterial;
@@ -513,6 +514,56 @@ pub mod tests {
         fs.save(None).await.unwrap();
 
         assert!(fs.read("cats").await.unwrap().is_none());
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_flushes_on_every_save() {
+        let storage_provider = TrackingStorage::wrap(MemoryStorage::default());
+        let mut db = SphereDb::new(&storage_provider).await.unwrap();
+
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await.unwrap();
+
+        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
+
+        let sphere_identity = sphere.try_get_identity().await.unwrap();
+        let author = Author {
+            key: owner_key,
+            authorization: Some(proof),
+        };
+
+        db.set_version(&sphere_identity, sphere.cid())
+            .await
+            .unwrap();
+
+        let initial_stats = db.to_block_store().to_stats().await;
+
+        let mut fs = SphereFs::latest(&sphere_identity, &author, &db)
+            .await
+            .unwrap();
+
+        fs.write(
+            "cats",
+            &ContentType::Subtext.to_string(),
+            b"Cats are great".as_ref(),
+            None,
+        )
+        .await
+        .unwrap();
+
+        fs.save(None).await.unwrap();
+
+        let first_save_stats = db.to_block_store().to_stats().await;
+
+        assert_eq!(first_save_stats.flushes, initial_stats.flushes + 1);
+
+        fs.remove("cats").await.unwrap();
+        fs.save(None).await.unwrap();
+
+        let second_save_stats = db.to_block_store().to_stats().await;
+
+        assert_eq!(second_save_stats.flushes, first_save_stats.flushes + 1);
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
