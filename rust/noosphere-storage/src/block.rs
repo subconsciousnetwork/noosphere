@@ -152,4 +152,9 @@ pub trait BlockStore: Clone + BlockStoreSendSync {
             None => Err(anyhow!("Block {cid} was required but not found")),
         }
     }
+
+    /// Flushes pending writes if there are any
+    async fn flush(&self) -> Result<()> {
+        Ok(())
+    }
 }

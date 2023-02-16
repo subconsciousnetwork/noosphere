@@ -101,6 +101,31 @@ where
         self.version_store.get_key(identity).await
     }
 
+    /// Manually flush all pending writes to the underlying [Storage]
+    pub async fn flush(&self) -> Result<()> {
+        let (block_store_result, link_store_result, version_store_result, metadata_store_result) = tokio::join!(
+            self.block_store.flush(),
+            self.link_store.flush(),
+            self.version_store.flush(),
+            self.metadata_store.flush()
+        );
+
+        let results = vec![
+            ("block", block_store_result),
+            ("link", link_store_result),
+            ("version", version_store_result),
+            ("metadata", metadata_store_result),
+        ];
+
+        for (store_kind, result) in results {
+            if let Err(error) = result {
+                warn!("Failed to flush {} store: {:?}", store_kind, error);
+            }
+        }
+
+        Ok(())
+    }
+
     /// Get the most recently recorded tip of a local sphere lineage, returning
     /// an error if no version has ever been recorded
     pub async fn require_version(&self, identity: &str) -> Result<Cid> {

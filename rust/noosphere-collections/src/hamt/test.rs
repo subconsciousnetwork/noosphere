@@ -118,7 +118,8 @@ async fn test_set_if_absent() {
             removes: 0,
             bytes_read: 63,
             bytes_written: 63,
-            bytes_removed: 0
+            bytes_removed: 0,
+            flushes: 0
         }
     );
 }
@@ -162,7 +163,8 @@ async fn set_with_no_effect_does_not_put() {
             removes: 0,
             bytes_read: 0,
             bytes_written: 1282,
-            bytes_removed: 0
+            bytes_removed: 0,
+            flushes: 0
         }
     );
 
@@ -189,7 +191,8 @@ async fn set_with_no_effect_does_not_put() {
             removes: 0,
             bytes_read: 0,
             bytes_written: 1372,
-            bytes_removed: 0
+            bytes_removed: 0,
+            flushes: 0
         }
     );
 }
@@ -238,6 +241,7 @@ async fn delete() {
             bytes_read: 79,
             bytes_written: 139,
             bytes_removed: 0,
+            flushes: 0
         }
     );
 }
@@ -278,7 +282,8 @@ async fn delete_case() {
             removes: 0,
             bytes_read: 31,
             bytes_written: 34,
-            bytes_removed: 0
+            bytes_removed: 0,
+            flushes: 0
         }
     );
 }
@@ -313,7 +318,8 @@ async fn reload_empty() {
             removes: 0,
             bytes_read: 3,
             bytes_written: 6,
-            bytes_removed: 0
+            bytes_removed: 0,
+            flushes: 0
         }
     );
 }
@@ -370,7 +376,8 @@ async fn set_delete_many() {
             removes: 0,
             bytes_read: 0,
             bytes_written: 9251,
-            bytes_removed: 0
+            bytes_removed: 0,
+            flushes: 0
         }
     );
 }
@@ -476,7 +483,8 @@ async fn for_each() {
             removes: 0,
             bytes_read: 2536,
             bytes_written: 3803,
-            bytes_removed: 0
+            bytes_removed: 0,
+            flushes: 0
         }
     );
 }
@@ -558,6 +566,7 @@ async fn canonical_structure() {
             bytes_read: 38,
             bytes_written: 19,
             bytes_removed: 0,
+            flushes: 0,
         },
     )
     .await;
@@ -574,6 +583,7 @@ async fn canonical_structure() {
             bytes_read: 163,
             bytes_written: 107,
             bytes_removed: 0,
+            flushes: 0,
         },
     )
     .await;
@@ -603,6 +613,7 @@ async fn canonical_structure_alt_bit_width() {
             bytes_read: 22,
             bytes_written: 11,
             bytes_removed: 0,
+            flushes: 0,
         },
         StoreStats {
             reads: 6,
@@ -611,6 +622,7 @@ async fn canonical_structure_alt_bit_width() {
             bytes_read: 24,
             bytes_written: 12,
             bytes_removed: 0,
+            flushes: 0,
         },
         StoreStats {
             reads: 6,
@@ -619,6 +631,7 @@ async fn canonical_structure_alt_bit_width() {
             bytes_read: 28,
             bytes_written: 14,
             bytes_removed: 0,
+            flushes: 0,
         },
     ];
 
@@ -630,6 +643,7 @@ async fn canonical_structure_alt_bit_width() {
             bytes_read: 139,
             bytes_written: 91,
             bytes_removed: 0,
+            flushes: 0,
         },
         StoreStats {
             reads: 9,
@@ -638,6 +652,7 @@ async fn canonical_structure_alt_bit_width() {
             bytes_read: 146,
             bytes_written: 97,
             bytes_removed: 0,
+            flushes: 0,
         },
         StoreStats {
             reads: 9,
@@ -646,6 +661,7 @@ async fn canonical_structure_alt_bit_width() {
             bytes_read: 154,
             bytes_written: 103,
             bytes_removed: 0,
+            flushes: 0,
         },
     ];
 
@@ -720,7 +736,8 @@ async fn clean_child_ordering() {
             removes: 0,
             bytes_read: 1449,
             bytes_written: 1751,
-            bytes_removed: 0
+            bytes_removed: 0,
+            flushes: 0
         }
     );
 }

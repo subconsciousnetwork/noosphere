@@ -66,6 +66,10 @@ where
     async fn get_block(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
         self.read(&cid.to_bytes()).await
     }
+
+    async fn flush(&self) -> Result<()> {
+        Store::flush(self).await
+    }
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -109,5 +113,9 @@ where
             )?)?),
             None => None,
         })
+    }
+
+    async fn flush(&self) -> Result<()> {
+        Store::flush(self).await
     }
 }
