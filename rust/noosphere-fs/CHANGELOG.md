@@ -9,6 +9,21 @@
   * dependencies
     * noosphere-core bumped from 0.6.1 to 0.6.2
 
+## [0.5.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-fs-v0.5.2...noosphere-fs-v0.5.3) (2023-02-16)
+
+
+### Features
+
+* Always flush on SphereFS save ([#231](https://github.com/subconsciousnetwork/noosphere/issues/231)) ([bd151d5](https://github.com/subconsciousnetwork/noosphere/commit/bd151d5aca75b78b786d008177ab7d4e53e843bc))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.6.2 to 0.6.3
+    * noosphere-storage bumped from 0.4.1 to 0.4.2
+
 ## [0.5.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-fs-v0.5.0...noosphere-fs-v0.5.1) (2023-02-02)
 
 

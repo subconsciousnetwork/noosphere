@@ -4,6 +4,20 @@
   * dependencies
     * noosphere-storage bumped from 0.4.0 to 0.4.1
 
+## [0.3.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.3.1...noosphere-collections-v0.3.2) (2023-02-16)
+
+
+### Features
+
+* Always flush on SphereFS save ([#231](https://github.com/subconsciousnetwork/noosphere/issues/231)) ([bd151d5](https://github.com/subconsciousnetwork/noosphere/commit/bd151d5aca75b78b786d008177ab7d4e53e843bc))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.4.1 to 0.4.2
+
 ## [0.3.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.2.0...noosphere-collections-v0.3.0) (2022-12-14)
 
 
