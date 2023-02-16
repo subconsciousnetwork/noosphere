@@ -15,6 +15,22 @@
     * noosphere-core bumped from 0.6.0 to 0.6.1
     * noosphere bumped from 0.6.0 to 0.6.1
 
+## [0.4.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.4.2...noosphere-ns-v0.4.3) (2023-02-16)
+
+
+### Features
+
+* Follow up of initial orb-ns implementation. ([#222](https://github.com/subconsciousnetwork/noosphere/issues/222)) ([bb4c53f](https://github.com/subconsciousnetwork/noosphere/commit/bb4c53f3e79de6f5f66cc5b83ec815864f6bc5ab))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.4.1 to 0.4.2
+    * noosphere-core bumped from 0.6.2 to 0.6.3
+    * noosphere bumped from 0.6.2 to 0.6.3
+
 ## [0.4.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.4.1...noosphere-ns-v0.4.2) (2023-02-07)
 
 

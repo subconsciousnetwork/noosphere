@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-ipfs"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "An interface for an IPFS client."
 keywords = [
@@ -40,4 +40,4 @@ url = { version = "^2", features = [ "serde" ] }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 iroh-car = { version = "0.1.3" }
 libipld-cbor = "~0.15"
-noosphere-storage = { version = "0.4.0", path = "../noosphere-storage" }
+noosphere-storage = { version = "0.4.2", path = "../noosphere-storage" }

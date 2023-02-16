@@ -1,6 +1,6 @@
 [package]
 name = "noosphere"
-version = "0.6.2"
+version = "0.6.3"
 edition = "2021"
 description = "A high-level package for dealing with accessing the Noosphere"
 keywords = ["noosphere"]
@@ -32,10 +32,10 @@ subtext = { version = "0.3.2" }
 itertools = "0.10.5"
 tokio-stream = "~0.1"
 
-noosphere-core = { version = "0.6.2", path = "../noosphere-core" }
-noosphere-fs = { version = "0.5.2", path = "../noosphere-fs" }
-noosphere-storage = { version = "0.4.1", path = "../noosphere-storage" }
-noosphere-api = { version = "0.5.5", path = "../noosphere-api" }
+noosphere-core = { version = "0.6.3", path = "../noosphere-core" }
+noosphere-fs = { version = "0.5.3", path = "../noosphere-fs" }
+noosphere-storage = { version = "0.4.2", path = "../noosphere-storage" }
+noosphere-api = { version = "0.5.6", path = "../noosphere-api" }
 ucan = { version = "0.1.0" }
 ucan-key-support = { version = "0.1.0" }
 
@@ -52,7 +52,7 @@ wasm-bindgen-futures = "0.4.33"
 js-sys = "~0.3"
 tracing-wasm = "~0.2"
 console_error_panic_hook = "0.1"
-noosphere-into = { version = "0.4.4", path = "../noosphere-into" }
+noosphere-into = { version = "0.4.5", path = "../noosphere-into" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
 version = "~0.3"
