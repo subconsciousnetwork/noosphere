@@ -58,7 +58,11 @@ jobs:
       id-token: 'write'
     strategy:
       matrix:
-        image: [{ name: 'orb', file: 'images/orb/Dockerfile' }]
+        image:
+          - name: 'orb'
+            file: 'images/orb/Dockerfile' 
+          - name: 'orb-ns'
+            file: 'images/orb-ns/Dockerfile'
         tag: ${{ fromJSON(needs.determine-image-tags.outputs.tags) }}
     steps:
       - uses: actions/checkout@v3
