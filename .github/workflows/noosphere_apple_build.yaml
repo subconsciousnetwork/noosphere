@@ -58,7 +58,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix: ${{ fromJSON(needs.determine-build-matrix.outputs.matrix) }}
-    runs-on: macos-12
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
