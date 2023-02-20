@@ -19,7 +19,7 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [dependencies]
-log = "~0.4"
+tracing = "~0.1"
 cid = "~0.9"
 url = "^2"
 async-trait = "~0.1"
@@ -58,10 +58,13 @@ serde_bytes = "~0.11"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "^1", features = ["full"] }
+tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # NOTE: This is needed so that rand can be included in WASM builds
 getrandom = { version = "~0.2", features = ["js"] }
+console_error_panic_hook = "0.1"
+tracing-wasm = "~0.2"
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 tokio = { version = "^1", features = ["sync"] }

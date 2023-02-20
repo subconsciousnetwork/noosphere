@@ -1,13 +1,14 @@
 use cid::Cid;
-use noosphere_core::authority::Authorization;
+use noosphere_core::{tracing::initialize_tracing, authority::Authorization};
 use url::Url;
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    wasm::{initialize_tracing, SphereContext},
+    wasm::SphereContext,
     NoosphereContext as NoosphereContextImpl, NoosphereContextConfiguration, NoosphereNetwork,
     NoosphereSecurity, NoosphereStorage,
 };
+
 
 #[wasm_bindgen]
 /// A `SphereReceipt` is provided when a sphere has been successfully created.

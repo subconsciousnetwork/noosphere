@@ -5,6 +5,7 @@ members = [
   "rust/noosphere-core",
   "rust/noosphere-api",
   "rust/noosphere-fs",
+  "rust/noosphere-gateway",
   "rust/noosphere-into",
   "rust/noosphere-ipfs",
   "rust/noosphere-cli",

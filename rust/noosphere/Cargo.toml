@@ -50,8 +50,6 @@ rexie = { version = "~0.4" }
 wasm-bindgen = "~0.2"
 wasm-bindgen-futures = "0.4.33"
 js-sys = "~0.3"
-tracing-wasm = "~0.2"
-console_error_panic_hook = "0.1"
 noosphere-into = { version = "0.4.5", path = "../noosphere-into" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]

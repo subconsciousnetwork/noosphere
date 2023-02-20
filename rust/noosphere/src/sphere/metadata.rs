@@ -31,3 +31,7 @@ pub const AUTHORIZATION: &str = "authorization";
 /// The base [Url] of a Noosphere Gateway API that will allow this sphere to
 /// sync with it.
 pub const GATEWAY_URL: &str = "gateway_url";
+
+/// The counterpart sphere [Did] that either tracks or is tracked by this
+/// sphere.
+pub const COUNTERPART: &str = "counterpart";

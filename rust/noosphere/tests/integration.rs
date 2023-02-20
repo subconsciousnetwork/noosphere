@@ -1,6 +1,7 @@
 #![cfg(test)]
 
-use noosphere_core::data::ContentType;
+use noosphere_core::{data::ContentType, tracing::initialize_tracing};
+
 use tokio::io::AsyncReadExt;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -56,8 +57,7 @@ fn platform_configuration() -> (
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
 async fn single_player_single_device_end_to_end_workflow() {
-    #[cfg(target_arch = "wasm32")]
-    tracing_wasm::set_as_global_default();
+    initialize_tracing();
 
     let (configuration, _temporary_directories) = platform_configuration();
     let key_name = "foobar";

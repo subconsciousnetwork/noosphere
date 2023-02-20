@@ -11,7 +11,7 @@ use ucan::{
     crypto::KeyMaterial,
 };
 
-use crate::native::commands::serve::{authority::GatewayAuthority, gateway::GatewayScope};
+use crate::{authority::GatewayAuthority, GatewayScope};
 
 pub async fn identify_route<K: KeyMaterial + Clone>(
     authority: GatewayAuthority<K>,
