@@ -42,17 +42,25 @@ core --> collections
 
 ### Platform Packages
 
-Several platform-specific dependencies are needed to build Noosphere: OpenSSL,
-Protobufs, Cmake and others. You will need to make sure these packages have been
-installed on your platform before you get started.
+Several platform-specific dependencies must be installed on your platform,
+and are needed to build Noosphere:
 
-_Linux via `apt`:_
+* [OpenSSL]
+* [Protobuf Compiler]
+* [Cmake]
+
+Additional dependencies needed to build the WASM artifact:
+
+* [jq]
+* [binaryen]
+
+#### Linux (apt)
 
 ```sh
 sudo apt install libssl-dev protobuf-compiler cmake jq binaryen
 ```
 
-_MacOS via Homebrew:_
+#### MacOS (homebrew)
 
 ```sh
 brew install openssl protobuf cmake jq binaryen
@@ -123,3 +131,9 @@ CHROMEDRIVER=/path/to/chromedriver cargo test --target wasm32-unknown-unknown
 Rust analyzer may have issues expanding `#[async_trait]`:
 
 - async_trait https://github.com/rust-lang/rust-analyzer/issues/11533#issuecomment-1048439468
+
+[OpenSSL]: https://www.openssl.org/
+[Protobuf Compiler]: https://github.com/protocolbuffers/protobuf#protocol-compiler-installation
+[Cmake]: https://cmake.org
+[jq]: https://stedolan.github.io/jq/
+[binaryen]: https://github.com/WebAssembly/binaryen

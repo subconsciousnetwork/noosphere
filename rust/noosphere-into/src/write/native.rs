@@ -58,7 +58,12 @@ impl WriteTarget for NativeFs {
         NativeFs::assert_relative(src)?;
         NativeFs::assert_relative(dst)?;
 
-        Ok(tokio::fs::symlink(self.root.join(src), self.root.join(dst)).await?)
+        #[cfg(not(windows))]
+        let result = tokio::fs::symlink(self.root.join(src), self.root.join(dst)).await?;
+        #[cfg(windows)]
+        let result = tokio::fs::symlink_file(self.root.join(src), self.root.join(dst)).await?;
+
+        Ok(result)
     }
 
     async fn spawn<F>(future: F) -> Result<()>
