@@ -19,6 +19,9 @@ repository = "https://github.com/subconsciousnetwork/noosphere"
 homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
+[features]
+test_kubo = []
+
 [dependencies]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -41,3 +44,4 @@ url = { version = "^2", features = [ "serde" ] }
 iroh-car = { version = "0.1.3" }
 libipld-cbor = "~0.15"
 noosphere-storage = { version = "0.4.2", path = "../noosphere-storage" }
+noosphere-core = { version = "0.6.3", path = "../noosphere-core" }

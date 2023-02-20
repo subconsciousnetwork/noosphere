@@ -15,11 +15,12 @@ use url::Url;
 use noosphere_api::route::Route as GatewayRoute;
 use noosphere_storage::NativeStorage;
 
-use crate::native::commands::serve::{
+use crate::{
     ipfs::start_ipfs_syndication,
     route::{did_route, fetch_route, identify_route, push_route},
-    tracing::initialize_tracing,
 };
+
+use noosphere_core::tracing::initialize_tracing;
 
 #[derive(Clone, Debug)]
 pub struct GatewayScope {

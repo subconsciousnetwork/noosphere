@@ -25,14 +25,12 @@ use noosphere_cli::native::{
     commands::{
         auth::auth_add,
         key::key_create,
-        serve::{
-            gateway::{start_gateway, GatewayScope},
-            tracing::initialize_tracing,
-        },
         sphere::{sphere_create, sphere_join},
     },
     workspace::Workspace,
 };
+use noosphere_core::tracing::initialize_tracing;
+use noosphere_gateway::{start_gateway, GatewayScope};
 
 #[tokio::test]
 async fn gateway_tells_you_its_identity() {

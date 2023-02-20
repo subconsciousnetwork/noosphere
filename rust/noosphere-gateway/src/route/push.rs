@@ -17,10 +17,7 @@ use tokio::sync::{mpsc::UnboundedSender, Mutex};
 use ucan::capability::{Capability, Resource, With};
 use ucan::crypto::KeyMaterial;
 
-use crate::native::commands::serve::{
-    authority::GatewayAuthority, extractor::Cbor, gateway::GatewayScope,
-    ipfs::SyndicationJob,
-};
+use crate::{authority::GatewayAuthority, extractor::Cbor, ipfs::SyndicationJob, GatewayScope};
 
 // #[debug_handler]
 pub async fn push_route<K>(

@@ -1,22 +1,19 @@
 [package]
-name = "noosphere-cli"
-version = "0.6.6"
+name = "noosphere-gateway"
+version = "0.1.0"
 edition = "2021"
-description = "Reference client and pedagogical tool to demonstrate the principles of the Noosphere protocol"
-keywords = ["cli", "sync", "noosphere", "p2p", "ucan"]
+description = "A geist on the network that enables user spheres to discover each other"
+keywords = ["http", "geist", "noosphere", "p2p", "ucan"]
 categories = [
-  "authentication",
-  "filesystem",
-  "command-line interface"
+  "network-programming",
+  "asynchronous",
 ]
 rust-version = "1.60.0"
 license = "MIT OR Apache-2.0"
-documentation = "https://docs.rs/noosphere-cli"
+documentation = "https://docs.rs/noosphere-gateway"
 repository = "https://github.com/subconsciousnetwork/noosphere"
 homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls"] }
@@ -53,7 +50,6 @@ noosphere-core = { version = "0.6.3", path = "../noosphere-core" }
 noosphere-fs = { version = "0.5.3", path = "../noosphere-fs" }
 noosphere-storage = { version = "0.4.2", path = "../noosphere-storage" }
 noosphere-api = { version = "0.5.6", path = "../noosphere-api" }
-noosphere-gateway = { version = "0.1.0", path = "../noosphere-gateway" }
 noosphere = { version = "0.6.3", path = "../noosphere" }
 ucan = { version = "0.1.0" }
 ucan-key-support = { version = "0.1.0" }
@@ -67,3 +63,4 @@ libipld-cbor = "~0.15"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "~0.2"
+

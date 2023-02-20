@@ -1,5 +1,6 @@
-use crate::native::{commands::serve::tracing::initialize_tracing, workspace::Workspace};
+use crate::native::workspace::Workspace;
 use anyhow::{anyhow, Result};
+use noosphere_core::tracing::initialize_tracing;
 use noosphere_storage::MemoryStore;
 
 pub async fn sync(workspace: &Workspace) -> Result<()> {

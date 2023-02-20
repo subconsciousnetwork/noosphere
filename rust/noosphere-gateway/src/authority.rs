@@ -16,7 +16,7 @@ use noosphere_storage::NativeStorage;
 use tokio::sync::Mutex;
 use ucan::{capability::Capability, chain::ProofChain, crypto::KeyMaterial, store::UcanJwtStore};
 
-use super::gateway::GatewayScope;
+use super::GatewayScope;
 
 /// This is a construct that can be generated on a per-request basis and
 /// embodies the authorization status of the request-maker as it is
@@ -36,14 +36,6 @@ impl<K> GatewayAuthority<K>
 where
     K: KeyMaterial + Clone + 'static,
 {
-    pub fn expect_audience(&self, audience: &str) -> Result<(), StatusCode> {
-        if self.proof.ucan().audience() != audience {
-            return Err(StatusCode::UNAUTHORIZED);
-        }
-
-        Ok(())
-    }
-
     pub fn try_authorize(
         &self,
         capability: &Capability<SphereReference, SphereAction>,

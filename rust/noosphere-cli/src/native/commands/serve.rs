@@ -1,10 +1,3 @@
-pub mod authority;
-pub mod extractor;
-pub mod gateway;
-pub mod ipfs;
-pub mod route;
-pub mod tracing;
-
 use anyhow::Result;
 
 use std::net::{IpAddr, TcpListener};
@@ -13,7 +6,7 @@ use url::Url;
 
 use crate::native::workspace::Workspace;
 
-use self::gateway::GatewayScope;
+use noosphere_gateway::{start_gateway, GatewayScope};
 
 pub async fn serve(
     interface: IpAddr,
@@ -35,7 +28,7 @@ pub async fn serve(
 
     let sphere_context = workspace.sphere_context().await?;
 
-    gateway::start_gateway(
+    start_gateway(
         listener,
         gateway_scope,
         sphere_context,

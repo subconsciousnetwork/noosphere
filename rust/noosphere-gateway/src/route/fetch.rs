@@ -11,16 +11,14 @@ use noosphere_core::{
     data::Bundle,
     view::Sphere,
 };
-use noosphere_storage::{SphereDb, NativeStorage};
+use noosphere_storage::{NativeStorage, SphereDb};
 use tokio::sync::Mutex;
 use ucan::{
     capability::{Capability, Resource, With},
     crypto::KeyMaterial,
 };
 
-use crate::native::commands::serve::{
-    authority::GatewayAuthority, extractor::Cbor, gateway::GatewayScope,
-};
+use crate::{authority::GatewayAuthority, extractor::Cbor, GatewayScope};
 
 pub async fn fetch_route<K>(
     authority: GatewayAuthority<K>,

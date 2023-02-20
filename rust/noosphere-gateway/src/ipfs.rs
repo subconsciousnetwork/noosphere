@@ -26,7 +26,7 @@ use url::Url;
 use iroh_car::{CarHeader, CarWriter};
 use wnfs::private::BloomFilter;
 
-use crate::native::commands::config::COUNTERPART;
+use noosphere::sphere::COUNTERPART;
 
 /// A [SyndicationJob] is a request to syndicate the blocks of a _counterpart_
 /// sphere to the broader IPFS network.
