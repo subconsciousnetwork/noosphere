@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, str::FromStr};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    str::FromStr,
+};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
@@ -100,10 +103,10 @@ impl MemoIpld {
     ) -> Result<()> {
         let signature = base64_encode(&credential.sign(&self.body.to_bytes()).await?)?;
 
-        self.replace_header(&Header::Signature.to_string(), &signature);
+        self.replace_first_header(&Header::Signature.to_string(), &signature);
 
         if let Some(authorization) = authorization {
-            self.replace_header(
+            self.replace_first_header(
                 &Header::Proof.to_string(),
                 &Cid::try_from(authorization)?.to_string(),
             );
@@ -113,7 +116,7 @@ impl MemoIpld {
 
         let did = credential.get_did().await?;
 
-        self.replace_header(&Header::Author.to_string(), &did);
+        self.replace_first_header(&Header::Author.to_string(), &did);
 
         Ok(())
     }
@@ -166,7 +169,7 @@ impl MemoIpld {
 
     /// Replaces the value of the first header that matches name with provided
     /// value
-    pub fn replace_header(&mut self, name: &str, value: &str) {
+    pub fn replace_first_header(&mut self, name: &str, value: &str) {
         let mut found = 0usize;
 
         self.headers = self
@@ -192,6 +195,30 @@ impl MemoIpld {
         if found == 0 {
             self.headers.push((name.to_string(), value.to_string()))
         }
+    }
+
+    /// Replaces all headers in the memo whose names match names that occur in the input
+    /// list of headers. If multiple headers with the same name already occur in the memo,
+    /// all of them will be removed. If multiple headers with the same name already occur
+    /// in the input list, all of them will be included in the new set of headers.
+    pub fn replace_headers(&mut self, mut new_headers: Vec<(String, String)>) {
+        let new_header_set = new_headers
+            .iter()
+            .fold(BTreeSet::new(), |mut set, (key, _)| {
+                set.insert(key);
+                set
+            });
+
+        let mut modified_headers: Vec<(String, String)> = self
+            .headers
+            .clone()
+            .into_iter()
+            .filter(|(key, _)| !new_header_set.contains(key))
+            .collect();
+
+        modified_headers.append(&mut new_headers);
+
+        self.headers = modified_headers;
     }
 
     /// Removes all headers with the given name from the memo

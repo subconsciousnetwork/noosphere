@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use cid::Cid;
-use noosphere_core::authority::Authorization;
-use noosphere_core::data::Did;
+use noosphere_core::{authority::Authorization, data::Did};
+use noosphere_sphere::{HasSphereContext, SphereSync};
 use safer_ffi::char_p::InvalidNulTerminator;
 use safer_ffi::prelude::*;
 
@@ -147,16 +147,14 @@ pub fn ns_sphere_sync(
 ) -> Option<char_p::Box> {
     error_out.try_or_initialize(|| {
         let cid = noosphere.async_runtime().block_on(async {
-            let sphere_context = noosphere
+            let mut sphere_context = noosphere
                 .inner()
                 .get_sphere_context(&Did(sphere_identity.to_str().into()))
                 .await?;
 
-            let mut sphere_context = sphere_context.lock().await;
-
             sphere_context.sync().await?;
 
-            Ok(sphere_context.sphere().await?.cid().to_string()) as Result<String, anyhow::Error>
+            Ok(sphere_context.to_sphere().await?.cid().to_string()) as Result<String, anyhow::Error>
         })?;
 
         Ok(cid

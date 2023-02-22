@@ -3,11 +3,9 @@ use std::str::FromStr;
 use crate::native::workspace::Workspace;
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere::{
-    key::KeyStorage,
-    sphere::{SphereContext, SphereContextBuilder},
-};
+use noosphere::{key::KeyStorage, sphere::SphereContextBuilder};
 use noosphere_core::{authority::Authorization, data::Did};
+use noosphere_sphere::SphereContext;
 
 use ucan::crypto::KeyMaterial;
 
@@ -64,7 +62,6 @@ pub async fn sphere_join(
             workspace.root_directory()
         ));
     }
-
     println!("Joining sphere {}...", sphere_identity);
 
     let did = {
@@ -101,6 +98,7 @@ Type or paste the code here and press enter:"#,
     let cid = Cid::from_str(cid_string.trim())
         .map_err(|_| anyhow!("Could not parse the authorization identity as a CID"))?;
 
+    debug!("A");
     SphereContextBuilder::default()
         .join_sphere(sphere_identity)
         .at_storage_path(workspace.root_directory())
@@ -109,6 +107,7 @@ Type or paste the code here and press enter:"#,
         .authorized_by(Some(&Authorization::Cid(cid)))
         .build()
         .await?;
+    debug!("B");
 
     // TODO(#103): Recovery path if the auth needs to change for some reason
 

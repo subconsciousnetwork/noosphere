@@ -12,6 +12,7 @@ pub async fn serve(
     interface: IpAddr,
     port: u16,
     ipfs_api: Url,
+    name_resolver_api: Url,
     cors_origin: Option<Url>,
     workspace: &Workspace,
 ) -> Result<()> {
@@ -33,6 +34,7 @@ pub async fn serve(
         gateway_scope,
         sphere_context,
         ipfs_api,
+        name_resolver_api,
         cors_origin,
     )
     .await

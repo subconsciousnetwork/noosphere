@@ -4,13 +4,13 @@ use anyhow::Result;
 
 use axum::{extract::Query, http::StatusCode, response::IntoResponse, Extension};
 use cid::Cid;
-use noosphere::sphere::SphereContext;
 use noosphere_api::data::{FetchParameters, FetchResponse};
 use noosphere_core::{
     authority::{SphereAction, SphereReference},
     data::Bundle,
     view::Sphere,
 };
+use noosphere_sphere::SphereContext;
 use noosphere_storage::{NativeStorage, SphereDb};
 use tokio::sync::Mutex;
 use ucan::{
@@ -84,12 +84,12 @@ pub async fn generate_fetch_bundle(
             .unwrap_or("the beginning".into())
     );
 
-    let mut bundle = latest_local_sphere.try_bundle_until_ancestor(since).await?;
+    let mut bundle = latest_local_sphere.bundle_until_ancestor(since).await?;
 
     debug!("Resolving latest counterpart sphere version...");
 
     match latest_local_sphere
-        .try_get_links()
+        .get_links()
         .await?
         .get(&scope.counterpart)
         .await?
@@ -101,7 +101,7 @@ pub async fn generate_fetch_bundle(
             let since = match since {
                 Some(since_local_sphere_cid) => {
                     let since_local_sphere = Sphere::at(since_local_sphere_cid, db);
-                    let links = since_local_sphere.try_get_links().await?;
+                    let links = since_local_sphere.get_links().await?;
                     links.get(&scope.counterpart).await?.cloned()
                 }
                 None => None,
@@ -117,7 +117,7 @@ pub async fn generate_fetch_bundle(
 
             bundle.merge(
                 Sphere::at(&latest_counterpart_sphere_cid, db)
-                    .try_bundle_until_ancestor(since.as_ref())
+                    .bundle_until_ancestor(since.as_ref())
                     .await?,
             )
         }

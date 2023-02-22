@@ -1,9 +1,15 @@
+use std::sync::Arc;
+
 use crate::{
     platform::{PlatformKeyMaterial, PlatformStorage},
     wasm::SphereFile,
 };
 use js_sys::{Array, Function};
-use noosphere_fs::SphereFs as SphereFsImpl;
+use noosphere_sphere::{
+    HasMutableSphereContext, SphereContentRead, SphereContentWalker, SphereContentWrite,
+    SphereContext, SphereCursor,
+};
+use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use wasm_bindgen::prelude::*;
 
@@ -15,7 +21,11 @@ use wasm_bindgen::prelude::*;
 /// or raw bytes.
 pub struct SphereFs {
     #[wasm_bindgen(skip)]
-    pub inner: SphereFsImpl<PlatformStorage, PlatformKeyMaterial>,
+    pub inner: SphereCursor<
+        Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>,
+        PlatformKeyMaterial,
+        PlatformStorage,
+    >,
 }
 
 #[wasm_bindgen]
@@ -31,7 +41,7 @@ impl SphereFs {
 
         Ok(file.map(|file| SphereFile {
             inner: file.boxed(),
-            fs: self.inner.clone(),
+            cursor: self.inner.clone(),
         }))
     }
 
@@ -104,7 +114,7 @@ impl SphereFs {
     /// after the callback has been invoked once for each entry in the sphere's
     /// namespace.
     pub async fn stream(&self, callback: Function) -> Result<(), String> {
-        let stream = self.inner.clone().into_stream();
+        let stream = SphereContentWalker::from(self.inner.clone()).into_stream();
         let this = JsValue::null();
 
         tokio::pin!(stream);
@@ -113,7 +123,7 @@ impl SphereFs {
             let file = file.boxed();
             let file = SphereFile {
                 inner: file,
-                fs: self.inner.clone(),
+                cursor: self.inner.clone(),
             };
             let slug = JsValue::from(slug);
 

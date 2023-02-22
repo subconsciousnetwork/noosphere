@@ -37,6 +37,8 @@ impl Bundle {
     }
 
     pub async fn load_into<S: BlockStore>(&self, store: &mut S) -> Result<()> {
+        debug!("Loading {} blocks into store...", self.0.len());
+
         // TODO: Parrallelize this
         for (cid_string, block_bytes) in self.0.iter() {
             let cid = Cid::from_str(cid_string)?;
@@ -408,14 +410,14 @@ mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, _, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let (sphere, _, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
         let bundle = MemoIpld::try_bundle_with_cid(sphere.cid(), &store)
             .await
             .unwrap();
 
         assert!(bundle.contains(sphere.cid()));
 
-        let memo = sphere.try_as_memo().await.unwrap();
+        let memo = sphere.to_memo().await.unwrap();
 
         assert!(bundle.contains(&memo.body));
     }
@@ -427,14 +429,14 @@ mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let (sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
         let foo_key = String::from("foo");
         let foo_cid = store.save::<RawCodec, _>(Bytes::new(b"foo")).await.unwrap();
         let mut mutation = SphereMutation::new(&owner_did);
         mutation.links_mut().set(&foo_key, &foo_cid);
 
-        let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+        let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
         let new_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let bundle = MemoIpld::try_bundle_with_cid(&new_cid, &store)
@@ -447,11 +449,11 @@ mod tests {
 
         assert!(bundle.contains(sphere.cid()));
 
-        let memo = sphere.try_as_memo().await.unwrap();
+        let memo = sphere.to_memo().await.unwrap();
 
         assert!(bundle.contains(&memo.body));
 
-        let sphere_ipld = sphere.try_as_body().await.unwrap();
+        let sphere_ipld = sphere.to_body().await.unwrap();
         let links_cid = sphere_ipld.links.unwrap();
 
         assert!(bundle.contains(&links_cid));
@@ -473,8 +475,7 @@ mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, authorization, _) =
-            Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let (sphere, authorization, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
         let body_cid = store
             .save::<RawCodec, _>(Ipld::Bytes(b"foobar".to_vec()))
@@ -493,7 +494,7 @@ mod tests {
 
         mutation.links_mut().set(&key, &memo_cid);
 
-        let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+        let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
 
         let sphere_revision = revision
             .try_sign(&owner_key, Some(&authorization))
@@ -514,14 +515,14 @@ mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let (sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
         let foo_key = String::from("foo");
         let foo_cid = store.save::<RawCodec, _>(Bytes::new(b"foo")).await.unwrap();
         let mut first_mutation = SphereMutation::new(&owner_did);
         first_mutation.links_mut().set(&foo_key, &foo_cid);
 
-        let mut revision = sphere.try_apply_mutation(&first_mutation).await.unwrap();
+        let mut revision = sphere.apply_mutation(&first_mutation).await.unwrap();
         let new_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let sphere = Sphere::at(&new_cid, &store);
@@ -531,7 +532,7 @@ mod tests {
         let mut second_mutation = SphereMutation::new(&owner_did);
         second_mutation.links_mut().set(&bar_key, &bar_cid);
 
-        let mut revision = sphere.try_apply_mutation(&second_mutation).await.unwrap();
+        let mut revision = sphere.apply_mutation(&second_mutation).await.unwrap();
         let new_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let bundle = MemoIpld::try_bundle_with_cid(&new_cid, &store)
@@ -550,7 +551,7 @@ mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let (sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
         let original_cid = *sphere.cid();
 
@@ -559,7 +560,7 @@ mod tests {
         let mut first_mutation = SphereMutation::new(&owner_did);
         first_mutation.links_mut().set(&foo_key, &foo_cid);
 
-        let mut revision = sphere.try_apply_mutation(&first_mutation).await.unwrap();
+        let mut revision = sphere.apply_mutation(&first_mutation).await.unwrap();
         let second_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let sphere = Sphere::at(&second_cid, &store);
@@ -569,7 +570,7 @@ mod tests {
         let mut second_mutation = SphereMutation::new(&owner_did);
         second_mutation.links_mut().set(&bar_key, &bar_cid);
 
-        let mut revision = sphere.try_apply_mutation(&second_mutation).await.unwrap();
+        let mut revision = sphere.apply_mutation(&second_mutation).await.unwrap();
         let final_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let timeline = Timeline::new(&store);

@@ -3,7 +3,7 @@ use crate::runner::{NameSystemRunner, RunnerNodeConfig};
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use noosphere::key::{InsecureKeyStorage, KeyStorage};
-use noosphere_ns::server::HTTPClient;
+use noosphere_ns::server::HttpClient;
 use noosphere_ns::NameSystemClient;
 use serde::Serialize;
 use tracing::*;
@@ -110,33 +110,33 @@ pub async fn process_command(
                 Ok(CommandResponse::empty())
             }
             CLICommand::Status { api_url } => {
-                let client = HTTPClient::new(api_url).await?;
+                let client = HttpClient::new(api_url).await?;
                 let info = client.network_info().await?;
                 Ok(CommandResponse::Finalized {
                     value: Some(jsonify(&info)?),
                 })
             }
             CLICommand::Records(CLIRecords::Get { identity, api_url }) => {
-                let client = HTTPClient::new(api_url).await?;
+                let client = HttpClient::new(api_url).await?;
                 let maybe_record = client.get_record(&identity).await?;
                 Ok(CommandResponse::Finalized {
                     value: Some(jsonify(&maybe_record)?),
                 })
             }
             CLICommand::Records(CLIRecords::Put { record, api_url }) => {
-                let client = HTTPClient::new(api_url).await?;
+                let client = HttpClient::new(api_url).await?;
                 client.put_record(record).await?;
                 Ok(CommandResponse::empty())
             }
             CLICommand::Peers(CLIPeers::Ls { api_url }) => {
-                let client = HTTPClient::new(api_url).await?;
+                let client = HttpClient::new(api_url).await?;
                 let peers = client.peers().await?;
                 Ok(CommandResponse::Finalized {
                     value: Some(jsonify(&peers)?),
                 })
             }
             CLICommand::Peers(CLIPeers::Add { peer, api_url }) => {
-                let client = HTTPClient::new(api_url).await?;
+                let client = HttpClient::new(api_url).await?;
                 client.add_peers(vec![peer]).await?;
                 Ok(CommandResponse::empty())
             }

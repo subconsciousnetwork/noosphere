@@ -29,10 +29,11 @@ jobs:
         steps.release.outputs['rust/noosphere-cli--release_created'] ||
         steps.release.outputs['rust/noosphere-collections--release_created'] ||
         steps.release.outputs['rust/noosphere-core--release_created'] ||
-        steps.release.outputs['rust/noosphere-fs--release_created'] ||
+        steps.release.outputs['rust/noosphere-gateway--release_created'] ||
         steps.release.outputs['rust/noosphere-ipfs--release_created'] ||
         steps.release.outputs['rust/noosphere-into--release_created'] ||
         steps.release.outputs['rust/noosphere-ns--release_created'] ||
+        steps.release.outputs['rust/noosphere-sphere--release_created'] ||
         steps.release.outputs['rust/noosphere-storage--release_created'] }}
     steps:
       - uses: chainguard-dev/actions/setup-gitsign@main

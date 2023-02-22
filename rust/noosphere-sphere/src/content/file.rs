@@ -4,6 +4,18 @@ use cid::Cid;
 use noosphere_core::data::{Did, MemoIpld};
 use tokio::io::AsyncRead;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub trait AsyncFileBody: AsyncRead + Unpin + Send {}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<S> AsyncFileBody for S where S: AsyncRead + Unpin + Send {}
+
+#[cfg(target_arch = "wasm32")]
+pub trait AsyncFileBody: AsyncRead + Unpin {}
+
+#[cfg(target_arch = "wasm32")]
+impl<S> AsyncFileBody for S where S: AsyncRead + Unpin {}
+
 /// A descriptor for contents that is stored in a sphere.
 pub struct SphereFile<C> {
     pub sphere_identity: Did,

@@ -7,7 +7,9 @@ use noosphere_core::{
     data::{Bundle, Did},
 };
 use noosphere_storage::{base64_decode, base64_encode};
+use reqwest::StatusCode;
 use serde::{Deserialize, Deserializer, Serialize};
+use thiserror::Error;
 use ucan::{
     capability::{Capability, Resource, With},
     chain::ProofChain,
@@ -109,6 +111,38 @@ pub enum PushResponse {
     },
     /// The history was already known by the API host, so no changes were made
     NoChange,
+}
+
+#[derive(Error, Debug)]
+pub enum PushError {
+    #[error("Pushed history conflicts with canonical history")]
+    Conflict,
+    #[error("Missing some implied history")]
+    MissingHistory,
+    #[error("Replica is up to date")]
+    UpToDate,
+    #[error("Internal error")]
+    Internal(anyhow::Error),
+}
+
+impl From<anyhow::Error> for PushError {
+    fn from(value: anyhow::Error) -> Self {
+        PushError::Internal(value)
+    }
+}
+
+impl From<PushError> for StatusCode {
+    fn from(error: PushError) -> Self {
+        match error {
+            PushError::Conflict => StatusCode::CONFLICT,
+            PushError::MissingHistory => StatusCode::UNPROCESSABLE_ENTITY,
+            PushError::UpToDate => StatusCode::BAD_REQUEST,
+            PushError::Internal(error) => {
+                error!("Internal: {:?}", error);
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        }
+    }
 }
 
 /// The response from the "identify" API route; this is a signed response that

@@ -1,7 +1,7 @@
 use async_stream::stream;
 use futures::Stream;
 use noosphere_core::data::ContentType;
-use noosphere_fs::SphereFile;
+use noosphere_sphere::SphereFile;
 use tokio::io::AsyncRead;
 
 use crate::{subtext_to_html_document_stream, subtext_to_html_fragment_stream, Transform};
@@ -19,9 +19,9 @@ pub enum HtmlOutput {
 /// performed may vary depending on content type. At this time, only Subtext
 /// is supported.
 pub fn file_to_html_stream<T, R>(
-    transform: T,
     file: SphereFile<R>,
     output: HtmlOutput,
+    transform: T,
 ) -> impl Stream<Item = String>
 where
     T: Transform,
@@ -38,7 +38,7 @@ where
                         }
                     },
                     HtmlOutput::Fragment => {
-                        let stream = subtext_to_html_fragment_stream(transform, file);
+                        let stream = subtext_to_html_fragment_stream(file, transform);
                         for await part in stream {
                             yield part;
                         }

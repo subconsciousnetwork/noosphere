@@ -1,7 +1,7 @@
 use crate::{
     client::NameSystemClient,
     dht::{DHTConfig, DHTError, DHTKeyMaterial, DHTNode, DHTRecord, NetworkInfo, Peer},
-    records::NSRecord,
+    records::NsRecord,
     utils::make_p2p_address,
     validator::Validator,
     PeerId,
@@ -40,10 +40,10 @@ lazy_static! {
 /// the full Noosphere Name System spec.
 pub struct NameSystem {
     pub(crate) dht: DHTNode,
-    /// Map of sphere DIDs to [NSRecord] hosted/propagated by this name system.
-    hosted_records: Mutex<HashMap<Did, NSRecord>>,
-    /// Map of resolved sphere DIDs to resolved [NSRecord].
-    resolved_records: Mutex<HashMap<Did, NSRecord>>,
+    /// Map of sphere DIDs to [NsRecord] hosted/propagated by this name system.
+    hosted_records: Mutex<HashMap<Did, NsRecord>>,
+    /// Map of resolved sphere DIDs to resolved [NsRecord].
+    resolved_records: Mutex<HashMap<Did, NsRecord>>,
 
     #[cfg(feature = "api_server")]
     api_server: Option<APIServer>,
@@ -96,7 +96,7 @@ impl NameSystem {
     }
 
     /// Access the record cache of the name system.
-    pub async fn get_cache(&self) -> MutexGuard<HashMap<Did, NSRecord>> {
+    pub async fn get_cache(&self) -> MutexGuard<HashMap<Did, NsRecord>> {
         self.resolved_records.lock().await
     }
 
@@ -104,13 +104,13 @@ impl NameSystem {
     /// If no record is found, no error is returned.
     ///
     /// Returns an error if not connected to the DHT network.
-    async fn dht_get_record(&self, identity: &Did) -> Result<(Did, Option<NSRecord>)> {
+    async fn dht_get_record(&self, identity: &Did) -> Result<(Did, Option<NsRecord>)> {
         match self.dht.get_record(identity.as_bytes()).await {
             Ok(DHTRecord { key: _, value }) => match value {
                 Some(value) => {
                     // Validation/correctness and filtering through
                     // the most recent values can be performed here
-                    let record = NSRecord::try_from(value)?;
+                    let record = NsRecord::try_from(value)?;
                     info!(
                         "NameSystem: GetRecord: {} {}",
                         identity,
@@ -136,7 +136,7 @@ impl NameSystem {
     ///
     /// Can fail if record is invalid, NameSystem is not connected or
     /// if no peers can be found.
-    async fn dht_put_record(&self, identity: &Did, record: &NSRecord) -> Result<()> {
+    async fn dht_put_record(&self, identity: &Did, record: &NsRecord) -> Result<()> {
         let record: Vec<u8> = record.try_into()?;
         match self.dht.put_record(identity.as_bytes(), &record).await {
             Ok(_) => {
@@ -208,24 +208,24 @@ impl NameSystemClient for NameSystem {
         }
     }
 
-    /// Propagates the corresponding managed sphere's [NSRecord] on nearby peers
+    /// Propagates the corresponding managed sphere's [NsRecord] on nearby peers
     /// in the DHT network.
     ///
     /// Can fail if NameSystem is not connected or if no peers can be found.
-    async fn put_record(&self, record: NSRecord) -> Result<()> {
+    async fn put_record(&self, record: NsRecord) -> Result<()> {
         let identity = Did::from(record.identity());
         self.dht_put_record(&identity, &record).await?;
         self.hosted_records.lock().await.insert(identity, record);
         Ok(())
     }
 
-    /// Returns an [NSRecord] for the provided identity if found.
+    /// Returns an [NsRecord] for the provided identity if found.
     ///
     /// Reads from local cache if a valid token is found; otherwise,
     /// queries the network for a valid record.
     ///
     /// Can fail if network errors occur.
-    async fn get_record(&self, identity: &Did) -> Result<Option<NSRecord>> {
+    async fn get_record(&self, identity: &Did) -> Result<Option<NsRecord>> {
         {
             let mut resolved_records = self.resolved_records.lock().await;
             if let Some(record) = resolved_records.get(identity) {

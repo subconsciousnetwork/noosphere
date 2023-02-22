@@ -1,5 +1,5 @@
 use crate::dht::RecordValidator;
-use crate::records::NSRecord;
+use crate::records::NsRecord;
 use async_trait::async_trait;
 use noosphere_core::authority::SUPPORTED_KEYS;
 use noosphere_storage::{SphereDb, Storage};
@@ -28,7 +28,7 @@ where
     S: Storage,
 {
     async fn validate(&mut self, record_value: &[u8]) -> bool {
-        if let Ok(record) = NSRecord::try_from(record_value) {
+        if let Ok(record) = NsRecord::try_from(record_value) {
             return record
                 .validate(&self.store, &mut self.did_parser)
                 .await

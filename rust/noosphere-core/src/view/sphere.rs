@@ -3,6 +3,7 @@ use async_stream::try_stream;
 use cid::Cid;
 use futures::Stream;
 use libipld_cbor::DagCborCodec;
+use tokio_stream::StreamExt;
 
 use ucan::{
     builder::UcanBuilder,
@@ -18,8 +19,8 @@ use crate::{
         SphereAction, SphereReference, SPHERE_SEMANTICS,
     },
     data::{
-        AuthorityIpld, Bundle, ChangelogIpld, CidKey, ContentType, DelegationIpld, Did, Header,
-        MapOperation, MemoIpld, RevocationIpld, SphereIpld, TryBundle, Version,
+        AddressIpld, AuthorityIpld, Bundle, ChangelogIpld, CidKey, ContentType, DelegationIpld,
+        Did, Header, MapOperation, MemoIpld, RevocationIpld, SphereIpld, TryBundle, Version,
     },
     view::{Links, SphereMutation, SphereRevision, Timeline},
 };
@@ -45,6 +46,10 @@ impl<S: BlockStore> Sphere<S> {
         }
     }
 
+    pub fn store(&self) -> &S {
+        &self.store
+    }
+
     /// Get the CID that points to the sphere's wrapping memo that corresponds
     /// to this revision of the sphere
     pub fn cid(&self) -> &Cid {
@@ -52,20 +57,20 @@ impl<S: BlockStore> Sphere<S> {
     }
 
     /// Load the wrapping [MemoIpld] of the sphere data
-    pub async fn try_as_memo(&self) -> Result<MemoIpld> {
+    pub async fn to_memo(&self) -> Result<MemoIpld> {
         self.store.load::<DagCborCodec, _>(&self.cid).await
     }
 
     /// Load the body [SphereIpld] of this sphere
-    pub async fn try_as_body(&self) -> Result<SphereIpld> {
+    pub async fn to_body(&self) -> Result<SphereIpld> {
         self.store
-            .load::<DagCborCodec, _>(&self.try_as_memo().await?.body)
+            .load::<DagCborCodec, _>(&self.to_memo().await?.body)
             .await
     }
 
     /// Produce a bundle that contains the sparse set of blocks needed
     /// to produce this revision to the sphere
-    pub async fn try_as_bundle(&self) -> Result<Bundle> {
+    pub async fn to_bundle(&self) -> Result<Bundle> {
         MemoIpld::try_bundle_with_cid(self.cid(), &self.store).await
     }
 
@@ -73,7 +78,7 @@ impl<S: BlockStore> Sphere<S> {
     /// produce a series of sequential revisions of this sphere, up to but
     /// excluding the given [Cid] (or until the genesis revision of the
     /// sphere if no [Cid] is given).
-    pub async fn try_bundle_until_ancestor(&self, cid: Option<&Cid>) -> Result<Bundle> {
+    pub async fn bundle_until_ancestor(&self, cid: Option<&Cid>) -> Result<Bundle> {
         Bundle::try_from_timeslice(
             &Timeline::new(&self.store).slice(&self.cid, cid),
             &self.store,
@@ -83,8 +88,8 @@ impl<S: BlockStore> Sphere<S> {
 
     /// Get a [Sphere] view over the parent revision of the sphere relative to
     /// this revision, if one exists
-    pub async fn try_get_parent(&self) -> Result<Option<Sphere<S>>> {
-        match self.try_as_memo().await?.parent {
+    pub async fn get_parent(&self) -> Result<Option<Sphere<S>>> {
+        match self.to_memo().await?.parent {
             Some(cid) => Ok(Some(Sphere::at(&cid, &self.store))),
             None => Ok(None),
         }
@@ -93,8 +98,8 @@ impl<S: BlockStore> Sphere<S> {
     /// Attempt to load the [Links] of this sphere. If no links have been
     /// set for this sphere yet, this initializes an empty [Links] and returns
     /// it for the caller to populate.
-    pub async fn try_get_links(&self) -> Result<Links<S>> {
-        let sphere = self.try_as_body().await?;
+    pub async fn get_links(&self) -> Result<Links<S>> {
+        let sphere = self.to_body().await?;
 
         Links::try_at_or_empty(sphere.links.as_ref(), &mut self.store.clone()).await
     }
@@ -102,8 +107,8 @@ impl<S: BlockStore> Sphere<S> {
     /// Attempt to load the [Authority] of this sphere. If no authorizations or
     /// revocations have been added to this sphere yet, this initializes an
     /// empty [Authority] and returns it for the caller to populate.
-    pub async fn try_get_authority(&self) -> Result<Authority<S>> {
-        let sphere = self.try_as_body().await?;
+    pub async fn get_authority(&self) -> Result<Authority<S>> {
+        let sphere = self.to_body().await?;
 
         Authority::try_at_or_empty(sphere.authorization.as_ref(), &mut self.store.clone()).await
     }
@@ -111,15 +116,15 @@ impl<S: BlockStore> Sphere<S> {
     /// Attempt to load the [Names] of this sphere. If no names have been added
     /// to this sphere yet, this initializes an empty [Names] and returns it
     /// for the caller to populate.
-    pub async fn try_get_names(&self) -> Result<Names<S>> {
-        let sphere = self.try_as_body().await?;
+    pub async fn get_names(&self) -> Result<Names<S>> {
+        let sphere = self.to_body().await?;
 
         Names::try_at_or_empty(sphere.names.as_ref(), &mut self.store.clone()).await
     }
 
     /// Get the [Did] identity of the sphere
-    pub async fn try_get_identity(&self) -> Result<Did> {
-        let sphere = self.try_as_body().await?;
+    pub async fn get_identity(&self) -> Result<Did> {
+        let sphere = self.to_body().await?;
 
         Ok(sphere.identity)
     }
@@ -128,21 +133,21 @@ impl<S: BlockStore> Sphere<S> {
     /// sphere revision given its immediate ancestral parent. Note that
     /// this only considers changes that are internal to the sphere, and is
     /// not inclusive of the headers of the sphere's memo.
-    pub async fn try_derive_mutation(&self) -> Result<SphereMutation> {
-        let memo = self.try_as_memo().await?;
+    pub async fn derive_mutation(&self) -> Result<SphereMutation> {
+        let memo = self.to_memo().await?;
         let author = memo
             .get_first_header(&Header::Author.to_string())
             .ok_or_else(|| anyhow!("No author header found"))?;
 
         let mut mutation = SphereMutation::new(&author);
 
-        let parent = match self.try_get_parent().await? {
+        let parent = match self.get_parent().await? {
             Some(parent) => parent,
             None => return Ok(mutation),
         };
 
-        let parent_links = parent.try_get_links().await?;
-        let links = self.try_get_links().await?;
+        let parent_links = parent.get_links().await?;
+        let links = self.get_links().await?;
 
         if links.cid() != parent_links.cid() {
             let changelog = links.try_get_changelog().await?;
@@ -154,8 +159,8 @@ impl<S: BlockStore> Sphere<S> {
             mutation.links_mut().try_apply_changelog(changelog)?;
         }
 
-        let parent_names = parent.try_get_names().await?;
-        let names = self.try_get_names().await?;
+        let parent_names = parent.get_names().await?;
+        let names = self.get_names().await?;
 
         if names.cid() != parent_names.cid() {
             let changelog = names.try_get_changelog().await?;
@@ -167,8 +172,8 @@ impl<S: BlockStore> Sphere<S> {
             mutation.names_mut().try_apply_changelog(changelog)?;
         }
 
-        let parent_authorization = parent.try_get_authority().await?;
-        let authorization = self.try_get_authority().await?;
+        let parent_authorization = parent.get_authority().await?;
+        let authorization = self.get_authority().await?;
 
         if authorization.cid() != parent_authorization.cid() {
             let parent_allowed_ucans = parent_authorization.try_get_allowed_ucans().await?;
@@ -207,13 +212,13 @@ impl<S: BlockStore> Sphere<S> {
 
     /// Apply a mutation to the sphere, producing a new sphere revision that
     /// must then be signed as an additional step.
-    pub async fn try_apply_mutation(&self, mutation: &SphereMutation) -> Result<SphereRevision<S>> {
-        Sphere::try_apply_mutation_with_cid(self.cid(), mutation, &mut self.store.clone()).await
+    pub async fn apply_mutation(&self, mutation: &SphereMutation) -> Result<SphereRevision<S>> {
+        Sphere::apply_mutation_with_cid(self.cid(), mutation, &mut self.store.clone()).await
     }
 
     /// Apply a mutation to the sphere given a revision CID, producing a new
     /// sphere revision that must then be signed as an additional step
-    pub async fn try_apply_mutation_with_cid(
+    pub async fn apply_mutation_with_cid(
         cid: &Cid,
         mutation: &SphereMutation,
         store: &mut S,
@@ -278,18 +283,18 @@ impl<S: BlockStore> Sphere<S> {
         })
     }
 
-    pub async fn try_rebase(&self, onto: &Cid) -> Result<SphereRevision<S>> {
-        Sphere::try_rebase_with_cid(self.cid(), onto, &mut self.store.clone()).await
+    /// Same as `rebase_version`, but uses the version that this [Sphere] refers
+    /// to as the version to rebase.
+    pub async fn rebase(&self, onto: &Cid) -> Result<SphereRevision<S>> {
+        Sphere::rebase_version(self.cid(), onto, &mut self.store.clone()).await
     }
 
-    pub async fn try_rebase_with_cid(
-        cid: &Cid,
-        onto: &Cid,
-        store: &mut S,
-    ) -> Result<SphereRevision<S>> {
-        Sphere::try_apply_mutation_with_cid(
+    /// "Rebase" the given version of a sphere so that its change is made with
+    /// the "onto" version as its base.
+    pub async fn rebase_version(cid: &Cid, onto: &Cid, store: &mut S) -> Result<SphereRevision<S>> {
+        Sphere::apply_mutation_with_cid(
             onto,
-            &Sphere::at(cid, store).try_derive_mutation().await?,
+            &Sphere::at(cid, store).derive_mutation().await?,
             store,
         )
         .await
@@ -297,13 +302,13 @@ impl<S: BlockStore> Sphere<S> {
 
     /// "Hydrate" a range of revisions of a sphere. See the comments on
     /// the `try_hydrate` method for details and implications.
-    pub async fn try_hydrate_range(from: Option<&Cid>, to: &Cid, store: &S) -> Result<()> {
+    pub async fn hydrate_range(from: Option<&Cid>, to: &Cid, store: &S) -> Result<()> {
         let timeline = Timeline::new(store);
         let timeslice = timeline.slice(to, from);
         let items = timeslice.try_to_chronological().await?;
 
         for (cid, _) in items {
-            Sphere::at(&cid, store).try_hydrate().await?;
+            Sphere::at(&cid, store).hydrate().await?;
         }
 
         Ok(())
@@ -314,30 +319,27 @@ impl<S: BlockStore> Sphere<S> {
     /// is necessary if the blocks of the sphere were retrieved using sparse
     /// synchronization in order to ensure that interstitial nodes in the various
     /// versioned maps (which are each backed by a HAMT) are populated.
-    pub async fn try_hydrate(&self) -> Result<()> {
-        Sphere::try_hydrate_with_cid(self.cid(), &mut self.store.clone()).await
+    pub async fn hydrate(&self) -> Result<()> {
+        Sphere::hydrate_with_cid(self.cid(), &mut self.store.clone()).await
     }
 
     /// Same as try_hydrate, but specifying the CID to hydrate at
-    pub async fn try_hydrate_with_cid(cid: &Cid, store: &mut S) -> Result<()> {
+    pub async fn hydrate_with_cid(cid: &Cid, store: &mut S) -> Result<()> {
         let sphere = Sphere::at(cid, store);
-        let memo = sphere.try_as_memo().await?;
+        let memo = sphere.to_memo().await?;
         let base_cid = match memo.parent {
             Some(cid) => cid,
             None => {
                 let mut base_sphere = SphereIpld::default();
-                base_sphere.identity = sphere.try_get_identity().await?;
+                base_sphere.identity = sphere.get_identity().await?;
                 let empty_dag = MemoIpld::for_body(store, &base_sphere).await?;
                 store.save::<DagCborCodec, _>(&empty_dag).await?
             }
         };
 
-        let hydrated_revision = Sphere::try_apply_mutation_with_cid(
-            &base_cid,
-            &sphere.try_derive_mutation().await?,
-            store,
-        )
-        .await?;
+        let hydrated_revision =
+            Sphere::apply_mutation_with_cid(&base_cid, &sphere.derive_mutation().await?, store)
+                .await?;
 
         if hydrated_revision.memo.body != memo.body {
             return Err(anyhow!(
@@ -352,7 +354,7 @@ impl<S: BlockStore> Sphere<S> {
 
     /// Attempt to linearize the canonical history of the sphere by re-basing
     /// the history onto a branch with an implicitly common lineage.
-    pub async fn try_sync<Credential: KeyMaterial>(
+    pub async fn sync<Credential: KeyMaterial>(
         &self,
         old_base: &Cid,
         new_base: &Cid,
@@ -361,7 +363,7 @@ impl<S: BlockStore> Sphere<S> {
     ) -> Result<Cid> {
         let mut store = self.store.clone();
 
-        Sphere::try_hydrate_range(Some(old_base), new_base, &self.store).await?;
+        Sphere::hydrate_range(Some(old_base), new_base, &self.store).await?;
 
         let timeline = Timeline::new(&self.store);
         let timeslice = timeline.slice(self.cid(), Some(old_base));
@@ -370,7 +372,7 @@ impl<S: BlockStore> Sphere<S> {
         let mut next_base = *new_base;
 
         for (cid, _) in rebase_revisions.iter().skip(1) {
-            let mut revision = Sphere::try_rebase_with_cid(cid, &next_base, &mut store).await?;
+            let mut revision = Sphere::rebase_version(cid, &next_base, &mut store).await?;
             next_base = revision.try_sign(credential, authorization).await?;
         }
 
@@ -382,7 +384,7 @@ impl<S: BlockStore> Sphere<S> {
     /// the sphere, as well as a mnemonic string that should be stored side-band
     /// by the owner for the case that they wish to transfer ownership (e.g., if
     /// key rotation is called for).
-    pub async fn try_generate(
+    pub async fn generate(
         owner_did: &str,
         store: &mut S,
     ) -> Result<(Sphere<S>, Authorization, String)> {
@@ -440,7 +442,7 @@ impl<S: BlockStore> Sphere<S> {
             .allowed_ucans_mut()
             .set(&CidKey(delegation.jwt), &delegation);
 
-        let mut revision = sphere.try_apply_mutation(&mutation).await?;
+        let mut revision = sphere.apply_mutation(&mutation).await?;
         let sphere_cid = revision.try_sign(&sphere_key, None).await?;
 
         Ok((
@@ -453,7 +455,7 @@ impl<S: BlockStore> Sphere<S> {
     /// Change ownership of the sphere, producing a new UCAN authorization for
     /// the new owner and registering a revocation of the previous owner's
     /// authorization within the sphere.
-    pub async fn try_change_owner(
+    pub async fn change_owner(
         &self,
         mnemonic: &str,
         next_owner_did: &str,
@@ -538,13 +540,61 @@ impl<S: BlockStore> Sphere<S> {
             .revoked_ucans_mut()
             .set(&CidKey(current_jwt_cid), &revocation);
 
-        let mut revision = self.try_apply_mutation(&mutation).await?;
+        let mut revision = self.apply_mutation(&mutation).await?;
         let sphere_cid = revision.try_sign(&restored_key, None).await?;
 
         Ok((
             Sphere::at(&sphere_cid, &self.store),
             Authorization::Ucan(ucan),
         ))
+    }
+
+    /// NOTE: Steps backwards through history, excludes since
+    pub fn into_history_stream(
+        self,
+        since: Option<&Cid>,
+    ) -> impl Stream<Item = Result<(Cid, Sphere<S>)>> {
+        let since = since.cloned();
+
+        try_stream! {
+            let timeline = Timeline::new(&self.store);
+            let timeslice = timeline.slice(&self.cid, since.as_ref());
+            let stream = timeslice.try_stream();
+
+            for await item in stream {
+                let (cid, _) = item?;
+
+                match since {
+                    Some(since) if since == cid => {
+                        break;
+                    },
+                    _ => ()
+                };
+
+                yield (cid, Sphere::at(&cid, &self.store));
+            }
+        }
+    }
+
+    /// Consume the [Sphere] and get a [Stream] that yields the [ChangelogIpld]
+    /// for petnames and resolutions at each version of the sphere.
+    pub fn into_name_changelog_stream(
+        self,
+        since: Option<&Cid>,
+    ) -> impl Stream<Item = Result<(Cid, ChangelogIpld<MapOperation<String, AddressIpld>>)>> {
+        let since = since.cloned();
+
+        try_stream! {
+            let history: Vec<Result<(Cid, Sphere<S>)>> = self.into_history_stream(since.as_ref()).collect().await;
+
+            for item in history.into_iter().rev() {
+                let (cid, sphere) = item?;
+                let names = sphere.get_names().await?;
+                let changelog = names.try_load_changelog().await?;
+
+                yield (cid, changelog);
+            }
+        }
     }
 
     /// Consume the [Sphere] and get a [Stream] that yields the [ChangelogIpld]
@@ -556,21 +606,12 @@ impl<S: BlockStore> Sphere<S> {
         let since = since.cloned();
 
         try_stream! {
-            let timeline = Timeline::new(&self.store);
-            let timeslice = timeline.slice(&self.cid, since.as_ref());
+            let history: Vec<Result<(Cid, Sphere<S>)>> = self.into_history_stream(since.as_ref()).collect().await;
 
-            let items = timeslice.try_to_chronological().await?;
-
-            for (cid, _) in items {
-                let links = Sphere::at(&cid, &self.store).try_get_links().await?;
+            for item in history.into_iter().rev() {
+                let (cid, sphere) = item?;
+                let links = sphere.get_links().await?;
                 let changelog = links.try_load_changelog().await?;
-
-                match since {
-                    Some(since) if since == cid => {
-                        continue;
-                    },
-                    _ => ()
-                };
 
                 yield (cid, changelog);
             }
@@ -615,13 +656,13 @@ mod tests {
         let (sphere_cid, sphere_identity) = {
             let owner_key = generate_ed25519_key();
             let owner_did = owner_key.get_did().await.unwrap();
-            let (sphere, _, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+            let (sphere, _, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
-            (*sphere.cid(), sphere.try_get_identity().await.unwrap())
+            (*sphere.cid(), sphere.get_identity().await.unwrap())
         };
 
         let restored_sphere = Sphere::at(&sphere_cid, &store);
-        let restored_identity = restored_sphere.try_get_identity().await.unwrap();
+        let restored_identity = restored_sphere.get_identity().await.unwrap();
 
         assert_eq!(sphere_identity, restored_identity);
     }
@@ -633,11 +674,11 @@ mod tests {
 
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
-        let (sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let (sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
         let ucan_jwt_cid = Cid::try_from(ucan).unwrap();
 
-        let authorization = sphere.try_get_authority().await.unwrap();
+        let authorization = sphere.get_authority().await.unwrap();
         let allowed_ucans = authorization.try_get_allowed_ucans().await.unwrap();
         let authorization = allowed_ucans.get(&CidKey(ucan_jwt_cid)).await.unwrap();
 
@@ -658,7 +699,7 @@ mod tests {
         let (sphere, authorization, mnemonic) = {
             let owner_key = generate_ed25519_key();
             let owner_did = owner_key.get_did().await.unwrap();
-            Sphere::try_generate(&owner_did, &mut store).await.unwrap()
+            Sphere::generate(&owner_did, &mut store).await.unwrap()
         };
 
         let next_owner_key = generate_ed25519_key();
@@ -666,7 +707,7 @@ mod tests {
 
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
         let (_, new_authorization) = sphere
-            .try_change_owner(&mnemonic, &next_owner_did, &authorization, &mut did_parser)
+            .change_owner(&mnemonic, &next_owner_did, &authorization, &mut did_parser)
             .await
             .unwrap();
 
@@ -685,16 +726,16 @@ mod tests {
         let owner_did = owner_key.get_did().await.unwrap();
 
         let (sphere, original_authorization, mnemonic) =
-            { Sphere::try_generate(&owner_did, &mut store).await.unwrap() };
+            { Sphere::generate(&owner_did, &mut store).await.unwrap() };
 
-        let sphere_identity = sphere.try_get_identity().await.unwrap();
+        let sphere_identity = sphere.get_identity().await.unwrap();
 
         let next_owner_key = generate_ed25519_key();
         let next_owner_did = next_owner_key.get_did().await.unwrap();
 
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
         let (sphere, new_authorization) = sphere
-            .try_change_owner(
+            .change_owner(
                 &mnemonic,
                 &next_owner_did,
                 &original_authorization,
@@ -706,7 +747,7 @@ mod tests {
         let original_jwt_cid = Cid::try_from(&original_authorization).unwrap();
         let new_jwt_cid = Cid::try_from(&new_authorization).unwrap();
 
-        let authority = sphere.try_get_authority().await.unwrap();
+        let authority = sphere.get_authority().await.unwrap();
 
         let allowed_ucans = authority.try_get_allowed_ucans().await.unwrap();
         let revoked_ucans = authority.try_get_revoked_ucans().await.unwrap();
@@ -726,7 +767,7 @@ mod tests {
 
         let new_revocation = new_revocation.unwrap();
 
-        assert_eq!(new_revocation.iss, sphere.try_get_identity().await.unwrap());
+        assert_eq!(new_revocation.iss, sphere.get_identity().await.unwrap());
         assert_eq!(new_revocation.revoke, original_jwt_cid.to_string());
 
         let sphere_key = did_parser.parse(&sphere_identity).unwrap();
@@ -742,7 +783,7 @@ mod tests {
         let (sphere, ucan, _) = {
             let owner_key = generate_ed25519_key();
             let owner_did = owner_key.get_did().await.unwrap();
-            Sphere::try_generate(&owner_did, &mut store).await.unwrap()
+            Sphere::generate(&owner_did, &mut store).await.unwrap()
         };
 
         let next_owner_key = generate_ed25519_key();
@@ -751,7 +792,7 @@ mod tests {
 
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
         let authorize_result = sphere
-            .try_change_owner(&incorrect_mnemonic, &next_owner_did, &ucan, &mut did_parser)
+            .change_owner(&incorrect_mnemonic, &next_owner_did, &ucan, &mut did_parser)
             .await;
 
         assert!(authorize_result.is_err());
@@ -765,7 +806,7 @@ mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
         let (sphere, authorization, mnemonic) =
-            Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+            Sphere::generate(&owner_did, &mut store).await.unwrap();
 
         let next_owner_key = generate_ed25519_key();
         let next_owner_did = next_owner_key.get_did().await.unwrap();
@@ -779,7 +820,7 @@ mod tests {
                 .claiming_capability(&Capability {
                     with: With::Resource {
                         kind: Resource::Scoped(SphereReference {
-                            did: sphere.try_get_identity().await.unwrap().to_string(),
+                            did: sphere.get_identity().await.unwrap().to_string(),
                         }),
                     },
                     can: SphereAction::Publish,
@@ -795,7 +836,7 @@ mod tests {
 
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
         let authorize_result = sphere
-            .try_change_owner(
+            .change_owner(
                 &mnemonic,
                 &next_owner_did,
                 &insufficient_authorization,
@@ -816,17 +857,17 @@ mod tests {
         let sphere_cid = {
             let owner_key = generate_ed25519_key();
             let owner_did = owner_key.get_did().await.unwrap();
-            let (sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+            let (sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
             let mut mutation = SphereMutation::new(&owner_did);
             mutation.links_mut().set(&foo_key, &foo_cid);
 
-            let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+            let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             revision.try_sign(&owner_key, Some(&ucan)).await.unwrap()
         };
 
         let restored_sphere = Sphere::at(&sphere_cid, &store);
-        let restored_links = restored_sphere.try_get_links().await.unwrap();
+        let restored_links = restored_sphere.get_links().await.unwrap();
         let restored_foo_cid = restored_links.get(&foo_key).await.unwrap().unwrap();
 
         assert_eq!(&foo_cid, restored_foo_cid);
@@ -839,7 +880,7 @@ mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (mut sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let (mut sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
         let mut lineage = vec![*sphere.cid()];
         let foo_key = String::from("foo");
 
@@ -849,7 +890,7 @@ mod tests {
                 &foo_key,
                 &store.save::<RawCodec, _>(Bytes::new(&[i])).await.unwrap(),
             );
-            let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+            let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             let next_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
 
             sphere = Sphere::at(&next_cid, &store);
@@ -860,7 +901,7 @@ mod tests {
 
         for cid in lineage.iter().rev() {
             assert_eq!(cid, sphere.cid());
-            if let Some(parent) = sphere.try_get_parent().await.unwrap() {
+            if let Some(parent) = sphere.get_parent().await.unwrap() {
                 sphere = parent;
             }
         }
@@ -873,7 +914,7 @@ mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (mut sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let (mut sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
         let mut lineage = vec![*sphere.cid()];
 
         for i in 0..5u8 {
@@ -882,7 +923,7 @@ mod tests {
                 &format!("foo/{i}"),
                 &store.save::<RawCodec, _>(Bytes::new(&[i])).await.unwrap(),
             );
-            let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+            let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             let next_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
 
             sphere = Sphere::at(&next_cid, &store);
@@ -917,7 +958,7 @@ mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let (sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
         let foo_key = String::from("foo");
         let bar_key = String::from("bar");
@@ -937,7 +978,7 @@ mod tests {
         let mut base_mutation = SphereMutation::new(&owner_did);
         base_mutation.links_mut().set(&foo_key, &bar_cid);
 
-        let mut base_revision = sphere.try_apply_mutation(&base_mutation).await.unwrap();
+        let mut base_revision = sphere.apply_mutation(&base_mutation).await.unwrap();
 
         let base_cid = base_revision
             .try_sign(&owner_key, Some(&ucan))
@@ -948,7 +989,7 @@ mod tests {
         lineage_a_mutation.links_mut().set(&bar_key, &baz_cid);
 
         let mut lineage_a_revision =
-            Sphere::try_apply_mutation_with_cid(&base_cid, &lineage_a_mutation, &mut store)
+            Sphere::apply_mutation_with_cid(&base_cid, &lineage_a_mutation, &mut store)
                 .await
                 .unwrap();
         let lineage_a_cid = lineage_a_revision
@@ -961,7 +1002,7 @@ mod tests {
         lineage_b_mutation.links_mut().set(&baz_key, &flurb_cid);
 
         let mut lineage_b_revision =
-            Sphere::try_apply_mutation_with_cid(&base_cid, &lineage_b_mutation, &mut store)
+            Sphere::apply_mutation_with_cid(&base_cid, &lineage_b_mutation, &mut store)
                 .await
                 .unwrap();
         let lineage_b_cid = lineage_b_revision
@@ -970,7 +1011,7 @@ mod tests {
             .unwrap();
 
         let mut rebase_revision =
-            Sphere::try_rebase_with_cid(&lineage_b_cid, &lineage_a_cid, &mut store)
+            Sphere::rebase_version(&lineage_b_cid, &lineage_a_cid, &mut store)
                 .await
                 .unwrap();
         let rebase_cid = rebase_revision
@@ -979,12 +1020,12 @@ mod tests {
             .unwrap();
 
         let rebased_sphere = Sphere::at(&rebase_cid, &store);
-        let rebased_links = rebased_sphere.try_get_links().await.unwrap();
+        let rebased_links = rebased_sphere.get_links().await.unwrap();
 
-        let parent_sphere = rebased_sphere.try_get_parent().await.unwrap().unwrap();
+        let parent_sphere = rebased_sphere.get_parent().await.unwrap().unwrap();
         assert_eq!(parent_sphere.cid(), &lineage_a_cid);
 
-        let grandparent_sphere = parent_sphere.try_get_parent().await.unwrap().unwrap();
+        let grandparent_sphere = parent_sphere.get_parent().await.unwrap().unwrap();
         assert_eq!(grandparent_sphere.cid(), &base_cid);
 
         assert_eq!(
@@ -1003,7 +1044,7 @@ mod tests {
         let owner_did = owner_key.get_did().await.unwrap();
 
         let (mut sphere, authorization, _) =
-            Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+            Sphere::generate(&owner_did, &mut store).await.unwrap();
 
         let address = AddressIpld {
             identity: owner_did.clone().into(),
@@ -1014,7 +1055,7 @@ mod tests {
 
         mutation.names_mut().set(&"foo".into(), &address);
 
-        let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+        let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
         let next_cid = revision
             .try_sign(&owner_key, Some(&authorization))
             .await
@@ -1026,7 +1067,7 @@ mod tests {
 
         mutation.names_mut().set(&"bar".into(), &address);
 
-        let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+        let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
         let next_cid = revision
             .try_sign(&owner_key, Some(&authorization))
             .await
@@ -1034,7 +1075,7 @@ mod tests {
 
         sphere = Sphere::at(&next_cid, &store);
 
-        let bundle = sphere.try_bundle_until_ancestor(None).await.unwrap();
+        let bundle = sphere.bundle_until_ancestor(None).await.unwrap();
         let mut other_store = MemoryStore::default();
 
         bundle.load_into(&mut other_store).await.unwrap();
@@ -1044,7 +1085,7 @@ mod tests {
         let items = timeslice.try_to_chronological().await.unwrap();
 
         for (cid, _) in items {
-            Sphere::at(&cid, &other_store).try_hydrate().await.unwrap();
+            Sphere::at(&cid, &other_store).hydrate().await.unwrap();
         }
 
         store.expect_replica_in(&other_store).await.unwrap();
@@ -1057,7 +1098,7 @@ mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (mut sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let (mut sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
         for i in 0..32u8 {
             let mut mutation = SphereMutation::new(&owner_did);
@@ -1067,12 +1108,12 @@ mod tests {
                 &key,
                 &store.save::<RawCodec, _>(Bytes::new(&[i])).await.unwrap(),
             );
-            let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+            let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             let next_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
             sphere = Sphere::at(&next_cid, &store);
         }
 
-        let bundle = sphere.try_bundle_until_ancestor(None).await.unwrap();
+        let bundle = sphere.bundle_until_ancestor(None).await.unwrap();
         let mut other_store = MemoryStore::default();
 
         bundle.load_into(&mut other_store).await.unwrap();
@@ -1082,7 +1123,7 @@ mod tests {
         let items = timeslice.try_to_chronological().await.unwrap();
 
         for (cid, _) in items {
-            Sphere::at(&cid, &other_store).try_hydrate().await.unwrap();
+            Sphere::at(&cid, &other_store).hydrate().await.unwrap();
         }
 
         store.expect_replica_in(&other_store).await.unwrap();
@@ -1096,7 +1137,7 @@ mod tests {
         let owner_did = owner_key.get_did().await.unwrap();
 
         let (mut sphere, authorization, _) =
-            Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+            Sphere::generate(&owner_did, &mut store).await.unwrap();
 
         let ucan = authorization
             .resolve_ucan(&UcanStore(store.clone()))
@@ -1113,7 +1154,7 @@ mod tests {
             .allowed_ucans_mut()
             .set(&CidKey(delegation.jwt), &delegation);
 
-        let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+        let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
         let next_cid = revision
             .try_sign(&owner_key, Some(&authorization))
             .await
@@ -1130,7 +1171,7 @@ mod tests {
                 .unwrap(),
         );
 
-        let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+        let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
         let next_cid = revision
             .try_sign(&owner_key, Some(&authorization))
             .await
@@ -1138,7 +1179,7 @@ mod tests {
 
         sphere = Sphere::at(&next_cid, &store);
 
-        let bundle = sphere.try_bundle_until_ancestor(None).await.unwrap();
+        let bundle = sphere.bundle_until_ancestor(None).await.unwrap();
         let mut other_store = MemoryStore::default();
 
         bundle.load_into(&mut other_store).await.unwrap();
@@ -1148,7 +1189,7 @@ mod tests {
         let items = timeslice.try_to_chronological().await.unwrap();
 
         for (cid, _) in items {
-            Sphere::at(&cid, &other_store).try_hydrate().await.unwrap();
+            Sphere::at(&cid, &other_store).hydrate().await.unwrap();
         }
 
         store.expect_replica_in(&other_store).await.unwrap();
@@ -1173,7 +1214,7 @@ mod tests {
             mutation.links_mut().set(&change_key.into(), change_cid);
 
             let mut base_revision =
-                Sphere::try_apply_mutation_with_cid(base_cid, &mutation, store).await?;
+                Sphere::apply_mutation_with_cid(base_cid, &mutation, store).await?;
 
             base_revision
                 .try_sign(credential, Some(authorization))
@@ -1192,8 +1233,7 @@ mod tests {
             .await
             .unwrap();
 
-        let (sphere, authorization, _) =
-            Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let (sphere, authorization, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
         let base_cid = make_revision(
             sphere.cid(),
@@ -1264,7 +1304,7 @@ mod tests {
         let local_sphere = Sphere::at(&local_cid_b, &store);
 
         local_sphere
-            .try_sync(&base_cid, &external_cid_b, &owner_key, Some(&authorization))
+            .sync(&base_cid, &external_cid_b, &owner_key, Some(&authorization))
             .await
             .unwrap();
     }

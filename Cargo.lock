@@ -3679,17 +3679,20 @@ name = "noosphere"
 version = "0.6.3"
 dependencies = [
  "anyhow",
+ "async-stream",
  "async-trait",
+ "bytes",
  "cid 0.9.0",
  "itertools",
  "js-sys",
  "lazy_static",
+ "libipld-cbor 0.15.0",
  "libipld-core 0.15.0",
  "noosphere-api",
  "noosphere-core",
- "noosphere-fs",
  "noosphere-into",
  "noosphere-ipfs",
+ "noosphere-sphere",
  "noosphere-storage",
  "rexie",
  "safer-ffi",
@@ -3698,6 +3701,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
+ "tokio-util 0.7.4",
  "tracing",
  "ucan",
  "ucan-key-support",
@@ -3722,6 +3726,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_urlencoded",
+ "thiserror",
  "tokio",
  "tracing",
  "ucan",
@@ -3750,9 +3755,9 @@ dependencies = [
  "noosphere",
  "noosphere-api",
  "noosphere-core",
- "noosphere-fs",
  "noosphere-gateway",
  "noosphere-ipfs",
+ "noosphere-sphere",
  "noosphere-storage",
  "path-absolutize",
  "pathdiff",
@@ -3845,33 +3850,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "noosphere-fs"
-version = "0.5.3"
-dependencies = [
- "anyhow",
- "async-stream",
- "bytes",
- "cid 0.9.0",
- "futures-util",
- "libipld-cbor 0.15.0",
- "libipld-core 0.15.0",
- "noosphere-core",
- "noosphere-storage",
- "once_cell",
- "tokio",
- "tokio-stream",
- "tokio-util 0.7.4",
- "tracing",
- "ucan",
- "ucan-key-support",
- "wasm-bindgen-test",
-]
-
-[[package]]
 name = "noosphere-gateway"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-stream",
  "async-trait",
  "axum 0.5.17",
  "cid 0.9.0",
@@ -3886,8 +3869,9 @@ dependencies = [
  "noosphere",
  "noosphere-api",
  "noosphere-core",
- "noosphere-fs",
  "noosphere-ipfs",
+ "noosphere-ns",
+ "noosphere-sphere",
  "noosphere-storage",
  "path-absolutize",
  "pathdiff",
@@ -3896,6 +3880,7 @@ dependencies = [
  "serde_json",
  "subtext",
  "tempfile",
+ "thiserror",
  "tokio",
  "tokio-stream",
  "toml_edit",
@@ -3928,7 +3913,7 @@ dependencies = [
  "futures",
  "horrorshow",
  "noosphere-core",
- "noosphere-fs",
+ "noosphere-sphere",
  "noosphere-storage",
  "subtext",
  "tempfile",
@@ -3999,6 +3984,32 @@ dependencies = [
  "ucan",
  "ucan-key-support",
  "url 2.3.1",
+]
+
+[[package]]
+name = "noosphere-sphere"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "bytes",
+ "cid 0.9.0",
+ "libipld-cbor 0.15.0",
+ "libipld-core 0.15.0",
+ "noosphere-api",
+ "noosphere-core",
+ "noosphere-storage",
+ "tokio",
+ "tokio-stream",
+ "tokio-util 0.7.4",
+ "tracing",
+ "ucan",
+ "ucan-key-support",
+ "url 2.3.1",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
@@ -6013,18 +6024,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.37"
+version = "1.0.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10deb33631e3c9018b9baf9dcbbc4f737320d2b576bac10f6aefa048fa407e3e"
+checksum = "6a9cd18aa97d5c45c6603caea1da6628790b37f7a34b6ca89522331c5180fed0"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.37"
+version = "1.0.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "982d17546b47146b28f7c22e3d08465f6b8903d0ea13c1660d9d84a6e7adcdbb"
+checksum = "1fb327af4685e4d03fa8cbcf1716380da910eeb2bb8be417e7f9fd3fb164f36f"
 dependencies = [
  "proc-macro2",
  "quote",

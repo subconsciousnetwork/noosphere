@@ -3,5 +3,5 @@ mod handlers;
 mod routes;
 mod server;
 
-pub use client::HTTPClient;
-pub use server::APIServer;
+pub use client::HttpClient;
+pub use server::ApiServer;

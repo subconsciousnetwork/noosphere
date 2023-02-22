@@ -1,6 +1,6 @@
 use crate::{
     dht::{NetworkInfo, Peer},
-    records::NSRecord,
+    records::NsRecord,
     PeerId,
 };
 use anyhow::Result;
@@ -9,12 +9,12 @@ use libp2p::Multiaddr;
 use noosphere_core::data::Did;
 
 #[cfg(doc)]
-use crate::server::HTTPClient;
+use crate::server::HttpClient;
 #[cfg(doc)]
 use crate::NameSystem;
 
 #[async_trait]
-pub trait NameSystemClient {
+pub trait NameSystemClient: Send + Sync {
     /* Diagnostic APIs */
 
     /// Returns current network information for this node.
@@ -45,12 +45,12 @@ pub trait NameSystemClient {
 
     /* Record APIs */
 
-    /// Propagates the corresponding managed sphere's [NSRecord] on nearby peers
+    /// Propagates the corresponding managed sphere's [NsRecord] on nearby peers
     /// in the DHT network.
-    async fn put_record(&self, record: NSRecord) -> Result<()>;
+    async fn put_record(&self, record: NsRecord) -> Result<()>;
 
-    /// Returns an [NSRecord] for the provided identity if found.
-    async fn get_record(&self, identity: &Did) -> Result<Option<NSRecord>>;
+    /// Returns an [NsRecord] for the provided identity if found.
+    async fn get_record(&self, identity: &Did) -> Result<Option<NsRecord>>;
 
     /* Operator APIs */
 
@@ -168,7 +168,7 @@ pub mod test {
         let link: Cid = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72"
             .parse()
             .unwrap();
-        let record = NSRecord::from_issuer(&sphere_key, &sphere_id, &link, None).await?;
+        let record = NsRecord::from_issuer(&sphere_key, &sphere_id, &link, None).await?;
         client.put_record(record).await?;
 
         let retrieved = client

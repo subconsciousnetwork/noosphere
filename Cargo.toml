@@ -1,16 +1,16 @@
 [workspace]
 members = [
-  "rust/noosphere-storage",
+  "rust/noosphere",
+  "rust/noosphere-api",
+  "rust/noosphere-cli",
   "rust/noosphere-collections",
   "rust/noosphere-core",
-  "rust/noosphere-api",
-  "rust/noosphere-fs",
   "rust/noosphere-gateway",
   "rust/noosphere-into",
   "rust/noosphere-ipfs",
-  "rust/noosphere-cli",
   "rust/noosphere-ns",
-  "rust/noosphere"
+  "rust/noosphere-sphere",
+  "rust/noosphere-storage",
 ]
 
 # See: https://github.com/rust-lang/rust/issues/90148#issuecomment-949194352

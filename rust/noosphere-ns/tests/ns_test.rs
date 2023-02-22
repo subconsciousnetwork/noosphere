@@ -5,7 +5,7 @@ use anyhow::Result;
 use noosphere_core::{authority::generate_ed25519_key, data::Did, view::SPHERE_LIFETIME};
 use noosphere_ns::{
     utils::{generate_capability, generate_fact, wait_for_peers},
-    DHTConfig, Multiaddr, NSRecord, NameSystem, NameSystemClient,
+    DHTConfig, Multiaddr, NameSystem, NameSystemClient, NsRecord,
 };
 use noosphere_storage::{derive_cid, MemoryStorage, SphereDb};
 use utils::generate_default_listening_address;
@@ -250,7 +250,7 @@ async fn it_is_thread_safe() -> Result<()> {
     let [ns_1] = [ns_data.remove(0)];
     let address = derive_cid::<DagCborCodec>(b"00000000");
 
-    let ucan_record: NSRecord = UcanBuilder::default()
+    let ucan_record: NsRecord = UcanBuilder::default()
         .issued_by(&ns_1.owner_key)
         .for_audience(&ns_1.sphere_id)
         .claiming_capability(&generate_capability(&ns_1.sphere_id))

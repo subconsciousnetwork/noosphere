@@ -3,21 +3,32 @@ use async_stream::stream;
 use futures::Stream;
 use noosphere_core::data::{ContentType, Header};
 use noosphere_core::view::Sphere;
-use noosphere_fs::SphereFile;
-use noosphere_storage::BlockStore;
+use noosphere_sphere::{HasSphereContext, SphereFile};
+use noosphere_storage::{BlockStore, Storage};
+use ucan::crypto::KeyMaterial;
 
 /// Given a [Transform] and a [Sphere], produce a stream that yields the file
 /// content as an HTML document
-pub fn sphere_to_html_document_stream<T, S>(
+pub fn sphere_to_html_document_stream<H, K, S, T>(
+    context: H,
     transform: T,
-    sphere: Sphere<S>,
 ) -> impl Stream<Item = String>
 where
+    H: HasSphereContext<K, S>,
+    K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
     T: Transform,
-    S: BlockStore + 'static,
 {
     stream! {
-        let sphere_identity = match sphere.try_get_identity().await {
+        let sphere = match context.to_sphere().await {
+            Ok(sphere) => sphere,
+            Err(error) => {
+                error!("Could not get sphere: {:?}", error);
+                return ();
+            }
+        };
+
+        let sphere_identity = match sphere.get_identity().await {
             Ok(did) => did,
             Err(error) => {
                 error!("Could not get sphere identity: {:?}", error);
@@ -25,7 +36,7 @@ where
             }
         };
 
-        let mut memo = match sphere.try_as_memo().await {
+        let mut memo = match sphere.to_memo().await {
             Ok(memo) => memo,
             Err(error) => {
                 error!("Could not get sphere memo: {:?}", error);
@@ -35,7 +46,7 @@ where
 
         let (html_prefix, html_suffix) = html_document_envelope(&memo);
 
-        memo.replace_header(&Header::ContentType.to_string(), &ContentType::Subtext.to_string());
+        memo.replace_first_header(&Header::ContentType.to_string(), &ContentType::Subtext.to_string());
 
         let sphere_file = SphereFile {
             sphere_identity,
@@ -45,7 +56,7 @@ where
             contents: TransformStream(sphere_to_subtext_stream(sphere)).into_reader(),
         };
 
-        let fragment_stream = subtext_to_html_fragment_stream(transform, sphere_file);
+        let fragment_stream = subtext_to_html_fragment_stream(sphere_file, transform);
 
         yield html_prefix;
 
@@ -62,7 +73,7 @@ where
     S: BlockStore + 'static,
 {
     stream! {
-        let links = match sphere.try_get_links().await {
+        let links = match sphere.get_links().await {
             Ok(links) => links,
             Err(error) => {
                 warn!("Could not resolve links for sphere: {}", error);

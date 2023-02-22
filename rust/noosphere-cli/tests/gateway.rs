@@ -1,7 +1,13 @@
 #![cfg(not(target_arch = "wasm32"))]
 
+#[macro_use]
+extern crate tracing;
+
 use anyhow::anyhow;
 use noosphere::key::KeyStorage;
+use noosphere_sphere::{
+    HasMutableSphereContext, SphereContentRead, SphereContentWrite, SphereCursor, SphereSync,
+};
 use noosphere_storage::BlockStore;
 use std::net::TcpListener;
 use tokio::io::AsyncReadExt;
@@ -34,6 +40,7 @@ use noosphere_gateway::{start_gateway, GatewayScope};
 
 #[tokio::test]
 async fn gateway_tells_you_its_identity() {
+    initialize_tracing();
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
 
@@ -73,6 +80,7 @@ async fn gateway_tells_you_its_identity() {
                 },
                 gateway_sphere_context,
                 Url::parse("http://127.0.0.1:5001").unwrap(),
+                Url::parse("http://127.0.0.1:6667").unwrap(),
                 None,
             )
             .await
@@ -148,6 +156,7 @@ async fn gateway_identity_can_be_verified_by_the_client_of_its_owner() {
                 },
                 gateway_sphere_context,
                 Url::parse("http://127.0.0.1:5001").unwrap(),
+                Url::parse("http://127.0.0.1:6667").unwrap(),
                 None,
             )
             .await
@@ -189,7 +198,7 @@ async fn gateway_identity_can_be_verified_by_the_client_of_its_owner() {
 
 #[tokio::test]
 async fn gateway_receives_a_newly_initialized_sphere_from_the_client() {
-    // initialize_tracing();
+    initialize_tracing();
 
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
@@ -231,6 +240,7 @@ async fn gateway_receives_a_newly_initialized_sphere_from_the_client() {
                 },
                 gateway_sphere_context,
                 Url::parse("http://127.0.0.1:5001").unwrap(),
+                Url::parse("http://127.0.0.1:6667").unwrap(),
                 None,
             )
             .await
@@ -259,7 +269,7 @@ async fn gateway_receives_a_newly_initialized_sphere_from_the_client() {
             .unwrap();
 
         let sphere = Sphere::at(&sphere_cid, client_sphere_context.db());
-        let bundle = sphere.try_bundle_until_ancestor(None).await.unwrap();
+        let bundle = sphere.bundle_until_ancestor(None).await.unwrap();
         let client = client_sphere_context.client().await.unwrap();
 
         let push_result = client
@@ -301,7 +311,7 @@ async fn gateway_receives_a_newly_initialized_sphere_from_the_client() {
 
 #[tokio::test]
 async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() {
-    // initialize_tracing();
+    initialize_tracing();
 
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
@@ -346,6 +356,7 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() {
                 },
                 gateway_sphere_context,
                 Url::parse("http://127.0.0.1:5001").unwrap(),
+                Url::parse("http://127.0.0.1:6667").unwrap(),
                 None,
             )
             .await
@@ -378,7 +389,7 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() {
             .unwrap();
 
         let mut sphere = Sphere::at(&sphere_cid, client_sphere_context.db());
-        let bundle = sphere.try_bundle_until_ancestor(None).await.unwrap();
+        let bundle = sphere.bundle_until_ancestor(None).await.unwrap();
 
         let push_result = client
             .push(&PushBody {
@@ -412,7 +423,7 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() {
                 SphereMutation::new(&client_sphere_context.author().identity().await.unwrap());
             mutation.links_mut().set(&value.into(), &memo_cid);
 
-            let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+            let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             final_cid = revision
                 .try_sign(
                     &client_sphere_context.author().key,
@@ -425,7 +436,7 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() {
         }
 
         let bundle = sphere
-            .try_bundle_until_ancestor(Some(&sphere_cid))
+            .bundle_until_ancestor(Some(&sphere_cid))
             .await
             .unwrap();
 
@@ -467,7 +478,7 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() {
 
 #[tokio::test]
 async fn gateway_serves_sphere_revisions_to_a_client() {
-    // initialize_tracing();
+    initialize_tracing();
 
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
@@ -512,6 +523,7 @@ async fn gateway_serves_sphere_revisions_to_a_client() {
                 },
                 gateway_sphere_context,
                 Url::parse("http://127.0.0.1:5001").unwrap(),
+                Url::parse("http://127.0.0.1:6667").unwrap(),
                 None,
             )
             .await
@@ -561,7 +573,7 @@ async fn gateway_serves_sphere_revisions_to_a_client() {
                 SphereMutation::new(&client_sphere_context.author().identity().await.unwrap());
             mutation.links_mut().set(&value.into(), &memo_cid);
 
-            let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+            let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
 
             final_cid = revision
                 .try_sign(
@@ -575,7 +587,7 @@ async fn gateway_serves_sphere_revisions_to_a_client() {
         }
 
         let sphere = Sphere::at(&final_cid, client_sphere_context.db());
-        let bundle = sphere.try_bundle_until_ancestor(None).await.unwrap();
+        let bundle = sphere.bundle_until_ancestor(None).await.unwrap();
 
         let push_result = client
             .push(&PushBody {
@@ -613,7 +625,7 @@ async fn gateway_serves_sphere_revisions_to_a_client() {
 
 #[tokio::test]
 async fn gateway_can_sync_an_authorized_sphere_across_multiple_replicas() {
-    // initialize_tracing();
+    initialize_tracing();
 
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
@@ -661,6 +673,7 @@ async fn gateway_can_sync_an_authorized_sphere_across_multiple_replicas() {
                 },
                 gateway_sphere_context,
                 Url::parse("http://127.0.0.1:5001").unwrap(),
+                Url::parse("http://127.0.0.1:6667").unwrap(),
                 None,
             )
             .await
@@ -684,6 +697,9 @@ async fn gateway_can_sync_an_authorized_sphere_across_multiple_replicas() {
         .unwrap(),
     );
 
+    debug!("EXPECTED AUTHORIZATION: {}", client_replica_authorization);
+    debug!("SPHERE_JOIN");
+
     sphere_join(
         client_replica_key_name,
         Some(client_replica_authorization.to_string()),
@@ -693,49 +709,60 @@ async fn gateway_can_sync_an_authorized_sphere_across_multiple_replicas() {
     .await
     .unwrap();
 
-    let client_sphere_context = client_workspace.sphere_context().await.unwrap();
-    let client_replica_sphere_context = client_replica_workspace.sphere_context().await.unwrap();
+    debug!("STARTING CLIENT TASK");
+
+    let mut client_sphere_context = client_workspace.sphere_context().await.unwrap();
+    let mut client_replica_sphere_context =
+        client_replica_workspace.sphere_context().await.unwrap();
 
     let client_task = tokio::spawn(async move {
-        let mut client_sphere_context = client_sphere_context.lock().await;
         let gateway_url: Url =
             format!("http://{}:{}", gateway_address.ip(), gateway_address.port())
                 .parse()
                 .unwrap();
 
-        client_sphere_context
-            .configure_gateway_url(Some(&gateway_url))
-            .await
-            .unwrap();
+        {
+            client_sphere_context
+                .lock()
+                .await
+                .configure_gateway_url(Some(&gateway_url))
+                .await
+                .unwrap();
+        }
 
         for value in ["one", "two", "three"] {
-            let mut fs = client_sphere_context.fs().await.unwrap();
-
-            fs.write(
-                value,
-                &ContentType::Subtext.to_string(),
-                value.as_ref(),
-                None,
-            )
-            .await
-            .unwrap();
-            fs.save(None).await.unwrap();
+            client_sphere_context
+                .write(
+                    value,
+                    &ContentType::Subtext.to_string(),
+                    value.as_ref(),
+                    None,
+                )
+                .await
+                .unwrap();
+            SphereCursor::latest(client_sphere_context.clone())
+                .save(None)
+                .await
+                .unwrap();
         }
 
         client_sphere_context.sync().await.unwrap();
 
-        let mut client_replica_sphere_context = client_replica_sphere_context.lock().await;
-        client_replica_sphere_context
-            .configure_gateway_url(Some(&gateway_url))
-            .await
-            .unwrap();
-
+        {
+            let mut client_replica_sphere_context = client_replica_sphere_context.lock().await;
+            client_replica_sphere_context
+                .configure_gateway_url(Some(&gateway_url))
+                .await
+                .unwrap();
+        }
         client_replica_sphere_context.sync().await.unwrap();
 
-        let fs = client_replica_sphere_context.fs().await.unwrap();
-
         for value in ["one", "two", "three"] {
-            let mut file = fs.read(value).await.unwrap().unwrap();
+            let mut file = client_replica_sphere_context
+                .read(value)
+                .await
+                .unwrap()
+                .unwrap();
             let mut contents = String::new();
             file.contents.read_to_string(&mut contents).await.unwrap();
             assert_eq!(value, &contents);

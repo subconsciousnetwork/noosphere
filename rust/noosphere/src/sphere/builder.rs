@@ -16,14 +16,15 @@ use noosphere_storage::{KeyValueStore, MemoryStore, SphereDb};
 use ucan::crypto::KeyMaterial;
 use url::Url;
 
+use noosphere_sphere::{
+    metadata::{AUTHORIZATION, IDENTITY, USER_KEY_NAME},
+    SphereContext,
+};
+
 use crate::{
     key::KeyStorage,
     platform::{PlatformKeyMaterial, PlatformKeyStorage, PlatformStorage},
-    sphere::{
-        context::SphereContext,
-        metadata::{AUTHORIZATION, IDENTITY, USER_KEY_NAME},
-        storage::StorageLayout,
-    },
+    storage::StorageLayout,
 };
 
 enum SphereInitialization {
@@ -185,11 +186,11 @@ impl SphereContextBuilder {
 
                 let mut memory_store = MemoryStore::default();
                 let (sphere, authorization, mnemonic) =
-                    Sphere::try_generate(&owner_did, &mut memory_store)
+                    Sphere::generate(&owner_did, &mut memory_store)
                         .await
                         .unwrap();
 
-                let sphere_did = sphere.try_get_identity().await.unwrap();
+                let sphere_did = sphere.get_identity().await.unwrap();
                 let mut db = generate_db(
                     storage_path,
                     self.scoped_storage_layout,
@@ -214,7 +215,8 @@ impl SphereContextBuilder {
                         authorization: Some(authorization),
                     },
                     db,
-                );
+                )
+                .await?;
 
                 if self.gateway_api.is_some() {
                     context
@@ -251,6 +253,8 @@ impl SphereContextBuilder {
                         .await?;
                 }
 
+                debug!("Initializing context...");
+
                 let mut context = SphereContext::new(
                     sphere_identity,
                     Author {
@@ -258,7 +262,10 @@ impl SphereContextBuilder {
                         authorization: self.authorization,
                     },
                     db,
-                );
+                )
+                .await?;
+
+                debug!("Configuring gateway URL...");
 
                 if self.gateway_api.is_some() {
                     context
@@ -292,7 +299,7 @@ impl SphereContextBuilder {
                 };
 
                 let sphere_identity = db.require_key(IDENTITY).await?;
-                let mut context = SphereContext::new(sphere_identity, author, db);
+                let mut context = SphereContext::new(sphere_identity, author, db).await?;
 
                 if self.gateway_api.is_some() {
                     context
@@ -354,9 +361,8 @@ mod tests {
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use crate::{
-        key::KeyStorage, platform::make_temporary_platform_primitives, sphere::SphereContext,
-    };
+    use crate::{key::KeyStorage, platform::make_temporary_platform_primitives};
+    use noosphere_sphere::SphereContext;
 
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);

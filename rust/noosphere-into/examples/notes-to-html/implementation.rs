@@ -1,10 +1,13 @@
 use anyhow::{anyhow, Result};
 use axum::{http::StatusCode, response::IntoResponse, routing::get_service};
-use noosphere_fs::SphereFs;
 use noosphere_into::{sphere_into_html, NativeFs};
-use std::{ffi::OsStr, net::SocketAddr, path::Path};
+use noosphere_sphere::{HasMutableSphereContext, SphereContentWrite, SphereContext, SphereCursor};
+use std::{ffi::OsStr, net::SocketAddr, path::Path, sync::Arc};
 use tempfile::TempDir;
-use tokio::fs::{self, File};
+use tokio::{
+    fs::{self, File},
+    sync::Mutex,
+};
 use tower_http::services::ServeDir;
 
 #[cfg(unix)]
@@ -27,9 +30,9 @@ pub async fn main() -> Result<()> {
     let owner_key = generate_ed25519_key();
     let owner_did = owner_key.get_did().await?;
 
-    let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await?;
+    let (sphere, proof, _) = Sphere::generate(&owner_did, &mut db).await?;
 
-    let sphere_identity = sphere.try_get_identity().await.unwrap();
+    let sphere_identity = sphere.get_identity().await.unwrap();
     let author = Author {
         key: owner_key,
         authorization: Some(proof),
@@ -37,13 +40,16 @@ pub async fn main() -> Result<()> {
 
     db.set_version(&sphere_identity, sphere.cid()).await?;
 
+    let context = Arc::new(Mutex::new(
+        SphereContext::new(sphere_identity, author, db).await?,
+    ));
+    let mut cursor = SphereCursor::latest(context);
+
     let content_root = std::env::current_dir()?.join(Path::new("examples/notes-to-html/content"));
     let html_root = TempDir::new()?;
 
     println!("Content root: {:?}", content_root);
     println!("HTML root: {:?}", html_root.path());
-
-    let mut sphere_fs = SphereFs::latest(&sphere_identity, &author, &db).await?;
 
     let mut read_dir = fs::read_dir(content_root).await?;
 
@@ -56,16 +62,16 @@ pub async fn main() -> Result<()> {
         }
 
         let file_path = entry.path();
-        let slug = os_str_to_str(
-            file_path
-                .file_stem()
-                .ok_or_else(|| anyhow!("No slug able to be derived for {:?}", entry.file_name()))?)
-                .map_err(|_| anyhow!("Could not parse slug into UTF-8"))?;
+        let slug =
+            os_str_to_str(file_path.file_stem().ok_or_else(|| {
+                anyhow!("No slug able to be derived for {:?}", entry.file_name())
+            })?)
+            .map_err(|_| anyhow!("Could not parse slug into UTF-8"))?;
 
         let file = File::open(&file_path).await?;
         let title = capitalize(&slug);
 
-        sphere_fs
+        cursor
             .write(
                 &slug,
                 &ContentType::Subtext.to_string(),
@@ -75,13 +81,13 @@ pub async fn main() -> Result<()> {
             .await?;
     }
 
-    sphere_fs.save(None).await?;
+    cursor.save(None).await?;
 
     let native_fs = NativeFs {
         root: html_root.path().to_path_buf(),
     };
 
-    sphere_into_html(&sphere_identity, &db, &native_fs).await?;
+    sphere_into_html(cursor, &native_fs).await?;
 
     let app = get_service(ServeDir::new(html_root.path())).handle_error(handle_error);
 

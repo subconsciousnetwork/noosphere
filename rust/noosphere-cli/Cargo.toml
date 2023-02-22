@@ -50,7 +50,7 @@ globset = "~0.4"
 
 noosphere-ipfs = { version = "0.1.2", path = "../noosphere-ipfs" }
 noosphere-core = { version = "0.6.3", path = "../noosphere-core" }
-noosphere-fs = { version = "0.5.3", path = "../noosphere-fs" }
+noosphere-sphere = { version = "0.1.0", path = "../noosphere-sphere" }
 noosphere-storage = { version = "0.4.2", path = "../noosphere-storage" }
 noosphere-api = { version = "0.5.6", path = "../noosphere-api" }
 noosphere-gateway = { version = "0.1.0", path = "../noosphere-gateway" }

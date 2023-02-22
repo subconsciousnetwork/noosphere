@@ -3,6 +3,7 @@ mod fs;
 mod headers;
 mod key;
 mod noosphere;
+mod petname;
 mod sphere;
 
 #[cfg(feature = "headers")]
@@ -13,6 +14,7 @@ pub use error::*;
 pub use fs::*;
 pub use headers::*;
 pub use key::*;
+pub use petname::*;
 pub use sphere::*;
 
 ///! This module contains FFI implementation for all C ABI-speaking language

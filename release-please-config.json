@@ -11,11 +11,11 @@
     },
     "rust/noosphere-collections": {},
     "rust/noosphere-core": {},
-    "rust/noosphere-fs": {},
     "rust/noosphere-gateway": {},
     "rust/noosphere-ipfs": {},
     "rust/noosphere-into": {},
     "rust/noosphere-ns": {},
+    "rust/noosphere-sphere": {},
     "rust/noosphere-storage": {},
     "rust/noosphere": {
       "draft": true

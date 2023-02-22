@@ -1,4 +1,4 @@
-use std::pin::Pin;
+use std::{collections::BTreeMap, pin::Pin};
 
 use anyhow::{anyhow, Result};
 use async_once_cell::OnceCell;
@@ -110,6 +110,20 @@ where
             changelog: OnceCell::new(),
             store: store.clone(),
         })
+    }
+
+    /// Get a [BTreeMap] of all the added entries for this version of the
+    /// [VersionedMap].
+    pub async fn get_added(&self) -> Result<BTreeMap<K, V>> {
+        let changelog = self.try_get_changelog().await?;
+        let mut added = BTreeMap::new();
+        for item in changelog.changes.iter() {
+            match item {
+                MapOperation::Add { key, value } => added.insert(key.clone(), value.clone()),
+                MapOperation::Remove { .. } => continue,
+            };
+        }
+        Ok(added)
     }
 
     /// Read a key from the map. You can think of this as analogous to reading

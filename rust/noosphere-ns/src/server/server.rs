@@ -8,12 +8,12 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
 
-pub struct APIServer {
+pub struct ApiServer {
     #[allow(dead_code)]
     handle: tokio::task::JoinHandle<Result<()>>,
 }
 
-impl APIServer {
+impl ApiServer {
     pub fn serve(ns: Arc<Mutex<NameSystem>>, listener: TcpListener) -> Self {
         let app = Router::new()
             .route(
@@ -41,6 +41,6 @@ impl APIServer {
                 .await?;
             Ok(())
         });
-        APIServer { handle }
+        ApiServer { handle }
     }
 }

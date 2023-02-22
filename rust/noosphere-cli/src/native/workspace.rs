@@ -3,14 +3,11 @@ use cid::Cid;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use libipld_cbor::DagCborCodec;
 use noosphere_core::{
-    authority::{Author, Authorization},
+    authority::Authorization,
     data::{BodyChunkIpld, ContentType, Did, Header, MemoIpld},
     view::Sphere,
 };
-use noosphere_fs::SphereFs;
-use noosphere_storage::{
-    BlockStore, SphereDb, KeyValueStore, NativeStorage, Store,
-};
+use noosphere_storage::{BlockStore, KeyValueStore, NativeStorage, SphereDb, Store};
 use pathdiff::diff_paths;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -29,14 +26,17 @@ use url::Url;
 
 use noosphere::{
     key::{InsecureKeyStorage, KeyStorage},
-    sphere::{SphereContext, SphereContextBuilder, AUTHORIZATION, GATEWAY_URL, USER_KEY_NAME},
+    sphere::SphereContextBuilder,
+};
+
+use noosphere_sphere::{
+    HasSphereContext, SphereContentRead, SphereContext, AUTHORIZATION, GATEWAY_URL, USER_KEY_NAME,
 };
 
 use tempfile::TempDir;
 
 const SPHERE_DIRECTORY: &str = ".sphere";
 const NOOSPHERE_DIRECTORY: &str = ".noosphere";
-// const STORAGE_DIRECTORY: &str = "storage";
 
 pub type CliSphereContext = SphereContext<Ed25519KeyMaterial, NativeStorage>;
 
@@ -181,21 +181,12 @@ impl Workspace {
     ) -> Result<Option<(Content, ContentChanges)>> {
         let db = self.db().await?;
         let sphere_context = self.sphere_context().await?;
-        let sphere_context = sphere_context.lock().await;
-
-        let sphere_did = sphere_context.identity();
-        let sphere_cid = match db.get_version(sphere_did).await? {
-            Some(cid) => cid,
-            None => {
-                return Ok(None);
-            }
-        };
+        let sphere_cid = sphere_context.version().await?;
 
         let content = self.read_file_content(new_blocks).await?;
 
-        let sphere_fs = SphereFs::at(sphere_did, &sphere_cid, &Author::anonymous(), &db).await?;
         let sphere = Sphere::at(&sphere_cid, &db);
-        let links = sphere.try_get_links().await?;
+        let links = sphere.get_links().await?;
 
         let mut stream = links.stream().await?;
 
@@ -212,7 +203,7 @@ impl Workspace {
                     content_type,
                     extension: _,
                 }) => {
-                    let sphere_file = sphere_fs.read(slug).await?.ok_or_else(|| {
+                    let sphere_file = sphere_context.read(slug).await?.ok_or_else(|| {
                         anyhow!(
                             "Expected sphere file at slug {:?} but it was missing!",
                             slug
@@ -336,13 +327,9 @@ impl Workspace {
     /// in the workspace.
     pub async fn render(&self) -> Result<()> {
         let context = self.sphere_context().await?;
-        let context = context.lock().await;
+        let sphere = context.to_sphere().await?;
 
-        let sphere_fs = context.fs().await?;
-
-        let sphere = Sphere::at(sphere_fs.revision(), context.db());
-
-        let links = sphere.try_get_links().await?;
+        let links = sphere.get_links().await?;
 
         let mut stream = links.stream().await?;
 
@@ -351,7 +338,7 @@ impl Workspace {
         while let Some(Ok((slug, _cid))) = stream.next().await {
             debug!("Rendering {}...", slug);
 
-            let mut sphere_file = match sphere_fs.read(slug).await? {
+            let mut sphere_file = match context.read(slug).await? {
                 Some(file) => file,
                 None => {
                     println!("Warning: could not resolve content for {}", slug);

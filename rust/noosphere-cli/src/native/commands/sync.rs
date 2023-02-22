@@ -1,6 +1,7 @@
 use crate::native::workspace::Workspace;
 use anyhow::{anyhow, Result};
 use noosphere_core::tracing::initialize_tracing;
+use noosphere_sphere::SphereSync;
 use noosphere_storage::MemoryStore;
 
 pub async fn sync(workspace: &Workspace) -> Result<()> {
@@ -21,9 +22,7 @@ pub async fn sync(workspace: &Workspace) -> Result<()> {
     };
 
     {
-        let context = workspace.sphere_context().await?;
-        let mut context = context.lock().await;
-
+        let mut context = workspace.sphere_context().await?;
         context.sync().await?;
     }
 

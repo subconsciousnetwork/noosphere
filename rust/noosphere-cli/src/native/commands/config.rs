@@ -1,6 +1,6 @@
 use anyhow::Result;
-use noosphere::sphere::GATEWAY_URL;
 use noosphere_core::data::Did;
+use noosphere_sphere::metadata::GATEWAY_URL;
 use noosphere_storage::KeyValueStore;
 use serde::{Deserialize, Serialize};
 use tokio::sync::OnceCell;

@@ -27,7 +27,7 @@ pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) ->
     let latest_sphere_cid = db.require_version(&sphere_did).await?;
     let sphere = Sphere::at(&latest_sphere_cid, &db);
 
-    let authority = sphere.try_get_authority().await?;
+    let authority = sphere.get_authority().await?;
     let allowed_ucans = authority.try_get_allowed_ucans().await?;
     let mut allowed_stream = allowed_ucans.stream().await?;
 
@@ -114,7 +114,7 @@ You will be able to add a new one after the old one is revoked"#,
         .allowed_ucans_mut()
         .set(&CidKey(delegation.jwt), &delegation);
 
-    let mut revision = sphere.try_apply_mutation(&mutation).await?;
+    let mut revision = sphere.apply_mutation(&mutation).await?;
     let version_cid = revision.try_sign(&my_key, Some(&authorization)).await?;
 
     db.set_version(&sphere_did, &version_cid).await?;
@@ -148,7 +148,7 @@ pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {
 
     let sphere = Sphere::at(&latest_sphere_cid, &db);
 
-    let authorization = sphere.try_get_authority().await?;
+    let authorization = sphere.get_authority().await?;
 
     let allowed_ucans = authorization.try_get_allowed_ucans().await?;
 
@@ -205,7 +205,7 @@ pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
 
     let sphere = Sphere::at(&latest_sphere_cid, &db);
 
-    let authorization = sphere.try_get_authority().await?;
+    let authorization = sphere.get_authority().await?;
 
     let allowed_ucans = authorization.try_get_allowed_ucans().await?;
 
@@ -222,7 +222,7 @@ pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
             mutation.allowed_ucans_mut().remove(&key);
             mutation.revoked_ucans_mut().set(&key, &revocation);
 
-            let mut revision = sphere.try_apply_mutation(&mutation).await?;
+            let mut revision = sphere.apply_mutation(&mutation).await?;
             let ucan = workspace.authorization().await?;
 
             let sphere_cid = revision.try_sign(&my_key, Some(&ucan)).await?;

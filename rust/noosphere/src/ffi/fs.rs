@@ -5,29 +5,52 @@ use anyhow::anyhow;
 use cid::Cid;
 use itertools::Itertools;
 use noosphere_core::data::Did;
-use noosphere_fs::{SphereFile, SphereFs};
 use safer_ffi::{char_p::InvalidNulTerminator, prelude::*};
-use std::{pin::Pin, str::FromStr};
+use std::{pin::Pin, str::FromStr, sync::Arc};
 use subtext::{Peer, Slashlink};
-use tokio::io::{AsyncRead, AsyncReadExt};
+use tokio::{
+    io::{AsyncRead, AsyncReadExt},
+    sync::Mutex,
+};
 
 use crate::{
     ffi::{NsError, NsHeaders, NsNoosphereContext, TryOrInitialize},
     platform::{PlatformKeyMaterial, PlatformStorage},
 };
 
+use noosphere_sphere::{
+    HasMutableSphereContext, HasSphereContext, SphereContentRead, SphereContentWalker,
+    SphereContentWrite, SphereContext, SphereCursor, SphereFile,
+};
+
 #[derive_ReprC]
 #[ReprC::opaque]
 pub struct NsSphereFs {
-    inner: SphereFs<PlatformStorage, PlatformKeyMaterial>,
+    inner: SphereCursor<
+        Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>,
+        PlatformKeyMaterial,
+        PlatformStorage,
+    >,
 }
 
 impl NsSphereFs {
-    pub fn inner(&self) -> &SphereFs<PlatformStorage, PlatformKeyMaterial> {
+    pub fn inner(
+        &self,
+    ) -> &SphereCursor<
+        Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>,
+        PlatformKeyMaterial,
+        PlatformStorage,
+    > {
         &self.inner
     }
 
-    pub fn inner_mut(&mut self) -> &mut SphereFs<PlatformStorage, PlatformKeyMaterial> {
+    pub fn inner_mut(
+        &mut self,
+    ) -> &mut SphereCursor<
+        Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>,
+        PlatformKeyMaterial,
+        PlatformStorage,
+    > {
         &mut self.inner
     }
 }
@@ -66,11 +89,9 @@ pub fn ns_sphere_fs_open(
                 .get_sphere_context(&Did(sphere_identity.to_str().into()))
                 .await?;
 
-            let sphere_context = sphere_context.lock().await;
+            let cursor = SphereCursor::latest(sphere_context);
 
-            Ok(repr_c::Box::new(NsSphereFs {
-                inner: sphere_context.fs().await?,
-            })) as Result<_, anyhow::Error>
+            Ok(repr_c::Box::new(NsSphereFs { inner: cursor })) as Result<_, anyhow::Error>
         })?;
 
         Ok(fs)
@@ -116,13 +137,15 @@ pub fn ns_sphere_fs_read(
                     None => return Err(anyhow!("No slug specified in slashlink!")),
                 };
 
+                let cursor = sphere_fs.inner();
+
                 println!(
                     "Reading sphere {} slug {}...",
-                    sphere_fs.inner().identity(),
+                    cursor.identity().await?,
                     slug
                 );
 
-                let file = sphere_fs.inner().read(&slug).await?;
+                let file = cursor.read(&slug).await?;
 
                 Ok(file.map(|sphere_file| {
                     repr_c::Box::new(NsSphereFile {
@@ -159,15 +182,15 @@ pub fn ns_sphere_fs_write(
     error_out.try_or_initialize(|| {
         noosphere.async_runtime().block_on(async {
             let slug = slug.to_str();
+            let cursor = sphere_fs.inner_mut();
 
             println!(
                 "Writing sphere {} slug {}...",
-                sphere_fs.inner().identity(),
+                cursor.identity().await?,
                 slug
             );
 
-            sphere_fs
-                .inner_mut()
+            cursor
                 .write(
                     slug,
                     content_type.to_str(),
@@ -223,11 +246,7 @@ pub fn ns_sphere_fs_save(
                 .save(additional_headers.map(|headers| headers.inner().clone())),
         )?;
 
-        println!(
-            "Saved sphere {}; new revision is {}",
-            sphere_fs.inner().identity(),
-            cid
-        );
+        println!("Saved sphere; new revision is {}", cid);
 
         Ok(())
     });
@@ -242,7 +261,7 @@ pub fn ns_sphere_fs_list(
 ) -> c_slice::Box<char_p::Box> {
     let possible_output = error_out.try_or_initialize(|| {
         noosphere.async_runtime().block_on(async {
-            let slug_set = sphere_fs.inner().list().await;
+            let slug_set = SphereContentWalker::from(sphere_fs.inner()).list().await?;
             let mut all_slugs: Vec<char_p::Box> = Vec::new();
 
             for slug in slug_set.into_iter() {
@@ -289,7 +308,9 @@ pub fn ns_sphere_fs_changes(
                 None => None,
             };
 
-            let changed_slug_set = sphere_fs.inner().changes(since.as_ref()).await;
+            let changed_slug_set = SphereContentWalker::from(sphere_fs.inner())
+                .changes(since.as_ref())
+                .await?;
             let mut changed_slugs: Vec<char_p::Box> = Vec::new();
 
             for slug in changed_slug_set.into_iter() {

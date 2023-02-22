@@ -1,23 +1,20 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_api::client::Client;
 
 use noosphere_core::{
-    authority::{Author, SUPPORTED_KEYS},
+    authority::{Access, Author, SUPPORTED_KEYS},
     data::Did,
-    view::Sphere,
+    view::{Sphere, SphereMutation},
 };
-use noosphere_fs::SphereFs;
 use noosphere_storage::{KeyValueStore, SphereDb, Storage};
 use tokio::sync::OnceCell;
 use ucan::crypto::{did::DidParser, KeyMaterial};
 use url::Url;
 
-use crate::error::NoosphereError;
-
-use super::{metadata::GATEWAY_URL, GatewaySyncStrategy};
+use crate::metadata::GATEWAY_URL;
 
 /// A [SphereContext] is an accessor construct over locally replicated sphere
 /// data. It embodies both the storage layer that contains the sphere's data
@@ -35,9 +32,11 @@ where
 {
     sphere_identity: Did,
     author: Author<K>,
+    access: OnceCell<Access>,
     db: SphereDb<S>,
     did_parser: DidParser,
     client: OnceCell<Arc<Client<K, SphereDb<S>>>>,
+    mutation: SphereMutation,
 }
 
 impl<K, S> SphereContext<K, S>
@@ -45,14 +44,39 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
-    pub fn new(sphere_identity: Did, author: Author<K>, db: SphereDb<S>) -> Self {
-        SphereContext {
+    pub async fn new(sphere_identity: Did, author: Author<K>, db: SphereDb<S>) -> Result<Self> {
+        let author_did = author.identity().await?;
+
+        Ok(SphereContext {
             sphere_identity,
+            access: OnceCell::new(),
             author,
             db,
             did_parser: DidParser::new(SUPPORTED_KEYS),
             client: OnceCell::new(),
-        }
+            mutation: SphereMutation::new(&author_did),
+        })
+    }
+
+    /// Given a [Did] of a sphere, produce a [SphereContext] backed by the same credentials and
+    /// storage primitives as this one, but that accesses the sphere referred to by the provided
+    /// [Did].
+    pub async fn traverse(&self, sphere_identity: &Did) -> Result<SphereContext<K, S>> {
+        Ok(SphereContext::new(
+            sphere_identity.clone(),
+            self.author.clone(),
+            self.db.clone(),
+        )
+        .await?)
+    }
+
+    /// Resolve the most recent version in the local history of the sphere
+    pub async fn head(&self) -> Result<Cid> {
+        let sphere_identity = self.identity();
+        self.db
+            .get_version(&self.sphere_identity)
+            .await?
+            .ok_or_else(|| anyhow!("No version found for {}", sphere_identity))
     }
 
     /// The identity of the sphere
@@ -63,6 +87,18 @@ where
     /// The [Author] who is currently accessing the sphere
     pub fn author(&self) -> &Author<K> {
         &self.author
+    }
+
+    /// The [Access] level that the configured [Author] has relative to the
+    /// sphere that this [SphereContext] refers to.
+    pub async fn access(&self) -> Result<Access> {
+        let access = self
+            .access
+            .get_or_try_init(|| async {
+                self.author.access_to(&self.sphere_identity, &self.db).await
+            })
+            .await?;
+        Ok(access.clone())
     }
 
     /// Get a mutable reference to the [DidParser] used in this [SphereContext]
@@ -99,28 +135,19 @@ where
         &mut self.db
     }
 
-    /// Get a [SphereFs] instance over the current sphere's content; note that
-    /// if the user's [SphereAccess] is read-only, the returned [SphereFs] will
-    /// be read-only as well.
-    pub async fn fs(&self) -> Result<SphereFs<S, K>, NoosphereError> {
-        SphereFs::latest(&self.sphere_identity, &self.author, &self.db)
-            .await
-            .map_err(|e| e.into())
+    pub fn mutation(&self) -> &SphereMutation {
+        &self.mutation
     }
 
-    /// Same is `fs`, but sets the [SphereFs] to point at the revision of the
-    /// sphere that corresponds to the provided [Cid].
-    pub async fn fs_at(&self, cid: &Cid) -> Result<SphereFs<S, K>, NoosphereError> {
-        SphereFs::at(&self.sphere_identity, cid, &self.author, &self.db)
-            .await
-            .map_err(|e| e.into())
+    pub fn mutation_mut(&mut self) -> &mut SphereMutation {
+        &mut self.mutation
     }
 
     /// Get a [Sphere] view over the current sphere's latest revision. This view
     /// offers lower-level access than [SphereFs], but includes affordances to
     /// help tranversing and manipulating IPLD structures that are more
     /// convenient than working directly with raw data.
-    pub async fn sphere(&self) -> Result<Sphere<SphereDb<S>>, NoosphereError> {
+    pub async fn sphere(&self) -> Result<Sphere<SphereDb<S>>> {
         Ok(Sphere::at(
             &self.db.require_version(self.identity()).await?,
             self.db(),
@@ -131,7 +158,7 @@ where
     /// for one has been configured). This will initialize a [Client] if one is
     /// not already intialized, and will fail if the [Client] is unable to
     /// verify the identity of the gateway or otherwise connect to it.
-    pub async fn client(&mut self) -> Result<Arc<Client<K, SphereDb<S>>>, NoosphereError> {
+    pub async fn client(&mut self) -> Result<Arc<Client<K, SphereDb<S>>>> {
         let client = self
             .client
             .get_or_try_init::<anyhow::Error, _, _>(|| async {
@@ -153,14 +180,9 @@ where
         Ok(client.clone())
     }
 
-    /// If a gateway URL has been configured, attempt to synchronize local
-    /// sphere data with the gateway. Changes on the gateway will first be
-    /// fetched to local storage. Then, the local changes will be replayed on
-    /// top of those changes. Finally, the synchronized local history will be
-    /// pushed up to the gateway.
-    pub async fn sync(&mut self) -> Result<()> {
-        let sync_strategy = GatewaySyncStrategy::default();
-        sync_strategy.sync(self).await?;
-        Ok(())
+    // Reset access so that it is re-evaluated the next time it is measured
+    // self.access.take();
+    pub(crate) fn reset_access(&mut self) -> () {
+        self.access.take();
     }
 }

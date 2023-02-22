@@ -1,10 +1,9 @@
 ///! These constants represent the metadata keys used when a [SphereContext] is
-///! is initialized or created with [SphereContextBuilder]. Since these
-///! represent somewhat free-form key/values in the storage layer, we are make a
-///! best effort to document them here.
+///! is initialized. Since these represent somewhat free-form key/values in the
+///! storage layer, we are make a best effort to document them here.
 
 #[cfg(doc)]
-use crate::sphere::{SphereContext, SphereContextBuilder};
+use crate::SphereContext;
 
 #[cfg(doc)]
 use noosphere_core::data::Did;

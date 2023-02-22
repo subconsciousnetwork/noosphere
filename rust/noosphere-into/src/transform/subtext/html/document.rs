@@ -1,7 +1,7 @@
 use crate::{html_document_envelope, subtext_to_html_fragment_stream, Transform};
 use async_stream::stream;
 use futures::Stream;
-use noosphere_fs::SphereFile;
+use noosphere_sphere::SphereFile;
 use tokio::io::AsyncRead;
 
 /// Given a [Transform] and a [SphereFile], produce a stream that yields the
@@ -16,7 +16,7 @@ where
 {
     stream! {
       let (html_prefix, html_suffix) = html_document_envelope(&file.memo);
-      let fragment_stream = subtext_to_html_fragment_stream(transform, file);
+      let fragment_stream = subtext_to_html_fragment_stream(file, transform);
 
       yield html_prefix;
 

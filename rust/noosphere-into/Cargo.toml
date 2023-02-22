@@ -19,7 +19,8 @@ readme = "README.md"
 [dependencies]
 noosphere-core = { version = "0.6.3", path = "../noosphere-core" }
 noosphere-storage = { version = "0.4.2", path = "../noosphere-storage" }
-noosphere-fs = { version = "0.5.3", path = "../noosphere-fs" }
+noosphere-sphere = { version = "0.1.0", path = "../noosphere-sphere" }
+# noosphere-fs = { version = "0.5.3", path = "../noosphere-fs" }
 subtext = { version = "0.3.2", features = ["stream"] }
 async-trait = "~0.1"
 url = "2"
@@ -46,6 +47,7 @@ ucan-key-support = { version = "0.1.0" }
 
 
 [dev-dependencies]
+noosphere-sphere = { version = "0.1.0", path = "../noosphere-sphere", features = ["helpers"] }
 wasm-bindgen-test = "~0.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

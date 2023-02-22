@@ -13,7 +13,7 @@ mod test {
     use cid::Cid;
     use noosphere::key::{InsecureKeyStorage, KeyStorage};
     use noosphere_core::data::Did;
-    use noosphere_ns::{Multiaddr, NSRecord, PeerId};
+    use noosphere_ns::{Multiaddr, NsRecord, PeerId};
     use serde::Deserialize;
     use tempdir::TempDir;
     use tokio;
@@ -118,7 +118,7 @@ mod test {
 
         let link = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
         let cid_link: Cid = link.parse()?;
-        let record = NSRecord::from_issuer(&key_b, &id_b, &cid_link, None).await?;
+        let record = NsRecord::from_issuer(&key_b, &id_b, &cid_link, None).await?;
 
         // Push record from node B (for node B)
         assert!(process_command(
@@ -144,7 +144,7 @@ mod test {
         .await
         .unwrap();
         let value = res.value().unwrap();
-        let fetched_record = serde_json::from_str::<NSRecord>(value).unwrap();
+        let fetched_record = serde_json::from_str::<NsRecord>(value).unwrap();
         assert_eq!(fetched_record.link().unwrap(), &cid_link);
         assert_eq!(fetched_record.identity(), &id_b);
 

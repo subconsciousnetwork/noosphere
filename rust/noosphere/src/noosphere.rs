@@ -2,13 +2,14 @@ use anyhow::{anyhow, Result};
 use noosphere_core::{authority::Authorization, data::Did};
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 
+use noosphere_sphere::SphereContext;
 use tokio::sync::Mutex;
 use url::Url;
 
 use crate::{
     key::KeyStorage,
     platform::{PlatformKeyMaterial, PlatformKeyStorage, PlatformStorage},
-    sphere::{SphereContext, SphereContextBuilder, SphereReceipt},
+    sphere::{SphereContextBuilder, SphereReceipt},
 };
 
 /// An enum describing different storage stragies that may be interesting

@@ -7,7 +7,7 @@ use async_stream::stream;
 use futures::Stream;
 use horrorshow::{html, Raw};
 use noosphere_core::data::ContentType;
-use noosphere_fs::SphereFile;
+use noosphere_sphere::SphereFile;
 
 use subtext::{block::Block, primitive::Entity, Slashlink};
 use tokio::io::AsyncRead;
@@ -17,8 +17,8 @@ use url::Url;
 /// Given a [Transform] and a [SphereFile], produce a stream that yields the
 /// file content as an HTML fragment
 pub fn subtext_to_html_fragment_stream<T, R>(
-    transform: T,
     file: SphereFile<R>,
+    transform: T,
 ) -> impl Stream<Item = String>
 where
     T: Transform,
@@ -72,7 +72,7 @@ where
     };
 
     for entity in content_entities {
-        let (entity_html, transclude_html) = entity_to_html(transform.clone(), entity).await?;
+        let (entity_html, transclude_html) = entity_to_html(entity, transform.clone()).await?;
 
         content_html_strings.push(entity_html);
         if let Some(transclude_html) = transclude_html {
@@ -126,7 +126,7 @@ where
 }
 
 /// Given a [Transform] and an [Entity], produce an HTML string
-pub async fn entity_to_html<T>(transform: T, entity: Entity) -> Result<(String, Option<String>)>
+pub async fn entity_to_html<T>(entity: Entity, transform: T) -> Result<(String, Option<String>)>
 where
     T: Transform,
 {
