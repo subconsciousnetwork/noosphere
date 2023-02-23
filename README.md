@@ -46,7 +46,7 @@ Follow along with the daily development process on the
   a JavaScript API for accessing Noosphere.
 - **[`./swift`](/swift)**: implementation of our Swift package, also wrapping the
   same core Rust impelementation (via a C-compatible FFI), suitable for
-  incorporating Noosphere as an XCode dependency.
+  incorporating Noosphere as an Xcode dependency.
 - **[`./design`](/design)**: documents describing Noosphere data
   structures and protocols in generalized terms.
 
