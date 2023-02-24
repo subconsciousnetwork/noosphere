@@ -9,7 +9,7 @@ use libp2p::{
     identity::Keypair,
     kad::{self, Kademlia, KademliaConfig, KademliaEvent, KademliaStoreInserts},
     mplex, noise,
-    swarm::{self, ConnectionHandler, IntoConnectionHandler, NetworkBehaviour, SwarmEvent},
+    swarm::{self, NetworkBehaviour, SwarmEvent, THandlerErr},
     tcp, yamux, PeerId, Swarm, Transport,
 };
 use std::time::Duration;
@@ -33,16 +33,15 @@ impl From<IdentifyEvent> for DHTEvent {
     }
 }
 
-pub type DHTSwarmEvent = SwarmEvent<
-            <DHTBehaviour as swarm::NetworkBehaviour>::OutEvent,
-            <<<DHTBehaviour as swarm::NetworkBehaviour>::ConnectionHandler as IntoConnectionHandler>::Handler as ConnectionHandler>::Error>;
-
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "DHTEvent", event_process = false)]
 pub struct DHTBehaviour {
     pub identify: Identify,
     pub kad: Kademlia<kad::record::store::MemoryStore>,
 }
+
+pub type DHTSwarmEvent =
+    SwarmEvent<<DHTBehaviour as swarm::NetworkBehaviour>::OutEvent, THandlerErr<DHTBehaviour>>;
 
 impl DHTBehaviour {
     pub fn new(keypair: &Keypair, local_peer_id: &PeerId, config: &DHTConfig) -> Self {
