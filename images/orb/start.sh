@@ -2,6 +2,9 @@
 
 KEY=$1
 COUNTERPART=$2
+IPFS_API=$3
+
+echo "STARTING IPFS NODE @ ${IPFS_API}"
 
 cd /root/sphere
 
@@ -12,4 +15,4 @@ if ! [ -d "./.sphere" ]; then
 fi
 
 orb config set counterpart $COUNTERPART
-orb serve -i 0.0.0.0
+orb serve -i 0.0.0.0 --ipfs-api $IPFS_API
