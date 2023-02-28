@@ -110,15 +110,20 @@ impl NSRecord {
         let mut builder = UcanBuilder::default()
             .issued_by(issuer)
             .for_audience(sphere_id)
-            .with_lifetime(SPHERE_LIFETIME)
             .claiming_capability(&capability)
             .with_fact(fact);
 
         if let Some(proofs) = proofs {
+            let mut earliest_expiry: u64 = u64::MAX;
             for token in proofs {
+                earliest_expiry = *token.expires_at().min(&earliest_expiry);
                 builder = builder.witnessed_by(token);
             }
+            builder = builder.with_expiration(earliest_expiry);
+        } else {
+            builder = builder.with_lifetime(SPHERE_LIFETIME);
         }
+
         Ok(builder.build()?.sign().await?.into())
     }
 

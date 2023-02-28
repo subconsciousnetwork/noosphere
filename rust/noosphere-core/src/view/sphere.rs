@@ -602,7 +602,7 @@ mod tests {
             SphereReference, SUPPORTED_KEYS,
         },
         data::{AddressIpld, Bundle, CidKey, DelegationIpld, RevocationIpld},
-        view::{Sphere, SphereMutation, Timeline, SPHERE_LIFETIME},
+        view::{Sphere, SphereMutation, Timeline},
     };
 
     use noosphere_storage::{BlockStore, MemoryStore, Store, UcanStore};
@@ -776,7 +776,6 @@ mod tests {
             UcanBuilder::default()
                 .issued_by(&owner_key)
                 .for_audience(&next_owner_did)
-                .with_lifetime(SPHERE_LIFETIME)
                 .claiming_capability(&Capability {
                     with: With::Resource {
                         kind: Resource::Scoped(SphereReference {
@@ -786,6 +785,7 @@ mod tests {
                     can: SphereAction::Publish,
                 })
                 .witnessed_by(&ucan)
+                .with_expiration(*ucan.expires_at())
                 .build()
                 .unwrap()
                 .sign()
