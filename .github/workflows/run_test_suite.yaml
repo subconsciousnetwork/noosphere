@@ -33,6 +33,31 @@ jobs:
           swift build
           swift test
 
+  run-test-suite-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: stable
+      - name: 'Install environment packages'
+        run: |
+          choco install -y cmake protoc openssl
+        shell: sh
+      - name: 'Install IPFS Kubo'
+        uses: ibnesayeed/setup-ipfs@master
+        with:
+          ipfs_version: v0.17.0
+          run_daemon: true
+      - name: 'Run Rust native target tests'
+        uses: actions-rs/cargo@v1.0.3
+        with:
+          command: test
+          args: --features test_kubo
+
   run-test-suite-linux:
     runs-on: ubuntu-latest
     steps:
