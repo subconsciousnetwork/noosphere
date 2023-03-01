@@ -27,5 +27,5 @@ pub trait IpfsClient {
         R: AsyncRead + Send + Sync + 'static;
 
     /// Returns the associated block (referenced by [Cid]) if found.
-    async fn get(&self, cid: &Cid) -> Result<Vec<u8>>;
+    async fn get_block(&self, cid: &Cid) -> Result<Vec<u8>>;
 }
