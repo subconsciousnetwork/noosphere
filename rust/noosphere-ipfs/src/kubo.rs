@@ -83,8 +83,32 @@ impl IpfsClient for KuboClient {
         }
     }
 
-    async fn get(&self, _cid: &Cid) -> Result<Vec<u8>> {
-        todo!("implement get() to return a block")
+    async fn get_block(&self, cid: &Cid) -> Result<Vec<u8>> {
+        let mut api_url = self.api_url.clone();
+        api_url.set_path("/api/v0/dag/get");
+        api_url
+            .query_pairs_mut()
+            .clear()
+            .append_pair("arg", &cid.to_string())
+            .append_pair("output-codec", "dag-cbor");
+
+        let response = self
+            .client
+            .request(
+                Request::builder()
+                    .method("POST")
+                    .uri(&api_url.to_string())
+                    .body(Body::empty())?,
+            )
+            .await?;
+
+        match response.status() {
+            StatusCode::OK => {
+                let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
+                Ok(body_bytes.into())
+            }
+            other_status => Err(anyhow!("Unexpected status code: {}", other_status)),
+        }
     }
 }
 
@@ -108,7 +132,7 @@ mod tests {
     use iroh_car::{CarHeader, CarWriter};
     use libipld_cbor::DagCborCodec;
     use noosphere_core::tracing::initialize_tracing;
-    use noosphere_storage::block_serialize;
+    use noosphere_storage::{block_deserialize, block_serialize};
     use serde::{Deserialize, Serialize};
     use url::Url;
 
@@ -116,7 +140,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn it_can_interact_with_a_kubo_server() {
-        #[derive(Serialize, Deserialize)]
+        #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
         struct SomeData {
             value: String,
             next: Option<Cid>,
@@ -127,14 +151,14 @@ mod tests {
             next: None,
         };
 
-        let (bar_cid, bar_block) = block_serialize::<DagCborCodec, _>(bar).unwrap();
+        let (bar_cid, bar_block) = block_serialize::<DagCborCodec, _>(bar.clone()).unwrap();
 
         let foo = SomeData {
             value: "foo".into(),
             next: Some(bar_cid.clone()),
         };
 
-        let (foo_cid, foo_block) = block_serialize::<DagCborCodec, _>(foo).unwrap();
+        let (foo_cid, foo_block) = block_serialize::<DagCborCodec, _>(foo.clone()).unwrap();
 
         let mut car = Vec::new();
 
@@ -155,6 +179,17 @@ mod tests {
 
         assert!(kubo_client.block_is_pinned(&foo_cid).await.unwrap());
         assert!(kubo_client.block_is_pinned(&bar_cid).await.unwrap());
+
+        let foo_bytes = kubo_client.get_block(&foo_cid).await.unwrap();
+        assert_eq!(
+            block_deserialize::<DagCborCodec, SomeData>(&foo_bytes).unwrap(),
+            foo
+        );
+        let bar_bytes = kubo_client.get_block(&bar_cid).await.unwrap();
+        assert_eq!(
+            block_deserialize::<DagCborCodec, SomeData>(&bar_bytes).unwrap(),
+            bar,
+        );
     }
 
     #[tokio::test]
