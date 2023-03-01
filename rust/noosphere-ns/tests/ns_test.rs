@@ -106,10 +106,10 @@ async fn test_name_system_peer_propagation() -> Result<()> {
             UcanBuilder::default()
                 .issued_by(&ns_1.owner_key)
                 .for_audience(&ns_1.sphere_id)
-                .with_lifetime(SPHERE_LIFETIME - 1000)
                 .claiming_capability(&generate_capability(&ns_1.sphere_id))
                 .with_fact(generate_fact(&sphere_1_cid_1.to_string()))
                 .witnessed_by(&ns_1.delegation)
+                .with_expiration(*ns_1.delegation.expires_at())
                 .build()?
                 .sign()
                 .await?
@@ -141,10 +141,10 @@ async fn test_name_system_peer_propagation() -> Result<()> {
             UcanBuilder::default()
                 .issued_by(&ns_1.owner_key)
                 .for_audience(&ns_1.sphere_id)
-                .with_lifetime(SPHERE_LIFETIME - 1000)
                 .claiming_capability(&generate_capability(&ns_1.sphere_id))
                 .with_fact(generate_fact(&sphere_1_cid_2.to_string()))
                 .witnessed_by(&ns_1.delegation)
+                .with_expiration(*ns_1.delegation.expires_at())
                 .build()?
                 .sign()
                 .await?
@@ -172,10 +172,10 @@ async fn test_name_system_peer_propagation() -> Result<()> {
         UcanBuilder::default()
             .issued_by(&ns_2.owner_key)
             .for_audience(&ns_2.sphere_id)
-            .with_expiration(now() - 1000) // already expired
             .claiming_capability(&generate_capability(&ns_2.sphere_id))
             .with_fact(generate_fact(&sphere_2_cid_1.to_string()))
             .witnessed_by(&ns_2.delegation)
+            .with_expiration(now() - 1000) // already expired
             .build()?
             .sign()
             .await?
@@ -188,10 +188,10 @@ async fn test_name_system_peer_propagation() -> Result<()> {
             UcanBuilder::default()
                 .issued_by(&ns_2.owner_key)
                 .for_audience(&ns_2.sphere_id)
-                .with_lifetime(SPHERE_LIFETIME - 1000)
                 .claiming_capability(&generate_capability(&ns_2.sphere_id))
                 .with_fact(generate_fact(&sphere_2_cid_2.to_string()))
                 .witnessed_by(&ns_2.delegation)
+                .with_expiration(*ns_2.delegation.expires_at())
                 .build()?
                 .sign()
                 .await?
@@ -229,10 +229,10 @@ async fn test_name_system_validation() -> Result<()> {
                 UcanBuilder::default()
                     .issued_by(&ns_1.owner_key)
                     .for_audience(&ns_1.sphere_id)
-                    .with_expiration(now() - 1000) // already expired
                     .claiming_capability(&generate_capability(&ns_1.sphere_id))
                     .with_fact(generate_fact(&sphere_1_cid_1.to_string()))
                     .witnessed_by(&ns_1.delegation)
+                    .with_expiration(now() - 1000) // already expired
                     .build()?
                     .sign()
                     .await?
@@ -254,10 +254,10 @@ async fn it_is_thread_safe() -> Result<()> {
     let ucan_record: NSRecord = UcanBuilder::default()
         .issued_by(&ns_1.owner_key)
         .for_audience(&ns_1.sphere_id)
-        .with_lifetime(SPHERE_LIFETIME)
         .claiming_capability(&generate_capability(&ns_1.sphere_id))
         .with_fact(generate_fact(&address.to_string()))
         .witnessed_by(&ns_1.delegation)
+        .with_expiration(*ns_1.delegation.expires_at())
         .build()?
         .sign()
         .await?

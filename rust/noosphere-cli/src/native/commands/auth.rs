@@ -5,7 +5,7 @@ use cid::Cid;
 use noosphere_core::{
     authority::{SphereAction, SphereReference},
     data::{CidKey, DelegationIpld, RevocationIpld},
-    view::{Sphere, SphereMutation, SPHERE_LIFETIME},
+    view::{Sphere, SphereMutation},
 };
 use serde_json::{json, Value};
 use ucan::{
@@ -76,6 +76,10 @@ You will be able to add a new one after the old one is revoked"#,
     let my_did = my_key.get_did().await?;
     let latest_sphere_cid = db.require_version(&sphere_did).await?;
     let authorization = workspace.authorization().await?;
+    let authorization_expiry: u64 = {
+        let ucan = authorization.resolve_ucan(&db).await?;
+        *ucan.expires_at()
+    };
 
     let mut signable = UcanBuilder::default()
         .issued_by(&my_key)
@@ -88,7 +92,7 @@ You will be able to add a new one after the old one is revoked"#,
             },
             can: SphereAction::Authorize,
         })
-        .with_expiration(SPHERE_LIFETIME)
+        .with_expiration(authorization_expiry)
         .with_nonce()
         // TODO(ucan-wg/rs-ucan#32): Clean this up when we can use a CID as an authorization
         // .witnessed_by(&authorization)
