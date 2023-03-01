@@ -61,10 +61,10 @@ impl StorageLayout {
 fn get_scoped_path(path: &PathBuf, scope: &Did) -> PathBuf {
     #[cfg(not(windows))]
     let path_buf = path.join(scope.as_str());
-    
+
     #[cfg(windows)]
-    /// Windows does not allow `:` in file paths.
-    /// Replace `:` in scope/key with `_`.
+    // Windows does not allow `:` in file paths.
+    // Replace `:` in scope/key with `_`.
     let path_buf = path.join(scope.as_str().replace(":", "_"));
 
     path_buf
