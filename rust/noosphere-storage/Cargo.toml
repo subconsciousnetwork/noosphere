@@ -18,8 +18,8 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [features]
-default = ["kubo-storage"]
-kubo-storage = ["reqwest"]
+default = ["ipfs-storage"]
+ipfs-storage = ["noosphere-ipfs"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -37,9 +37,7 @@ libipld-cbor = "~0.15"
 serde = "^1"
 base64 = "=0.13.0"
 url = { version = "^2" }
-
-# Used with the 'kubo-storage' feature
-reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls"], optional = true }
+noosphere-ipfs = { version = "~0.1", path = "../noosphere-ipfs", optional = true }
 
 [dev-dependencies]
 witty-phrase-generator = "~0.2"

@@ -1,4 +1,5 @@
-use super::IpfsClient;
+#![cfg(not(target_arch = "wasm32"))]
+use super::{IpfsClient, IpfsClientAsyncReadSendSync};
 use async_trait::async_trait;
 
 use anyhow::{anyhow, Result};
@@ -9,7 +10,6 @@ use hyper::{
 };
 use hyper_multipart_rfc7578::client::multipart::{Body as MultipartBody, Form};
 use ipfs_api_prelude::response::{IdResponse, PinLsResponse};
-use tokio::io::AsyncRead;
 use url::Url;
 
 /// A high-level HTTP client for accessing IPFS
@@ -19,6 +19,16 @@ use url::Url;
 pub struct KuboClient {
     client: Client<HttpConnector<GaiResolver>>,
     api_url: Url,
+}
+
+impl KuboClient {
+    pub fn new(api_url: &Url) -> Result<Self> {
+        let client = hyper::Client::builder().build_http();
+        Ok(KuboClient {
+            client,
+            api_url: api_url.clone(),
+        })
+    }
 }
 
 #[async_trait]
@@ -63,7 +73,7 @@ impl IpfsClient for KuboClient {
 
     async fn syndicate_blocks<R>(&self, car: R) -> Result<()>
     where
-        R: AsyncRead + Send + Sync + 'static,
+        R: IpfsClientAsyncReadSendSync,
     {
         let mut api_url = self.api_url.clone();
         let mut form = Form::default();
@@ -83,7 +93,11 @@ impl IpfsClient for KuboClient {
         }
     }
 
-    async fn get_block(&self, cid: &Cid) -> Result<Vec<u8>> {
+    async fn put_block(&mut self, _cid: &Cid, _block: &[u8]) -> Result<()> {
+        unimplemented!();
+    }
+
+    async fn get_block(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
         let mut api_url = self.api_url.clone();
         api_url.set_path("/api/v0/dag/get");
         api_url
@@ -105,20 +119,10 @@ impl IpfsClient for KuboClient {
         match response.status() {
             StatusCode::OK => {
                 let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
-                Ok(body_bytes.into())
+                Ok(Some(body_bytes.into()))
             }
             other_status => Err(anyhow!("Unexpected status code: {}", other_status)),
         }
-    }
-}
-
-impl KuboClient {
-    pub fn new(api_url: &Url) -> Result<Self> {
-        let client = hyper::Client::builder().build_http();
-        Ok(KuboClient {
-            client,
-            api_url: api_url.clone(),
-        })
     }
 }
 
@@ -180,12 +184,12 @@ mod tests {
         assert!(kubo_client.block_is_pinned(&foo_cid).await.unwrap());
         assert!(kubo_client.block_is_pinned(&bar_cid).await.unwrap());
 
-        let foo_bytes = kubo_client.get_block(&foo_cid).await.unwrap();
+        let foo_bytes = kubo_client.get_block(&foo_cid).await.unwrap().unwrap();
         assert_eq!(
             block_deserialize::<DagCborCodec, SomeData>(&foo_bytes).unwrap(),
             foo
         );
-        let bar_bytes = kubo_client.get_block(&bar_cid).await.unwrap();
+        let bar_bytes = kubo_client.get_block(&bar_cid).await.unwrap().unwrap();
         assert_eq!(
             block_deserialize::<DagCborCodec, SomeData>(&bar_bytes).unwrap(),
             bar,

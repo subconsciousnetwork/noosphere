@@ -9,8 +9,13 @@ use noosphere_core::{
     view::Sphere,
 };
 
-#[cfg(feature = "kubo-storage")]
-use noosphere_storage::KuboStorage;
+#[cfg(all(target_arch = "wasm32", feature = "ipfs-storage"))]
+mod ipfs_storage {
+    pub use noosphere_ipfs::GatewayClient;
+    pub use noosphere_storage::IpfsStorage;
+}
+#[cfg(all(target_arch = "wasm32", feature = "ipfs-storage"))]
+use ipfs_storage::*;
 
 use noosphere_storage::{KeyValueStore, MemoryStore, SphereDb};
 use ucan::crypto::KeyMaterial;
@@ -79,7 +84,7 @@ pub struct SphereContextBuilder {
     initialization: SphereInitialization,
     scoped_storage_layout: bool,
     gateway_api: Option<Url>,
-    ipfs_api: Option<Url>,
+    ipfs_gateway_url: Option<Url>,
     storage_path: Option<PathBuf>,
     authorization: Option<Authorization>,
     key_storage: Option<PlatformKeyStorage>,
@@ -114,10 +119,10 @@ impl SphereContextBuilder {
         self
     }
 
-    /// Specify the URL of an IPFS Kubo RPC API for this application to access
+    /// Specify the URL of an IPFS HTTP Gateway for this application to access
     /// as a contingency when blocks being read from storage are missing
-    pub fn reading_ipfs_from(mut self, ipfs_api: Option<&Url>) -> Self {
-        self.ipfs_api = ipfs_api.cloned();
+    pub fn reading_ipfs_from(mut self, ipfs_gateway_url: Option<&Url>) -> Self {
+        self.ipfs_gateway_url = ipfs_gateway_url.cloned();
         self
     }
 
@@ -163,28 +168,24 @@ impl SphereContextBuilder {
     /// invocations of this API to have side-effects that may need undoing if
     /// idempotence is required (e.g., in tests).
     pub async fn build(self) -> Result<SphereContextBuilderArtifacts> {
-        let storage_path = match self.storage_path {
-            Some(storage_path) => storage_path,
-            None => return Err(anyhow!("No storage path configured!")),
-        };
-
+        let storage_path = self
+            .storage_path
+            .ok_or_else(|| anyhow!("No storage path configured!"))?;
         match self.initialization {
             SphereInitialization::Create => {
-                let key_storage: PlatformKeyStorage = match self.key_storage {
-                    Some(key_storage) => key_storage,
-                    None => return Err(anyhow!("No key storage configured!")),
-                };
-
-                let key_name = match self.key_name {
-                    Some(key_name) => key_name,
-                    None => return Err(anyhow!("No key name configured!")),
-                };
-
+                let key_storage = self
+                    .key_storage
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("No key storage configured!"))?;
+                let key_name = self
+                    .key_name
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("No key name configured!"))?;
                 if self.authorization.is_some() {
                     warn!("Creating a new sphere; the configured authorization will be ignored!");
                 }
 
-                let owner_key = key_storage.require_key(&key_name).await?;
+                let owner_key = key_storage.require_key(key_name).await?;
                 let owner_did = owner_key.get_did().await?;
 
                 let mut memory_store = MemoryStore::default();
@@ -194,27 +195,20 @@ impl SphereContextBuilder {
                         .unwrap();
 
                 let sphere_did = sphere.try_get_identity().await.unwrap();
-
-                let storage_layout = match self.scoped_storage_layout {
-                    true => StorageLayout::Scoped(storage_path, sphere_did.clone()),
-                    false => StorageLayout::Unscoped(storage_path),
-                };
-
-                #[cfg(all(target_arch = "wasm32", feature = "kubo-storage"))]
-                let storage =
-                    KuboStorage::new(storage_layout.to_storage().await?, self.ipfs_api.as_ref());
-
-                #[cfg(not(all(target_arch = "wasm32", feature = "kubo-storage")))]
-                let storage = storage_layout.to_storage().await?;
-
-                let mut db = SphereDb::new(&storage).await?;
+                let mut db = generate_db(
+                    storage_path,
+                    self.scoped_storage_layout,
+                    Some(sphere_did.clone()),
+                    self.ipfs_gateway_url,
+                )
+                .await?;
 
                 db.persist(&memory_store).await?;
 
                 db.set_version(&sphere_did, sphere.cid()).await?;
 
                 db.set_key(IDENTITY, &sphere_did).await?;
-                db.set_key(USER_KEY_NAME, key_name).await?;
+                db.set_key(USER_KEY_NAME, key_name.to_owned()).await?;
                 db.set_key(AUTHORIZATION, Cid::try_from(&authorization)?)
                     .await?;
 
@@ -236,34 +230,26 @@ impl SphereContextBuilder {
                 Ok(SphereContextBuilderArtifacts::SphereCreated { context, mnemonic })
             }
             SphereInitialization::Join(sphere_identity) => {
-                let key_storage = match self.key_storage {
-                    Some(key_storage) => key_storage,
-                    None => return Err(anyhow!("No key storage configured!")),
-                };
+                let key_storage = self
+                    .key_storage
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("No key storage configured!"))?;
+                let key_name = self
+                    .key_name
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("No key name configured!"))?;
 
-                let key_name = match self.key_name {
-                    Some(key_name) => key_name,
-                    None => return Err(anyhow!("No key name configured!")),
-                };
-
-                let user_key = key_storage.require_key(&key_name).await?;
-
-                let storage_layout = match self.scoped_storage_layout {
-                    true => StorageLayout::Scoped(storage_path, sphere_identity.clone()),
-                    false => StorageLayout::Unscoped(storage_path),
-                };
-
-                #[cfg(all(target_arch = "wasm32", feature = "kubo-storage"))]
-                let storage =
-                    KuboStorage::new(storage_layout.to_storage().await?, self.ipfs_api.as_ref());
-
-                #[cfg(not(all(target_arch = "wasm32", feature = "kubo-storage")))]
-                let storage = storage_layout.to_storage().await?;
-
-                let mut db = SphereDb::new(&storage).await?;
+                let user_key = key_storage.require_key(key_name).await?;
+                let mut db = generate_db(
+                    storage_path,
+                    self.scoped_storage_layout,
+                    Some(sphere_identity.clone()),
+                    self.ipfs_gateway_url,
+                )
+                .await?;
 
                 db.set_key(IDENTITY, &sphere_identity).await?;
-                db.set_key(USER_KEY_NAME, key_name).await?;
+                db.set_key(USER_KEY_NAME, key_name.to_owned()).await?;
 
                 if let Some(authorization) = &self.authorization {
                     db.set_key(AUTHORIZATION, Cid::try_from(authorization)?)
@@ -288,23 +274,13 @@ impl SphereContextBuilder {
                 Ok(SphereContextBuilderArtifacts::SphereOpened(context))
             }
             SphereInitialization::Open(sphere_identity) => {
-                let storage_layout = match self.scoped_storage_layout {
-                    true => StorageLayout::Scoped(
-                        storage_path,
-                        sphere_identity
-                            .ok_or_else(|| anyhow!("A sphere identity must be provided!"))?,
-                    ),
-                    false => StorageLayout::Unscoped(storage_path),
-                };
-
-                #[cfg(all(target_arch = "wasm32", feature = "kubo-storage"))]
-                let storage =
-                    KuboStorage::new(storage_layout.to_storage().await?, self.ipfs_api.as_ref());
-
-                #[cfg(not(all(target_arch = "wasm32", feature = "kubo-storage")))]
-                let storage = storage_layout.to_storage().await?;
-
-                let db = SphereDb::new(&storage).await?;
+                let db = generate_db(
+                    storage_path,
+                    self.scoped_storage_layout,
+                    sphere_identity,
+                    self.ipfs_gateway_url,
+                )
+                .await?;
 
                 let user_key_name: String = db.require_key(USER_KEY_NAME).await?;
                 let authorization = db
@@ -341,13 +317,39 @@ impl Default for SphereContextBuilder {
             initialization: SphereInitialization::Create,
             scoped_storage_layout: false,
             gateway_api: None,
-            ipfs_api: None,
+            ipfs_gateway_url: None,
             storage_path: None,
             authorization: None,
             key_storage: None as Option<PlatformKeyStorage>,
             key_name: None,
         }
     }
+}
+
+#[allow(unused_variables)]
+async fn generate_db(
+    storage_path: PathBuf,
+    scoped_storage_layout: bool,
+    sphere_identity: Option<Did>,
+    ipfs_gateway_url: Option<Url>,
+) -> Result<SphereDb<PlatformStorage>> {
+    let storage_layout = match scoped_storage_layout {
+        true => StorageLayout::Scoped(
+            storage_path,
+            sphere_identity.ok_or_else(|| anyhow!("A sphere identity must be provided!"))?,
+        ),
+        false => StorageLayout::Unscoped(storage_path),
+    };
+
+    #[cfg(not(all(target_arch = "wasm32", feature = "ipfs-storage")))]
+    let storage = storage_layout.to_storage().await?;
+    #[cfg(all(target_arch = "wasm32", feature = "ipfs-storage"))]
+    let storage = IpfsStorage::new(
+        storage_layout.to_storage().await?,
+        ipfs_gateway_url.map(|url| GatewayClient::new(url)),
+    );
+
+    SphereDb::new(&storage).await
 }
 
 #[cfg(test)]

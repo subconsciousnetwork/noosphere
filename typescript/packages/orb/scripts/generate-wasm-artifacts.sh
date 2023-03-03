@@ -11,7 +11,7 @@ ARTIFACT_OUTPUT_DIR="$SCRIPT_DIR/../lib"
 
 # Build Wasm target from Rust crates
 pushd $NOOSPHERE_DIR
-cargo build --release --target wasm32-unknown-unknown --features kubo-storage
+cargo build --release --target wasm32-unknown-unknown --features ipfs-storage
 popd
 
 # Generate web artifacts, including TypeScript types and JS shims

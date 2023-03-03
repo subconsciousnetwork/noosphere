@@ -16,8 +16,8 @@ mod web;
 #[cfg(target_arch = "wasm32")]
 pub use web::*;
 
-#[cfg(feature = "kubo-storage")]
-mod kubo;
+#[cfg(feature = "ipfs-storage")]
+mod ipfs;
 
-#[cfg(feature = "kubo-storage")]
-pub use kubo::*;
+#[cfg(feature = "ipfs-storage")]
+pub use ipfs::*;

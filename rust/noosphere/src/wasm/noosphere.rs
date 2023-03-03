@@ -1,14 +1,12 @@
 use cid::Cid;
-use noosphere_core::{tracing::initialize_tracing, authority::Authorization};
+use noosphere_core::{authority::Authorization, tracing::initialize_tracing};
 use url::Url;
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    wasm::SphereContext,
-    NoosphereContext as NoosphereContextImpl, NoosphereContextConfiguration, NoosphereNetwork,
-    NoosphereSecurity, NoosphereStorage,
+    wasm::SphereContext, NoosphereContext as NoosphereContextImpl, NoosphereContextConfiguration,
+    NoosphereNetwork, NoosphereSecurity, NoosphereStorage,
 };
-
 
 #[wasm_bindgen]
 /// A `SphereReceipt` is provided when a sphere has been successfully created.
@@ -63,7 +61,7 @@ impl NoosphereContext {
     pub fn new(
         storage_namespace: String,
         gateway_api: Option<String>,
-        ipfs_api: Option<String>,
+        ipfs_gateway_url: Option<String>,
     ) -> Self {
         initialize_tracing();
         info!("Hello, Noosphere!");
@@ -74,8 +72,8 @@ impl NoosphereContext {
             None
         };
 
-        let ipfs_api = if let Some(ipfs_api) = ipfs_api {
-            Url::parse(&ipfs_api).ok()
+        let ipfs_gateway_url = if let Some(ipfs_gateway_url) = ipfs_gateway_url {
+            Url::parse(&ipfs_gateway_url).ok()
         } else {
             None
         };
@@ -87,7 +85,7 @@ impl NoosphereContext {
             security: NoosphereSecurity::Opaque,
             network: NoosphereNetwork::Http {
                 gateway_api,
-                ipfs_api,
+                ipfs_gateway_url,
             },
         })
         .unwrap();
