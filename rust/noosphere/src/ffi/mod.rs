@@ -5,6 +5,9 @@ mod key;
 mod noosphere;
 mod sphere;
 
+#[cfg(feature = "headers")]
+mod header_transformer;
+
 pub use crate::ffi::noosphere::*;
 pub use error::*;
 pub use fs::*;
@@ -17,7 +20,11 @@ pub use sphere::*;
 
 #[cfg(feature = "headers")]
 pub fn generate_headers() -> std::io::Result<()> {
+    use header_transformer::HeaderTransformer;
+    use std::{fs::File, io::BufWriter};
     safer_ffi::headers::builder()
-        .to_file("noosphere.h")?
+        .to_writer(HeaderTransformer::new(BufWriter::new(File::create(
+            "noosphere.h",
+        )?))?)
         .generate()
 }
