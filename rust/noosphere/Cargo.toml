@@ -18,7 +18,7 @@ crate-type = ["rlib", "staticlib", "cdylib"]
 [features]
 default = []
 headers = ["safer-ffi/headers"]
-ipfs-storage = ["noosphere-storage/ipfs-storage", "noosphere-ipfs"]
+ipfs-storage = ["noosphere-ipfs"]
 
 [dependencies]
 anyhow = "^1"

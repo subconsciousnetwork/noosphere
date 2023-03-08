@@ -23,19 +23,51 @@ cli((CLI))
 
 noosphere --> api
 noosphere --> core
-noosphere --> fs
 noosphere --> storage
-noosphere --> into
+noosphere --> ipfs 
+noosphere --> sphere
+noosphere -. wasm .-> into
+noosphere -. dev .-> sphere
+
+api --> core
+api --> storage
+
 cli --> api 
 cli --> core
-cli --> fs 
-cli --> storage 
-cli --> ns 
+cli --> gateway
+cli --> ipfs
 cli --> noosphere 
+cli --> storage 
+cli --> sphere
+
+collections --> storage
+
+core --> collections
+core --> storage
+
+gateway --> api
+gateway --> core
+gateway --> ipfs
+gateway --> noosphere
+gateway --> ns 
+gateway --> sphere 
+gateway --> storage
+
 into --> core
 into --> storage
-into --> fs 
-core --> collections
+into --> sphere
+
+ipfs -. !wasm .-> core 
+ipfs --> storage
+
+ns --> storage
+ns --> core
+ns --> noosphere
+
+sphere --> core
+sphere --> storage 
+sphere --> api 
+
 ```
 
 ## Environment Setup

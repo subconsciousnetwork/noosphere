@@ -10,12 +10,7 @@ use noosphere_core::{
 };
 
 #[cfg(all(target_arch = "wasm32", feature = "ipfs-storage"))]
-mod ipfs_storage {
-    pub use noosphere_ipfs::GatewayClient;
-    pub use noosphere_storage::IpfsStorage;
-}
-#[cfg(all(target_arch = "wasm32", feature = "ipfs-storage"))]
-use ipfs_storage::*;
+use noosphere_ipfs::{GatewayClient, IpfsStorage};
 
 use noosphere_storage::{KeyValueStore, MemoryStore, SphereDb};
 use ucan::crypto::KeyMaterial;

@@ -4013,7 +4013,6 @@ dependencies = [
  "js-sys",
  "libipld-cbor 0.15.0",
  "libipld-core 0.15.0",
- "noosphere-ipfs",
  "rexie",
  "serde",
  "sled",
