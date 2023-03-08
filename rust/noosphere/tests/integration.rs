@@ -1,12 +1,7 @@
 #![cfg(test)]
 
-#[macro_use]
-extern crate tracing;
-
 use noosphere_core::{data::ContentType, tracing::initialize_tracing};
-use noosphere_sphere::{
-    HasMutableSphereContext, SphereContentRead, SphereContentWrite, SphereCursor,
-};
+use noosphere_sphere::{HasMutableSphereContext, SphereContentRead, SphereContentWrite};
 
 use tokio::io::AsyncReadExt;
 #[cfg(target_arch = "wasm32")]
@@ -67,7 +62,6 @@ fn platform_configuration() -> (
 async fn single_player_single_device_end_to_end_workflow() {
     initialize_tracing();
 
-    info!("A");
     let (configuration, _temporary_directories) = platform_configuration();
     let key_name = "foobar";
 
@@ -82,40 +76,31 @@ async fn single_player_single_device_end_to_end_workflow() {
             ..
         } = noosphere.create_sphere(key_name).await.unwrap();
 
-        let sphere_context = noosphere
+        let mut sphere_context = noosphere
             .get_sphere_context(&sphere_identity)
             .await
             .unwrap();
 
-        info!("A.A");
-        let mut sphere_cursor = SphereCursor::latest(sphere_context);
-
-        info!("A.B");
-        sphere_cursor
+        sphere_context
             .write("foo", "text/plain", b"bar".as_ref(), None)
             .await
             .unwrap();
 
-        info!("A.C");
-        sphere_cursor.save(None).await.unwrap();
+        sphere_context.save(None).await.unwrap();
 
-        info!("A.D");
         sphere_identity
     };
 
-    info!("B");
     // Open the sphere later and read the file and write another file
     {
         let noosphere = NoosphereContext::new(configuration.clone()).unwrap();
 
-        let sphere_context = noosphere
+        let mut sphere_context = noosphere
             .get_sphere_context(&sphere_identity)
             .await
             .unwrap();
 
-        let mut sphere_cursor = SphereCursor::latest(sphere_context);
-
-        let mut file = sphere_cursor.read("foo").await.unwrap().unwrap();
+        let mut file = sphere_context.read("foo").await.unwrap().unwrap();
 
         assert_eq!(
             file.memo.content_type(),
@@ -127,13 +112,11 @@ async fn single_player_single_device_end_to_end_workflow() {
 
         assert_eq!(contents, "bar");
 
-        sphere_cursor
+        sphere_context
             .write("cats", "text/subtext", b"are great".as_ref(), None)
             .await
             .unwrap();
 
-        sphere_cursor.save(None).await.unwrap();
+        sphere_context.save(None).await.unwrap();
     };
-
-    info!("C");
 }

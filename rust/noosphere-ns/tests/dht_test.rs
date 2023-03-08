@@ -1,8 +1,10 @@
 #![cfg(not(target_arch = "wasm32"))]
 #![cfg(test)]
+use std::fmt::Display;
+
 use async_trait::async_trait;
 use noosphere_ns::dht::{
-    AllowAllValidator, DHTConfig, DHTError, DHTNode, NetworkInfo, RecordValidator,
+    AllowAllValidator, DhtConfig, DhtError, DhtNode, NetworkInfo, RecordValidator,
 };
 pub mod utils;
 use noosphere_core::authority::generate_ed25519_key;
@@ -12,10 +14,10 @@ use utils::{create_nodes_with_peers, initialize_network, swarm_command};
 
 /// Testing a detached DHTNode as a server with no peers.
 #[test_log::test(tokio::test)]
-async fn test_dhtnode_base_case() -> Result<(), DHTError> {
-    let node = DHTNode::new::<Ed25519KeyMaterial, AllowAllValidator>(
+async fn test_dhtnode_base_case() -> Result<(), DhtError> {
+    let node = DhtNode::new::<Ed25519KeyMaterial, AllowAllValidator>(
         &generate_ed25519_key(),
-        DHTConfig::default(),
+        DhtConfig::default(),
         None,
     )?;
     let info = node.network_info().await?;
@@ -38,7 +40,7 @@ async fn test_dhtnode_base_case() -> Result<(), DHTError> {
 /// Tests many client nodes connecting to a single bootstrap node,
 /// and ensuring clients become peers.
 #[test_log::test(tokio::test)]
-async fn test_dhtnode_bootstrap() -> Result<(), DHTError> {
+async fn test_dhtnode_bootstrap() -> Result<(), DhtError> {
     let num_clients = 5;
     let (mut bootstrap_nodes, mut client_nodes, _bootstrap_addresses) =
         initialize_network::<AllowAllValidator>(1, num_clients, None).await?;
@@ -65,7 +67,7 @@ async fn test_dhtnode_bootstrap() -> Result<(), DHTError> {
 /// Testing primitive set_record/get_record between two
 /// non-bootstrap peers.
 #[test_log::test(tokio::test)]
-async fn test_dhtnode_simple() -> Result<(), DHTError> {
+async fn test_dhtnode_simple() -> Result<(), DhtError> {
     let num_clients = 2;
     let (mut _bootstrap_nodes, mut client_nodes, _bootstrap_addresses) =
         initialize_network::<AllowAllValidator>(1, num_clients, None).await?;
@@ -82,7 +84,7 @@ async fn test_dhtnode_simple() -> Result<(), DHTError> {
 /// Testing primitive start_providing/get_providers between two
 /// non-bootstrap peers.
 #[test_log::test(tokio::test)]
-async fn test_dhtnode_providers() -> Result<(), DHTError> {
+async fn test_dhtnode_providers() -> Result<(), DhtError> {
     let num_clients = 2;
     let (mut _bootstrap_nodes, mut client_nodes, _bootstrap_addresses) =
         initialize_network::<AllowAllValidator>(1, num_clients, None).await?;
@@ -98,7 +100,7 @@ async fn test_dhtnode_providers() -> Result<(), DHTError> {
 }
 
 #[test_log::test(tokio::test)]
-async fn test_dhtnode_validator() -> Result<(), DHTError> {
+async fn test_dhtnode_validator() -> Result<(), DhtError> {
     #[derive(Clone)]
     struct MyValidator {}
 
@@ -106,6 +108,12 @@ async fn test_dhtnode_validator() -> Result<(), DHTError> {
     impl RecordValidator for MyValidator {
         async fn validate(&mut self, data: &[u8]) -> bool {
             data == b"VALID"
+        }
+    }
+
+    impl Display for MyValidator {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "MyValidator")
         }
     }
 

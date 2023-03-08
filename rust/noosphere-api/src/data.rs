@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_core::{
     authority::{SphereAction, SphereReference, SPHERE_SEMANTICS},
-    data::{Bundle, Did},
+    data::{Bundle, Did, Jwt},
 };
 use noosphere_storage::{base64_decode, base64_encode};
 use reqwest::StatusCode;
@@ -83,7 +83,7 @@ pub enum FetchResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PushBody {
     /// The DID of the local sphere whose revisions are being pushed
-    pub sphere: String,
+    pub sphere: Did,
     /// The base revision represented by the payload being pushed; if the
     /// entire history is being pushed, then this should be None
     pub base: Option<Cid>,
@@ -92,6 +92,8 @@ pub struct PushBody {
     /// A bundle of all the blocks needed to hydrate the revisions from the
     /// base to the tip of history as represented by this payload
     pub blocks: Bundle,
+    /// An optional name record to publish to the Noosphere Name System
+    pub name_record: Option<Jwt>,
 }
 
 /// The possible responses from the "push" API route

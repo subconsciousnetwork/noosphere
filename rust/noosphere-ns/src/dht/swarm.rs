@@ -1,5 +1,5 @@
-use crate::dht::errors::DHTError;
-use crate::dht::DHTConfig;
+use crate::dht::errors::DhtError;
+use crate::dht::DhtConfig;
 use libp2p::{
     core::muxing::StreamMuxerBox,
     core::transport::Boxed,
@@ -35,16 +35,16 @@ impl From<IdentifyEvent> for DHTEvent {
 
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "DHTEvent", event_process = false)]
-pub struct DHTBehaviour {
+pub struct DhtBehavior {
     pub identify: Identify,
     pub kad: Kademlia<kad::record::store::MemoryStore>,
 }
 
 pub type DHTSwarmEvent =
-    SwarmEvent<<DHTBehaviour as swarm::NetworkBehaviour>::OutEvent, THandlerErr<DHTBehaviour>>;
+    SwarmEvent<<DhtBehavior as swarm::NetworkBehaviour>::OutEvent, THandlerErr<DhtBehavior>>;
 
-impl DHTBehaviour {
-    pub fn new(keypair: &Keypair, local_peer_id: &PeerId, config: &DHTConfig) -> Self {
+impl DhtBehavior {
+    pub fn new(keypair: &Keypair, local_peer_id: &PeerId, config: &DhtConfig) -> Self {
         let kad = {
             let mut cfg = KademliaConfig::default();
             cfg.set_query_timeout(Duration::from_secs(config.query_timeout.into()));
@@ -80,11 +80,11 @@ impl DHTBehaviour {
             Identify::new(config)
         };
 
-        DHTBehaviour { kad, identify }
+        DhtBehavior { kad, identify }
     }
 }
 
-pub type DHTSwarm = libp2p::swarm::Swarm<DHTBehaviour>;
+pub type DhtSwarm = libp2p::swarm::Swarm<DhtBehavior>;
 
 /// Creates the Transport mechanism that describes how peers communicate.
 /// Currently, mostly an inlined form of `libp2p::tokio_development_transport`.
@@ -111,10 +111,10 @@ fn build_transport(keypair: &Keypair) -> Result<Boxed<(PeerId, StreamMuxerBox)>,
 pub fn build_swarm(
     keypair: &Keypair,
     local_peer_id: &PeerId,
-    config: &DHTConfig,
-) -> Result<DHTSwarm, DHTError> {
-    let transport = build_transport(keypair).map_err(DHTError::from)?;
-    let behaviour = DHTBehaviour::new(keypair, local_peer_id, config);
+    config: &DhtConfig,
+) -> Result<DhtSwarm, DhtError> {
+    let transport = build_transport(keypair).map_err(DhtError::from)?;
+    let behaviour = DhtBehavior::new(keypair, local_peer_id, config);
     let swarm = Swarm::with_tokio_executor(transport, behaviour, local_peer_id.to_owned());
     Ok(swarm)
 }

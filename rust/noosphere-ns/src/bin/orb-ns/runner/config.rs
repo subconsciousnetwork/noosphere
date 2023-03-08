@@ -2,7 +2,7 @@ use crate::cli::{CLICommand, CLIConfigFile};
 use crate::utils;
 use anyhow::{anyhow, Result};
 use noosphere::key::InsecureKeyStorage;
-use noosphere_ns::{DHTConfig, Multiaddr, BOOTSTRAP_PEERS};
+use noosphere_ns::{DhtConfig, Multiaddr, BOOTSTRAP_PEERS};
 use std::net::SocketAddr;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 use url::Url;
@@ -13,7 +13,7 @@ pub struct RunnerNodeConfig {
     pub api_address: Option<SocketAddr>,
     pub listening_address: Option<Multiaddr>,
     pub peers: Vec<Multiaddr>,
-    pub dht_config: DHTConfig,
+    pub dht_config: DhtConfig,
     pub ipfs_api_url: Option<Url>,
 }
 
@@ -73,7 +73,7 @@ impl RunnerNodeConfig {
                         vec![]
                     };
 
-                    let dht_config = DHTConfig::default();
+                    let dht_config = DhtConfig::default();
 
                     let config = CLIConfigFile {
                         key: key_name.clone(),

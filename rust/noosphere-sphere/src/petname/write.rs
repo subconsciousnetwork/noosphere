@@ -21,7 +21,7 @@ where
     /// erase the name from historical versions of the sphere). If a name is set that
     /// already exists, the previous name shall be overwritten by the new one, and any
     /// associated [Jwt] shall be unset.
-    async fn set_petname(&mut self, name: &str, address: Option<Did>) -> Result<()>;
+    async fn set_petname(&mut self, name: &str, identity: Option<Did>) -> Result<()>;
 
     /// Configure a petname, assigning some [Did] to it and setting its
     /// associated [Jwt] to a known value. The [Jwt] must be a valid UCAN that
@@ -30,7 +30,7 @@ where
     async fn adopt_petname(
         &mut self,
         name: &str,
-        address: &Did,
+        identity: &Did,
         record: &Jwt,
     ) -> Result<Option<Did>>;
 }
@@ -43,14 +43,14 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    async fn set_petname(&mut self, name: &str, address: Option<Did>) -> Result<()> {
+    async fn set_petname(&mut self, name: &str, identity: Option<Did>) -> Result<()> {
         self.assert_write_access().await?;
 
         let current_address = self.get_petname(name).await?;
 
-        if address != current_address {
+        if identity != current_address {
             let mut context = self.sphere_context_mut().await?;
-            match address {
+            match identity {
                 Some(identity) => {
                     context.mutation_mut().names_mut().set(
                         &name.to_string(),
@@ -71,10 +71,48 @@ where
 
     async fn adopt_petname(
         &mut self,
-        _name: &str,
-        _address: &Did,
-        _record: &Jwt,
+        name: &str,
+        identity: &Did,
+        record: &Jwt,
     ) -> Result<Option<Did>> {
-        todo!();
+        self.assert_write_access().await?;
+
+        // TODO: Verify that a record for an existing address is actually newer than the old one
+        // TODO: Validate the record as a UCAN
+        debug!(
+            "Adopting '{}' ({}), resolving to {}...",
+            name, identity, record
+        );
+
+        let new_address = AddressIpld {
+            identity: identity.clone(),
+            last_known_record: Some(record.clone()),
+        };
+
+        let names = self
+            .sphere_context()
+            .await?
+            .sphere()
+            .await?
+            .get_names()
+            .await?;
+        let previous_address = names.get(&name.into()).await?;
+
+        self.sphere_context_mut()
+            .await?
+            .mutation_mut()
+            .names_mut()
+            .set(&name.into(), &new_address);
+
+        match previous_address {
+            Some(previous_address) => {
+                if identity != &previous_address.identity {
+                    return Ok(Some(previous_address.identity.to_owned()));
+                }
+            }
+            _ => (),
+        };
+
+        Ok(None)
     }
 }

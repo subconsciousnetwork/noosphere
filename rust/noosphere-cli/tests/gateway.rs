@@ -274,10 +274,11 @@ async fn gateway_receives_a_newly_initialized_sphere_from_the_client() {
 
         let push_result = client
             .push(&PushBody {
-                sphere: client_sphere_identity.to_string(),
+                sphere: client_sphere_identity,
                 base: None,
                 tip: *sphere.cid(),
                 blocks: bundle.clone(),
+                name_record: None,
             })
             .await
             .unwrap();
@@ -393,10 +394,11 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() {
 
         let push_result = client
             .push(&PushBody {
-                sphere: client_sphere_identity.to_string(),
+                sphere: client_sphere_identity.clone(),
                 base: None,
                 tip: *sphere.cid(),
                 blocks: bundle.clone(),
+                name_record: None,
             })
             .await
             .unwrap();
@@ -442,10 +444,11 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() {
 
         let push_result = client
             .push(&PushBody {
-                sphere: client_sphere_identity.to_string(),
+                sphere: client_sphere_identity,
                 base: Some(sphere_cid),
                 tip: *sphere.cid(),
                 blocks: bundle,
+                name_record: None,
             })
             .await
             .unwrap();
@@ -591,10 +594,11 @@ async fn gateway_serves_sphere_revisions_to_a_client() {
 
         let push_result = client
             .push(&PushBody {
-                sphere: client_sphere_identity.to_string(),
+                sphere: client_sphere_identity,
                 base: None,
                 tip: *sphere.cid(),
                 blocks: bundle.clone(),
+                name_record: None,
             })
             .await
             .unwrap();

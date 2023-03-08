@@ -1,11 +1,11 @@
 use crate::dht::{
     channel::message_channel,
-    errors::DHTError,
-    keys::DHTKeyMaterial,
-    processor::DHTProcessor,
-    rpc::{DHTMessageClient, DHTRequest, DHTResponse},
-    types::{DHTRecord, NetworkInfo, Peer},
-    DHTConfig, RecordValidator,
+    errors::DhtError,
+    keys::DhtKeyMaterial,
+    processor::DhtProcessor,
+    rpc::{DhtMessageClient, DhtRequest, DhtResponse},
+    types::{DhtRecord, NetworkInfo, Peer},
+    DhtConfig, RecordValidator,
 };
 use libp2p::{Multiaddr, PeerId};
 use std::time::Duration;
@@ -15,7 +15,7 @@ macro_rules! ensure_response {
     ($response:expr, $matcher:pat => $statement:expr) => {
         match $response {
             $matcher => $statement,
-            _ => Err(DHTError::Error("Unexpected".into())),
+            _ => Err(DhtError::Error("Unexpected".into())),
         }
     };
 }
@@ -25,7 +25,7 @@ macro_rules! ensure_response {
 /// # Example
 ///
 /// ```
-/// use noosphere_ns::dht::{RecordValidator, DHTConfig, DHTNode};
+/// use noosphere_ns::dht::{RecordValidator, DhtConfig, DhtNode};
 /// use noosphere_core::authority::generate_ed25519_key;
 /// use libp2p::{self, Multiaddr};
 /// use std::str::FromStr;
@@ -42,46 +42,43 @@ macro_rules! ensure_response {
 ///     }
 /// }
 ///
+///
+///
 /// #[tokio::main]
 /// async fn main() {
 ///     // Note: not a real bootstrap node
 ///     let bootstrap_peers: Vec<Multiaddr> = vec!["/ip4/127.0.0.50/tcp/33333/p2p/12D3KooWH8WgH9mgbMXrKX4veokUznvEn6Ycwg4qaGNi83nLkoUK".parse().unwrap()];
 ///     let key = generate_ed25519_key();
-///     let config = DHTConfig::default();
+///     let config = DhtConfig::default();
 ///     let validator = NoopValidator {};
 ///
-///     let mut node = DHTNode::new(&key, DHTConfig::default(), Some(validator)).unwrap();
+///     let mut node = DhtNode::new(&key, DhtConfig::default(), Some(validator)).unwrap();
 ///     node.add_peers(bootstrap_peers).await.unwrap();
 ///     node.listen("/ip4/127.0.0.1/tcp/0".parse().unwrap()).await.unwrap();
 ///     node.bootstrap().await.unwrap();
 /// }
 /// ```
-pub struct DHTNode {
-    config: DHTConfig,
-    client: DHTMessageClient,
-    thread_handle: tokio::task::JoinHandle<Result<(), DHTError>>,
+pub struct DhtNode {
+    config: DhtConfig,
+    client: DhtMessageClient,
+    thread_handle: tokio::task::JoinHandle<Result<(), DhtError>>,
     peer_id: PeerId,
 }
 
-impl DHTNode {
-    pub fn new<K: DHTKeyMaterial, V: RecordValidator + 'static>(
+impl DhtNode {
+    pub fn new<K: DhtKeyMaterial, V: RecordValidator + 'static>(
         key_material: &K,
-        config: DHTConfig,
+        config: DhtConfig,
         validator: Option<V>,
-    ) -> Result<Self, DHTError> {
+    ) -> Result<Self, DhtError> {
         let keypair = key_material.to_dht_keypair()?;
         let peer_id = PeerId::from(keypair.public());
 
-        let channels = message_channel::<DHTRequest, DHTResponse, DHTError>();
-        let thread_handle = DHTProcessor::spawn(
-            &keypair,
-            peer_id,
-            validator,
-            config.clone(),
-            channels.1,
-        )?;
+        let channels = message_channel::<DhtRequest, DhtResponse, DhtError>();
+        let thread_handle =
+            DhtProcessor::spawn(&keypair, peer_id, validator, config.clone(), channels.1)?;
 
-        Ok(DHTNode {
+        Ok(DhtNode {
             peer_id,
             config,
             client: channels.0,
@@ -91,7 +88,7 @@ impl DHTNode {
 
     /// Returns a reference to the [DHTConfig] used to
     /// initialize this node.
-    pub fn config(&self) -> &DHTConfig {
+    pub fn config(&self) -> &DhtConfig {
         &self.config
     }
 
@@ -101,47 +98,47 @@ impl DHTNode {
     }
 
     /// Returns the listening addresses of this node.
-    pub async fn addresses(&self) -> Result<Vec<Multiaddr>, DHTError> {
-        let request = DHTRequest::GetAddresses { external: false };
+    pub async fn addresses(&self) -> Result<Vec<Multiaddr>, DhtError> {
+        let request = DhtRequest::GetAddresses { external: false };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::GetAddresses(addresses) => Ok(addresses))
+        ensure_response!(response, DhtResponse::GetAddresses(addresses) => Ok(addresses))
     }
 
     /// Returns the external listening addresses of this node, if any.
-    pub async fn external_addresses(&self) -> Result<Vec<Multiaddr>, DHTError> {
-        let request = DHTRequest::GetAddresses { external: false };
+    pub async fn external_addresses(&self) -> Result<Vec<Multiaddr>, DhtError> {
+        let request = DhtRequest::GetAddresses { external: false };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::GetAddresses(addresses) => Ok(addresses))
+        ensure_response!(response, DhtResponse::GetAddresses(addresses) => Ok(addresses))
     }
 
     /// Adds additional peers to the DHT routing table. At least
     /// one peer is needed to connect to the network.
-    pub async fn add_peers(&self, peers: Vec<Multiaddr>) -> Result<(), DHTError> {
-        let request = DHTRequest::AddPeers { peers };
+    pub async fn add_peers(&self, peers: Vec<Multiaddr>) -> Result<(), DhtError> {
+        let request = DhtRequest::AddPeers { peers };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::Success => Ok(()))
+        ensure_response!(response, DhtResponse::Success => Ok(()))
     }
 
     /// Allow this node to act as a server node and listen
     /// for incoming connections on the provided [Multiaddr].
-    pub async fn listen(&self, listening_address: Multiaddr) -> Result<Multiaddr, DHTError> {
-        let request = DHTRequest::StartListening {
+    pub async fn listen(&self, listening_address: Multiaddr) -> Result<Multiaddr, DhtError> {
+        let request = DhtRequest::StartListening {
             address: listening_address,
         };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::Address(addr) => Ok(addr))
+        ensure_response!(response, DhtResponse::Address(addr) => Ok(addr))
     }
 
     /// Stops listening on the provided address.
-    pub async fn stop_listening(&self) -> Result<(), DHTError> {
-        let request = DHTRequest::StopListening;
+    pub async fn stop_listening(&self) -> Result<(), DhtError> {
+        let request = DhtRequest::StopListening;
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::Success => Ok(()))
+        ensure_response!(response, DhtResponse::Success => Ok(()))
     }
 
     /// Resolves once there are at least `requested_peers` peers
     /// in the network.
-    pub async fn wait_for_peers(&self, requested_peers: usize) -> Result<(), DHTError> {
+    pub async fn wait_for_peers(&self, requested_peers: usize) -> Result<(), DhtError> {
         // TODO(#101) Need to add a mechanism for non-Query based requests,
         // like sending events, or triggering a peer check on
         // new connection established. For now, we poll here.
@@ -160,78 +157,78 @@ impl DHTNode {
     /// automatically bootstrap themselves.
     /// Fails if node is not in an active state, or bootstrapping
     /// unable to start.
-    pub async fn bootstrap(&self) -> Result<(), DHTError> {
-        let request = DHTRequest::Bootstrap;
+    pub async fn bootstrap(&self) -> Result<(), DhtError> {
+        let request = DhtRequest::Bootstrap;
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::Success => Ok(()))
+        ensure_response!(response, DhtResponse::Success => Ok(()))
     }
 
     /// Returns the current state of the network.
     /// Fails if node is not in an active state.
-    pub async fn network_info(&self) -> Result<NetworkInfo, DHTError> {
-        let request = DHTRequest::GetNetworkInfo;
+    pub async fn network_info(&self) -> Result<NetworkInfo, DhtError> {
+        let request = DhtRequest::GetNetworkInfo;
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::GetNetworkInfo(info) => Ok(info))
+        ensure_response!(response, DhtResponse::GetNetworkInfo(info) => Ok(info))
     }
 
     /// Returns the current state of the network.
     /// Fails if node is not in an active state.
-    pub async fn peers(&self) -> Result<Vec<Peer>, DHTError> {
-        let request = DHTRequest::GetPeers;
+    pub async fn peers(&self) -> Result<Vec<Peer>, DhtError> {
+        let request = DhtRequest::GetPeers;
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::GetPeers(peers) => Ok(peers))
+        ensure_response!(response, DhtResponse::GetPeers(peers) => Ok(peers))
     }
 
     /// Sets the record keyed by `key` with `value` and propagates
     /// to peers.
     /// Fails if node is not in an active state or cannot set the record
     /// on any peers.
-    pub async fn put_record(&self, key: &[u8], value: &[u8]) -> Result<Vec<u8>, DHTError> {
-        let request = DHTRequest::PutRecord {
+    pub async fn put_record(&self, key: &[u8], value: &[u8]) -> Result<Vec<u8>, DhtError> {
+        let request = DhtRequest::PutRecord {
             key: key.to_vec(),
             value: value.to_vec(),
         };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::PutRecord { key } => Ok(key))
+        ensure_response!(response, DhtResponse::PutRecord { key } => Ok(key))
     }
 
     /// Fetches the record keyed by `key` from the network.
     /// Return value may be `Ok(None)` if query finished without finding
     /// any matching values.
     /// Fails if node is not in an active state.
-    pub async fn get_record(&self, key: &[u8]) -> Result<DHTRecord, DHTError> {
-        let request = DHTRequest::GetRecord { key: key.to_vec() };
+    pub async fn get_record(&self, key: &[u8]) -> Result<DhtRecord, DhtError> {
+        let request = DhtRequest::GetRecord { key: key.to_vec() };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::GetRecord(record) => Ok(record))
+        ensure_response!(response, DhtResponse::GetRecord(record) => Ok(record))
     }
 
     /// Instructs the node to tell its peers that it is providing
     /// the record for `key`.
     /// Fails if node is not in an active state.
-    pub async fn start_providing(&self, key: &[u8]) -> Result<(), DHTError> {
-        let request = DHTRequest::StartProviding { key: key.to_vec() };
+    pub async fn start_providing(&self, key: &[u8]) -> Result<(), DhtError> {
+        let request = DhtRequest::StartProviding { key: key.to_vec() };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::Success => Ok(()))
+        ensure_response!(response, DhtResponse::Success => Ok(()))
     }
 
     /// Queries the network to find peers that are providing `key`.
     /// Fails if node is not in an active state.
-    pub async fn get_providers(&self, key: &[u8]) -> Result<Vec<PeerId>, DHTError> {
-        let request = DHTRequest::GetProviders { key: key.to_vec() };
+    pub async fn get_providers(&self, key: &[u8]) -> Result<Vec<PeerId>, DhtError> {
+        let request = DhtRequest::GetProviders { key: key.to_vec() };
         let response = self.send_request(request).await?;
-        ensure_response!(response, DHTResponse::GetProviders { providers } => Ok(providers))
+        ensure_response!(response, DhtResponse::GetProviders { providers } => Ok(providers))
     }
 
-    async fn send_request(&self, request: DHTRequest) -> Result<DHTResponse, DHTError> {
+    async fn send_request(&self, request: DhtRequest) -> Result<DhtResponse, DhtError> {
         self.client
             .send_request_async(request)
             .await
-            .map_err(DHTError::from)
+            .map_err(DhtError::from)
             .and_then(|res| res)
     }
 }
 
-impl Drop for DHTNode {
+impl Drop for DhtNode {
     fn drop(&mut self) {
         self.thread_handle.abort();
     }

@@ -4,12 +4,18 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_api::data::{FetchParameters, FetchResponse, PushBody, PushResponse};
 use noosphere_core::{
-    data::{AddressIpld, Did},
+    authority::{SphereAction, SphereReference},
+    data::{AddressIpld, Did, Jwt},
     view::Sphere,
 };
 use noosphere_storage::{KeyValueStore, SphereDb, Storage};
+use serde_json::json;
 use tokio_stream::StreamExt;
-use ucan::crypto::KeyMaterial;
+use ucan::{
+    builder::UcanBuilder,
+    capability::{Capability, Resource, With},
+    crypto::KeyMaterial,
+};
 
 use crate::{metadata::COUNTERPART, HasMutableSphereContext, SpherePetnameWrite};
 
@@ -250,6 +256,10 @@ where
         if updated_names.len() == 0 {
             return Ok(None);
         }
+        println!(
+            "Adopting {} updated name resolutions...",
+            updated_names.len()
+        );
 
         for (
             name,
@@ -261,6 +271,8 @@ where
         {
             if let Some(jwt) = last_known_record {
                 context.adopt_petname(&name, &identity, &jwt).await?;
+            } else {
+                warn!("UH OH");
             }
         }
 
@@ -281,17 +293,6 @@ where
         counterpart_sphere_tip: &Cid,
     ) -> Result<()> {
         let mut context = context.sphere_context_mut().await?;
-        // The base of the changes that must be pushed is the tip of our lineage as
-        // recorded by the most recent history of the gateway's sphere. Everything
-        // past that point in history represents new changes that the gateway does
-        // not yet know about.
-        // let local_sphere_tip = match local_sphere_tip {
-        //     Some(cid) => cid,
-        //     None => {
-        //         println!("No local history for local sphere {}!", context.identity());
-        //         return Ok(());
-        //     }
-        // };
 
         let local_sphere_base = Sphere::at(counterpart_sphere_tip, context.db())
             .get_links()
@@ -313,6 +314,34 @@ where
 
         let client = context.client().await?;
 
+        let local_sphere_identity = context.identity();
+        let authorization = context
+            .author()
+            .require_authorization()?
+            .resolve_ucan(context.db())
+            .await?;
+
+        let name_record = Jwt(UcanBuilder::default()
+            .issued_by(&context.author().key)
+            .for_audience(&local_sphere_identity)
+            .witnessed_by(&authorization)
+            .claiming_capability(&Capability {
+                with: With::Resource {
+                    kind: Resource::Scoped(SphereReference {
+                        did: local_sphere_identity.to_string(),
+                    }),
+                },
+                can: SphereAction::Publish,
+            })
+            .with_lifetime(120)
+            .with_fact(json!({
+              "link": local_sphere_tip.to_string()
+            }))
+            .build()?
+            .sign()
+            .await?
+            .encode()?);
+
         println!(
             "Pushing new local history to gateway {}...",
             client.session.gateway_identity
@@ -320,10 +349,11 @@ where
 
         let result = client
             .push(&PushBody {
-                sphere: context.identity().to_string(),
+                sphere: local_sphere_identity.clone(),
                 base: local_sphere_base,
                 tip: *local_sphere_tip,
                 blocks: bundle,
+                name_record: Some(name_record),
             })
             .await?;
 

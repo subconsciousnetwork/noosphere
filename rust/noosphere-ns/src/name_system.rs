@@ -1,9 +1,10 @@
 use crate::{
     client::NameSystemClient,
-    dht::{DHTConfig, DHTError, DHTKeyMaterial, DHTNode, DHTRecord, NetworkInfo, Peer},
+    dht::{
+        DhtConfig, DhtError, DhtKeyMaterial, DhtNode, DhtRecord, NetworkInfo, Peer, RecordValidator,
+    },
     records::NsRecord,
     utils::make_p2p_address,
-    validator::Validator,
     PeerId,
 };
 use anyhow::{anyhow, Result};
@@ -13,7 +14,6 @@ use cid::Cid;
 use futures::future::try_join_all;
 use libp2p::Multiaddr;
 use noosphere_core::data::Did;
-use noosphere_storage::{SphereDb, Storage};
 use std::collections::HashMap;
 use tokio::sync::{Mutex, MutexGuard};
 
@@ -39,7 +39,7 @@ lazy_static! {
 /// See <https://github.com/subconsciousnetwork/noosphere/blob/main/design/name-system.md> for
 /// the full Noosphere Name System spec.
 pub struct NameSystem {
-    pub(crate) dht: DHTNode,
+    pub(crate) dht: DhtNode,
     /// Map of sphere DIDs to [NsRecord] hosted/propagated by this name system.
     hosted_records: Mutex<HashMap<Did, NsRecord>>,
     /// Map of resolved sphere DIDs to resolved [NsRecord].
@@ -50,13 +50,13 @@ pub struct NameSystem {
 }
 
 impl NameSystem {
-    pub fn new<S: Storage + 'static, K: DHTKeyMaterial>(
+    pub fn new<K: DhtKeyMaterial, V: RecordValidator + 'static>(
         key_material: &K,
-        store: SphereDb<S>,
-        dht_config: DHTConfig,
+        dht_config: DhtConfig,
+        validator: Option<V>,
     ) -> Result<Self> {
         Ok(NameSystem {
-            dht: DHTNode::new(key_material, dht_config, Some(Validator::new(store)))?,
+            dht: DhtNode::new(key_material, dht_config, validator)?,
             hosted_records: Mutex::new(HashMap::new()),
             resolved_records: Mutex::new(HashMap::new()),
         })
@@ -106,7 +106,7 @@ impl NameSystem {
     /// Returns an error if not connected to the DHT network.
     async fn dht_get_record(&self, identity: &Did) -> Result<(Did, Option<NsRecord>)> {
         match self.dht.get_record(identity.as_bytes()).await {
-            Ok(DHTRecord { key: _, value }) => match value {
+            Ok(DhtRecord { key: _, value }) => match value {
                 Some(value) => {
                     // Validation/correctness and filtering through
                     // the most recent values can be performed here
@@ -198,7 +198,7 @@ impl NameSystemClient for NameSystem {
             .dht
             .addresses()
             .await
-            .map_err(<DHTError as Into<anyhow::Error>>::into)?;
+            .map_err(<DhtError as Into<anyhow::Error>>::into)?;
         if !addresses.is_empty() {
             let peer_id = self.peer_id().to_owned();
             let address = make_p2p_address(addresses.swap_remove(0), peer_id);
@@ -260,7 +260,7 @@ mod test {
         assert_eq!(BOOTSTRAP_PEERS.len(), 1);
     }
 
-    use crate::ns_client_tests;
+    use crate::{ns_client_tests, Validator};
     use crate::{utils::wait_for_peers, NameSystemBuilder, NameSystemClient};
     use noosphere_core::authority::generate_ed25519_key;
     use noosphere_storage::{MemoryStorage, SphereDb};
@@ -280,8 +280,8 @@ mod test {
             let key_material = generate_ed25519_key();
             let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
+                .validator(Validator::new(store.clone()))
                 .key_material(&key_material)
-                .store(&store)
                 .listening_port(0)
                 .use_test_config()
                 .build()
@@ -296,8 +296,8 @@ mod test {
             let key_material = generate_ed25519_key();
             let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
+                .validator(Validator::new(store.clone()))
                 .key_material(&key_material)
-                .store(&store)
                 .bootstrap_peers(&[bootstrap_address.clone()])
                 .use_test_config()
                 .build()

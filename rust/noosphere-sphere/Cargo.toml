@@ -37,6 +37,8 @@ libipld-core = "~0.15"
 libipld-cbor = "~0.15"
 bytes = "^1"
 
+serde_json = "^1"
+
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # TODO: We should eventually support gateway storage as a specialty target only,

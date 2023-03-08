@@ -282,6 +282,15 @@ where
 
     /// Notify the name system that new names may need to be resolved
     async fn notify_name_resolver(&self) -> Result<()> {
+        if let Some(name_record) = &self.request_body.name_record {
+            if let Err(error) = self.name_system_tx.send(NameSystemJob::Publish {
+                context: self.sphere_context.clone(),
+                record: name_record.clone(),
+            }) {
+                warn!("Failed to request name record publish: {}", error);
+            }
+        }
+
         if let Err(error) = self.name_system_tx.send(NameSystemJob::ResolveSince {
             context: self.sphere_context.clone(),
             since: self.request_body.base,

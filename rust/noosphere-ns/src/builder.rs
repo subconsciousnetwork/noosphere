@@ -1,11 +1,10 @@
 use crate::{
     client::NameSystemClient,
-    dht::{DHTConfig, DHTKeyMaterial},
+    dht::{DhtConfig, DhtKeyMaterial, RecordValidator},
     name_system::NameSystem,
 };
 use anyhow::{anyhow, Result};
 use libp2p::{self, Multiaddr};
-use noosphere_storage::{SphereDb, Storage};
 use std::net::Ipv4Addr;
 
 #[cfg(doc)]
@@ -20,7 +19,7 @@ use libp2p::kad::KademliaConfig;
 /// ```
 /// use noosphere_core::authority::generate_ed25519_key;
 /// use noosphere_storage::{SphereDb, MemoryStorage};
-/// use noosphere_ns::{BOOTSTRAP_PEERS, NameSystem, NameSystemClient, NameSystemBuilder};
+/// use noosphere_ns::{BOOTSTRAP_PEERS, NameSystem, NameSystemClient, NameSystemBuilder, Validator};
 /// use ucan_key_support::ed25519::Ed25519KeyMaterial;
 /// use tokio;
 ///
@@ -30,30 +29,30 @@ use libp2p::kad::KademliaConfig;
 ///     let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 ///
 ///     let ns = NameSystemBuilder::default()
+///         .validator(Validator::new(store.clone()))
 ///         .key_material(&key_material)
-///         .store(&store)
 ///         .listening_port(30000)
 ///         .bootstrap_peers(&BOOTSTRAP_PEERS[..])
 ///         .build().await.unwrap();
 ///     ns.bootstrap().await.unwrap();
 /// }
 /// ```
-pub struct NameSystemBuilder<S, K>
+pub struct NameSystemBuilder<K, V>
 where
-    S: Storage + 'static,
-    K: DHTKeyMaterial + 'static,
+    K: DhtKeyMaterial + 'static,
+    V: RecordValidator + 'static,
 {
     bootstrap_peers: Option<Vec<Multiaddr>>,
     listening_address: Option<Multiaddr>,
-    dht_config: DHTConfig,
+    dht_config: DhtConfig,
     key_material: Option<K>,
-    store: Option<SphereDb<S>>,
+    validator: Option<V>,
 }
 
-impl<S, K> NameSystemBuilder<S, K>
+impl<K, V> NameSystemBuilder<K, V>
 where
-    S: Storage + 'static,
-    K: DHTKeyMaterial + 'static,
+    K: DhtKeyMaterial + 'static,
+    V: RecordValidator + 'static,
 {
     /// If bootstrap peers are provided, how often,
     /// in seconds, should the bootstrap process execute
@@ -111,6 +110,11 @@ where
         self
     }
 
+    pub fn validator(mut self, validator: V) -> Self {
+        self.validator = Some(validator);
+        self
+    }
+
     /// How long, in seconds, records remain valid for. Should be significantly
     /// longer than `publication_interval`.
     /// See [KademliaConfig::set_record_ttl] and [KademliaConfig::set_provider_record_ttl].
@@ -127,23 +131,16 @@ where
         self
     }
 
-    /// The Noosphere Store to use for reading and writing sphere data.
-    pub fn store(mut self, store: &SphereDb<S>) -> Self {
-        self.store = Some(store.to_owned());
-        self
-    }
-
     /// Build a [NameSystem] based off of the provided configuration.
     pub async fn build(mut self) -> Result<NameSystem> {
         let key_material = self
             .key_material
             .take()
             .ok_or_else(|| anyhow!("key_material required."))?;
-        let store = self
-            .store
-            .take()
-            .ok_or_else(|| anyhow!("store required."))?;
-        let ns = NameSystem::new(&key_material, store, self.dht_config.clone())?;
+        let validator = self
+            .validator
+            .ok_or_else(|| anyhow!("validator is required"))?;
+        let ns = NameSystem::new(&key_material, self.dht_config.clone(), Some(validator))?;
 
         if let Some(listening_address) = self.listening_address {
             ns.listen(listening_address).await?;
@@ -165,24 +162,26 @@ where
     }
 }
 
-impl<S, K> Default for NameSystemBuilder<S, K>
+impl<K, V> Default for NameSystemBuilder<K, V>
 where
-    S: Storage + 'static,
-    K: DHTKeyMaterial + 'static,
+    K: DhtKeyMaterial + 'static,
+    V: RecordValidator + 'static,
 {
     fn default() -> Self {
         Self {
             bootstrap_peers: None,
-            dht_config: DHTConfig::default(),
+            dht_config: DhtConfig::default(),
             key_material: None,
             listening_address: None,
-            store: None,
+            validator: None,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::Validator;
+
     use super::*;
     use libp2p::PeerId;
     use noosphere_core::authority::generate_ed25519_key;
@@ -206,8 +205,8 @@ mod tests {
 
         let ns = NameSystemBuilder::default()
             .listening_port(30000)
+            .validator(Validator::new(store.clone()))
             .key_material(&key_material)
-            .store(&store)
             .bootstrap_peers(&bootstrap_peers)
             .bootstrap_interval(33)
             .peer_dialing_interval(11)
@@ -231,21 +230,21 @@ mod tests {
         assert_eq!(dht_config.replication_interval, 60 * 60 + 1);
         assert_eq!(dht_config.record_ttl, 60 * 60 * 24 * 3 + 1);
 
-        if NameSystemBuilder::<MemoryStorage, Ed25519KeyMaterial>::default()
-            .store(&store)
+        if NameSystemBuilder::<Ed25519KeyMaterial, _>::default()
+            .validator(Validator::new(store))
             .build()
             .await
             .is_ok()
         {
             panic!("key_material required.");
         }
-        if NameSystemBuilder::<MemoryStorage, Ed25519KeyMaterial>::default()
+        if NameSystemBuilder::<Ed25519KeyMaterial, Validator<MemoryStorage>>::default()
             .key_material(&key_material)
             .build()
             .await
             .is_ok()
         {
-            panic!("store required.");
+            panic!("validator required.");
         }
         Ok(())
     }

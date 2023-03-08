@@ -96,7 +96,7 @@ macro_rules! ns_client_tests {
 /// the API server functionality in `noosphere_ns::server`.
 pub mod test {
     use super::*;
-    use crate::{utils::wait_for_peers, NameSystemBuilder};
+    use crate::{utils::wait_for_peers, NameSystemBuilder, Validator};
     use cid::Cid;
     use libp2p::multiaddr::Protocol;
     use noosphere_core::{authority::generate_ed25519_key, data::Did};
@@ -131,8 +131,8 @@ pub mod test {
             let key_material = generate_ed25519_key();
             let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
+                .validator(Validator::new(store.clone()))
                 .key_material(&key_material)
-                .store(&store)
                 .listening_port(0)
                 .bootstrap_peers(&[listener_address.clone()])
                 .use_test_config()

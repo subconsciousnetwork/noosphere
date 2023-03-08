@@ -4,7 +4,7 @@ use serde::Deserialize;
 use libp2p::kad::KademliaConfig;
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct DHTConfig {
+pub struct DhtConfig {
     /// If bootstrap peers are provided, how often,
     /// in seconds, should the bootstrap process execute
     /// to keep routing tables fresh.
@@ -31,7 +31,7 @@ pub struct DHTConfig {
     pub record_ttl: u32,
 }
 
-impl Default for DHTConfig {
+impl Default for DhtConfig {
     /// Creates a new [DHTConfig] with defaults applied.
     fn default() -> Self {
         let peer_dialing_interval = if cfg!(test) { 1 } else { 5 };

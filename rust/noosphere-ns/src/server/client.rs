@@ -111,22 +111,21 @@ impl NameSystemClient for HttpClient {
         let mut url = self.api_base.clone();
         url.set_path(&Route::PostRecord.to_string());
         let json_data = serde_json::to_string(&record)?;
-        Ok(self
-            .client
+        // TODO: Do something with this response?
+        self.client
             .post(url)
             .header("Content-Type", "application/json")
             .body(Body::from(json_data))
             .send()
-            .await?
-            .json()
-            .await?)
+            .await?;
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::ns_client_tests;
+    use crate::{ns_client_tests, Validator};
     use crate::{server::ApiServer, utils::wait_for_peers};
     use crate::{NameSystem, NameSystemBuilder, NameSystemClient};
     use noosphere_core::authority::generate_ed25519_key;
@@ -148,8 +147,8 @@ mod test {
             let key_material = generate_ed25519_key();
             let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
+                .validator(Validator::new(store.clone()))
                 .key_material(&key_material)
-                .store(&store)
                 .listening_port(0)
                 .use_test_config()
                 .build()
@@ -167,8 +166,8 @@ mod test {
         let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
         let ns = NameSystemBuilder::default()
+            .validator(Validator::new(store.clone()))
             .key_material(&key_material)
-            .store(&store)
             .bootstrap_peers(&bootstrap_address)
             .use_test_config()
             .build()

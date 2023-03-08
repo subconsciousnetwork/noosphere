@@ -33,19 +33,39 @@ impl AddressIpld {
                 for fact in facts {
                     match fact.as_object() {
                         Some(fields) => match fields.get("link") {
-                            Some(cid_string) => match Cid::try_from(cid_string.to_string()) {
-                                Ok(cid) => return Some(cid),
-                                _ => continue,
-                            },
-                            None => continue,
+                            Some(cid_string) => {
+                                match Cid::try_from(cid_string.as_str().unwrap_or_default()) {
+                                    Ok(cid) => return Some(cid),
+                                    Err(error) => {
+                                        warn!(
+                                            "Could not parse '{}' as name record link: {}",
+                                            cid_string, error
+                                        );
+                                        continue;
+                                    }
+                                }
+                            }
+                            None => {
+                                warn!("No 'link' field in fact, skipping...");
+                                continue;
+                            }
                         },
-                        None => continue,
+                        None => {
+                            warn!("Fact is not an object, skipping...");
+                            continue;
+                        }
                     }
                 }
 
+                warn!("No facts contained a link!");
+
                 None
             }
-            None => None,
+            None => {
+                warn!("No record recorded for this address!");
+
+                None
+            }
         }
     }
 }

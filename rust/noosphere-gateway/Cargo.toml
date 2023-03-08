@@ -23,6 +23,8 @@ tempfile = "^3"
 clap = { version = "^4", features = ["derive", "cargo"] }
 anyhow = "^1"
 thiserror = "1.0.38"
+strum = "0.24"
+strum_macros = "0.24"
 
 tokio = { version = "^1", features = ["full"] }
 tokio-stream = "~0.1"

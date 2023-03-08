@@ -46,6 +46,8 @@ where
         let names = sphere.get_names().await?;
         let address_ipld = names.get(&name.to_string()).await?;
 
+        trace!("Recorded address for {name}: {:?}", address_ipld);
+
         Ok(match address_ipld {
             Some(address) => address.dereference().await,
             None => None,
