@@ -210,26 +210,6 @@ where
     }
 }
 
-#[cfg(all(target_arch = "wasm32", feature = "gateway-storage"))]
-use crate::{KuboStorage, KuboStore};
-#[cfg(all(target_arch = "wasm32", feature = "gateway-storage"))]
-use url::Url;
-
-#[cfg(all(target_arch = "wasm32", feature = "gateway-storage"))]
-impl<S> From<(SphereDb<S>, &Url)> for SphereDb<KuboStorage<S>>
-where
-    S: Storage,
-{
-    fn from((db, ipfs_api): (SphereDb<S>, &Url)) -> Self {
-        SphereDb {
-            block_store: KuboStore::new(db.block_store, Some(ipfs_api)),
-            link_store: db.link_store,
-            version_store: db.version_store,
-            metadata_store: db.metadata_store,
-        }
-    }
-}
-
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl<S> BlockStore for SphereDb<S>

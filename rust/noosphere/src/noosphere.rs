@@ -50,7 +50,7 @@ pub enum NoosphereNetwork {
     /// Uses an HTTP REST client to interact with various network resources
     Http {
         gateway_api: Option<Url>,
-        ipfs_api: Option<Url>,
+        ipfs_gateway_url: Option<Url>,
     },
 }
 
@@ -112,9 +112,11 @@ impl NoosphereContext {
         }
     }
 
-    fn ipfs_api(&self) -> Option<&Url> {
+    fn ipfs_gateway_url(&self) -> Option<&Url> {
         match &self.configuration.network {
-            NoosphereNetwork::Http { ipfs_api, .. } => ipfs_api.as_ref(),
+            NoosphereNetwork::Http {
+                ipfs_gateway_url, ..
+            } => ipfs_gateway_url.as_ref(),
         }
     }
 
@@ -142,7 +144,7 @@ impl NoosphereContext {
             .reading_keys_from(self.key_storage().await?)
             .using_key(owner_key_name)
             .syncing_to(self.gateway_api())
-            .reading_ipfs_from(self.ipfs_api())
+            .reading_ipfs_from(self.ipfs_gateway_url())
             .build()
             .await?;
 
@@ -178,7 +180,7 @@ impl NoosphereContext {
             .using_key(local_key_name)
             .authorized_by(authorization)
             .syncing_to(self.gateway_api())
-            .reading_ipfs_from(self.ipfs_api())
+            .reading_ipfs_from(self.ipfs_gateway_url())
             .build()
             .await?;
 
@@ -211,7 +213,7 @@ impl NoosphereContext {
                 .using_scoped_storage_layout()
                 .reading_keys_from(self.key_storage().await?)
                 .syncing_to(self.gateway_api())
-                .reading_ipfs_from(self.ipfs_api())
+                .reading_ipfs_from(self.ipfs_gateway_url())
                 .build()
                 .await?;
 

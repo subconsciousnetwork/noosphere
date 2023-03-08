@@ -23,20 +23,21 @@ readme = "README.md"
 test_kubo = []
 
 [dependencies]
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow = "^1"
 async-compat = { version = "~0.2" }
 async-trait = "~0.1"
 cid = "~0.9"
-hyper = { version = "~0.14", features = ["full"] }
-hyper-multipart-rfc7578 = "~0.8"
-ipfs-api-prelude = "~0.5"
+reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls"] }
 serde = "^1"
 serde_json = "^1"
 tokio = { version = "^1", features = ["io-util"] }
 tracing = "0.1"
 url = { version = "^2", features = [ "serde" ] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+hyper = { version = "~0.14", features = ["full"] }
+hyper-multipart-rfc7578 = "~0.8"
+ipfs-api-prelude = "~0.5"
 
 [dev-dependencies]
 

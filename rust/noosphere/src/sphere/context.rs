@@ -164,23 +164,3 @@ where
         Ok(())
     }
 }
-
-#[cfg(all(target_arch = "wasm32", feature = "gateway-storage"))]
-use noosphere_storage::KuboStorage;
-
-#[cfg(all(target_arch = "wasm32", feature = "gateway-storage"))]
-impl<K, S> From<(&SphereContext<K, S>, &Url)> for SphereContext<K, GatewayStorage<S>>
-where
-    K: KeyMaterial + Clone + 'static,
-    S: Storage,
-{
-    fn from((context, url): (&SphereContext<K, S>, &Url)) -> Self {
-        SphereContext {
-            db: (context.db.clone(), url).into(),
-            client: OnceCell::new(),
-            sphere_identity: context.sphere_identity.clone(),
-            author: context.author.clone(),
-            did_parser: DidParser::new(SUPPORTED_KEYS),
-        }
-    }
-}

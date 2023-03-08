@@ -1,13 +1,13 @@
-#![cfg(not(target_arch = "wasm32"))]
-///! IPFS integration for various backend implementations. Currently only Kubo
-///! has out-of-the-box support, but integration is based on the generalized
-///! [IpfsClient] trait, which opens the possibility for integration with
-///! alternative backends in the future. Integration is currently only one-way,
-///! but eventually this module will be the entrypoint for pulling blocks out of
-///! IPFS backends as well.
-
+///! IPFS integration for various backend implementations.
+///! Provides the generalized [IpfsClient] trait, and implementations
+///! for Kubo's HTTP RPC API, and a more limited IPFS HTTP Gateway.
 mod client;
-mod kubo;
+mod gateway;
 
-pub use client::*;
-pub use kubo::*;
+pub use client::{IpfsClient, IpfsClientAsyncReadSendSync};
+pub use gateway::GatewayClient;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod kubo;
+#[cfg(not(target_arch = "wasm32"))]
+pub use kubo::KuboClient;

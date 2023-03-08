@@ -53,12 +53,11 @@ mod inner {
 
     use noosphere_storage::WebStorage;
 
-    #[cfg(feature = "kubo-storage")]
-    use noosphere_storage::KuboStorage;
-    #[cfg(feature = "kubo-storage")]
-    pub type PlatformStorage = KuboStorage<WebStorage>;
+    #[cfg(feature = "ipfs-storage")]
+    pub type PlatformStorage =
+        noosphere_storage::IpfsStorage<WebStorage, noosphere_ipfs::GatewayClient>;
 
-    #[cfg(not(feature = "kubo-storage"))]
+    #[cfg(not(feature = "ipfs-storage"))]
     pub type PlatformStorage = WebStorage;
 
     #[cfg(test)]

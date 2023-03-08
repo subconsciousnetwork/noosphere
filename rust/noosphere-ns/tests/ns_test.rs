@@ -222,7 +222,6 @@ async fn test_name_system_validation() -> Result<()> {
 
     let sphere_1_cid_1 = derive_cid::<DagCborCodec>(b"00000000");
 
-    // Test propagating records from ns_1 to ns_2
     assert!(
         ns_1.ns
             .put_record(
