@@ -3,7 +3,8 @@
 MOUNT_DIR="/home/dhtuser/.noosphere"
 
 KEY=$1
-API_PORT=$3
+IPFS_API_URL=$3
+API_PORT=$4
 SWARM_PORT=6666
 if [[ "$2" ]]; then
 	SWARM_PORT="$2"
@@ -27,9 +28,14 @@ fi
 
 LISTENING_ADDRESS="0.0.0.0:${SWARM_PORT}"
 
+ARGS=""
+ARGS="${ARGS} --key ${KEY}"
+ARGS="${ARGS} --listening-address ${LISTENING_ADDRESS}"
 if [[ "$API_PORT" ]]; then
-	API_ADDRESS="0.0.0.0:${API_PORT}"
-	orb-ns run --key ${KEY} --listening-address ${LISTENING_ADDRESS} --api-address ${API_ADDRESS}
-else
-	orb-ns run --key ${KEY} --listening-address ${LISTENING_ADDRESS}
+	ARGS="${ARGS} --api-address 0.0.0.0:${API_PORT}"
 fi
+if [[ "$IPFS_API_URL" ]]; then
+	ARGS="${ARGS} --ipfs-api-url ${IPFS_API_URL}"
+fi
+
+orb-ns run ${ARGS}
