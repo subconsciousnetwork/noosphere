@@ -72,11 +72,11 @@ where
 {
     /// A pointer to a HAMT
     pub hamt: Cid,
-    // TODO: The size of this vec is implicitly limited by the IPLD block size
-    // limit. This is probably fine most of the time; the vec only holds the
-    // delta changes, and N<10 probably holds in the majority of cases. But, it
-    // will be necessary to gracefully survive the outlier cases where N>~1000.
-    // pub changelog: ChangelogIpld<MapOperation<Key, Value>>,
+    // TODO(#262): The size of this vec is implicitly limited by the IPLD block
+    // size limit. This is probably fine most of the time; the vec only holds
+    // the delta changes, and N<10 probably holds in the majority of cases. But,
+    // it will be necessary to gracefully survive the outlier cases where
+    // N>~1000.
     pub changelog: Cid,
 
     #[serde(skip)]

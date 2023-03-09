@@ -28,7 +28,7 @@ use url::Url;
 #[derive(Clone)]
 pub enum NameSystemConfiguration {
     Remote(Url),
-    // TODO: Configuration for self-managed node
+    // TODO(#255): Configuration for self-managed node
     //InProcess(...)
 }
 
@@ -188,9 +188,11 @@ where
                     .await?;
                 }
                 NameSystemJob::ResolveImmediately { context, name, tx } => {
-                    // TODO: This is going to be blocked by any pending "resolve all" jobs. We should consider
-                    // delaying "resolve all" so that an eager client can get ahead of the queue if desired. Even
-                    // better would be some kind of streamed priority queue for resolutions, but that's a more
+                    // TODO(#256): This is going to be blocked by any pending
+                    // "resolve all" jobs. We should consider delaying "resolve
+                    // all" so that an eager client can get ahead of the queue
+                    // if desired. Even better would be some kind of streamed
+                    // priority queue for resolutions, but that's a more
                     // involved enhancement.
                     let stream = {
                         let context = context.lock().await;
@@ -249,21 +251,24 @@ where
         let next_record =
             match resolve_record(client.clone(), name.clone(), address.identity.clone()).await? {
                 Some(token) => {
-                    // TODO: Verify that the new value is the most recent value
-                    // TODO: Verify the proof chain of the new value
+                    // TODO(#258): Verify that the new value is the most recent value
+                    // TODO(#257): Verify the proof chain of the new value
                     Some(token)
                 }
                 None => {
-                    // TODO: Expire recorded value if we don't get an updated
+                    // TODO(#259): Expire recorded value if we don't get an updated
                     // record after some designated TTL
                     continue;
                 }
             };
 
         match &next_record {
-            // TODO: What if the resolved value is None?
+            // TODO(#260): What if the resolved value is None?
             Some(record) if last_known_record != next_record => {
-                debug!("ADOPTING PETNAME RECORD...");
+                debug!(
+                    "Gateway adopting petname record for '{}' ({}): {}",
+                    name, address.identity, record
+                );
                 context
                     .adopt_petname(&name, &address.identity, record)
                     .await?;

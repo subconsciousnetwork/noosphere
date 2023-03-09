@@ -30,7 +30,7 @@ impl<'a, S: BlockStore> Timeline<'a, S> {
         }
     }
 
-    // TODO: Consider using async-stream crate for this
+    // TODO(#263): Consider using async-stream crate for this
     pub fn try_stream(
         &self,
         future: &Cid,

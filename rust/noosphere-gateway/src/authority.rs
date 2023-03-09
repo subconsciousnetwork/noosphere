@@ -112,7 +112,7 @@ where
             let cid_string = parts.pop().ok_or(StatusCode::BAD_REQUEST)?;
             let claimed_cid = Cid::try_from(cid_string).map_err(|_| StatusCode::BAD_REQUEST)?;
 
-            // TODO: We need a worker process that purges garbage UCANs
+            // TODO(#261): We need a worker process that purges garbage UCANs
             let actual_cid = db
                 .write_token(jwt)
                 .await

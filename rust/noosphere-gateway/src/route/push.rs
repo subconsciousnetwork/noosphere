@@ -190,7 +190,6 @@ where
         Ok(())
     }
 
-    // TODO: Get names from pushed history
     async fn synchronize_names(&mut self) -> Result<(), PushError> {
         debug!("Synchronizing name changes to local sphere...");
 
