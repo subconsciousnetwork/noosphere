@@ -1,6 +1,6 @@
 use anyhow::Result;
 use cid::Cid;
-use noosphere_core::data::MapOperation;
+use noosphere_core::data::{AddressIpld, MapOperation};
 use std::{collections::BTreeSet, marker::PhantomData};
 
 use async_stream::try_stream;
@@ -9,15 +9,17 @@ use tokio::io::AsyncRead;
 use tokio_stream::{Stream, StreamExt};
 use ucan::crypto::KeyMaterial;
 
-use crate::{internal::SphereContextInternal, HasSphereContext};
+use crate::{
+    content::{SphereContentRead, SphereFile},
+    internal::SphereContextInternal,
+    HasSphereContext, SpherePetnameRead,
+};
 
-use super::{SphereContentRead, SphereFile};
-
-/// A [SphereContentWalker] makes it possible to convert anything that
-/// implements [HasSphereContext] into an async [Stream] over sphere content,
-/// allowing incremental iteration over both the breadth of content at any
-/// version, or the depth of changes over a range of history.
-pub struct SphereContentWalker<H, K, S>
+/// A [SphereWalker] makes it possible to convert anything that implements
+/// [HasSphereContext] into an async [Stream] over sphere content, allowing
+/// incremental iteration over both the breadth of content at any version, or
+/// the depth of changes over a range of history.
+pub struct SphereWalker<H, K, S>
 where
     H: HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
@@ -28,14 +30,14 @@ where
     storage: PhantomData<S>,
 }
 
-impl<H, K, S> From<H> for SphereContentWalker<H, K, S>
+impl<H, K, S> From<H> for SphereWalker<H, K, S>
 where
     H: HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
     fn from(has_sphere_context: H) -> Self {
-        SphereContentWalker {
+        SphereWalker {
             has_sphere_context,
             key: Default::default(),
             storage: Default::default(),
@@ -43,16 +45,138 @@ where
     }
 }
 
-impl<H, K, S> SphereContentWalker<H, K, S>
+impl<H, K, S> SphereWalker<H, K, S>
+where
+    H: SpherePetnameRead<K, S> + HasSphereContext<K, S>,
+    K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
+{
+    // Get a stream that yields every petname in the namespace along with its
+    /// corresponding [AddressIpld]. This is useful for iterating over sphere
+    /// petnames incrementally without having to load the entire index into
+    /// memory at once.
+    pub fn petname_stream<'a>(&'a self) -> impl Stream<Item = Result<(String, AddressIpld)>> + 'a {
+        try_stream! {
+            let sphere = self.has_sphere_context.to_sphere().await?;
+            let petnames = sphere.get_names().await?;
+            let stream = petnames.stream().await?;
+
+            for await entry in stream {
+                let (petname, address) = entry?;
+                yield (petname.clone(), address.clone());
+            }
+        }
+    }
+
+    /// Get a stream that yields the set of petnames that changed at each
+    /// revision of the backing sphere, up to but excluding an optional `since`
+    /// CID parameter. To stream the entire history, pass `None` as the
+    /// parameter.
+    pub fn petname_change_stream<'a>(
+        &'a self,
+        since: Option<&'a Cid>,
+    ) -> impl Stream<Item = Result<(Cid, BTreeSet<String>)>> + 'a {
+        try_stream! {
+            let sphere = self.has_sphere_context.to_sphere().await?;
+            let since = since.cloned();
+            let stream = sphere.into_name_changelog_stream(since.as_ref());
+
+            for await change in stream {
+                let (cid, changelog) = change?;
+                let mut changed_petnames = BTreeSet::new();
+
+                for operation in changelog.changes {
+                    let petname = match operation {
+                        MapOperation::Add { key, .. } => key,
+                        MapOperation::Remove { key } => key,
+                    };
+                    changed_petnames.insert(petname);
+                }
+
+                yield (cid, changed_petnames);
+            }
+        }
+    }
+
+    /// Get a [BTreeSet] whose members are all the petnames that have addresses
+    /// as of this version of the sphere. Note that the full space of names may
+    /// be very large; for a more space-efficient approach, use
+    /// [SphereWalker::petname_stream] to incrementally access all petnames in
+    /// the sphere.
+    ///
+    /// This method is forgiving of missing or corrupted data, and will yield an
+    /// incomplete set of names in the case that some or all names are not able
+    /// to be accessed.
+    pub async fn list_petnames(&self) -> Result<BTreeSet<String>> {
+        let sphere_identity = self.has_sphere_context.identity().await?;
+        let petname_stream = self.petname_stream();
+
+        tokio::pin!(petname_stream);
+
+        Ok(petname_stream
+            .fold(BTreeSet::new(), |mut petnames, another_petname| {
+                match another_petname {
+                    Ok((petname, _)) => {
+                        petnames.insert(petname);
+                    }
+                    Err(error) => {
+                        warn!(
+                            "Could not read a petname from {}: {}",
+                            sphere_identity, error
+                        )
+                    }
+                };
+                petnames
+            })
+            .await)
+    }
+
+    /// Get a [BTreeSet] whose members are all the petnames whose values have
+    /// changed at least once since the provided version of the sphere
+    /// (exclusive of the provided version; use `None` to get all petnames
+    /// changed since the beginning of the sphere's history).
+    ///
+    /// This method is forgiving of missing or corrupted history, and will yield
+    /// an incomplete set of changes in the case that some or all changes are
+    /// not able to be accessed.
+    ///
+    /// Note that this operation will scale in memory consumption and duration
+    /// proportionally to the size of the sphere and the length of its history.
+    /// For a more efficient method of accessing changes, consider using
+    /// [SphereWalker::petname_change_stream] instead.
+    pub async fn petname_changes(&self, since: Option<&Cid>) -> Result<BTreeSet<String>> {
+        let sphere_identity = self.has_sphere_context.identity().await?;
+        let change_stream = self.petname_change_stream(since);
+
+        tokio::pin!(change_stream);
+
+        Ok(change_stream
+            .fold(BTreeSet::new(), |mut all, some| {
+                match some {
+                    Ok((_, mut changes)) => all.append(&mut changes),
+                    Err(error) => warn!(
+                        "Could not read some changes from {}: {}",
+                        sphere_identity, error
+                    ),
+                };
+                all
+            })
+            .await)
+    }
+}
+
+impl<H, K, S> SphereWalker<H, K, S>
 where
     H: SphereContentRead<K, S> + HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    /// Same as `stream`, but consumes the [SphereFs]. This is useful in cases
-    /// where it would otherwise be necessary to borrow a reference to
-    /// [SphereFs] for a static lifetime.
-    pub fn into_stream(self) -> impl Stream<Item = Result<(String, SphereFile<impl AsyncRead>)>> {
+    /// Same as [SphereWalker::content_stream], but consumes the [SphereWalker].
+    /// This is useful in cases where it would otherwise be necessary to borrow
+    /// a reference to [SphereWalker] for a static lifetime.
+    pub fn into_content_stream(
+        self,
+    ) -> impl Stream<Item = Result<(String, SphereFile<impl AsyncRead>)>> {
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
             let links = sphere.get_links().await?;
@@ -71,7 +195,7 @@ where
     /// corresponding [SphereFile]. This is useful for iterating over sphere
     /// content incrementally without having to load the entire index into
     /// memory at once.
-    pub fn stream<'a>(
+    pub fn content_stream<'a>(
         &'a self,
     ) -> impl Stream<Item = Result<(String, SphereFile<impl AsyncRead + 'a>)>> {
         try_stream! {
@@ -91,7 +215,7 @@ where
     /// Get a stream that yields the set of slugs that changed at each revision
     /// of the backing sphere, up to but excluding an optional CID. To stream
     /// the entire history, pass `None` as the parameter.
-    pub fn change_stream<'a>(
+    pub fn content_change_stream<'a>(
         &'a self,
         since: Option<&'a Cid>,
     ) -> impl Stream<Item = Result<(Cid, BTreeSet<String>)>> + 'a {
@@ -119,16 +243,16 @@ where
 
     /// Get a [BTreeSet] whose members are all the slugs that have values as of
     /// this version of the sphere. Note that the full space of slugs may be
-    /// very large; for a more space-efficient approach, use [SphereFs::stream]
-    /// or [SphereFs::into_stream] to incrementally access all slugs in the
-    /// sphere.
+    /// very large; for a more space-efficient approach, use
+    /// [SphereWalker::content_stream] or [SphereWalker::into_content_stream] to
+    /// incrementally access all slugs in the sphere.
     ///
-    /// This method is forgiving of missing or corrupted data, and will yield
-    /// an incomplete set of links in the case that some or all links are
-    /// not able to be accessed.
-    pub async fn list(&self) -> Result<BTreeSet<String>> {
+    /// This method is forgiving of missing or corrupted data, and will yield an
+    /// incomplete set of links in the case that some or all links are not able
+    /// to be accessed.
+    pub async fn list_slugs(&self) -> Result<BTreeSet<String>> {
         let sphere_identity = self.has_sphere_context.identity().await?;
-        let link_stream = self.stream();
+        let link_stream = self.content_stream();
 
         tokio::pin!(link_stream);
 
@@ -159,10 +283,10 @@ where
     /// Note that this operation will scale in memory consumption and duration
     /// proportionally to the size of the sphere and the length of its history.
     /// For a more efficient method of accessing changes, consider using
-    /// [SphereFs::change_stream] instead.
-    pub async fn changes(&self, since: Option<&Cid>) -> Result<BTreeSet<String>> {
+    /// [SphereWalker::content_change_stream] instead.
+    pub async fn content_changes(&self, since: Option<&Cid>) -> Result<BTreeSet<String>> {
         let sphere_identity = self.has_sphere_context.identity().await?;
-        let change_stream = self.change_stream(since);
+        let change_stream = self.content_change_stream(since);
 
         tokio::pin!(change_stream);
 
@@ -195,10 +319,8 @@ pub mod tests {
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
-    use crate::{
-        helpers::{simulated_sphere_context, SimulationAccess},
-        SphereContentWalker,
-    };
+    use super::SphereWalker;
+    use crate::helpers::{simulated_sphere_context, SimulationAccess};
     use crate::{HasMutableSphereContext, SphereContentWrite, SphereCursor};
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
@@ -232,11 +354,11 @@ pub mod tests {
             cursor.save(None).await.unwrap();
         }
 
-        let walker_cursor = SphereContentWalker::from(cursor);
-        let walker_context = SphereContentWalker::from(sphere_context);
+        let walker_cursor = SphereWalker::from(cursor);
+        let walker_context = SphereWalker::from(sphere_context);
 
-        let slugs_cursor = walker_cursor.list().await.unwrap();
-        let slugs_context = walker_context.list().await.unwrap();
+        let slugs_cursor = walker_cursor.list_slugs().await.unwrap();
+        let slugs_context = walker_context.list_slugs().await.unwrap();
 
         assert_eq!(slugs_cursor.len(), 5);
         assert_eq!(slugs_cursor, slugs_context);
@@ -273,15 +395,15 @@ pub mod tests {
             cursor.save(None).await.unwrap();
         }
 
-        let walker = SphereContentWalker::from(cursor.clone());
-        let slugs = walker.list().await.unwrap();
+        let walker = SphereWalker::from(cursor.clone());
+        let slugs = walker.list_slugs().await.unwrap();
 
         assert_eq!(slugs.len(), 5);
 
         cursor.remove("dogs").await.unwrap();
         cursor.save(None).await.unwrap();
 
-        let slugs = walker.list().await.unwrap();
+        let slugs = walker.list_slugs().await.unwrap();
 
         assert_eq!(slugs.len(), 4);
     }
@@ -316,8 +438,8 @@ pub mod tests {
         }
 
         let mut actual = BTreeSet::new();
-        let walker = SphereContentWalker::from(cursor);
-        let stream = walker.stream();
+        let walker = SphereWalker::from(cursor);
+        let stream = walker.content_stream();
 
         tokio::pin!(stream);
 

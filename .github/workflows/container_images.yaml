@@ -39,6 +39,8 @@ jobs:
             concurrency="$concurrency-$IMAGE_TAG"
           fi
 
+          concurrency="$concurrency-$GITHUB_SHA"
+
           tags_out=""
 
           for tag in "${tags[@]}"; do

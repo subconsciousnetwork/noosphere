@@ -1,12 +1,12 @@
 use safer_ffi::prelude::*;
 
-use crate::ffi::{NsError, NsNoosphereContext, TryOrInitialize};
+use crate::ffi::{NsError, NsNoosphere, TryOrInitialize};
 
 #[ffi_export]
 /// Create a key with the given name in the current platform's support key
 /// storage mechanism.
 pub fn ns_key_create(
-    noosphere: &NsNoosphereContext,
+    noosphere: &NsNoosphere,
     name: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) {

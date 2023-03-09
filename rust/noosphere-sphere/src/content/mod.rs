@@ -5,11 +5,9 @@
 mod decoder;
 mod file;
 mod read;
-mod walker;
 mod write;
 
 pub use decoder::*;
 pub use file::*;
 pub use read::*;
-pub use walker::*;
 pub use write::*;
