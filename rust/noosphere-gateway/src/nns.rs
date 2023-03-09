@@ -159,7 +159,7 @@ where
 
                     for (_, sphere) in reverse_history {
                         let names = sphere.get_names().await?;
-                        let changelog = names.try_load_changelog().await?;
+                        let changelog = names.load_changelog().await?;
 
                         for operation in changelog.changes.iter() {
                             match operation {

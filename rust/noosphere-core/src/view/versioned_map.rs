@@ -46,13 +46,13 @@ where
     V: VersionedMapValue,
     S: BlockStore,
 {
-    pub async fn try_get_changelog(&self) -> Result<&ChangelogIpld<MapOperation<K, V>>> {
+    pub async fn get_changelog(&self) -> Result<&ChangelogIpld<MapOperation<K, V>>> {
         self.changelog
-            .get_or_try_init(async { self.try_load_changelog().await })
+            .get_or_try_init(async { self.load_changelog().await })
             .await
     }
 
-    pub async fn try_load_changelog(&self) -> Result<ChangelogIpld<MapOperation<K, V>>> {
+    pub async fn load_changelog(&self) -> Result<ChangelogIpld<MapOperation<K, V>>> {
         let ipld = self
             .store
             .load::<DagCborCodec, VersionedMapIpld<K, V>>(&self.cid)
@@ -62,28 +62,25 @@ where
             .await
     }
 
-    pub async fn try_get_hamt(&self) -> Result<&Hamt<S, V, K>> {
+    pub async fn get_hamt(&self) -> Result<&Hamt<S, V, K>> {
         self.hamt
-            .get_or_try_init(async { self.try_load_hamt().await })
+            .get_or_try_init(async { self.load_hamt().await })
             .await
     }
 
-    async fn try_load_hamt(&self) -> Result<Hamt<S, V, K>> {
+    async fn load_hamt(&self) -> Result<Hamt<S, V, K>> {
         let ipld = self
             .store
             .load::<DagCborCodec, VersionedMapIpld<K, V>>(&self.cid)
             .await?;
 
-        ipld.try_load_hamt(&self.store).await
+        ipld.load_hamt(&self.store).await
     }
 
-    pub async fn try_at_or_empty(
-        cid: Option<&Cid>,
-        store: &mut S,
-    ) -> Result<VersionedMap<K, V, S>> {
+    pub async fn at_or_empty(cid: Option<&Cid>, store: &mut S) -> Result<VersionedMap<K, V, S>> {
         Ok(match cid {
             Some(cid) => VersionedMap::<K, V, S>::at(cid, store),
-            None => VersionedMap::<K, V, S>::try_empty(store).await?,
+            None => VersionedMap::<K, V, S>::empty(store).await?,
         })
     }
 
@@ -100,8 +97,8 @@ where
         }
     }
 
-    pub async fn try_empty(store: &mut S) -> Result<VersionedMap<K, V, S>> {
-        let ipld = LinksIpld::try_empty(store).await?;
+    pub async fn empty(store: &mut S) -> Result<VersionedMap<K, V, S>> {
+        let ipld = LinksIpld::empty(store).await?;
         let cid = store.save::<DagCborCodec, _>(ipld).await?;
 
         Ok(VersionedMap {
@@ -115,7 +112,7 @@ where
     /// Get a [BTreeMap] of all the added entries for this version of the
     /// [VersionedMap].
     pub async fn get_added(&self) -> Result<BTreeMap<K, V>> {
-        let changelog = self.try_get_changelog().await?;
+        let changelog = self.get_changelog().await?;
         let mut added = BTreeMap::new();
         for item in changelog.changes.iter() {
             match item {
@@ -130,7 +127,7 @@ where
     /// a key from a hashmap, but note that this will load the underlying HAMT
     /// into memory if it has not yet been accessed.
     pub async fn get(&self, key: &K) -> Result<Option<&V>> {
-        let hamt = self.try_get_hamt().await?;
+        let hamt = self.get_hamt().await?;
 
         hamt.get(key).await
     }
@@ -143,14 +140,14 @@ where
             .ok_or_else(|| anyhow!("Key {} not found!", key))
     }
 
-    pub async fn try_apply_with_cid(
+    pub async fn apply_with_cid(
         cid: Option<&Cid>,
         mutation: &VersionedMapMutation<K, V>,
         store: &mut S,
     ) -> Result<Cid> {
-        let map = Self::try_at_or_empty(cid, store).await?;
-        let mut changelog = map.try_get_changelog().await?.mark(mutation.did());
-        let mut hamt = map.try_load_hamt().await?;
+        let map = Self::at_or_empty(cid, store).await?;
+        let mut changelog = map.get_changelog().await?.mark(mutation.did());
+        let mut hamt = map.load_hamt().await?;
 
         for change in mutation.changes() {
             match change {
@@ -180,13 +177,13 @@ where
     where
         ForEach: FnMut(&K, &V) -> Result<()>,
     {
-        self.try_get_hamt().await?.for_each(for_each).await
+        self.get_hamt().await?.for_each(for_each).await
     }
 
     pub async fn stream<'a>(
         &'a self,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<(&'a K, &'a V)>> + 'a>>> {
-        Ok(self.try_get_hamt().await?.stream())
+        Ok(self.get_hamt().await?.stream())
     }
 }
 
@@ -197,6 +194,6 @@ where
     S: BlockStore + 'static,
 {
     pub async fn into_stream(self) -> Result<impl Stream<Item = Result<(K, V)>>> {
-        Ok(self.try_load_hamt().await?.into_stream())
+        Ok(self.load_hamt().await?.into_stream())
     }
 }

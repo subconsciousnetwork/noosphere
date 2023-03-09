@@ -43,7 +43,7 @@ where
         let sphere = self.to_sphere().await?;
 
         let links = sphere.get_links().await?;
-        let hamt = links.try_get_hamt().await?;
+        let hamt = links.get_hamt().await?;
 
         Ok(match hamt.get(&slug.to_string()).await? {
             Some(content_cid) => Some(self.get_file(&revision, content_cid).await?),

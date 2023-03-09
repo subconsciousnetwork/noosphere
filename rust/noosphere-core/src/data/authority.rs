@@ -17,9 +17,9 @@ pub struct AuthorityIpld {
 
 impl AuthorityIpld {
     pub async fn try_empty<S: BlockStore>(store: &mut S) -> Result<Self> {
-        let allowed_ipld = AllowedIpld::try_empty(store).await?;
+        let allowed_ipld = AllowedIpld::empty(store).await?;
         let allowed = store.save::<DagCborCodec, _>(allowed_ipld).await?;
-        let revoked_ipld = RevokedIpld::try_empty(store).await?;
+        let revoked_ipld = RevokedIpld::empty(store).await?;
         let revoked = store.save::<DagCborCodec, _>(revoked_ipld).await?;
 
         Ok(AuthorityIpld { allowed, revoked })

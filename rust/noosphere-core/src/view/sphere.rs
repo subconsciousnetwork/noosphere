@@ -101,7 +101,7 @@ impl<S: BlockStore> Sphere<S> {
     pub async fn get_links(&self) -> Result<Links<S>> {
         let sphere = self.to_body().await?;
 
-        Links::try_at_or_empty(sphere.links.as_ref(), &mut self.store.clone()).await
+        Links::at_or_empty(sphere.links.as_ref(), &mut self.store.clone()).await
     }
 
     /// Attempt to load the [Authority] of this sphere. If no authorizations or
@@ -119,7 +119,7 @@ impl<S: BlockStore> Sphere<S> {
     pub async fn get_names(&self) -> Result<Names<S>> {
         let sphere = self.to_body().await?;
 
-        Names::try_at_or_empty(sphere.names.as_ref(), &mut self.store.clone()).await
+        Names::at_or_empty(sphere.names.as_ref(), &mut self.store.clone()).await
     }
 
     /// Get the [Did] identity of the sphere
@@ -150,7 +150,7 @@ impl<S: BlockStore> Sphere<S> {
         let links = self.get_links().await?;
 
         if links.cid() != parent_links.cid() {
-            let changelog = links.try_get_changelog().await?;
+            let changelog = links.get_changelog().await?;
 
             if changelog.is_empty() {
                 return Err(anyhow!("Links have changed but the changelog is empty"));
@@ -163,7 +163,7 @@ impl<S: BlockStore> Sphere<S> {
         let names = self.get_names().await?;
 
         if names.cid() != parent_names.cid() {
-            let changelog = names.try_get_changelog().await?;
+            let changelog = names.get_changelog().await?;
 
             if changelog.is_empty() {
                 return Err(anyhow!("Names have changed but the changelog is empty"));
@@ -180,7 +180,7 @@ impl<S: BlockStore> Sphere<S> {
             let allowed_ucans = authorization.try_get_allowed_ucans().await?;
 
             if allowed_ucans.cid() != parent_allowed_ucans.cid() {
-                let changelog = allowed_ucans.try_get_changelog().await?;
+                let changelog = allowed_ucans.get_changelog().await?;
 
                 if changelog.is_empty() {
                     return Err(anyhow!("Allowed UCANs changed but the changelog is empty"));
@@ -195,7 +195,7 @@ impl<S: BlockStore> Sphere<S> {
             let revoked_ucans = authorization.try_get_revoked_ucans().await?;
 
             if revoked_ucans.cid() != parent_revoked_ucans.cid() {
-                let changelog = revoked_ucans.try_get_changelog().await?;
+                let changelog = revoked_ucans.get_changelog().await?;
 
                 if changelog.is_empty() {
                     return Err(anyhow!("Revoked UCANs changed but the changelog is empty"));
@@ -231,14 +231,14 @@ impl<S: BlockStore> Sphere<S> {
 
         sphere.links = match !links_mutation.changes().is_empty() {
             true => {
-                Some(Links::try_apply_with_cid(sphere.links.as_ref(), links_mutation, store).await?)
+                Some(Links::apply_with_cid(sphere.links.as_ref(), links_mutation, store).await?)
             }
             false => sphere.links,
         };
 
         sphere.names = match !names_mutation.changes().is_empty() {
             true => {
-                Some(Names::try_apply_with_cid(sphere.names.as_ref(), names_mutation, store).await?)
+                Some(Names::apply_with_cid(sphere.names.as_ref(), names_mutation, store).await?)
             }
             false => sphere.names,
         };
@@ -255,7 +255,7 @@ impl<S: BlockStore> Sphere<S> {
             };
 
             if !allowed_ucans_mutation.changes().is_empty() {
-                authorization.allowed = AllowedUcans::try_apply_with_cid(
+                authorization.allowed = AllowedUcans::apply_with_cid(
                     Some(&authorization.allowed),
                     allowed_ucans_mutation,
                     store,
@@ -264,7 +264,7 @@ impl<S: BlockStore> Sphere<S> {
             }
 
             if !revoked_ucans_mutation.changes().is_empty() {
-                authorization.revoked = RevokedUcans::try_apply_with_cid(
+                authorization.revoked = RevokedUcans::apply_with_cid(
                     Some(&authorization.revoked),
                     revoked_ucans_mutation,
                     store,
@@ -594,7 +594,7 @@ impl<S: BlockStore> Sphere<S> {
             for item in history.into_iter().rev() {
                 let (cid, sphere) = item?;
                 let names = sphere.get_names().await?;
-                let changelog = names.try_load_changelog().await?;
+                let changelog = names.load_changelog().await?;
 
                 yield (cid, changelog);
             }
@@ -615,7 +615,7 @@ impl<S: BlockStore> Sphere<S> {
             for item in history.into_iter().rev() {
                 let (cid, sphere) = item?;
                 let links = sphere.get_links().await?;
-                let changelog = links.try_load_changelog().await?;
+                let changelog = links.load_changelog().await?;
 
                 yield (cid, changelog);
             }

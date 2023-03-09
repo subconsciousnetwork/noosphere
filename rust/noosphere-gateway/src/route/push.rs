@@ -206,7 +206,7 @@ where
         // Walk backwards through the history of the pushed sphere and aggregate
         // name changes into a single mutation
         while let Ok(Some((_, sphere))) = stream.try_next().await {
-            let changed_names = sphere.get_names().await?.try_load_changelog().await?;
+            let changed_names = sphere.get_names().await?.load_changelog().await?;
             for operation in changed_names.changes {
                 match operation {
                     MapOperation::Add { key, value } => {
