@@ -291,7 +291,7 @@ pub fn ns_sphere_fs_list(
 /// first revision).
 ///
 /// Note that a slug change may mean the slug was added, updated or removed.
-/// Also Note also that multiple changes to the same slug will be reduced to a
+/// Also note that multiple changes to the same slug will be reduced to a
 /// single entry in the array that is returned.
 pub fn ns_sphere_fs_changes(
     noosphere: &NsNoosphereContext,

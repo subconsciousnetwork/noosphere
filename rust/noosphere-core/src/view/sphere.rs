@@ -549,7 +549,11 @@ impl<S: BlockStore> Sphere<S> {
         ))
     }
 
-    /// NOTE: Steps backwards through history, excludes since
+    /// Consume the [Sphere] and get a [Stream] that yields a `(Cid, Sphere)`
+    /// tuple for each step in the sphere's history (*excluding* the version
+    /// represented by `since`). History is traversed in reverse-chronological
+    /// order. If `None` is given for `since`, the entire history of the sphere
+    /// will be streamed.
     pub fn into_history_stream(
         self,
         since: Option<&Cid>,
