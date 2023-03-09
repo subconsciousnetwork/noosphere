@@ -1,15 +1,13 @@
+use crate::IpfsClient;
 use anyhow::Result;
 use async_trait::async_trait;
 use cid::Cid;
-use noosphere_ipfs::IpfsClient;
+use noosphere_storage::{BlockStore, Storage};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[cfg(doc)]
-use crate::KeyValueStore;
-
-use crate::BlockStore;
-use crate::Storage;
+use noosphere_storage::KeyValueStore;
 
 /// [IpfsStorage] is an implementation of [Storage] that wraps another
 /// implementation of [Storage] and an [IpfsClient].

@@ -55,7 +55,7 @@ mod inner {
 
     #[cfg(feature = "ipfs-storage")]
     pub type PlatformStorage =
-        noosphere_storage::IpfsStorage<WebStorage, noosphere_ipfs::GatewayClient>;
+        noosphere_ipfs::IpfsStorage<WebStorage, noosphere_ipfs::GatewayClient>;
 
     #[cfg(not(feature = "ipfs-storage"))]
     pub type PlatformStorage = WebStorage;
