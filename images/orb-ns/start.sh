@@ -3,11 +3,7 @@
 MOUNT_DIR="/home/dhtuser/.noosphere"
 
 KEY=$1
-API_PORT=$3
-SWARM_PORT=6666
-if [[ "$2" ]]; then
-	SWARM_PORT="$2"
-fi
+CONFIG_FILE=$2
 
 cd /home/dhtuser
 
@@ -21,15 +17,12 @@ if [[ ! -d "$MOUNT_DIR" ]]; then
 	exit 1
 fi
 if [[ -z "$1" ]]; then
-	echo "ARGS: KEY [SWARM_PORT] [API_PORT]"	
+	echo "ARGS: KEY CONFIG_FILE"	
+	exit 1
+fi
+if [[ -z "$2" ]]; then
+	echo "Missing config file path."
 	exit 1
 fi
 
-LISTENING_ADDRESS="0.0.0.0:${SWARM_PORT}"
-
-if [[ "$API_PORT" ]]; then
-	API_ADDRESS="0.0.0.0:${API_PORT}"
-	orb-ns run --key ${KEY} --listening-address ${LISTENING_ADDRESS} --api-address ${API_ADDRESS}
-else
-	orb-ns run --key ${KEY} --listening-address ${LISTENING_ADDRESS}
-fi
+orb-ns run --config $CONFIG_FILE
