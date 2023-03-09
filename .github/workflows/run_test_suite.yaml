@@ -81,7 +81,7 @@ jobs:
         uses: actions-rs/cargo@v1.0.3
         with:
           command: test
-          args: --features test_kubo
+          args: --features test_kubo,headers
 
   run-test-suite-web-wasm:
     runs-on: ubuntu-latest
