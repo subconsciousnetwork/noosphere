@@ -1,5 +1,8 @@
 use crate::runner::config::RunnerNodeConfig;
 use anyhow::Result;
+use noosphere_ipfs::{IpfsStorage, KuboClient};
+#[cfg(feature = "api-server")]
+use noosphere_ns::server::APIServer;
 use noosphere_ns::{Multiaddr, NameSystem, NameSystemClient, PeerId};
 use noosphere_storage::{MemoryStorage, SphereDb};
 use serde::Serialize;
@@ -12,9 +15,6 @@ use std::{
 };
 use tokio::sync::Mutex;
 use url::Url;
-
-#[cfg(feature = "api-server")]
-use noosphere_ns::server::APIServer;
 
 #[cfg(not(feature = "api-server"))]
 struct APIServer;
@@ -44,8 +44,16 @@ pub struct NameSystemRunner {
 
 impl NameSystemRunner {
     pub(crate) async fn try_from_config(mut config: RunnerNodeConfig) -> Result<Self> {
-        let store = SphereDb::new(&MemoryStorage::default()).await?;
-        let node = NameSystem::new(&config.key_material, store, config.dht_config.to_owned())?;
+        let node = if let Some(ipfs_api_url) = config.ipfs_api_url {
+            let kubo = KuboClient::new(&ipfs_api_url)?;
+            let store =
+                SphereDb::new(&IpfsStorage::new(MemoryStorage::default(), Some(kubo))).await?;
+            NameSystem::new(&config.key_material, store, config.dht_config.to_owned())?
+        } else {
+            let store = SphereDb::new(&MemoryStorage::default()).await?;
+            NameSystem::new(&config.key_material, store, config.dht_config.to_owned())?
+        };
+
         let peer_id = node.peer_id().to_owned();
 
         let listening_address = if let Some(requested_addr) = config.listening_address.take() {
