@@ -3983,6 +3983,7 @@ dependencies = [
  "libp2p",
  "noosphere",
  "noosphere-core",
+ "noosphere-ipfs",
  "noosphere-storage",
  "rand 0.8.5",
  "reqwest",

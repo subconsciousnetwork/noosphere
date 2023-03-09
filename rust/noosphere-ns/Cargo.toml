@@ -37,18 +37,21 @@ ucan-key-support = { version = "0.1.0" }
 tokio = { version = "1.15", features = ["io-util", "io-std", "sync", "macros", "rt", "rt-multi-thread"] }
 noosphere-storage = { version = "0.4.2", path = "../noosphere-storage" }
 noosphere-core = { version = "0.6.3", path = "../noosphere-core" }
+libp2p = { version = "0.51.0", default-features = false, features = [ "identify", "dns", "kad", "macros", "mplex", "noise", "serde", "tcp", "tokio", "yamux" ] }
+
 # noosphere_ns::bin
 noosphere = { version = "0.6.3", path = "../noosphere", optional = true }
+noosphere-ipfs = { version = "0.1.2", path = "../noosphere-ipfs", optional = true }
 clap = { version = "^4.1", features = ["derive"], optional = true }
 home = { version = "~0.5", optional = true }
 toml = { version = "~0.5", optional = true }
+
 # noosphere_ns::server
 axum = { version = "~0.5", features = ["json", "headers", "macros"], optional = true }
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls"], optional = true }
 tracing-subscriber = { version = "~0.3", features = ["env-filter"], optional = true }
 tower-http = { version = "~0.3", features = ["trace"], optional = true }
 url = { version = "^2", features = [ "serde" ], optional = true }
-libp2p = { version = "0.51.0", default-features = false, features = [ "identify", "dns", "kad", "macros", "mplex", "noise", "serde", "tcp", "tokio", "yamux" ] }
 
 [dev-dependencies]
 
@@ -61,7 +64,7 @@ tempdir = { version = "~0.3" }
 [features]
 default = ["orb-ns", "api-server"]
 api-server = ["axum", "reqwest", "url", "tracing-subscriber", "tower-http"]
-orb-ns = ["clap", "noosphere", "home", "toml"]
+orb-ns = ["clap", "noosphere", "home", "toml", "noosphere-ipfs"]
 
 [[bin]]
 name = "orb-ns"

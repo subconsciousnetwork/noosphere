@@ -4,8 +4,8 @@ use anyhow::{anyhow, Result};
 use noosphere::key::InsecureKeyStorage;
 use noosphere_ns::{DHTConfig, Multiaddr, BOOTSTRAP_PEERS};
 use std::net::SocketAddr;
-
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
+use url::Url;
 
 /// Configuration for [NameSystemRunner], hydrated/resolved from CLI.
 pub struct RunnerNodeConfig {
@@ -14,6 +14,7 @@ pub struct RunnerNodeConfig {
     pub listening_address: Option<Multiaddr>,
     pub peers: Vec<Multiaddr>,
     pub dht_config: DHTConfig,
+    pub ipfs_api_url: Option<Url>,
 }
 
 impl RunnerNodeConfig {
@@ -26,6 +27,7 @@ impl RunnerNodeConfig {
         let dht_config = config.dht_config;
         let listening_address = config.listening_address;
         let api_address = config.api_address;
+        let ipfs_api_url = config.ipfs_api_url;
         let mut peers = config.peers;
         if !config.no_default_peers {
             peers.extend_from_slice(&BOOTSTRAP_PEERS[..]);
@@ -37,6 +39,7 @@ impl RunnerNodeConfig {
             listening_address,
             peers,
             dht_config,
+            ipfs_api_url,
         })
     }
 
@@ -53,6 +56,7 @@ impl RunnerNodeConfig {
                 no_default_peers,
                 listening_address,
                 api_address,
+                ipfs_api_url,
             } => match config {
                 Some(config_path) => {
                     let toml_str = tokio::fs::read_to_string(&config_path).await?;
@@ -69,11 +73,7 @@ impl RunnerNodeConfig {
                         vec![]
                     };
 
-                    let dht_config = if cfg!(test) {
-                        DHTConfig::default()
-                    } else {
-                        DHTConfig::default()
-                    };
+                    let dht_config = DHTConfig::default();
 
                     let config = CLIConfigFile {
                         key: key_name.clone(),
@@ -82,6 +82,7 @@ impl RunnerNodeConfig {
                         peers: bootstrap_peers,
                         no_default_peers,
                         dht_config,
+                        ipfs_api_url,
                     };
                     Ok(RunnerNodeConfig::try_from_config(key_storage, config).await?)
                 }
@@ -152,6 +153,7 @@ mod tests {
                 listening_address: Some("/ip4/127.0.0.1/tcp/6666".parse()?),
                 peers: None,
                 no_default_peers: false,
+                ipfs_api_url: None,
             },
             &env.key_storage,
         )
@@ -199,6 +201,7 @@ peers = [
                 listening_address: None,
                 peers: None,
                 no_default_peers: false,
+                ipfs_api_url: None,
             },
             &env.key_storage,
         )
@@ -250,6 +253,7 @@ no_default_peers = true
                 listening_address: None,
                 peers: None,
                 no_default_peers: false,
+                ipfs_api_url: None,
             },
             &env.key_storage,
         )
@@ -282,6 +286,7 @@ listening_address = 10000
                 listening_address: Some("/ip4/127.0.0.1/tcp/6666".parse()?),
                 peers: None,
                 no_default_peers: false,
+                ipfs_api_url: None,
             },
             CLICommand::Run {
                 api_address: None,
@@ -290,6 +295,7 @@ listening_address = 10000
                 listening_address: Some("/ip4/127.0.0.1/tcp/6666".parse()?),
                 peers: None,
                 no_default_peers: false,
+                ipfs_api_url: None,
             },
             CLICommand::Run {
                 api_address: None,
@@ -298,6 +304,7 @@ listening_address = 10000
                 listening_address: None,
                 peers: None,
                 no_default_peers: false,
+                ipfs_api_url: None,
             },
             CLICommand::Run {
                 api_address: None,
@@ -306,6 +313,7 @@ listening_address = 10000
                 listening_address: None,
                 peers: None,
                 no_default_peers: false,
+                ipfs_api_url: None,
             },
         ];
 

@@ -1,6 +1,8 @@
 #![cfg(not(target_arch = "wasm32"))]
 
-use crate::cli::address::{deserialize_multiaddr, deserialize_socket_addr, parse_cli_address};
+use crate::cli::address::{
+    deserialize_multiaddr, deserialize_socket_addr, deserialize_url, parse_cli_address,
+};
 use clap::{Parser, Subcommand};
 use noosphere_core::data::Did;
 use noosphere_ns::{DHTConfig, Multiaddr, NSRecord};
@@ -55,6 +57,14 @@ pub enum CLICommand {
         /// the default bootstrap peers.
         #[arg(long, default_value_t = false)]
         no_default_peers: bool,
+
+        /// If no configuration path provided, the URL to a Kubo HTTP RPC
+        /// service to resolve content-addressable content.
+        #[arg(
+            long,
+            value_parser = parse_cli_address::<Url>
+        )]
+        ipfs_api_url: Option<Url>,
     },
 
     /// Utility to create keys compatible with Noosphere.
@@ -116,4 +126,6 @@ pub struct CLIConfigFile {
     pub no_default_peers: bool,
     #[serde(default)]
     pub dht_config: DHTConfig,
+    #[serde(default, deserialize_with = "deserialize_url")]
+    pub ipfs_api_url: Option<Url>,
 }

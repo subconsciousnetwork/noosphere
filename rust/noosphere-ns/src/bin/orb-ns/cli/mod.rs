@@ -45,6 +45,7 @@ mod test {
                     api_address: Some("127.0.0.1:0".parse().unwrap()),
                     peers: None,
                     no_default_peers: true,
+                    ipfs_api_url: None,
                 },
                 &key_storage,
             )

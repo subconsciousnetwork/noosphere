@@ -23,39 +23,46 @@ pub fn parse_cli_address<T: TryFrom<CLIAddress>>(input: &str) -> Result<T, Strin
         .map_err(|_| String::from("invalid conversion"))
 }
 
-/// Parses a string in [CLIAddress] form into a [SocketAddr] for
-/// serde deserialization.
+/// Parses a string in [CLIAddress] form into a [SocketAddr] for serde deserialization.
 pub fn deserialize_socket_addr<'de, D>(deserializer: D) -> Result<Option<SocketAddr>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    match Option::<CLIAddress>::deserialize(deserializer) {
-        Ok(address) => match address {
-            Some(addr) => match addr.try_into() {
-                Ok(socket) => Ok(Some(socket)),
-                Err(e) => Err(de::Error::custom(e.to_string())),
-            },
-            None => Ok(None),
-        },
-        Err(e) => Err(de::Error::custom(e.to_string())),
-    }
+    deserialize_cliaddress::<'de, D, SocketAddr>(deserializer)
 }
 
-/// Parses a string in [CLIAddress] form into a [Multiaddr] for
-/// serde deserialization.
+/// Parses a string in [CLIAddress] form into a [Multiaddr] for serde deserialization.
 pub fn deserialize_multiaddr<'de, D>(deserializer: D) -> Result<Option<Multiaddr>, D::Error>
 where
     D: Deserializer<'de>,
 {
+    deserialize_cliaddress::<'de, D, Multiaddr>(deserializer)
+}
+
+/// Parses a string in [CLIAddress] form into a [Url] for serde deserialization.
+pub fn deserialize_url<'de, D>(deserializer: D) -> Result<Option<Url>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_cliaddress::<'de, D, Url>(deserializer)
+}
+
+/// Implementation for the serde deserialization methods e.g. `deserialize_url`.
+fn deserialize_cliaddress<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: TryFrom<CLIAddress>,
+    <T as TryFrom<CLIAddress>>::Error: ToString,
+{
     match Option::<CLIAddress>::deserialize(deserializer) {
         Ok(address) => match address {
-            Some(addr) => match addr.try_into() {
-                Ok(maddr) => Ok(Some(maddr)),
+            Some(cli_addr) => match cli_addr.try_into() {
+                Ok(t_addr) => Ok(Some(t_addr)),
                 Err(e) => Err(de::Error::custom(e.to_string())),
             },
             None => Ok(None),
         },
-        Err(e) => Err(de::Error::custom(e.to_string())),
+        Err(e) => Err(e),
     }
 }
 
