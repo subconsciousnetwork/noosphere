@@ -71,8 +71,6 @@ where
         config: DhtConfig,
         processor: DhtMessageProcessor,
     ) -> Result<tokio::task::JoinHandle<Result<(), DhtError>>, DhtError> {
-        // debug!("SPAWNING WITH VALIDATOR: {:?}", validator);
-
         let swarm = build_swarm(keypair, &peer_id, &config)?;
 
         let mut node = DhtProcessor {

@@ -256,7 +256,7 @@ where
         if updated_names.len() == 0 {
             return Ok(None);
         }
-        println!(
+        info!(
             "Adopting {} updated name resolutions...",
             updated_names.len()
         );
@@ -271,8 +271,6 @@ where
         {
             if let Some(jwt) = last_known_record {
                 context.adopt_petname(&name, &identity, &jwt).await?;
-            } else {
-                warn!("UH OH");
             }
         }
 

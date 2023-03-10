@@ -3,7 +3,6 @@ use futures::future::try_join_all;
 use libp2p::{self, Multiaddr};
 use noosphere_core::authority::generate_ed25519_key;
 use noosphere_ns::dht::{DhtConfig, DhtError, DhtNode, RecordValidator};
-use noosphere_ns::helpers::generate_default_listening_address;
 use std::future::Future;
 use std::time::Duration;
 
@@ -45,7 +44,7 @@ pub async fn create_nodes_with_peers<V: RecordValidator + Clone + 'static>(
         let config = DhtConfig::default();
         let node = DhtNode::new(&key_material, config, validator.clone())?;
         node.add_peers(bootstrap_addresses.to_vec()).await?;
-        node.listen(generate_default_listening_address()).await?;
+        node.listen("/ip4/127.0.0.1/tcp/0".parse().unwrap()).await?;
         client_nodes.push(node);
     }
     Ok(client_nodes)
@@ -63,7 +62,7 @@ pub async fn create_bootstrap_nodes<V: RecordValidator + Clone + 'static>(
         let key_material = generate_ed25519_key();
         let config = DhtConfig::default();
         let node = DhtNode::new(&key_material, config, validator.clone())?;
-        let address = node.listen(generate_default_listening_address()).await?;
+        let address = node.listen("/ip4/127.0.0.1/tcp/0".parse().unwrap()).await?;
         addresses.push(address);
         nodes.push(node);
     }

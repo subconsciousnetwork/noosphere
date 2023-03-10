@@ -42,7 +42,7 @@ pub async fn generate_name_system<V: RecordValidator + 'static>(
 
     let ns_key = generate_ed25519_key();
     let ns = NameSystem::new(&ns_key, DhtConfig::default(), Some(validator))?;
-    ns.listen(generate_default_listening_address()).await?;
+    ns.listen("/ip4/127.0.0.1/tcp/0".parse()?).await?;
     ns.add_peers(bootstrap_addresses.to_vec()).await?;
     ns.bootstrap().await?;
     Ok(NsData {
@@ -66,7 +66,7 @@ pub async fn generate_name_systems_network<V: RecordValidator + Clone + 'static>
     let bootstrap_node = {
         let key = generate_ed25519_key();
         let node = NameSystem::new(&key, DhtConfig::default(), Some(validator.clone()))?;
-        node.listen(generate_default_listening_address()).await?;
+        node.listen("/ip4/127.0.0.1/tcp/0".parse()?).await?;
         node
     };
     let address = bootstrap_node.address().await?.unwrap();
@@ -79,8 +79,4 @@ pub async fn generate_name_systems_network<V: RecordValidator + Clone + 'static>
     }
 
     Ok((bootstrap_node, store, name_systems))
-}
-
-pub fn generate_default_listening_address() -> Multiaddr {
-    "/ip4/127.0.0.1/tcp/0".parse().expect("parseable")
 }

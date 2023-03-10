@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use async_trait::async_trait;
 /// Trait that implements a `validate` function that determines
 /// what records can be set and stored on the [crate::dht::DHTNode].
@@ -44,11 +42,5 @@ pub struct AllowAllValidator {}
 impl RecordValidator for AllowAllValidator {
     async fn validate(&mut self, _data: &[u8]) -> bool {
         true
-    }
-}
-
-impl Display for AllowAllValidator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "AllowAllValidator")
     }
 }
