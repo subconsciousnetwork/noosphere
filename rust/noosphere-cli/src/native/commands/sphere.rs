@@ -3,11 +3,9 @@ use std::str::FromStr;
 use crate::native::workspace::Workspace;
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere::{
-    key::KeyStorage,
-    sphere::{SphereContext, SphereContextBuilder},
-};
+use noosphere::{key::KeyStorage, sphere::SphereContextBuilder};
 use noosphere_core::{authority::Authorization, data::Did};
+use noosphere_sphere::SphereContext;
 
 use ucan::crypto::KeyMaterial;
 
@@ -64,7 +62,6 @@ pub async fn sphere_join(
             workspace.root_directory()
         ));
     }
-
     println!("Joining sphere {}...", sphere_identity);
 
     let did = {

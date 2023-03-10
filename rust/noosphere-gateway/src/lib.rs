@@ -12,6 +12,9 @@ mod extractor;
 mod ipfs;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod nns;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod route;
 
 #[cfg(not(target_arch = "wasm32"))]

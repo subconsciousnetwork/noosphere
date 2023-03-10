@@ -22,6 +22,9 @@ reqwest = { version = "~0.11", default-features = false, features = ["json", "ru
 tempfile = "^3"
 clap = { version = "^4", features = ["derive", "cargo"] }
 anyhow = "^1"
+thiserror = "1.0.38"
+strum = "0.24"
+strum_macros = "0.24"
 
 tokio = { version = "^1", features = ["full"] }
 tokio-stream = "~0.1"
@@ -29,6 +32,7 @@ axum = { version = "~0.5", features = ["headers", "macros"] }
 tower = "~0.4"
 tower-http = { version = "~0.3", features = ["cors", "trace"] }
 async-trait = "~0.1"
+async-stream = "~0.3"
 tracing = "~0.1"
 tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
 multipart = "~0.18"
@@ -47,8 +51,9 @@ globset = "~0.4"
 
 noosphere-ipfs = { version = "0.1.2", path = "../noosphere-ipfs" }
 noosphere-core = { version = "0.6.3", path = "../noosphere-core" }
-noosphere-fs = { version = "0.5.3", path = "../noosphere-fs" }
+noosphere-ns = { version = "0.4.3", path = "../noosphere-ns" }
 noosphere-storage = { version = "0.4.2", path = "../noosphere-storage" }
+noosphere-sphere = { version = "0.1.0", path = "../noosphere-sphere" }
 noosphere-api = { version = "0.5.6", path = "../noosphere-api" }
 noosphere = { version = "0.6.3", path = "../noosphere" }
 ucan = { version = "0.1.0" }

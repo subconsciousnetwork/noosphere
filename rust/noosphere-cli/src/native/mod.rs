@@ -81,6 +81,10 @@ pub enum OrbCommand {
         #[clap(short = 'I', long, default_value = "http://127.0.0.1:5001")]
         ipfs_api: Url,
 
+        /// URL for a Noosphere name system RPC API
+        #[clap(short = 'N', long, default_value = "http://127.0.0.1:6667")]
+        name_resolver_api: Url,
+
         /// The IP address of the interface that the gateway should bind to
         #[clap(short, long, default_value = "127.0.0.1")]
         interface: IpAddr,
@@ -315,9 +319,20 @@ pub async fn main() -> Result<()> {
         OrbCommand::Serve {
             cors_origin,
             ipfs_api,
+            name_resolver_api,
             interface,
             port,
-        } => serve(interface, port, ipfs_api, cors_origin, &workspace).await?,
+        } => {
+            serve(
+                interface,
+                port,
+                ipfs_api,
+                name_resolver_api,
+                cors_origin,
+                &workspace,
+            )
+            .await?
+        }
     };
 
     Ok(())

@@ -1,0 +1,54 @@
+[package]
+name = "noosphere-sphere"
+version = "0.1.0"
+edition = "2021"
+description = "High-level access to content, address books and other features of spheres"
+keywords = []
+categories = []
+rust-version = "1.60.0"
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/noosphere-sphere"
+repository = "https://github.com/subconsciousnetwork/noosphere"
+homepage = "https://github.com/subconsciousnetwork/noosphere"
+readme = "README.md"
+
+[features]
+default = []
+helpers = []
+
+[dependencies]
+anyhow = "^1"
+cid = "~0.9"
+url = { version = "^2", features = ["serde"] }
+tracing = "~0.1"
+
+noosphere-core = { version = "0.6.3", path = "../noosphere-core" }
+noosphere-storage = { version = "0.4.2", path = "../noosphere-storage" }
+noosphere-api = { version = "0.5.6", path = "../noosphere-api" }
+
+ucan = { version = "0.1.0" }
+ucan-key-support = { version = "0.1.0" }
+
+async-trait = "~0.1"
+tokio-stream = "~0.1"
+async-stream = "~0.3"
+tokio-util = { version = "~0.7", features = ["io"] }
+libipld-core = "~0.15"
+libipld-cbor = "~0.15"
+bytes = "^1"
+
+serde_json = "^1"
+
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# TODO: We should eventually support gateway storage as a specialty target only,
+# as it is a specialty use-case
+tokio = { version = "^1", features = ["sync"] }
+wasm-bindgen = "~0.2"
+wasm-bindgen-futures = "0.4.33"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "^1", features = ["full"] }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "~0.3"

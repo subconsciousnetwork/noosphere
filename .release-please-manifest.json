@@ -6,7 +6,6 @@
   "rust/noosphere-into": "0.4.5",
   "rust/noosphere-ns": "0.4.3",
   "rust/noosphere-storage": "0.4.2",
-  "rust/noosphere-fs": "0.5.3",
   "rust/noosphere": "0.6.3",
   "rust/noosphere-ipfs": "0.1.2"
 }

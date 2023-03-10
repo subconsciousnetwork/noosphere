@@ -29,12 +29,12 @@ pub struct Peer {
 }
 
 #[derive(Debug, Clone)]
-pub struct DHTRecord {
+pub struct DhtRecord {
     pub key: Vec<u8>,
     pub value: Option<Vec<u8>>,
 }
 
-impl fmt::Display for DHTRecord {
+impl fmt::Display for DhtRecord {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let value = if let Some(value) = self.value.as_ref() {
             str::from_utf8(value)

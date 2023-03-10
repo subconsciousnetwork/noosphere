@@ -1,12 +1,12 @@
 use crate::dht::channel::{Message, MessageClient, MessageProcessor};
-use crate::dht::errors::DHTError;
-use crate::dht::types::{DHTRecord, NetworkInfo, Peer};
+use crate::dht::errors::DhtError;
+use crate::dht::types::{DhtRecord, NetworkInfo, Peer};
 use libp2p::Multiaddr;
 
 use std::{fmt, str};
 
 #[derive(Debug)]
-pub enum DHTRequest {
+pub enum DhtRequest {
     AddPeers { peers: Vec<Multiaddr> },
     StartListening { address: Multiaddr },
     StopListening,
@@ -21,48 +21,48 @@ pub enum DHTRequest {
     GetProviders { key: Vec<u8> },
 }
 
-impl fmt::Display for DHTRequest {
+impl fmt::Display for DhtRequest {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             //DHTRequest::WaitForPeers(peers) => write!(fmt, "DHTRequest::WaitForPeers({})", peers),
-            DHTRequest::AddPeers { peers } => {
+            DhtRequest::AddPeers { peers } => {
                 write!(fmt, "DHTRequest::AddPeers {{ peers={:?} }}", peers)
             }
-            DHTRequest::StartListening { address } => {
+            DhtRequest::StartListening { address } => {
                 write!(
                     fmt,
                     "DHTRequest::StartListening {{ address={:?} }}",
                     address
                 )
             }
-            DHTRequest::StopListening => {
+            DhtRequest::StopListening => {
                 write!(fmt, "DHTRequest::StopListening")
             }
-            DHTRequest::Bootstrap => write!(fmt, "DHTRequest::Bootstrap"),
-            DHTRequest::GetAddresses { external } => write!(
+            DhtRequest::Bootstrap => write!(fmt, "DHTRequest::Bootstrap"),
+            DhtRequest::GetAddresses { external } => write!(
                 fmt,
                 "DHTRequest::GetAddresses {{ external={:?} }}",
                 external
             ),
-            DHTRequest::GetPeers => write!(fmt, "DHTRequest::GetPeers"),
-            DHTRequest::GetNetworkInfo => write!(fmt, "DHTRequest::GetNetworkInfo"),
-            DHTRequest::GetRecord { key } => write!(
+            DhtRequest::GetPeers => write!(fmt, "DHTRequest::GetPeers"),
+            DhtRequest::GetNetworkInfo => write!(fmt, "DHTRequest::GetNetworkInfo"),
+            DhtRequest::GetRecord { key } => write!(
                 fmt,
                 "DHTRequest::GetRecord {{ key={:?} }}",
                 str::from_utf8(key)
             ),
-            DHTRequest::PutRecord { key, value } => write!(
+            DhtRequest::PutRecord { key, value } => write!(
                 fmt,
                 "DHTRequest::PutRecord {{ key={:?}, value={:?} }}",
                 str::from_utf8(key),
                 str::from_utf8(value)
             ),
-            DHTRequest::StartProviding { key } => write!(
+            DhtRequest::StartProviding { key } => write!(
                 fmt,
                 "DHTRequest::StartProviding {{ key={:?} }}",
                 str::from_utf8(key)
             ),
-            DHTRequest::GetProviders { key } => write!(
+            DhtRequest::GetProviders { key } => write!(
                 fmt,
                 "DHTRequest::GetProviders {{ key={:?} }}",
                 str::from_utf8(key)
@@ -72,42 +72,42 @@ impl fmt::Display for DHTRequest {
 }
 
 #[derive(Debug)]
-pub enum DHTResponse {
+pub enum DhtResponse {
     Success,
     Address(Multiaddr),
     GetAddresses(Vec<Multiaddr>),
     GetNetworkInfo(NetworkInfo),
     GetPeers(Vec<Peer>),
-    GetRecord(DHTRecord),
+    GetRecord(DhtRecord),
     PutRecord { key: Vec<u8> },
     GetProviders { providers: Vec<libp2p::PeerId> },
 }
 
-impl fmt::Display for DHTResponse {
+impl fmt::Display for DhtResponse {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DHTResponse::Success => write!(fmt, "DHTResponse::Success"),
-            DHTResponse::Address(address) => {
+            DhtResponse::Success => write!(fmt, "DHTResponse::Success"),
+            DhtResponse::Address(address) => {
                 write!(fmt, "DHTResponse::Address {{ {:?} }}", address)
             }
-            DHTResponse::GetAddresses(addresses) => {
+            DhtResponse::GetAddresses(addresses) => {
                 write!(fmt, "DHTResponse::GetAddresses {{ {:?} }}", addresses)
             }
-            DHTResponse::GetPeers(peers) => {
+            DhtResponse::GetPeers(peers) => {
                 write!(fmt, "DHTResponse::GetPeers{:?}", peers)
             }
-            DHTResponse::GetNetworkInfo(info) => {
+            DhtResponse::GetNetworkInfo(info) => {
                 write!(fmt, "DHTResponse::GetNetworkInfo {:?}", info)
             }
-            DHTResponse::GetRecord(record) => {
+            DhtResponse::GetRecord(record) => {
                 write!(fmt, "DHTResponse::GetRecord {{ {:?} }}", record)
             }
-            DHTResponse::PutRecord { key } => write!(
+            DhtResponse::PutRecord { key } => write!(
                 fmt,
                 "DHTResponse::PutRecord {{ key={:?} }}",
                 str::from_utf8(key)
             ),
-            DHTResponse::GetProviders { providers } => write!(
+            DhtResponse::GetProviders { providers } => write!(
                 fmt,
                 "DHTResponse::GetProviders {{ providers={:?} }}",
                 providers
@@ -116,6 +116,6 @@ impl fmt::Display for DHTResponse {
     }
 }
 
-pub type DHTMessage = Message<DHTRequest, DHTResponse, DHTError>;
-pub type DHTMessageProcessor = MessageProcessor<DHTRequest, DHTResponse, DHTError>;
-pub type DHTMessageClient = MessageClient<DHTRequest, DHTResponse, DHTError>;
+pub type DhtMessage = Message<DhtRequest, DhtResponse, DhtError>;
+pub type DhtMessageProcessor = MessageProcessor<DhtRequest, DhtResponse, DhtError>;
+pub type DhtMessageClient = MessageClient<DhtRequest, DhtResponse, DhtError>;

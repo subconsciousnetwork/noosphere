@@ -15,3 +15,4 @@ pub use crate::noosphere::*;
 
 pub mod platform;
 pub mod sphere;
+pub mod storage;

@@ -1,8 +1,10 @@
+use std::marker::PhantomData;
+
 use crate::{ResolvedLink, TextTransclude, Transclude, Transcluder};
 use anyhow::Result;
 use async_trait::async_trait;
 use noosphere_core::data::Header;
-use noosphere_fs::SphereFs;
+use noosphere_sphere::{HasSphereContext, SphereContentRead};
 use noosphere_storage::Storage;
 use subtext::{block::Block, primitive::Entity, Peer};
 use tokio_stream::StreamExt;
@@ -11,29 +13,38 @@ use ucan::crypto::KeyMaterial;
 /// A [Transcluder] implementation that uses [SphereFs] to resolve the content
 /// being transcluded.
 #[derive(Clone)]
-pub struct SphereFsTranscluder<S, K>
+pub struct SphereContentTranscluder<R, K, S>
 where
-    S: Storage,
+    R: HasSphereContext<K, S> + Clone,
     K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
 {
-    fs: SphereFs<S, K>,
+    content: R,
+    key_type: PhantomData<K>,
+    storage_type: PhantomData<S>,
 }
 
-impl<S, K> SphereFsTranscluder<S, K>
+impl<R, K, S> SphereContentTranscluder<R, K, S>
 where
-    S: Storage,
+    R: HasSphereContext<K, S> + Clone,
     K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
 {
-    pub fn new(fs: SphereFs<S, K>) -> Self {
-        SphereFsTranscluder { fs }
+    pub fn new(content: R) -> Self {
+        SphereContentTranscluder {
+            content,
+            key_type: PhantomData,
+            storage_type: PhantomData,
+        }
     }
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<S, K> Transcluder for SphereFsTranscluder<S, K>
+impl<R, K, S> Transcluder for SphereContentTranscluder<R, K, S>
 where
-    S: Storage,
+    R: HasSphereContext<K, S> + Clone,
+    S: Storage + 'static,
     K: KeyMaterial + Clone + 'static,
 {
     async fn transclude(&self, link: &ResolvedLink) -> Result<Option<Transclude>> {
@@ -58,7 +69,7 @@ where
                 };
                 // TODO(#50): Support content types other than Subtext
 
-                Ok(match self.fs.read(&slug).await? {
+                Ok(match self.content.read(&slug).await? {
                     Some(file) => {
                         // TODO(#52): Maybe fall back to first heading if present and use
                         // that as a stand-in for title...

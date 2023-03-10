@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use noosphere_core::{data::ContentType, tracing::initialize_tracing};
+use noosphere_sphere::{HasMutableSphereContext, SphereContentRead, SphereContentWrite};
 
 use tokio::io::AsyncReadExt;
 #[cfg(target_arch = "wasm32")]
@@ -9,8 +10,10 @@ use wasm_bindgen_test::wasm_bindgen_test;
 #[cfg(target_arch = "wasm32")]
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
-use noosphere::{sphere::SphereReceipt, NoosphereContext, NoosphereContextConfiguration};
-use noosphere::{NoosphereNetwork, NoosphereSecurity, NoosphereStorage};
+use noosphere::{
+    sphere::SphereReceipt, NoosphereContext, NoosphereContextConfiguration, NoosphereNetwork,
+    NoosphereSecurity, NoosphereStorage,
+};
 
 #[cfg(target_arch = "wasm32")]
 fn platform_configuration() -> (NoosphereContextConfiguration, ()) {
@@ -73,19 +76,17 @@ async fn single_player_single_device_end_to_end_workflow() {
             ..
         } = noosphere.create_sphere(key_name).await.unwrap();
 
-        let sphere_context = noosphere
+        let mut sphere_context = noosphere
             .get_sphere_context(&sphere_identity)
             .await
             .unwrap();
-        let sphere_context = sphere_context.lock().await;
 
-        let mut fs = sphere_context.fs().await.unwrap();
-
-        fs.write("foo", "text/plain", b"bar".as_ref(), None)
+        sphere_context
+            .write("foo", "text/plain", b"bar".as_ref(), None)
             .await
             .unwrap();
 
-        fs.save(None).await.unwrap();
+        sphere_context.save(None).await.unwrap();
 
         sphere_identity
     };
@@ -94,15 +95,12 @@ async fn single_player_single_device_end_to_end_workflow() {
     {
         let noosphere = NoosphereContext::new(configuration.clone()).unwrap();
 
-        let sphere_context = noosphere
+        let mut sphere_context = noosphere
             .get_sphere_context(&sphere_identity)
             .await
             .unwrap();
-        let sphere_context = sphere_context.lock().await;
 
-        let mut fs = sphere_context.fs().await.unwrap();
-
-        let mut file = fs.read("foo").await.unwrap().unwrap();
+        let mut file = sphere_context.read("foo").await.unwrap().unwrap();
 
         assert_eq!(
             file.memo.content_type(),
@@ -114,10 +112,11 @@ async fn single_player_single_device_end_to_end_workflow() {
 
         assert_eq!(contents, "bar");
 
-        fs.write("cats", "text/subtext", b"are great".as_ref(), None)
+        sphere_context
+            .write("cats", "text/subtext", b"are great".as_ref(), None)
             .await
             .unwrap();
 
-        fs.save(None).await.unwrap();
+        sphere_context.save(None).await.unwrap();
     };
 }

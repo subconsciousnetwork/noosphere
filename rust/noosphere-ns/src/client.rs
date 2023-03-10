@@ -1,6 +1,6 @@
 use crate::{
     dht::{NetworkInfo, Peer},
-    records::NSRecord,
+    records::NsRecord,
     PeerId,
 };
 use anyhow::Result;
@@ -9,12 +9,12 @@ use libp2p::Multiaddr;
 use noosphere_core::data::Did;
 
 #[cfg(doc)]
-use crate::server::HTTPClient;
+use crate::server::HttpClient;
 #[cfg(doc)]
 use crate::NameSystem;
 
 #[async_trait]
-pub trait NameSystemClient {
+pub trait NameSystemClient: Send + Sync {
     /* Diagnostic APIs */
 
     /// Returns current network information for this node.
@@ -45,12 +45,12 @@ pub trait NameSystemClient {
 
     /* Record APIs */
 
-    /// Propagates the corresponding managed sphere's [NSRecord] on nearby peers
+    /// Propagates the corresponding managed sphere's [NsRecord] on nearby peers
     /// in the DHT network.
-    async fn put_record(&self, record: NSRecord) -> Result<()>;
+    async fn put_record(&self, record: NsRecord) -> Result<()>;
 
-    /// Returns an [NSRecord] for the provided identity if found.
-    async fn get_record(&self, identity: &Did) -> Result<Option<NSRecord>>;
+    /// Returns an [NsRecord] for the provided identity if found.
+    async fn get_record(&self, identity: &Did) -> Result<Option<NsRecord>>;
 
     /* Operator APIs */
 
@@ -96,7 +96,7 @@ macro_rules! ns_client_tests {
 /// the API server functionality in `noosphere_ns::server`.
 pub mod test {
     use super::*;
-    use crate::{utils::wait_for_peers, NameSystemBuilder};
+    use crate::{utils::wait_for_peers, NameSystemBuilder, Validator};
     use cid::Cid;
     use libp2p::multiaddr::Protocol;
     use noosphere_core::{authority::generate_ed25519_key, data::Did};
@@ -131,8 +131,8 @@ pub mod test {
             let key_material = generate_ed25519_key();
             let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
+                .validator(Validator::new(store.clone()))
                 .key_material(&key_material)
-                .store(&store)
                 .listening_port(0)
                 .bootstrap_peers(&[listener_address.clone()])
                 .use_test_config()
@@ -168,7 +168,7 @@ pub mod test {
         let link: Cid = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72"
             .parse()
             .unwrap();
-        let record = NSRecord::from_issuer(&sphere_key, &sphere_id, &link, None).await?;
+        let record = NsRecord::from_issuer(&sphere_key, &sphere_id, &link, None).await?;
         client.put_record(record).await?;
 
         let retrieved = client

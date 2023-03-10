@@ -9,9 +9,9 @@ mod swarm;
 mod types;
 mod validator;
 
-pub use config::DHTConfig;
-pub use errors::DHTError;
-pub use keys::DHTKeyMaterial;
-pub use node::DHTNode;
-pub use types::{DHTRecord, NetworkInfo, Peer};
+pub use config::DhtConfig;
+pub use errors::DhtError;
+pub use keys::DhtKeyMaterial;
+pub use node::DhtNode;
+pub use types::{DhtRecord, NetworkInfo, Peer};
 pub use validator::{AllowAllValidator, RecordValidator};

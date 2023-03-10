@@ -13,6 +13,14 @@ use crate::{
 
 use noosphere_storage::BlockStore;
 
+#[cfg(doc)]
+use crate::view::Sphere;
+
+/// A [SphereRevision] represents a new, unsigned version of a [Sphere]. A
+/// [SphereRevision] must be signed as a final step before the [Cid] of a new
+/// sphere version can be considered part of the official history of the sphere.
+/// The credential used to sign must be authorized to create new history by the
+/// sphere's key.
 #[derive(Debug)]
 pub struct SphereRevision<S: BlockStore> {
     pub store: S,
@@ -30,6 +38,10 @@ impl<S: BlockStore> SphereRevision<S> {
     }
 }
 
+/// A [SphereMutation] is created and modified in order to describe changes to a
+/// [Sphere]. After initializing the [SphereMutation], changes to the sphere are
+/// made to it and then it is "applied" to the [Sphere] to produce a
+/// [SphereRevision], which may then be signed.
 #[derive(Debug)]
 pub struct SphereMutation {
     did: String,
@@ -48,6 +60,17 @@ impl<'a> SphereMutation {
             allowed_ucans: AllowedUcansMutation::new(did),
             revoked_ucans: RevokedUcansMutation::new(did),
         }
+    }
+
+    /// Reset the state of the [SphereMutation], so that it may be re-used
+    /// without being recreated. This is sometimes useful if the code that is
+    /// working with the [SphereMutation] does not have sufficient information
+    /// to set the author [Did] for a new [SphereMutation].
+    pub fn reset(&mut self) -> () {
+        self.links = LinksMutation::new(&self.did);
+        self.names = NamesMutation::new(&self.did);
+        self.allowed_ucans = AllowedUcansMutation::new(&self.did);
+        self.revoked_ucans = RevokedUcansMutation::new(&self.did);
     }
 
     pub fn did(&self) -> &str {
@@ -86,8 +109,11 @@ impl<'a> SphereMutation {
         &self.revoked_ucans
     }
 
+    /// Returns true if no new changes would be made by applying this
+    /// mutation to a [Sphere]. Otherwise, false.
     pub fn is_empty(&self) -> bool {
         self.links.changes.len() == 0
+            && self.names.changes.len() == 0
             && self.allowed_ucans.changes.len() == 0
             && self.revoked_ucans.changes.len() == 0
     }

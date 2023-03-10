@@ -1,4 +1,4 @@
-use crate::{Multiaddr, NSRecord, NameSystem, NameSystemClient, NetworkInfo, Peer, PeerId};
+use crate::{Multiaddr, NameSystem, NameSystemClient, NetworkInfo, NsRecord, Peer, PeerId};
 use anyhow::Result;
 use axum::response::{IntoResponse, Response};
 use axum::{extract::Path, http::StatusCode, Extension, Json};
@@ -95,7 +95,7 @@ pub async fn get_address(
 pub async fn get_record(
     Extension(name_system): Extension<Arc<Mutex<NameSystem>>>,
     Path(did): Path<Did>,
-) -> JsonResponse<Option<NSRecord>> {
+) -> JsonResponse<Option<NsRecord>> {
     let ns = name_system.lock().await;
     let record = ns
         .get_record(&did)
@@ -106,7 +106,7 @@ pub async fn get_record(
 
 pub async fn post_record(
     Extension(name_system): Extension<Arc<Mutex<NameSystem>>>,
-    Json(record): Json<NSRecord>,
+    Json(record): Json<NsRecord>,
 ) -> JsonResponse<()> {
     let ns = name_system.lock().await;
     ns.put_record(record)

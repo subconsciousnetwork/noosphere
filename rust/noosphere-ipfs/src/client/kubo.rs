@@ -135,7 +135,7 @@ mod tests {
     use cid::Cid;
     use iroh_car::{CarHeader, CarWriter};
     use libipld_cbor::DagCborCodec;
-    use noosphere_core::tracing::initialize_tracing;
+    // use noosphere_core::tracing::initialize_tracing;
     use noosphere_storage::{block_deserialize, block_serialize};
     use serde::{Deserialize, Serialize};
     use url::Url;
@@ -198,7 +198,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn it_gives_a_useful_result_when_a_block_is_not_pinned() {
-        initialize_tracing();
+        // initialize_tracing();
 
         let (cid, _) = block_serialize::<DagCborCodec, _>(vec![1, 2, 3]).unwrap();
 

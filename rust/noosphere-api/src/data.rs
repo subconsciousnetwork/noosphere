@@ -4,10 +4,12 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_core::{
     authority::{SphereAction, SphereReference, SPHERE_SEMANTICS},
-    data::{Bundle, Did},
+    data::{Bundle, Did, Jwt},
 };
 use noosphere_storage::{base64_decode, base64_encode};
+use reqwest::StatusCode;
 use serde::{Deserialize, Deserializer, Serialize};
+use thiserror::Error;
 use ucan::{
     capability::{Capability, Resource, With},
     chain::ProofChain,
@@ -81,7 +83,7 @@ pub enum FetchResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PushBody {
     /// The DID of the local sphere whose revisions are being pushed
-    pub sphere: String,
+    pub sphere: Did,
     /// The base revision represented by the payload being pushed; if the
     /// entire history is being pushed, then this should be None
     pub base: Option<Cid>,
@@ -90,6 +92,8 @@ pub struct PushBody {
     /// A bundle of all the blocks needed to hydrate the revisions from the
     /// base to the tip of history as represented by this payload
     pub blocks: Bundle,
+    /// An optional name record to publish to the Noosphere Name System
+    pub name_record: Option<Jwt>,
 }
 
 /// The possible responses from the "push" API route
@@ -109,6 +113,38 @@ pub enum PushResponse {
     },
     /// The history was already known by the API host, so no changes were made
     NoChange,
+}
+
+#[derive(Error, Debug)]
+pub enum PushError {
+    #[error("Pushed history conflicts with canonical history")]
+    Conflict,
+    #[error("Missing some implied history")]
+    MissingHistory,
+    #[error("Replica is up to date")]
+    UpToDate,
+    #[error("Internal error")]
+    Internal(anyhow::Error),
+}
+
+impl From<anyhow::Error> for PushError {
+    fn from(value: anyhow::Error) -> Self {
+        PushError::Internal(value)
+    }
+}
+
+impl From<PushError> for StatusCode {
+    fn from(error: PushError) -> Self {
+        match error {
+            PushError::Conflict => StatusCode::CONFLICT,
+            PushError::MissingHistory => StatusCode::UNPROCESSABLE_ENTITY,
+            PushError::UpToDate => StatusCode::BAD_REQUEST,
+            PushError::Internal(error) => {
+                error!("Internal: {:?}", error);
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        }
+    }
 }
 
 /// The response from the "identify" API route; this is a signed response that

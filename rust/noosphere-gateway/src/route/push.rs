@@ -1,193 +1,317 @@
-use std::sync::Arc;
+use std::{collections::BTreeSet, sync::Arc};
 
 use anyhow::Result;
 
 use axum::{extract::ContentLengthLimit, http::StatusCode, Extension};
 
 use cid::Cid;
-use noosphere::sphere::SphereContext;
-use noosphere_api::data::{PushBody, PushResponse};
+use noosphere_api::data::{PushBody, PushError, PushResponse};
 use noosphere_core::{
-    authority::{Authorization, SphereAction, SphereReference},
-    data::Bundle,
-    view::{Sphere, SphereMutation, Timeline},
+    authority::{SphereAction, SphereReference},
+    data::{Bundle, MapOperation},
+    view::Sphere,
 };
-use noosphere_storage::{NativeStorage, SphereDb};
+use noosphere_sphere::{
+    HasMutableSphereContext, HasSphereContext, SphereContentWrite, SphereContext, SphereCursor,
+};
+use noosphere_storage::NativeStorage;
 use tokio::sync::{mpsc::UnboundedSender, Mutex};
+use tokio_stream::StreamExt;
 use ucan::capability::{Capability, Resource, With};
 use ucan::crypto::KeyMaterial;
 
-use crate::{authority::GatewayAuthority, extractor::Cbor, ipfs::SyndicationJob, GatewayScope};
+use crate::{
+    authority::GatewayAuthority, extractor::Cbor, ipfs::SyndicationJob, nns::NameSystemJob,
+    GatewayScope,
+};
 
 // #[debug_handler]
 pub async fn push_route<K>(
     authority: GatewayAuthority<K>,
-    ContentLengthLimit(Cbor(push_body)): ContentLengthLimit<Cbor<PushBody>, { 1024 * 5000 }>,
-    Extension(sphere_context_mutex): Extension<Arc<Mutex<SphereContext<K, NativeStorage>>>>,
-    Extension(scope): Extension<GatewayScope>,
+    ContentLengthLimit(Cbor(request_body)): ContentLengthLimit<Cbor<PushBody>, { 1024 * 5000 }>,
+    Extension(sphere_context): Extension<Arc<Mutex<SphereContext<K, NativeStorage>>>>,
+    Extension(gateway_scope): Extension<GatewayScope>,
     Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<K, NativeStorage>>>,
+    Extension(name_system_tx): Extension<UnboundedSender<NameSystemJob<K, NativeStorage>>>,
 ) -> Result<Cbor<PushResponse>, StatusCode>
 where
     K: KeyMaterial + Clone + 'static,
 {
     debug!("Invoking push route...");
 
-    let sphere_identity = &push_body.sphere;
+    let sphere_identity = &request_body.sphere;
 
-    if sphere_identity != &scope.counterpart {
+    if sphere_identity != &gateway_scope.counterpart {
         return Err(StatusCode::FORBIDDEN);
     }
 
     authority.try_authorize(&Capability {
         with: With::Resource {
             kind: Resource::Scoped(SphereReference {
-                did: scope.counterpart.to_string(),
+                did: gateway_scope.counterpart.to_string(),
             }),
         },
         can: SphereAction::Push,
     })?;
 
-    let sphere_context = sphere_context_mutex.lock().await;
-    let mut db = sphere_context.db().clone();
-    let gateway_key = &sphere_context.author().key;
-    let gateway_authorization =
-        sphere_context
-            .author()
-            .require_authorization()
-            .map_err(|error| {
-                error!("{:?}", error);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
-
-    debug!("Preparing to merge sphere lineage...");
-    let local_sphere_base_cid = db.get_version(sphere_identity).await.map_err(|error| {
-        error!("{:?}", error);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    let request_sphere_base_cid = push_body.base;
-
-    match (local_sphere_base_cid, request_sphere_base_cid) {
-        (Some(mine), theirs) => {
-            // TODO(#26): Probably should do some diligence here to check if
-            // their base is even in our lineage. Note that this condition
-            // will be hit if theirs is ahead of mine, which actually
-            // should be a "missing revisions" condition.
-            let conflict = match theirs {
-                Some(cid) if cid != mine => true,
-                None => true,
-                _ => false,
-            };
-
-            if conflict {
-                warn!("Conflict!");
-                return Err(StatusCode::CONFLICT);
-            }
-
-            if push_body.tip == mine {
-                warn!("No new changes in push body!");
-                return Ok(Cbor(PushResponse::NoChange));
-            }
-        }
-        (None, Some(_)) => {
-            error!("Missing local lineage!");
-            return Err(StatusCode::UNPROCESSABLE_ENTITY);
-        }
-        _ => (),
+    let gateway_push_routine = GatewayPushRoutine {
+        sphere_context,
+        gateway_scope,
+        syndication_tx,
+        name_system_tx,
+        request_body,
     };
 
-    debug!("Merging...");
-
-    incorporate_lineage(&scope, &mut db, &push_body)
-        .await
-        .map_err(|error| {
-            error!("{:?}", error);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-    debug!("Updating the gateway's sphere...");
-
-    let (new_gateway_tip, new_blocks) = update_gateway_sphere(
-        &push_body.tip,
-        &scope,
-        gateway_key,
-        gateway_authorization,
-        &mut db,
-    )
-    .await
-    .map_err(|error| {
-        error!("{:?}", error);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    // TODO(#156): This should not be happening on every push, but rather on
-    // an explicit publish action. Move this to the publish handler when we
-    // have added it to the gateway.
-    if let Err(error) = syndication_tx.send(SyndicationJob {
-        revision: new_gateway_tip,
-        context: sphere_context_mutex.clone(),
-    }) {
-        warn!("Failed to queue IPFS syndication job: {}", error);
-    };
-
-    Ok(Cbor(PushResponse::Accepted {
-        new_tip: new_gateway_tip,
-        blocks: new_blocks,
-    }))
+    Ok(Cbor(gateway_push_routine.invoke().await?))
 }
 
-async fn update_gateway_sphere<K>(
-    counterpart_sphere_cid: &Cid,
-    scope: &GatewayScope,
-    key: &K,
-    authority: &Authorization,
-    db: &mut SphereDb<NativeStorage>,
-) -> Result<(Cid, Bundle)>
+pub struct GatewayPushRoutine<K>
 where
-    K: KeyMaterial + Send,
+    K: KeyMaterial + Clone + 'static,
 {
-    let my_sphere_cid = db.require_version(&scope.identity).await?;
-
-    let my_sphere = Sphere::at(&my_sphere_cid, db);
-    let my_did = key.get_did().await?;
-
-    let mut mutation = SphereMutation::new(&my_did);
-    mutation
-        .links_mut()
-        .set(&scope.counterpart, counterpart_sphere_cid);
-
-    let mut revision = my_sphere.try_apply_mutation(&mutation).await?;
-
-    let my_updated_sphere_cid = revision.try_sign(key, Some(authority)).await?;
-
-    db.set_version(&scope.identity, &my_updated_sphere_cid)
-        .await?;
-
-    let blocks = Sphere::at(&my_updated_sphere_cid, db)
-        .try_bundle_until_ancestor(Some(&my_sphere_cid))
-        .await?;
-
-    Ok((my_updated_sphere_cid, blocks))
+    sphere_context: Arc<Mutex<SphereContext<K, NativeStorage>>>,
+    gateway_scope: GatewayScope,
+    syndication_tx: UnboundedSender<SyndicationJob<K, NativeStorage>>,
+    name_system_tx: UnboundedSender<NameSystemJob<K, NativeStorage>>,
+    request_body: PushBody,
 }
 
-async fn incorporate_lineage(
-    scope: &GatewayScope,
-    db: &mut SphereDb<NativeStorage>,
-    push_body: &PushBody,
-) -> Result<()> {
-    push_body.blocks.load_into(db).await?;
+impl<K> GatewayPushRoutine<K>
+where
+    K: KeyMaterial + Clone + 'static,
+{
+    pub async fn invoke(mut self) -> Result<PushResponse, PushError> {
+        debug!("Invoking gateway push...");
 
-    let PushBody { base, tip, .. } = push_body;
+        self.verify_history().await?;
+        self.incorporate_history().await?;
+        self.synchronize_names().await?;
+        let (next_version, new_blocks) = self.update_gateway_sphere().await?;
 
-    let timeline = Timeline::new(db);
-    let timeslice = timeline.slice(tip, base.as_ref());
-    let steps = timeslice.try_to_chronological().await?;
+        // These steps are order-independent
+        let _ = tokio::join!(
+            self.notify_name_resolver(),
+            self.notify_ipfs_syndicator(next_version)
+        );
 
-    for (cid, _) in steps {
-        debug!("Hydrating {}", cid);
-        Sphere::at(&cid, db).try_hydrate().await?;
+        Ok(PushResponse::Accepted {
+            new_tip: next_version,
+            blocks: new_blocks,
+        })
     }
 
-    db.set_version(&scope.counterpart, &push_body.tip).await?;
+    /// Ensure that the pushed history is not in direct conflict with our
+    /// history (in which case the pusher typically must sync first), and that
+    /// there is no missing history implied by the pushed history (in which
+    /// case, there is probably a sync bug in the client implementation).
+    async fn verify_history(&self) -> Result<(), PushError> {
+        debug!("Verifying pushed sphere history...");
 
-    Ok(())
+        let sphere_identity = &self.request_body.sphere;
+        let gateway_sphere_context = self.sphere_context.lock().await;
+        let db = gateway_sphere_context.db();
+
+        let local_sphere_base_cid = db.get_version(sphere_identity).await?;
+        let request_sphere_base_cid = self.request_body.base;
+
+        match (local_sphere_base_cid.clone(), request_sphere_base_cid) {
+            (Some(mine), theirs) => {
+                // TODO(#26): Probably should do some diligence here to check if
+                // their base is even in our lineage. Note that this condition
+                // will be hit if theirs is ahead of mine, which actually
+                // should be a "missing revisions" condition.
+                let conflict = match theirs {
+                    Some(cid) if cid != mine => true,
+                    None => true,
+                    _ => false,
+                };
+
+                if conflict {
+                    warn!("Conflict!");
+                    return Err(PushError::Conflict);
+                }
+
+                if self.request_body.tip == mine {
+                    warn!("No new changes in push body!");
+                    return Err(PushError::UpToDate);
+                }
+            }
+            (None, Some(_)) => {
+                error!("Missing local lineage!");
+                return Err(PushError::MissingHistory);
+            }
+            _ => (),
+        };
+
+        Ok(())
+    }
+
+    /// Incorporate the pushed history into our storage, hydrating each new
+    /// revision in the history as we go. Then, update our local pointer to the
+    /// tip of the pushed history.
+    async fn incorporate_history(&mut self) -> Result<(), PushError> {
+        {
+            debug!("Merging pushed sphere history...");
+            let mut sphere_context = self.sphere_context.lock().await;
+
+            self.request_body
+                .blocks
+                .load_into(sphere_context.db_mut())
+                .await?;
+
+            let PushBody { base, tip, .. } = &self.request_body;
+
+            let history: Vec<Result<(Cid, Sphere<_>)>> = Sphere::at(tip, sphere_context.db())
+                .into_history_stream(base.as_ref())
+                .collect()
+                .await;
+
+            for step in history.into_iter().rev() {
+                let (cid, sphere) = step?;
+                debug!("Hydrating {}", cid);
+                sphere.hydrate().await?;
+            }
+
+            debug!(
+                "Setting {} tip to {}...",
+                self.gateway_scope.counterpart, tip
+            );
+
+            sphere_context
+                .db_mut()
+                .set_version(&self.gateway_scope.counterpart, tip)
+                .await?;
+        }
+
+        self.sphere_context
+            .link_raw(&self.gateway_scope.counterpart, &self.request_body.tip)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn synchronize_names(&mut self) -> Result<(), PushError> {
+        debug!("Synchronizing name changes to local sphere...");
+
+        let my_sphere = self.sphere_context.to_sphere().await?;
+        let my_names = my_sphere.get_names().await?;
+
+        let sphere = Sphere::at(&self.request_body.tip, my_sphere.store());
+        let stream = sphere.into_history_stream(self.request_body.base.as_ref());
+
+        tokio::pin!(stream);
+
+        let mut updated_names = BTreeSet::<String>::new();
+
+        // Walk backwards through the history of the pushed sphere and aggregate
+        // name changes into a single mutation
+        while let Ok(Some((_, sphere))) = stream.try_next().await {
+            let changed_names = sphere.get_names().await?.load_changelog().await?;
+            for operation in changed_names.changes {
+                match operation {
+                    MapOperation::Add { key, value } => {
+                        // Since we are walking backwards through history, we
+                        // can ignore changes to names in the past that we have
+                        // already encountered in the future
+                        if updated_names.contains(&key) {
+                            trace!("Skipping name add for {}...", key);
+                            continue;
+                        }
+
+                        let my_value = my_names.get(&key).await?;
+
+                        // Only add to the mutation if the value has actually
+                        // changed to avoid redundantly recording updates made
+                        // on the client due to a previous sync
+                        if my_value != Some(&value) {
+                            debug!("Adding name {}...", key);
+                            self.sphere_context
+                                .sphere_context()
+                                .await?
+                                .mutation_mut()
+                                .names_mut()
+                                .set(&key, &value);
+                        }
+
+                        updated_names.insert(key);
+                    }
+                    MapOperation::Remove { key } => {
+                        if updated_names.contains(&key) {
+                            trace!("Skipping name removal for {}...", key);
+                            continue;
+                        }
+
+                        debug!("Removing name {}...", key);
+                        self.sphere_context
+                            .sphere_context()
+                            .await?
+                            .mutation_mut()
+                            .names_mut()
+                            .remove(&key);
+
+                        updated_names.insert(key);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Apply any mutations accrued during the push operation to the local
+    /// sphere and return the new version, along with the blocks needed to
+    /// synchronize the pusher with the latest local history.
+    async fn update_gateway_sphere(&mut self) -> Result<(Cid, Bundle), PushError> {
+        debug!("Updating the gateway's sphere...");
+
+        let previous_version = self.sphere_context.version().await?;
+        let next_version = SphereCursor::latest(self.sphere_context.clone())
+            .save(None)
+            .await?;
+
+        let blocks = self
+            .sphere_context
+            .to_sphere()
+            .await?
+            .bundle_until_ancestor(Some(&previous_version))
+            .await?;
+
+        Ok((next_version, blocks))
+    }
+
+    /// Notify the name system that new names may need to be resolved
+    async fn notify_name_resolver(&self) -> Result<()> {
+        if let Some(name_record) = &self.request_body.name_record {
+            if let Err(error) = self.name_system_tx.send(NameSystemJob::Publish {
+                context: self.sphere_context.clone(),
+                record: name_record.clone(),
+            }) {
+                warn!("Failed to request name record publish: {}", error);
+            }
+        }
+
+        if let Err(error) = self.name_system_tx.send(NameSystemJob::ResolveSince {
+            context: self.sphere_context.clone(),
+            since: self.request_body.base,
+        }) {
+            warn!("Failed to request name system resolutions: {}", error);
+        };
+
+        Ok(())
+    }
+
+    /// Request that new history be syndicated to IPFS
+    async fn notify_ipfs_syndicator(&self, next_version: Cid) -> Result<()> {
+        // TODO(#156): This should not be happening on every push, but rather on
+        // an explicit publish action. Move this to the publish handler when we
+        // have added it to the gateway.
+        if let Err(error) = self.syndication_tx.send(SyndicationJob {
+            revision: next_version,
+            context: self.sphere_context.clone(),
+        }) {
+            warn!("Failed to queue IPFS syndication job: {}", error);
+        };
+
+        Ok(())
+    }
 }

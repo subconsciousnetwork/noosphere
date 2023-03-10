@@ -5,7 +5,7 @@ use std::fmt;
 use std::io;
 
 #[derive(Debug)]
-pub enum DHTError {
+pub enum DhtError {
     Error(String),
     IO(io::ErrorKind),
     ValidationError(Vec<u8>),
@@ -20,90 +20,90 @@ pub enum DHTError {
     NoKnownPeers,
 }
 
-impl std::error::Error for DHTError {}
-impl fmt::Display for DHTError {
+impl std::error::Error for DhtError {}
+impl fmt::Display for DhtError {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DHTError::NotConnected => write!(fmt, "DHT not running"),
-            DHTError::NoKnownPeers => write!(fmt, "no known peers"),
-            DHTError::LibP2PTransportError(e) => write!(fmt, "{:#?}", e),
-            DHTError::LibP2PStorageError(e) => write!(fmt, "{:#?}", e),
-            DHTError::LibP2PGetRecordError(e) => write!(fmt, "{:#?}", e),
-            DHTError::LibP2PPutRecordError(e) => write!(fmt, "{:#?}", e),
-            DHTError::LibP2PBootstrapError(e) => write!(fmt, "{:#?}", e),
-            DHTError::LibP2PAddProviderError(e) => write!(fmt, "{:#?}", e),
-            DHTError::LibP2PGetProvidersError(e) => write!(fmt, "{:#?}", e),
-            DHTError::IO(k) => write!(fmt, "{:#?}", k),
-            DHTError::Error(m) => write!(fmt, "{:#?}", m),
-            DHTError::ValidationError(_) => write!(fmt, "validation error"),
+            DhtError::NotConnected => write!(fmt, "DHT not running"),
+            DhtError::NoKnownPeers => write!(fmt, "no known peers"),
+            DhtError::LibP2PTransportError(e) => write!(fmt, "{:#?}", e),
+            DhtError::LibP2PStorageError(e) => write!(fmt, "{:#?}", e),
+            DhtError::LibP2PGetRecordError(e) => write!(fmt, "{:#?}", e),
+            DhtError::LibP2PPutRecordError(e) => write!(fmt, "{:#?}", e),
+            DhtError::LibP2PBootstrapError(e) => write!(fmt, "{:#?}", e),
+            DhtError::LibP2PAddProviderError(e) => write!(fmt, "{:#?}", e),
+            DhtError::LibP2PGetProvidersError(e) => write!(fmt, "{:#?}", e),
+            DhtError::IO(k) => write!(fmt, "{:#?}", k),
+            DhtError::Error(m) => write!(fmt, "{:#?}", m),
+            DhtError::ValidationError(_) => write!(fmt, "validation error"),
         }
     }
 }
 
-impl From<ChannelError> for DHTError {
+impl From<ChannelError> for DhtError {
     fn from(e: ChannelError) -> Self {
         match e {
-            ChannelError::RecvError => DHTError::Error("RecvError".into()),
-            ChannelError::SendError => DHTError::Error("SendError".into()),
+            ChannelError::RecvError => DhtError::Error("RecvError".into()),
+            ChannelError::SendError => DhtError::Error("SendError".into()),
         }
     }
 }
 
-impl From<anyhow::Error> for DHTError {
+impl From<anyhow::Error> for DhtError {
     fn from(e: anyhow::Error) -> Self {
-        DHTError::Error(e.to_string())
+        DhtError::Error(e.to_string())
     }
 }
 
-impl From<io::Error> for DHTError {
+impl From<io::Error> for DhtError {
     fn from(e: io::Error) -> Self {
-        DHTError::IO(e.kind())
+        DhtError::IO(e.kind())
     }
 }
 
-impl<TErr> From<TransportError<TErr>> for DHTError {
+impl<TErr> From<TransportError<TErr>> for DhtError {
     fn from(e: TransportError<TErr>) -> Self {
         match e {
             TransportError::MultiaddrNotSupported(addr) => {
-                DHTError::LibP2PTransportError(Some(addr))
+                DhtError::LibP2PTransportError(Some(addr))
             }
-            TransportError::Other(_) => DHTError::LibP2PTransportError(None),
+            TransportError::Other(_) => DhtError::LibP2PTransportError(None),
         }
     }
 }
 
-impl From<KadStorageError> for DHTError {
+impl From<KadStorageError> for DhtError {
     fn from(e: KadStorageError) -> Self {
-        DHTError::LibP2PStorageError(e)
+        DhtError::LibP2PStorageError(e)
     }
 }
 
-impl From<kad::GetRecordError> for DHTError {
+impl From<kad::GetRecordError> for DhtError {
     fn from(e: kad::GetRecordError) -> Self {
-        DHTError::LibP2PGetRecordError(e)
+        DhtError::LibP2PGetRecordError(e)
     }
 }
 
-impl From<kad::PutRecordError> for DHTError {
+impl From<kad::PutRecordError> for DhtError {
     fn from(e: kad::PutRecordError) -> Self {
-        DHTError::LibP2PPutRecordError(e)
+        DhtError::LibP2PPutRecordError(e)
     }
 }
 
-impl From<kad::BootstrapError> for DHTError {
+impl From<kad::BootstrapError> for DhtError {
     fn from(e: kad::BootstrapError) -> Self {
-        DHTError::LibP2PBootstrapError(e)
+        DhtError::LibP2PBootstrapError(e)
     }
 }
 
-impl From<kad::AddProviderError> for DHTError {
+impl From<kad::AddProviderError> for DhtError {
     fn from(e: kad::AddProviderError) -> Self {
-        DHTError::LibP2PAddProviderError(e)
+        DhtError::LibP2PAddProviderError(e)
     }
 }
 
-impl From<kad::GetProvidersError> for DHTError {
+impl From<kad::GetProvidersError> for DhtError {
     fn from(e: kad::GetProvidersError) -> Self {
-        DHTError::LibP2PGetProvidersError(e)
+        DhtError::LibP2PGetProvidersError(e)
     }
 }

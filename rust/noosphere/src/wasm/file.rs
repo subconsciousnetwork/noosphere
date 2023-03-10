@@ -1,16 +1,21 @@
 use async_trait::async_trait;
 use noosphere_core::data::Header;
 use noosphere_into::{
-    file_to_html_stream, HtmlOutput, ResolvedLink, Resolver, SphereFsTranscluder, Transform,
+    file_to_html_stream, HtmlOutput, ResolvedLink, Resolver, SphereContentTranscluder, Transform,
 };
-use std::{pin::Pin, rc::Rc};
+use std::{pin::Pin, rc::Rc, sync::Arc};
 use subtext::Slashlink;
 use tokio_stream::StreamExt;
 
 use anyhow::{anyhow, Result};
 use js_sys::{Function, Promise, Uint8Array};
-use noosphere_fs::{SphereFile as SphereFileImpl, SphereFs};
-use tokio::io::{AsyncRead, AsyncReadExt};
+use noosphere_sphere::{
+    HasSphereContext, SphereContext, SphereCursor, SphereFile as SphereFileImpl,
+};
+use tokio::{
+    io::{AsyncRead, AsyncReadExt},
+    sync::Mutex,
+};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
@@ -25,7 +30,11 @@ pub struct SphereFile {
     pub inner: SphereFileImpl<Pin<Box<dyn AsyncRead>>>,
 
     #[wasm_bindgen(skip)]
-    pub fs: SphereFs<PlatformStorage, PlatformKeyMaterial>,
+    pub cursor: SphereCursor<
+        Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>,
+        PlatformKeyMaterial,
+        PlatformStorage,
+    >,
 }
 
 #[wasm_bindgen]
@@ -91,9 +100,9 @@ impl SphereFile {
     /// Note that after this method is called, the SphereFile will be freed and
     /// is no longer usable.
     pub async fn into_html(self, resolver: Function) -> Result<String, String> {
-        let transform = JavaScriptTransform::new(resolver, self.fs.clone());
+        let transform = JavaScriptTransform::new(resolver, self.cursor.clone());
         Ok(
-            file_to_html_stream(transform, self.inner, HtmlOutput::Fragment)
+            file_to_html_stream(self.inner, HtmlOutput::Fragment, transform)
                 .collect()
                 .await,
         )
@@ -123,23 +132,29 @@ impl SphereFile {
 /// A [JavaScriptTransform] is a [Transform] implementation that is suitable
 /// for converting sphere content using JavaScript and DOM-aware APIs.
 #[derive(Clone)]
-pub struct JavaScriptTransform {
+pub struct JavaScriptTransform<R: HasSphereContext<PlatformKeyMaterial, PlatformStorage>> {
     resolver: JavaScriptResolver,
-    transcluder: SphereFsTranscluder<PlatformStorage, PlatformKeyMaterial>,
+    transcluder: SphereContentTranscluder<R, PlatformKeyMaterial, PlatformStorage>,
 }
 
-impl JavaScriptTransform {
-    pub fn new(callback: Function, fs: SphereFs<PlatformStorage, PlatformKeyMaterial>) -> Self {
+impl<R> JavaScriptTransform<R>
+where
+    R: HasSphereContext<PlatformKeyMaterial, PlatformStorage>,
+{
+    pub fn new(callback: Function, context: R) -> Self {
         JavaScriptTransform {
             resolver: JavaScriptResolver::new(callback),
-            transcluder: SphereFsTranscluder::new(fs),
+            transcluder: SphereContentTranscluder::new(context),
         }
     }
 }
 
-impl Transform for JavaScriptTransform {
+impl<R> Transform for JavaScriptTransform<R>
+where
+    R: HasSphereContext<PlatformKeyMaterial, PlatformStorage>,
+{
     type Resolver = JavaScriptResolver;
-    type Transcluder = SphereFsTranscluder<PlatformStorage, PlatformKeyMaterial>;
+    type Transcluder = SphereContentTranscluder<R, PlatformKeyMaterial, PlatformStorage>;
 
     fn resolver(&self) -> &Self::Resolver {
         &self.resolver

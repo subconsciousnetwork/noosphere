@@ -1,9 +1,7 @@
 use crate::runner::config::RunnerNodeConfig;
 use anyhow::Result;
 use noosphere_ipfs::{IpfsStorage, KuboClient};
-#[cfg(feature = "api-server")]
-use noosphere_ns::server::APIServer;
-use noosphere_ns::{Multiaddr, NameSystem, NameSystemClient, PeerId};
+use noosphere_ns::{Multiaddr, NameSystem, NameSystemClient, PeerId, Validator};
 use noosphere_storage::{MemoryStorage, SphereDb};
 use serde::Serialize;
 use std::{
@@ -16,12 +14,15 @@ use std::{
 use tokio::sync::Mutex;
 use url::Url;
 
+#[cfg(feature = "api-server")]
+use noosphere_ns::server::ApiServer;
+
 #[cfg(not(feature = "api-server"))]
-struct APIServer;
+struct ApiServer;
 #[cfg(not(feature = "api-server"))]
-impl APIServer {
+impl ApiServer {
     pub fn serve(_ns: Arc<Mutex<NameSystem>>, _listener: TcpListener) -> Self {
-        APIServer {}
+        ApiServer {}
     }
 }
 
@@ -36,7 +37,7 @@ pub struct NameSystemRunner {
     name_system: Arc<Mutex<NameSystem>>,
     #[serde(skip_serializing)]
     #[allow(dead_code)]
-    api_thread: Option<APIServer>,
+    api_thread: Option<ApiServer>,
     peer_id: PeerId,
     listening_address: Option<Multiaddr>,
     api_address: Option<Url>,
@@ -48,12 +49,19 @@ impl NameSystemRunner {
             let kubo = KuboClient::new(&ipfs_api_url)?;
             let store =
                 SphereDb::new(&IpfsStorage::new(MemoryStorage::default(), Some(kubo))).await?;
-            NameSystem::new(&config.key_material, store, config.dht_config.to_owned())?
+            NameSystem::new(
+                &config.key_material,
+                config.dht_config.to_owned(),
+                Some(Validator::new(store)),
+            )?
         } else {
             let store = SphereDb::new(&MemoryStorage::default()).await?;
-            NameSystem::new(&config.key_material, store, config.dht_config.to_owned())?
+            NameSystem::new(
+                &config.key_material,
+                config.dht_config.to_owned(),
+                Some(Validator::new(store)),
+            )?
         };
-
         let peer_id = node.peer_id().to_owned();
 
         let listening_address = if let Some(requested_addr) = config.listening_address.take() {
@@ -76,7 +84,7 @@ impl NameSystemRunner {
                 let api_address = socket_addr_to_url(api_listener.local_addr()?)?;
                 (
                     Some(api_address),
-                    Some(APIServer::serve(wrapped_node.clone(), api_listener)),
+                    Some(ApiServer::serve(wrapped_node.clone(), api_listener)),
                 )
             } else {
                 (None, None)

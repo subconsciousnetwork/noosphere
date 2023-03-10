@@ -4,11 +4,11 @@ use noosphere_core::authority::ed25519_key_to_bytes;
 use ucan::crypto::KeyMaterial;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
-pub trait DHTKeyMaterial: KeyMaterial + Clone {
+pub trait DhtKeyMaterial: KeyMaterial + Clone {
     fn to_dht_keypair(&self) -> anyhow::Result<Keypair>;
 }
 
-impl DHTKeyMaterial for Ed25519KeyMaterial {
+impl DhtKeyMaterial for Ed25519KeyMaterial {
     fn to_dht_keypair(&self) -> anyhow::Result<Keypair> {
         let mut bytes = ed25519_key_to_bytes(self)?;
         let kp = libp2p::identity::ed25519::Keypair::decode(&mut bytes)

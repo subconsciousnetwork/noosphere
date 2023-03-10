@@ -2,11 +2,11 @@ use std::{collections::BTreeSet, io::Cursor, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere_core::{authority::Author, data::Did, view::Sphere};
-use noosphere_fs::SphereFs;
-use noosphere_storage::{SphereDb, Storage};
+use noosphere_sphere::{HasSphereContext, SphereContentRead, SphereCursor};
+use noosphere_storage::Storage;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
+use ucan::crypto::KeyMaterial;
 
 use crate::{
     file_to_html_stream, sphere_to_html_document_stream, HtmlOutput, StaticHtmlTransform,
@@ -18,28 +18,19 @@ static DEFAULT_STYLES: &[u8] = include_bytes!("./static/styles.css");
 /// Given a sphere [Did], [SphereDb] and a [WriteTarget], produce rendered HTML
 /// output up to and including the complete historical revisions of the
 /// slug-named content of the sphere.
-pub async fn sphere_into_html<S, W>(
-    sphere_identity: &Did,
-    db: &SphereDb<S>,
-    write_target: &W,
-) -> Result<()>
+pub async fn sphere_into_html<H, K, S, W>(sphere_context: H, write_target: &W) -> Result<()>
 where
+    H: HasSphereContext<K, S> + 'static,
+    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
     W: WriteTarget + 'static,
 {
-    let mut next_sphere_cid = match db.get_version(sphere_identity).await? {
-        Some(link) => Some(link),
-        _ => {
-            return Err(anyhow!(
-                "Could not resolve CID for sphere {}",
-                sphere_identity
-            ))
-        }
-    };
+    let mut next_sphere_cid = Some(sphere_context.version().await?);
+
+    let mut cursor = SphereCursor::latest(sphere_context);
 
     let write_target = Arc::new(write_target.clone());
     let mut latest_revision = true;
-    let author = Author::anonymous();
 
     while let Some(sphere_cid) = next_sphere_cid {
         let sphere_index: PathBuf = format!("permalink/{}/index.html", sphere_cid).into();
@@ -53,8 +44,8 @@ where
         }
 
         let write_actions = Arc::new(Mutex::new(BTreeSet::<Cid>::new()));
-        let sphere = Sphere::at(&sphere_cid, db);
-        let links = sphere.try_get_links().await?;
+        let sphere = cursor.to_sphere().await?;
+        let links = sphere.get_links().await?;
         let mut link_stream = links.stream().await?;
 
         let mut tasks = Vec::new();
@@ -76,10 +67,8 @@ where
                 let cid = *cid;
                 let write_actions = write_actions.clone();
                 let write_target = write_target.clone();
-                let sphere_identity = sphere_identity.clone();
-                let db = db.clone();
-                let author = author.clone();
                 let latest_revision = latest_revision;
+                let cursor = cursor.clone();
 
                 async move {
                     {
@@ -95,17 +84,16 @@ where
                         }
                     }
 
-                    let fs = SphereFs::at(&sphere_identity, &sphere_cid, &author, &db).await?;
-                    let sphere_file = fs
+                    let sphere_file = cursor
                         .read(&slug)
                         .await?
                         .ok_or_else(|| anyhow!("No file found for {}", slug))?;
 
-                    let transform = StaticHtmlTransform::new(fs);
+                    let transform = StaticHtmlTransform::new(cursor.clone());
                     let reader = TransformStream(file_to_html_stream(
-                        transform,
                         sphere_file,
                         HtmlOutput::Document,
+                        transform,
                     ))
                     .into_reader();
 
@@ -130,13 +118,11 @@ where
         // cases where writing content may fail
         futures::future::try_join_all(tasks).await?;
 
-        let fs = SphereFs::at(sphere_identity, &sphere_cid, &author, db).await?;
-        let transform = StaticHtmlTransform::new(fs);
-        let reader = TransformStream(sphere_to_html_document_stream(
-            transform,
-            Sphere::at(&sphere_cid, db),
-        ))
-        .into_reader();
+        // let cursor = SphereCursor::at(sphere_context, sphere_cid);
+
+        let transform = StaticHtmlTransform::new(cursor.clone());
+        let reader = TransformStream(sphere_to_html_document_stream(cursor.clone(), transform))
+            .into_reader();
 
         write_target.write(&sphere_index, reader).await?;
 
@@ -146,7 +132,7 @@ where
                 .await?;
         }
 
-        next_sphere_cid = sphere.try_as_memo().await?.parent;
+        next_sphere_cid = cursor.rewind().await?;
         latest_revision = false;
     }
 
@@ -173,14 +159,7 @@ where
 pub mod tests {
     use std::path::PathBuf;
 
-    use noosphere_core::{
-        authority::{generate_ed25519_key, Author},
-        data::{ContentType, Header},
-        view::Sphere,
-    };
-    use noosphere_fs::SphereFs;
-    use noosphere_storage::{MemoryStorage, SphereDb};
-    use ucan::crypto::KeyMaterial;
+    use noosphere_core::data::{ContentType, Header};
 
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -188,35 +167,22 @@ pub mod tests {
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
     use crate::write::MemoryWriteTarget;
+    use noosphere_sphere::{
+        helpers::{simulated_sphere_context, SimulationAccess},
+        HasMutableSphereContext, SphereContentWrite, SphereCursor,
+    };
 
     use super::sphere_into_html;
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_writes_a_file_from_the_sphere_to_the_target_as_html() {
-        let storage_provider = MemoryStorage::default();
-        let mut db = SphereDb::new(&storage_provider).await.unwrap();
-
-        let owner_key = generate_ed25519_key();
-        let owner_did = owner_key.get_did().await.unwrap();
-
-        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
-
-        let sphere_identity = sphere.try_get_identity().await.unwrap();
-        let author = Author {
-            key: owner_key,
-            authorization: Some(proof),
-        };
-
-        db.set_version(&sphere_identity, sphere.cid())
+        let context = simulated_sphere_context(SimulationAccess::ReadWrite)
             .await
             .unwrap();
+        let mut cursor = SphereCursor::latest(context);
 
-        let mut fs = SphereFs::latest(&sphere_identity, &author, &db)
-            .await
-            .unwrap();
-
-        let cats_cid = fs
+        let cats_cid = cursor
             .write(
                 "cats",
                 &ContentType::Subtext.to_string(),
@@ -226,7 +192,7 @@ pub mod tests {
             .await
             .unwrap();
 
-        fs.write(
+        cursor.write(
             "animals",
             &ContentType::Subtext.to_string(),
             b"Animals are multicellular, eukaryotic organisms in the biological kingdom Animalia."
@@ -236,13 +202,11 @@ pub mod tests {
         .await
         .unwrap();
 
-        fs.save(None).await.unwrap();
+        cursor.save(None).await.unwrap();
 
         let write_target = MemoryWriteTarget::default();
 
-        sphere_into_html(&sphere_identity, &db, &write_target)
-            .await
-            .unwrap();
+        sphere_into_html(cursor, &write_target).await.unwrap();
 
         let bytes = write_target
             .read(&PathBuf::from(format!("permalink/{}/index.html", cats_cid)))
@@ -282,29 +246,12 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_symlinks_a_file_slug_to_the_latest_file_version() {
-        let storage_provider = MemoryStorage::default();
-        let mut db = SphereDb::new(&storage_provider).await.unwrap();
-
-        let owner_key = generate_ed25519_key();
-        let owner_did = owner_key.get_did().await.unwrap();
-
-        let (sphere, proof, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
-
-        let sphere_identity = sphere.try_get_identity().await.unwrap();
-        let author = Author {
-            key: owner_key,
-            authorization: Some(proof),
-        };
-
-        db.set_version(&sphere_identity, sphere.cid())
+        let context = simulated_sphere_context(SimulationAccess::ReadWrite)
             .await
             .unwrap();
+        let mut cursor = SphereCursor::latest(context);
 
-        let mut fs = SphereFs::latest(&sphere_identity, &author, &db)
-            .await
-            .unwrap();
-
-        let _cats_cid = fs
+        let _cats_cid = cursor
             .write(
                 "cats",
                 &ContentType::Subtext.to_string(),
@@ -314,7 +261,7 @@ pub mod tests {
             .await
             .unwrap();
 
-        let cats_revised_cid = fs
+        let cats_revised_cid = cursor
             .write(
                 "cats",
                 &ContentType::Subtext.to_string(),
@@ -324,13 +271,11 @@ pub mod tests {
             .await
             .unwrap();
 
-        fs.save(None).await.unwrap();
+        cursor.save(None).await.unwrap();
 
         let write_target = MemoryWriteTarget::default();
 
-        sphere_into_html(&sphere_identity, &db, &write_target)
-            .await
-            .unwrap();
+        sphere_into_html(cursor, &write_target).await.unwrap();
 
         let cats_revised_html = write_target
             .read(&PathBuf::from(format!(

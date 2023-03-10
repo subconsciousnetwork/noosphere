@@ -126,10 +126,10 @@ mod tests {
         let author = Author::anonymous();
         let mut db = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
-        let (sphere, _, _) = Sphere::try_generate("did:key:foo", &mut db).await.unwrap();
+        let (sphere, _, _) = Sphere::generate("did:key:foo", &mut db).await.unwrap();
 
         let access = author
-            .access_to(&sphere.try_get_identity().await.unwrap(), &db)
+            .access_to(&sphere.get_identity().await.unwrap(), &db)
             .await
             .unwrap();
 
@@ -143,14 +143,14 @@ mod tests {
         let owner_did = Did(owner_key.get_did().await.unwrap());
         let mut db = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
-        let (sphere, authorization, _) = Sphere::try_generate(&owner_did, &mut db).await.unwrap();
+        let (sphere, authorization, _) = Sphere::generate(&owner_did, &mut db).await.unwrap();
         let author = Author {
             key: owner_key,
             authorization: Some(authorization),
         };
 
         let access = author
-            .access_to(&sphere.try_get_identity().await.unwrap(), &db)
+            .access_to(&sphere.get_identity().await.unwrap(), &db)
             .await
             .unwrap();
 

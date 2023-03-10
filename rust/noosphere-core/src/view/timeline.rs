@@ -30,7 +30,7 @@ impl<'a, S: BlockStore> Timeline<'a, S> {
         }
     }
 
-    // TODO: Consider using async-stream crate for this
+    // TODO(#263): Consider using async-stream crate for this
     pub fn try_stream(
         &self,
         future: &Cid,
@@ -118,7 +118,7 @@ mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        let (mut sphere, ucan, _) = Sphere::try_generate(&owner_did, &mut store).await.unwrap();
+        let (mut sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
         let mut lineage = vec![*sphere.cid()];
 
         for i in 0..5u8 {
@@ -127,7 +127,7 @@ mod tests {
                 &format!("foo/{i}"),
                 &store.save::<RawCodec, _>(Bytes::new(&[i])).await.unwrap(),
             );
-            let mut revision = sphere.try_apply_mutation(&mutation).await.unwrap();
+            let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             let next_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
 
             sphere = Sphere::at(&next_cid, &store);

@@ -1,3 +1,4 @@
+use noosphere_api::data::PushError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -18,5 +19,11 @@ pub enum NoosphereError {
 impl From<anyhow::Error> for NoosphereError {
     fn from(error: anyhow::Error) -> Self {
         NoosphereError::Other(error)
+    }
+}
+
+impl From<NoosphereError> for PushError {
+    fn from(error: NoosphereError) -> Self {
+        error.into()
     }
 }

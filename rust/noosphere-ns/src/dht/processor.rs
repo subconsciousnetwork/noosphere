@@ -1,9 +1,9 @@
 use crate::dht::{
-    errors::DHTError,
-    rpc::{DHTMessage, DHTMessageProcessor, DHTRequest, DHTResponse},
-    swarm::{build_swarm, DHTEvent, DHTSwarm, DHTSwarmEvent},
-    types::{DHTRecord, Peer},
-    DHTConfig, RecordValidator,
+    errors::DhtError,
+    rpc::{DhtMessage, DhtMessageProcessor, DhtRequest, DhtResponse},
+    swarm::{build_swarm, DHTEvent, DHTSwarmEvent, DhtSwarm},
+    types::{DhtRecord, Peer},
+    DhtConfig, RecordValidator,
 };
 use libp2p::{
     core::transport::ListenerId,
@@ -28,16 +28,16 @@ use tokio;
 
 /// The processing component of a [DHTNode]/[DHTProcessor] pair. Consumers
 /// should only interface with a [DHTProcessor] via [DHTNode].
-pub struct DHTProcessor<V: RecordValidator + 'static> {
-    config: DHTConfig,
+pub struct DhtProcessor<V: RecordValidator + 'static> {
+    config: DhtConfig,
     peer_id: PeerId,
-    processor: DHTMessageProcessor,
-    swarm: DHTSwarm,
-    requests: HashMap<kad::QueryId, DHTMessage>,
+    processor: DhtMessageProcessor,
+    swarm: DhtSwarm,
+    requests: HashMap<kad::QueryId, DhtMessage>,
     kad_last_range: Option<(Distance, Distance)>,
     validator: Option<V>,
     active_listener: Option<ListenerId>,
-    pending_listener_request: Option<DHTMessage>,
+    pending_listener_request: Option<DhtMessage>,
 }
 
 // Temporary(?), exploring processing both requests that
@@ -45,7 +45,7 @@ pub struct DHTProcessor<V: RecordValidator + 'static> {
 // into DHT queries (like WaitForPeers).
 macro_rules! store_request {
     ($self:expr, $message:expr, $result:expr) => {
-        let result: Result<kad::QueryId, DHTError> = $result.map_err(|e| e.into());
+        let result: Result<kad::QueryId, DhtError> = $result.map_err(|e| e.into());
         match result {
             Ok(query_id) => {
                 $self.requests.insert(query_id, $message);
@@ -57,7 +57,7 @@ macro_rules! store_request {
     };
 }
 
-impl<V> DHTProcessor<V>
+impl<V> DhtProcessor<V>
 where
     V: RecordValidator + 'static,
 {
@@ -68,12 +68,12 @@ where
         keypair: &libp2p::identity::Keypair,
         peer_id: PeerId,
         validator: Option<V>,
-        config: DHTConfig,
-        processor: DHTMessageProcessor,
-    ) -> Result<tokio::task::JoinHandle<Result<(), DHTError>>, DHTError> {
+        config: DhtConfig,
+        processor: DhtMessageProcessor,
+    ) -> Result<tokio::task::JoinHandle<Result<(), DhtError>>, DhtError> {
         let swarm = build_swarm(keypair, &peer_id, &config)?;
 
-        let mut node = DHTProcessor {
+        let mut node = DhtProcessor {
             peer_id,
             config,
             processor,
@@ -91,7 +91,7 @@ where
     /// Begin processing requests and connections on the DHT network
     /// in the current thread. Executes until the loop is broken, via
     /// either an unhandlable error or a terminate message (not yet implemented).
-    async fn process(&mut self) -> Result<(), DHTError> {
+    async fn process(&mut self) -> Result<(), DhtError> {
         // Queue up bootstrapping this node both immediately, and every
         // `bootstrap_interval` seconds.
         let mut bootstrap_tick =
@@ -128,47 +128,47 @@ where
     /// immediately if possible (synchronous error or pulling value from cache),
     /// otherwise, the message will be mapped to a query, where it can be fulfilled
     /// later, most likely in `process_kad_result()`.
-    async fn process_message(&mut self, message: DHTMessage) {
+    async fn process_message(&mut self, message: DhtMessage) {
         dht_event_trace(self, &message);
 
         // Process client requests.
         match message.request {
-            DHTRequest::AddPeers { ref peers } => {
-                let result = self.add_peers(peers).await.map(|_| DHTResponse::Success);
+            DhtRequest::AddPeers { ref peers } => {
+                let result = self.add_peers(peers).await.map(|_| DhtResponse::Success);
                 message.respond(result);
             }
-            DHTRequest::StartListening { ref address } => {
+            DhtRequest::StartListening { ref address } => {
                 if let Err(e) = self.listen(address) {
                     message.respond(Err(e));
                 } else {
                     if let Some(current_pending) = self.pending_listener_request.take() {
-                        current_pending.respond(Err(DHTError::Error(String::from(
+                        current_pending.respond(Err(DhtError::Error(String::from(
                             "Subsequent listener request overrides previous request.",
                         ))));
                     }
                     self.pending_listener_request = Some(message);
                 }
             }
-            DHTRequest::StopListening => {
-                let result = self.stop_listening().map(|_| DHTResponse::Success);
+            DhtRequest::StopListening => {
+                let result = self.stop_listening().map(|_| DhtResponse::Success);
                 message.respond(result);
             }
-            DHTRequest::GetAddresses { external } => {
+            DhtRequest::GetAddresses { external } => {
                 let listeners: Vec<Multiaddr> = if external {
                     self.get_external_addresses()
                 } else {
                     self.get_addresses()
                 };
-                message.respond(Ok(DHTResponse::GetAddresses(listeners)));
+                message.respond(Ok(DhtResponse::GetAddresses(listeners)));
             }
-            DHTRequest::Bootstrap => {
-                message.respond(self.execute_bootstrap().map(|_| DHTResponse::Success));
+            DhtRequest::Bootstrap => {
+                message.respond(self.execute_bootstrap().map(|_| DhtResponse::Success));
             }
-            DHTRequest::GetProviders { ref key } => {
+            DhtRequest::GetProviders { ref key } => {
                 store_request!(
                     self,
                     message,
-                    Ok::<kad::QueryId, DHTError>(
+                    Ok::<kad::QueryId, DhtError>(
                         self.swarm.behaviour_mut().kad.get_providers(Key::new(key))
                     )
                 );
@@ -183,11 +183,11 @@ where
                 }
             }
             */
-            DHTRequest::GetNetworkInfo => {
+            DhtRequest::GetNetworkInfo => {
                 let info = self.swarm.network_info();
-                message.respond(Ok(DHTResponse::GetNetworkInfo(info.into())));
+                message.respond(Ok(DhtResponse::GetNetworkInfo(info.into())));
             }
-            DHTRequest::GetPeers => {
+            DhtRequest::GetPeers => {
                 let peers = self
                     .swarm
                     .connected_peers()
@@ -195,9 +195,9 @@ where
                         peer_id: peer_id.to_owned(),
                     })
                     .collect();
-                message.respond(Ok(DHTResponse::GetPeers(peers)));
+                message.respond(Ok(DhtResponse::GetPeers(peers)));
             }
-            DHTRequest::StartProviding { ref key } => {
+            DhtRequest::StartProviding { ref key } => {
                 store_request!(
                     self,
                     message,
@@ -207,17 +207,18 @@ where
                         .start_providing(Key::new(key))
                 );
             }
-            DHTRequest::GetRecord { ref key } => {
+            DhtRequest::GetRecord { ref key } => {
                 store_request!(
                     self,
                     message,
-                    Ok::<kad::QueryId, DHTError>(
+                    Ok::<kad::QueryId, DhtError>(
                         self.swarm.behaviour_mut().kad.get_record(Key::new(key))
                     )
                 );
             }
-            DHTRequest::PutRecord { ref key, ref value } => {
+            DhtRequest::PutRecord { ref key, ref value } => {
                 let value_owned = value.to_owned();
+                trace!("VALIDATE: {}", self.validate(value).await);
                 if self.validate(value).await {
                     let record = Record {
                         key: Key::new(key),
@@ -234,7 +235,7 @@ where
                             .put_record(record, Quorum::One)
                     );
                 } else {
-                    message.respond(Err(DHTError::ValidationError(value_owned)));
+                    message.respond(Err(DhtError::ValidationError(value_owned)));
                 }
             }
         };
@@ -265,7 +266,7 @@ where
                     let pending = self.pending_listener_request.take().unwrap();
                     let mut address = new_address;
                     address.push(Protocol::P2p(self.peer_id.into()));
-                    pending.respond(Ok(DHTResponse::Address(address)));
+                    pending.respond(Ok(DhtResponse::Address(address)));
                 }
             }
             SwarmEvent::ConnectionEstablished { peer_id: _, .. } => {}
@@ -317,7 +318,7 @@ where
                         // We don't want to propagate validation errors for all
                         // possible invalid records, but handle it similarly as if
                         // no record at all was found.
-                        message.respond(Ok(DHTResponse::GetRecord(DHTRecord {
+                        message.respond(Ok(DhtResponse::GetRecord(DhtRecord {
                             key: key.to_vec(),
                             value: if is_valid { Some(value) } else { None },
                         })));
@@ -328,13 +329,13 @@ where
                 })) => {
                     if let Some(message) = self.requests.remove(&id) {
                         let key = {
-                            if let DHTRequest::GetRecord { ref key, .. } = message.request {
+                            if let DhtRequest::GetRecord { ref key, .. } = message.request {
                                 key.to_owned()
                             } else {
                                 panic!("Request must be GetRecord");
                             }
                         };
-                        message.respond(Ok(DHTResponse::GetRecord(DHTRecord { key, value: None })));
+                        message.respond(Ok(DhtResponse::GetRecord(DhtRecord { key, value: None })));
                     }
                 }
                 QueryResult::GetRecord(Err(e)) => {
@@ -343,18 +344,18 @@ where
                             kad::GetRecordError::NotFound { key, .. } => {
                                 // Not finding a record is not an `Err` response,
                                 // but simply a successful query with a `None` result.
-                                message.respond(Ok(DHTResponse::GetRecord(DHTRecord {
+                                message.respond(Ok(DhtResponse::GetRecord(DhtRecord {
                                     key: key.to_vec(),
                                     value: None,
                                 })))
                             }
-                            e => message.respond(Err(DHTError::from(e))),
+                            e => message.respond(Err(DhtError::from(e))),
                         };
                     }
                 }
                 QueryResult::PutRecord(Ok(kad::PutRecordOk { key })) => {
                     if let Some(message) = self.requests.remove(&id) {
-                        message.respond(Ok(DHTResponse::PutRecord { key: key.to_vec() }));
+                        message.respond(Ok(DhtResponse::PutRecord { key: key.to_vec() }));
                     }
                 }
                 QueryResult::PutRecord(Err(e)) => {
@@ -374,17 +375,17 @@ where
                         }
                     }
                     if let Some(message) = self.requests.remove(&id) {
-                        message.respond(Err(DHTError::from(e)));
+                        message.respond(Err(DhtError::from(e)));
                     }
                 }
                 QueryResult::StartProviding(Ok(kad::AddProviderOk { .. })) => {
                     if let Some(message) = self.requests.remove(&id) {
-                        message.respond(Ok(DHTResponse::Success));
+                        message.respond(Ok(DhtResponse::Success));
                     }
                 }
                 QueryResult::StartProviding(Err(e)) => {
                     if let Some(message) = self.requests.remove(&id) {
-                        message.respond(Err(DHTError::from(e)));
+                        message.respond(Err(DhtError::from(e)));
                     }
                 }
                 QueryResult::GetProviders(Ok(result)) => match result {
@@ -392,7 +393,7 @@ where
                         // Respond once we find any providers for now.
                         if !providers.is_empty() {
                             if let Some(message) = self.requests.remove(&id) {
-                                message.respond(Ok(DHTResponse::GetProviders {
+                                message.respond(Ok(DhtResponse::GetProviders {
                                     providers: providers.into_iter().collect(),
                                 }));
                             }
@@ -402,13 +403,13 @@ where
                         // If this message has not been sent yet, then no providers
                         // have been discovered.
                         if let Some(message) = self.requests.remove(&id) {
-                            message.respond(Ok(DHTResponse::GetProviders { providers: vec![] }));
+                            message.respond(Ok(DhtResponse::GetProviders { providers: vec![] }));
                         }
                     }
                 },
                 QueryResult::GetProviders(Err(e)) => {
                     if let Some(message) = self.requests.remove(&id) {
-                        message.respond(Err(DHTError::from(e)));
+                        message.respond(Err(DhtError::from(e)));
                     }
                 }
                 QueryResult::Bootstrap(Ok(kad::BootstrapOk {
@@ -527,7 +528,7 @@ where
     }
 
     /// Starts listening on the provided address.
-    fn listen(&mut self, address: &libp2p::Multiaddr) -> Result<(), DHTError> {
+    fn listen(&mut self, address: &libp2p::Multiaddr) -> Result<(), DhtError> {
         dht_event_trace(self, &format!("Start listening on {}", address));
 
         self.stop_listening()?;
@@ -537,7 +538,7 @@ where
     }
 
     /// Stops listening on the provided address.
-    fn stop_listening(&mut self) -> Result<(), DHTError> {
+    fn stop_listening(&mut self) -> Result<(), DhtError> {
         dht_event_trace(self, &"Stop listening".to_string());
         if let Some(active_listener) = self.active_listener.take() {
             assert!(self.swarm.remove_listener(active_listener));
@@ -560,7 +561,7 @@ where
     }
 
     /// Adds bootstrap peers to the routing table.
-    async fn add_peers(&mut self, peers: &[libp2p::Multiaddr]) -> Result<(), DHTError> {
+    async fn add_peers(&mut self, peers: &[libp2p::Multiaddr]) -> Result<(), DhtError> {
         for multiaddress in peers {
             let mut addr = multiaddress.to_owned();
             if let Some(libp2p::multiaddr::Protocol::P2p(p2p_hash)) = addr.pop() {
@@ -576,7 +577,7 @@ where
         Ok(())
     }
 
-    fn execute_bootstrap(&mut self) -> Result<(), DHTError> {
+    fn execute_bootstrap(&mut self) -> Result<(), DhtError> {
         dht_event_trace(self, &"Execute bootstrap");
         match self.swarm.behaviour_mut().kad.bootstrap() {
             Ok(_) => Ok(()),
@@ -596,7 +597,7 @@ where
     }
 }
 
-impl<V> fmt::Debug for DHTProcessor<V>
+impl<V> fmt::Debug for DhtProcessor<V>
 where
     V: RecordValidator + 'static,
 {
@@ -608,7 +609,7 @@ where
     }
 }
 
-impl<V> Drop for DHTProcessor<V>
+impl<V> Drop for DhtProcessor<V>
 where
     V: RecordValidator + 'static,
 {
@@ -620,7 +621,7 @@ where
 /// with `#[cfg(test)]` to enable the option of rendering the full
 /// peer id during non-testing (one process, one peer id) scenarios.
 /// https://doc.rust-lang.org/book/ch11-03-test-organization.html
-fn dht_event_trace<V: RecordValidator, T: std::fmt::Debug>(processor: &DHTProcessor<V>, data: &T) {
+fn dht_event_trace<V: RecordValidator, T: std::fmt::Debug>(processor: &DhtProcessor<V>, data: &T) {
     // Convert a full PeerId to a shorter, more identifiable
     // string for comparison in logs during tests, where multiple nodes
     // are shared by a single process. All Ed25519 keys have
@@ -628,7 +629,7 @@ fn dht_event_trace<V: RecordValidator, T: std::fmt::Debug>(processor: &DHTProces
     // the next 6 characters for logging.
     let peer_id_b58 = processor.peer_id.to_base58();
     trace!(
-        "\nFrom ..{:#?}..\n{:#?}",
+        "\nFrom ..{:#?}..\n{:?}",
         peer_id_b58.get(8..14).unwrap_or("INVALID PEER ID"),
         data
     );

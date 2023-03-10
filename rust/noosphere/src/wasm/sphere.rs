@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use crate::{
     platform::{PlatformKeyMaterial, PlatformStorage},
-    sphere::SphereContext as SphereContextImpl,
     wasm::SphereFs,
 };
+use noosphere_sphere::{SphereContext as SphereContextImpl, SphereCursor};
 use tokio::sync::Mutex;
 use wasm_bindgen::prelude::*;
 
@@ -27,9 +27,8 @@ impl SphereContext {
     /// Get a `SphereFs` that gives you access to sphere content at the latest
     /// version of the sphere.
     pub async fn fs(&self) -> Result<SphereFs, String> {
-        let context = self.inner.lock().await;
         Ok(SphereFs {
-            inner: context.fs().await.map_err(|error| format!("{:?}", error))?,
+            inner: SphereCursor::latest(self.inner.clone()),
         })
     }
 
@@ -39,14 +38,10 @@ impl SphereContext {
     /// [CID](https://docs.ipfs.tech/concepts/content-addressing/#identifier-formats)
     /// string.
     pub async fn fs_at(&self, version: String) -> Result<SphereFs, String> {
-        let context = self.inner.lock().await;
         let cid = Cid::try_from(version).map_err(|error| format!("{:?}", error))?;
 
         Ok(SphereFs {
-            inner: context
-                .fs_at(&cid)
-                .await
-                .map_err(|error| format!("{:?}", error))?,
+            inner: SphereCursor::mounted_at(self.inner.clone(), &cid),
         })
     }
 }

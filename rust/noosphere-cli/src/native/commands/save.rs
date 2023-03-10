@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
-use noosphere_core::{authority::Author, data::Header};
-use noosphere_fs::SphereFs;
+use noosphere_core::data::Header;
+use noosphere_sphere::{HasMutableSphereContext, SphereContentWrite, SphereCursor};
 use noosphere_storage::{BlockStore, MemoryStore};
 
 use crate::native::workspace::{FileReference, Workspace};
@@ -33,14 +33,7 @@ pub async fn save(workspace: &Workspace) -> Result<()> {
         db.put_links::<DagCborCodec>(&cid, block).await?;
     }
 
-    let sphere_did = workspace.sphere_identity().await?;
-    let latest_sphere_cid = db.require_version(&sphere_did).await?;
-    let author = Author {
-        key: workspace.key().await?,
-        authorization: Some(workspace.authorization().await?),
-    };
-
-    let mut fs = SphereFs::at(&sphere_did, &latest_sphere_cid, &author, &db).await?;
+    let mut sphere_context = workspace.sphere_context().await?;
 
     for (slug, _) in content_changes
         .new
@@ -58,17 +51,18 @@ pub async fn save(workspace: &Workspace) -> Result<()> {
                 .as_ref()
                 .map(|extension| vec![(Header::FileExtension.to_string(), extension.clone())]);
 
-            fs.link(slug, &content_type.to_string(), cid, headers)
+            sphere_context
+                .link(slug, &content_type.to_string(), cid, headers)
                 .await?;
         }
     }
 
     for (slug, _) in &content_changes.removed {
         println!("Removing {}...", slug);
-        fs.remove(slug).await?;
+        sphere_context.remove(slug).await?;
     }
 
-    let cid = fs.save(None).await?;
+    let cid = SphereCursor::latest(sphere_context).save(None).await?;
 
     println!("Save complete!\nThe latest sphere revision is {}", cid);
     Ok(())

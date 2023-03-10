@@ -3,12 +3,15 @@ use std::{io::Cursor, sync::Arc};
 use anyhow::Result;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
-use noosphere::sphere::SphereContext;
 use noosphere_core::{
     data::{ContentType, Did},
-    view::{Sphere, Timeline},
+    view::Timeline,
 };
 use noosphere_ipfs::{IpfsClient, KuboClient};
+use noosphere_sphere::{
+    metadata::COUNTERPART, HasMutableSphereContext, HasSphereContext, SphereContentRead,
+    SphereContentWrite, SphereContext, SphereCursor,
+};
 use noosphere_storage::{block_deserialize, block_serialize, BlockStore, KeyValueStore, Storage};
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -25,8 +28,6 @@ use url::Url;
 
 use iroh_car::{CarHeader, CarWriter};
 use wnfs::private::BloomFilter;
-
-use noosphere::sphere::COUNTERPART;
 
 /// A [SyndicationJob] is a request to syndicate the blocks of a _counterpart_
 /// sphere to the broader IPFS network.
@@ -77,7 +78,7 @@ async fn ipfs_syndication_task<K, S>(
 ) -> Result<()>
 where
     K: KeyMaterial + Clone + 'static,
-    S: Storage,
+    S: Storage + 'static,
 {
     debug!("Syndicating sphere revisions to IPFS API at {}", ipfs_api);
 
@@ -99,19 +100,19 @@ where
         // Take a lock on the `SphereContext` and look up the most recent
         // syndication checkpoint for this Kubo node
         let (sphere_revision, ancestor_revision, mut syndicated_blocks, db) = {
-            let context = context.lock().await;
-            let db = context.db().clone();
-            let counterpart_identity = context.db().require_key::<_, Did>(COUNTERPART).await?;
+            let db = {
+                let context = context.lock().await;
+                context.db().clone()
+            };
 
-            let sphere = Sphere::at(&revision, context.db());
-            let links = sphere.try_get_links().await?;
+            let counterpart_identity = db.require_key::<_, Did>(COUNTERPART).await?;
+            let sphere = context.to_sphere().await?;
+            let links = sphere.get_links().await?;
 
             let counterpart_revision = *links.require(&counterpart_identity).await?;
 
-            let fs = context.fs().await?;
-
             let (last_syndicated_revision, syndicated_blocks) =
-                match fs.read(&checkpoint_key).await? {
+                match context.read(&checkpoint_key).await? {
                     Some(mut file) => match file.memo.content_type() {
                         Some(ContentType::Cbor) => {
                             let mut bytes = Vec::new();
@@ -217,22 +218,22 @@ where
         // At the end, take another lock on the `SphereContext` in order to
         // update the syndication checkpoint for this particular IPFS server
         {
-            let context = context.lock().await;
-            let mut fs = context.fs().await?;
+            let mut cursor = SphereCursor::latest(context.clone());
             let (_, bytes) = block_serialize::<DagCborCodec, _>(&SyndicationCheckpoint {
                 revision,
                 syndicated_blocks,
             })?;
 
-            fs.write(
-                &kubo_identity.to_string(),
-                &ContentType::Cbor.to_string(),
-                Cursor::new(bytes),
-                None,
-            )
-            .await?;
+            cursor
+                .write(
+                    &kubo_identity.to_string(),
+                    &ContentType::Cbor.to_string(),
+                    Cursor::new(bytes),
+                    None,
+                )
+                .await?;
 
-            fs.save(None).await?;
+            cursor.save(None).await?;
         }
     }
 

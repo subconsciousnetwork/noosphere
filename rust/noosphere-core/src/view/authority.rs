@@ -53,7 +53,7 @@ where
             .load::<DagCborCodec, AuthorityIpld>(&self.cid)
             .await?;
 
-        AllowedUcans::try_at_or_empty(Some(&ipld.allowed), &mut self.store.clone()).await
+        AllowedUcans::at_or_empty(Some(&ipld.allowed), &mut self.store.clone()).await
     }
 
     pub async fn try_get_revoked_ucans(&self) -> Result<RevokedUcans<S>> {
@@ -62,6 +62,6 @@ where
             .load::<DagCborCodec, AuthorityIpld>(&self.cid)
             .await?;
 
-        RevokedUcans::try_at_or_empty(Some(&ipld.revoked), &mut self.store.clone()).await
+        RevokedUcans::at_or_empty(Some(&ipld.revoked), &mut self.store.clone()).await
     }
 }

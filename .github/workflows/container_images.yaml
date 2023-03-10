@@ -16,6 +16,7 @@ jobs:
     name: 'Determine image tags'
     outputs:
       tags: ${{ steps.determine-image-tags.outputs.tags }}
+      concurrency: ${{ steps.determine-image-tags.outputs.concurrency }}
     runs-on: ubuntu-latest
     steps:
       - id: determine-image-tags
@@ -24,14 +25,18 @@ jobs:
           PR_NUMBER: ${{ github.event.number }}
           CUSTOM_TAG: ${{ inputs.image-tag }}
         run: |
+          concurrency="docker-build"
+
           tags=()
 
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             tags+=("pr-$PR_NUMBER")
+            concurrency="$concurrency-pr-$PR_NUMBER"
           fi
 
           if [[ "$IMAGE_TAG" != "" ]]; then
             tags+=("$IMAGE_TAG")
+            concurrency="$concurrency-$IMAGE_TAG"
           fi
 
           tags_out=""
@@ -45,14 +50,16 @@ jobs:
           done
 
           echo "TAGS: $tags_out"
+          echo "CONCURRENCY: $concurrency"
 
-          echo -n "tags=[$tags_out]" >> $GITHUB_OUTPUT
+          echo "tags=[$tags_out]" >> $GITHUB_OUTPUT
+          echo "concurrency=\"$concurrency\"" >> $GITHUB_OUTPUT
 
   build-and-push:
     name: 'Build and push'
     runs-on: ubuntu-latest
     needs: ['determine-image-tags']
-    concurrency: 'docker-build'
+    concurrency: ${{ needs.determine-image-tags.outputs.concurrency }}
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -60,7 +67,7 @@ jobs:
       matrix:
         image:
           - name: 'orb'
-            file: 'images/orb/Dockerfile' 
+            file: 'images/orb/Dockerfile'
           - name: 'orb-ns'
             file: 'images/orb-ns/Dockerfile'
         tag: ${{ fromJSON(needs.determine-image-tags.outputs.tags) }}

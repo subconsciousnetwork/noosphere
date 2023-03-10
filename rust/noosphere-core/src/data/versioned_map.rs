@@ -72,11 +72,11 @@ where
 {
     /// A pointer to a HAMT
     pub hamt: Cid,
-    // TODO: The size of this vec is implicitly limited by the IPLD block size
-    // limit. This is probably fine most of the time; the vec only holds the
-    // delta changes, and N<10 probably holds in the majority of cases. But, it
-    // will be necessary to gracefully survive the outlier cases where N>~1000.
-    // pub changelog: ChangelogIpld<MapOperation<Key, Value>>,
+    // TODO(#262): The size of this vec is implicitly limited by the IPLD block
+    // size limit. This is probably fine most of the time; the vec only holds
+    // the delta changes, and N<10 probably holds in the majority of cases. But,
+    // it will be necessary to gracefully survive the outlier cases where
+    // N>~1000.
     pub changelog: Cid,
 
     #[serde(skip)]
@@ -88,14 +88,11 @@ where
     Key: VersionedMapKey,
     Value: VersionedMapValue,
 {
-    pub async fn try_load_hamt<S: BlockStore>(
-        &self,
-        store: &S,
-    ) -> Result<Hamt<S, Value, Key, Sha256>> {
+    pub async fn load_hamt<S: BlockStore>(&self, store: &S) -> Result<Hamt<S, Value, Key, Sha256>> {
         Hamt::load(&self.hamt, store.clone()).await
     }
 
-    pub async fn try_load_changelog<S: BlockStore>(
+    pub async fn load_changelog<S: BlockStore>(
         &self,
         store: &S,
     ) -> Result<ChangelogIpld<MapOperation<Key, Value>>> {
@@ -105,7 +102,7 @@ where
     // NOTE: We currently don't have a mechanism to prepuplate the store with
     // "empty" DAGs like a HAMT. So, we do it lazily by requiring async
     // initialization of this struct even when it is empty.
-    pub async fn try_empty<S: BlockStore>(store: &mut S) -> Result<Self> {
+    pub async fn empty<S: BlockStore>(store: &mut S) -> Result<Self> {
         let mut hamt = Hamt::<S, Value, Key, Sha256>::new(store.clone());
         let changelog = ChangelogIpld::<MapOperation<Key, Value>>::default();
 
