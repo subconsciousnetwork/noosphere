@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::io::Write;
 
 #[derive(Debug)]
@@ -12,7 +12,7 @@ use std::io::Write;
 pub struct HeaderTransformer<W: Write> {
     inner: W,
     buffer: String,
-    rust_classes: HashMap<String, String>,
+    rust_classes: BTreeMap<String, String>,
 }
 
 impl<W: Write> HeaderTransformer<W> {
@@ -20,7 +20,7 @@ impl<W: Write> HeaderTransformer<W> {
         Ok(HeaderTransformer {
             inner,
             buffer: String::with_capacity(200),
-            rust_classes: HashMap::<String, String>::new(),
+            rust_classes: BTreeMap::<String, String>::new(),
         })
     }
 
@@ -32,10 +32,11 @@ impl<W: Write> HeaderTransformer<W> {
     /// the underlying `inner` buffer.
     fn transform_statement(&mut self) -> std::io::Result<usize> {
         let typedef_sigil = "typedef struct";
+        let typedef_sigil_len = typedef_sigil.len();
 
         // Register new typedefs found.
-        if let Some(index) = self.buffer.find(typedef_sigil) {
-            let start_index = index + typedef_sigil.len() + 1;
+        if let Some(index) = self.buffer.find("typedef struct") {
+            let start_index = index + typedef_sigil_len + 1;
             let mut rust_name = String::with_capacity(16);
             for c in self.buffer[start_index..self.buffer.len()].chars() {
                 if c == ' ' {
@@ -43,6 +44,12 @@ impl<W: Write> HeaderTransformer<W> {
                     self.rust_classes.insert(rust_name, c_name);
                     break;
                 } else {
+                    if !c.is_alphanumeric() {
+                        // A non-alphanumeric character was parsed probably for
+                        // a non-opaque struct, looks like:
+                        // `typedef struct { size_t s } foo_t`
+                        break;
+                    }
                     rust_name.push(c);
                 }
             }
@@ -51,12 +58,15 @@ impl<W: Write> HeaderTransformer<W> {
         // Replace rust class names with snake_case names.
         let mut line = String::with_capacity(self.buffer.len());
         std::mem::swap(&mut line, &mut self.buffer);
-        for (rust_name, c_name) in self.rust_classes.iter() {
+
+        // Reverse the iterator over the BTreeMap, which orders
+        // by key, ensuring that class names that are subsets of
+        // other class names are replaced appropriately.
+        for (rust_name, c_name) in self.rust_classes.iter().rev() {
             line = line.replace(rust_name, c_name);
         }
 
-        let res = self.inner.write(line.as_bytes());
-        res
+        self.inner.write(line.as_bytes())
     }
 
     #[cfg(test)]
@@ -137,14 +147,23 @@ mod tests {
         transformer
             .write("#define __RUST_NOOSPHERE__\n".as_bytes())
             .unwrap();
+
+        // `NsSphere` defined before `NsSphereFile` tests that
+        // token replacement works as expected when a token subset
+        // exists as a class e.g. ensure that `NsSphere` does not
+        // replace `NsSphereFile` as `ns_sphereFile`.
         transformer
-            .write("typedef struct NsHeaders NsHeaders_t;\n".as_bytes())
+            .write("typedef struct NsSphere NsSphere_t;\n".as_bytes())
             .unwrap();
+        transformer
+            .write("typedef struct NsSphereFile NsSphereFile_t;\n".as_bytes())
+            .unwrap();
+
         transformer
             .write(
                 r#"
-void ns_headers_add (
-NsHeaders_t * headers,
+void ns_sphere_file_foo (
+NsSphereFile_t * file,
 char const * name,
 char const * value);"#
                     .as_bytes(),
@@ -163,10 +182,11 @@ char const * value);"#
         let expected = r#"
 #ifndef __RUST_NOOSPHERE__
 #define __RUST_NOOSPHERE__
-typedef struct ns_headers ns_headers_t;
+typedef struct ns_sphere ns_sphere_t;
+typedef struct ns_sphere_file ns_sphere_file_t;
 
-void ns_headers_add (
-ns_headers_t * headers,
+void ns_sphere_file_foo (
+ns_sphere_file_t * file,
 char const * name,
 char const * value);
 #endif /* __RUST_NOOSPHERE__ */
