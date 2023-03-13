@@ -19,7 +19,7 @@ use crate::data::Jwt;
 /// [Authorization] instead.
 /// TODO(ucan-wg/rs-ucan#32): Maybe swap this out is we get a substantially
 /// similar construct to land in rs-ucan
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Authorization {
     /// A fully instantiated UCAN
     Ucan(Ucan),

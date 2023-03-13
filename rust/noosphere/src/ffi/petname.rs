@@ -7,7 +7,10 @@ use cid::Cid;
 use noosphere_sphere::{SpherePetnameRead, SpherePetnameWrite, SphereWalker};
 use safer_ffi::{char_p::InvalidNulTerminator, prelude::*};
 
-use crate::ffi::{NsError, TryOrInitialize};
+use crate::{
+    error::NoosphereError,
+    ffi::{NsError, TryOrInitialize},
+};
 
 use super::{NsNoosphere, NsSphere};
 
@@ -85,6 +88,26 @@ pub fn ns_sphere_petname_resolve(
                 .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into())
         })
     })
+}
+
+#[ffi_export]
+/// Assign an identity
+pub fn ns_sphere_petname_adopt(
+    noosphere: &NsNoosphere,
+    sphere: &mut NsSphere,
+    petname: char_p::Ref<'_>,
+    record: char_p::Ref<'_>,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) {
+    error_out.try_or_initialize(|| {
+        noosphere.async_runtime().block_on(async {
+            sphere
+                .inner_mut()
+                .adopt_petname(petname.to_str(), &record.to_str().into())
+                .await?;
+            Ok(()) as Result<(), NoosphereError>
+        })
+    });
 }
 
 #[ffi_export]

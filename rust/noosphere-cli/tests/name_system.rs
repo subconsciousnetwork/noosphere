@@ -1,4 +1,4 @@
-#![cfg(not(target_arch = "wasm32"))]
+#![cfg(all(not(target_arch = "wasm32"), feature = "test_kubo"))]
 
 #[macro_use]
 extern crate tracing;
@@ -110,15 +110,19 @@ async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() {
         .await
         .unwrap();
 
+    trace!("CLIENT");
     sphere_create(client_key_name, &client_workspace)
         .await
         .unwrap();
+    trace!("GATEWAY");
     sphere_create(gateway_key_name, &gateway_workspace)
         .await
         .unwrap();
+    trace!("3P CLIENT");
     sphere_create(third_party_client_key_name, &third_party_client_workspace)
         .await
         .unwrap();
+    trace!("3P GATEWAY");
     sphere_create(third_party_gateway_key_name, &third_party_gateway_workspace)
         .await
         .unwrap();

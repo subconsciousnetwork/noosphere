@@ -41,6 +41,8 @@ impl Bundle {
 
         // TODO: Parrallelize this
         for (cid_string, block_bytes) in self.0.iter() {
+            trace!("Loading {}...", cid_string);
+
             let cid = Cid::from_str(cid_string)?;
 
             store.put_block(&cid, block_bytes).await?;

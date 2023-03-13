@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, pin::Pin};
+use std::{collections::BTreeMap, fmt::Debug, pin::Pin};
 
 use anyhow::{anyhow, Result};
 use async_once_cell::OnceCell;
@@ -43,7 +43,7 @@ where
 impl<K, V, S> VersionedMap<K, V, S>
 where
     K: VersionedMapKey,
-    V: VersionedMapValue,
+    V: VersionedMapValue + Debug,
     S: BlockStore,
 {
     pub async fn get_changelog(&self) -> Result<&ChangelogIpld<MapOperation<K, V>>> {
@@ -152,6 +152,7 @@ where
         for change in mutation.changes() {
             match change {
                 MapOperation::Add { key, value } => {
+                    trace!("Adding: {} => {:?}", key, value);
                     hamt.set(key.clone(), value.clone()).await?;
                 }
                 MapOperation::Remove { key } => {
@@ -190,7 +191,7 @@ where
 impl<K, V, S> VersionedMap<K, V, S>
 where
     K: VersionedMapKey + 'static,
-    V: VersionedMapValue + 'static,
+    V: VersionedMapValue + Debug + 'static,
     S: BlockStore + 'static,
 {
     pub async fn into_stream(self) -> Result<impl Stream<Item = Result<(K, V)>>> {

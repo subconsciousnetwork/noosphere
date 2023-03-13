@@ -1,8 +1,16 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use noosphere_core::data::{AddressIpld, Did, Jwt};
+use noosphere_core::{
+    authority::{SphereAction, SphereReference, SPHERE_SEMANTICS},
+    data::{AddressIpld, Did, Jwt},
+};
 use noosphere_storage::Storage;
-use ucan::crypto::KeyMaterial;
+use ucan::{
+    capability::{Capability, Resource, With},
+    chain::ProofChain,
+    crypto::KeyMaterial,
+    Ucan,
+};
 
 use crate::{internal::SphereContextInternal, HasMutableSphereContext, SpherePetnameRead};
 
@@ -27,12 +35,7 @@ where
     /// associated [Jwt] to a known value. The [Jwt] must be a valid UCAN that
     /// publishes a name record and grants sufficient authority from the
     /// configured [Did] to the publisher.
-    async fn adopt_petname(
-        &mut self,
-        name: &str,
-        identity: &Did,
-        record: &Jwt,
-    ) -> Result<Option<Did>>;
+    async fn adopt_petname(&mut self, name: &str, record: &Jwt) -> Result<Option<Did>>;
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -69,20 +72,47 @@ where
         Ok(())
     }
 
-    async fn adopt_petname(
-        &mut self,
-        name: &str,
-        identity: &Did,
-        record: &Jwt,
-    ) -> Result<Option<Did>> {
+    async fn adopt_petname(&mut self, name: &str, record: &Jwt) -> Result<Option<Did>> {
         self.assert_write_access().await?;
 
-        // TODO: Verify that a record for an existing address is actually newer than the old one
-        // TODO: Validate the record as a UCAN
+        let mut context = self.sphere_context_mut().await?;
+
+        let ucan = Ucan::try_from(record.as_str())?;
+        let identity = Did::from(ucan.audience());
+        let db = context.db().clone();
+        let chain = ProofChain::from_ucan(ucan, context.did_parser_mut(), &db).await?;
+
+        let expected_capability = Capability {
+            with: With::Resource {
+                kind: Resource::Scoped(SphereReference {
+                    did: identity.clone().into(),
+                }),
+            },
+            can: SphereAction::Publish,
+        };
+
+        let capabilities = chain.reduce_capabilities(&SPHERE_SEMANTICS);
+        let mut verified = false;
+
+        for info in capabilities {
+            if info.capability.enables(&expected_capability)
+                && info.originators.contains(identity.as_str())
+            {
+                verified = true;
+                break;
+            }
+        }
+
+        if !verified {
+            return Err(anyhow!("Record does not enable publishing to {}", identity));
+        }
+
         debug!(
             "Adopting '{}' ({}), resolving to {}...",
             name, identity, record
         );
+
+        // TODO: Verify that a record for an existing address is actually newer than the old one
 
         let new_address = AddressIpld {
             identity: identity.clone(),
@@ -106,7 +136,7 @@ where
 
         match previous_address {
             Some(previous_address) => {
-                if identity != &previous_address.identity {
+                if identity != previous_address.identity {
                     return Ok(Some(previous_address.identity.to_owned()));
                 }
             }

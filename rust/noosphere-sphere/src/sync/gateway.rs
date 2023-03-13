@@ -264,13 +264,12 @@ where
         for (
             name,
             AddressIpld {
-                identity,
-                last_known_record,
+                last_known_record, ..
             },
         ) in updated_names.into_iter()
         {
             if let Some(jwt) = last_known_record {
-                context.adopt_petname(&name, &identity, &jwt).await?;
+                context.adopt_petname(&name, &jwt).await?;
             }
         }
 
@@ -319,7 +318,13 @@ where
             .resolve_ucan(context.db())
             .await?;
 
-        let name_record = Jwt(UcanBuilder::default()
+        debug!(
+            "AUTHORIZATION (CID): {:?}",
+            context.author().require_authorization()?
+        );
+        debug!("AUTHORIZATION (UCAN): {:?}", authorization);
+
+        let ucan = UcanBuilder::default()
             .issued_by(&context.author().key)
             .for_audience(&local_sphere_identity)
             .witnessed_by(&authorization)
@@ -332,13 +337,40 @@ where
                 can: SphereAction::Publish,
             })
             .with_lifetime(120)
+            .with_nonce()
             .with_fact(json!({
               "link": local_sphere_tip.to_string()
             }))
             .build()?
             .sign()
-            .await?
-            .encode()?);
+            .await?;
+
+        let name_record = Jwt(ucan.encode()?);
+
+        // debug!("NAME RECORD (JWT): {:?}", name_record);
+        debug!("NAME RECORD (UCAN): {:?}", ucan);
+
+        // let name_record = Jwt(UcanBuilder::default()
+        //     .issued_by(&context.author().key)
+        //     .for_audience(&local_sphere_identity)
+        //     .witnessed_by(&authorization)
+        //     .claiming_capability(&Capability {
+        //         with: With::Resource {
+        //             kind: Resource::Scoped(SphereReference {
+        //                 did: local_sphere_identity.to_string(),
+        //             }),
+        //         },
+        //         can: SphereAction::Publish,
+        //     })
+        //     .with_lifetime(120)
+        //     .with_nonce()
+        //     .with_fact(json!({
+        //       "link": local_sphere_tip.to_string()
+        //     }))
+        //     .build()?
+        //     .sign()
+        //     .await?
+        //     .encode()?);
 
         println!(
             "Pushing new local history to gateway {}...",

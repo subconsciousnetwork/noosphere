@@ -9,17 +9,14 @@ use noosphere_core::{
 };
 use noosphere_ipfs::{IpfsClient, KuboClient};
 use noosphere_sphere::{
-    metadata::COUNTERPART, HasMutableSphereContext, HasSphereContext, SphereContentRead,
-    SphereContentWrite, SphereContext, SphereCursor,
+    metadata::COUNTERPART, HasMutableSphereContext, SphereContentRead, SphereContentWrite,
+    SphereCursor,
 };
 use noosphere_storage::{block_deserialize, block_serialize, BlockStore, KeyValueStore, Storage};
 use serde::{Deserialize, Serialize};
 use tokio::{
     io::AsyncReadExt,
-    sync::{
-        mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
-        Mutex,
-    },
+    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
 };
 use tokio_stream::StreamExt;
@@ -31,17 +28,13 @@ use wnfs::private::BloomFilter;
 
 /// A [SyndicationJob] is a request to syndicate the blocks of a _counterpart_
 /// sphere to the broader IPFS network.
-pub struct SyndicationJob<K, S>
-where
-    K: KeyMaterial + Clone + 'static,
-    S: Storage,
-{
+pub struct SyndicationJob<H> {
     /// The revision of the _local_ sphere to discover the _counterpart_ sphere
     /// from; the counterpart sphere's revision will need to be derived using
     /// this checkpoint in local sphere history.
     pub revision: Cid,
     /// The [SphereContext] that corresponds to the _local_ sphere.
-    pub context: Arc<Mutex<SphereContext<K, S>>>,
+    pub context: H,
 }
 
 /// A [SyndicationCheckpoint] represents the last spot in the history of a
@@ -57,13 +50,11 @@ pub struct SyndicationCheckpoint {
 /// Start a Tokio task that waits for [SyndicationJob] messages and then
 /// attempts to syndicate to the configured IPFS RPC. Currently only Kubo IPFS
 /// backends are supported.
-pub fn start_ipfs_syndication<K, S>(
+pub fn start_ipfs_syndication<H, K, S>(
     ipfs_api: Url,
-) -> (
-    UnboundedSender<SyndicationJob<K, S>>,
-    JoinHandle<Result<()>>,
-)
+) -> (UnboundedSender<SyndicationJob<H>>, JoinHandle<Result<()>>)
 where
+    H: HasMutableSphereContext<K, S> + 'static,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -72,11 +63,12 @@ where
     (tx, tokio::task::spawn(ipfs_syndication_task(ipfs_api, rx)))
 }
 
-async fn ipfs_syndication_task<K, S>(
+async fn ipfs_syndication_task<H, K, S>(
     ipfs_api: Url,
-    mut receiver: UnboundedReceiver<SyndicationJob<K, S>>,
+    mut receiver: UnboundedReceiver<SyndicationJob<H>>,
 ) -> Result<()>
 where
+    H: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -101,7 +93,7 @@ where
         // syndication checkpoint for this Kubo node
         let (sphere_revision, ancestor_revision, mut syndicated_blocks, db) = {
             let db = {
-                let context = context.lock().await;
+                let context = context.sphere_context().await?;
                 context.db().clone()
             };
 
