@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 
 MOUNT_DIR="/home/dhtuser/.noosphere"
 
@@ -24,5 +25,7 @@ if [[ -z "$2" ]]; then
 	echo "Missing config file path."
 	exit 1
 fi
+
+ls -al /home/dhtuser
 
 orb-ns run --config $CONFIG_FILE
