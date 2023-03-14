@@ -27,5 +27,6 @@ if [[ -z "$2" ]]; then
 fi
 
 ls -al /home/dhtuser
+cat /home/dhtuser/orb-ns.config.toml
 
 orb-ns run --config $CONFIG_FILE
