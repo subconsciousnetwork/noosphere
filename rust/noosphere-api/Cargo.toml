@@ -30,8 +30,8 @@ noosphere-core = { version = "0.6.3", path = "../noosphere-core" }
 noosphere-storage = { version = "0.4.2", path = "../noosphere-storage" }
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls"] }
 
-ucan = { version = "0.1.0" }
-ucan-key-support = { version = "0.1.0" }
+ucan = { version = "0.1.1" }
+ucan-key-support = { version = "0.1.1" }
 
 
 libipld-core = "~0.15"

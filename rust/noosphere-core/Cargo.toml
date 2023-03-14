@@ -49,8 +49,8 @@ libipld-cbor = "~0.15"
 noosphere-storage = { version = "0.4.2", path = "../noosphere-storage" }
 noosphere-collections = { version = "0.3.2", path = "../noosphere-collections" }
 
-ucan = { version = "0.1.0" }
-ucan-key-support = { version = "0.1.0" }
+ucan = { version = "0.1.1" }
+ucan-key-support = { version = "0.1.1" }
 
 [dev-dependencies]
 wasm-bindgen-test = "~0.3"

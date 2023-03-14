@@ -2,6 +2,7 @@ use anyhow::Result;
 
 use axum::{extract::Query, http::StatusCode, response::IntoResponse, Extension};
 use cid::Cid;
+use libipld_cbor::DagCborCodec;
 use noosphere_api::data::{FetchParameters, FetchResponse};
 use noosphere_core::{
     authority::{SphereAction, SphereReference},
@@ -9,7 +10,7 @@ use noosphere_core::{
     view::Sphere,
 };
 use noosphere_sphere::HasSphereContext;
-use noosphere_storage::{SphereDb, Storage};
+use noosphere_storage::{block_serialize, SphereDb, Storage};
 use ucan::{
     capability::{Capability, Resource, With},
     crypto::KeyMaterial,
@@ -107,7 +108,7 @@ where
                 Some(since_local_sphere_cid) => {
                     let since_local_sphere = Sphere::at(since_local_sphere_cid, db);
                     let links = since_local_sphere.get_links().await?;
-                    links.get(&scope.counterpart).await?.cloned()
+                    links.get_as_cid::<DagCborCodec>(&scope.counterpart).await?
                 }
                 None => None,
             };

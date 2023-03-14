@@ -9,6 +9,7 @@ use libipld_cbor::DagCborCodec;
 use libipld_core::{raw::RawCodec, serde::to_ipld};
 use noosphere_storage::{block_deserialize, block_serialize, BlockStore};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use ucan::{ipld::UcanIpld, Ucan};
 
 use crate::{
     data::{
@@ -19,7 +20,8 @@ use crate::{
 };
 
 use super::{
-    AllowedIpld, AuthorityIpld, NamesIpld, RevokedIpld, VersionedMapKey, VersionedMapValue,
+    AddressIpld, AllowedIpld, AuthorityIpld, Jwt, NamesIpld, RevokedIpld, VersionedMapKey,
+    VersionedMapValue,
 };
 
 // TODO: This should maybe only collect CIDs, and then streaming-serialize to
@@ -179,12 +181,76 @@ impl TryBundle for BodyChunkIpld {
     }
 }
 
+// #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+// #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+// impl TryBundle for Ucan {
+//     async fn try_extend_bundle<S: BlockStore>(
+//         &self,
+//         bundle: &mut Bundle,
+//         _store: &S,
+//     ) -> Result<()> {
+//         let (self_cid, self_bytes) = block_serialize::<DagCborCodec, _>(self)?;
+//         bundle.add(self_cid, self_bytes);
+//         Ok(())
+//     }
+
+//     async fn try_extend_bundle_with_cid<S: BlockStore>(
+//         cid: &Cid,
+//         bundle: &mut Bundle,
+//         store: &S,
+//     ) -> Result<()> {
+//         let jwt = store.load::<RawCodec, Jwt>(cid).await?;
+//         let ucan = Ucan::from_str(jwt.as_str())?;
+//         // let ucan_ipld = UcanIpld::try_from(&ucan)?;
+
+//         ucan.try_extend_bundle(bundle, store).await?;
+
+//         Ok(())
+//     }
+// }
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl TryBundle for Jwt {
+    async fn try_extend_bundle_with_cid<S: BlockStore>(
+        cid: &Cid,
+        bundle: &mut Bundle,
+        store: &S,
+    ) -> Result<()> {
+        let (self_cid, self_bytes) = block_serialize::<DagCborCodec, _>(self)?;
+        bundle.add(self_cid, self_bytes);
+
+        // match self.last_known_record {
+        //     Some(record) => Jwt::try_extend_bundle_with_cid(record, store)?
+        //     None => (),
+        // };
+
+        Ok(())
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl TryBundle for AddressIpld {
+    async fn try_extend_bundle<S: BlockStore>(&self, bundle: &mut Bundle, store: &S) -> Result<()> {
+        let (self_cid, self_bytes) = block_serialize::<DagCborCodec, _>(self)?;
+        bundle.add(self_cid, self_bytes);
+
+        match self.last_known_record {
+            Some(record) => Jwt::try_extend_bundle_with_cid(&record, bundle, store).await?,
+            None => (),
+        };
+
+        Ok(())
+    }
+}
+
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl<K, V> TryBundle for ChangelogIpld<MapOperation<K, V>>
 where
     K: VersionedMapKey,
-    V: VersionedMapValue,
+    V: VersionedMapValue + TryBundle,
 {
     async fn try_extend_bundle_with_cid<S: BlockStore>(
         cid: &Cid,
@@ -192,40 +258,43 @@ where
         store: &S,
     ) -> Result<()> {
         let bytes = store.require_block(cid).await?;
-        let mut cids = Vec::new();
+        // let mut cids = Vec::new();
         let changelog = block_deserialize::<DagCborCodec, Self>(&bytes)?;
 
         bundle.add(*cid, bytes);
 
         for op in changelog.changes {
             match op {
-                MapOperation::Add { .. } => to_ipld(&op)?.references(&mut cids),
+                MapOperation::Add { value, .. } => {
+                    // to_ipld(&op)?.references(&mut cids),
+                    value.try_extend_bundle(&mut bundle, store).await?;
+                }
                 _ => (),
             };
         }
 
-        for cid in cids {
-            match cid.codec() {
-                codec_id if codec_id == u64::from(DagCborCodec) => {
-                    let block_bytes = store.require_block(&cid).await?;
+        // for cid in cids {
+        //     match cid.codec() {
+        //         codec_id if codec_id == u64::from(DagCborCodec) => {
+        //             let block_bytes = store.require_block(&cid).await?;
 
-                    match block_deserialize::<DagCborCodec, _>(&block_bytes) {
-                        Ok(memo @ MemoIpld { .. }) => {
-                            memo.try_extend_bundle(bundle, store).await?;
-                        }
-                        _ => {
-                            bundle.add(cid, block_bytes);
-                        }
-                    };
-                }
-                codec_id if codec_id == u64::from(RawCodec) => {
-                    bundle.add(cid, store.require_block(&cid).await?);
-                }
-                codec_id => warn!("Unrecognized codec {}; skipping...", codec_id),
-            };
+        //             match block_deserialize::<DagCborCodec, _>(&block_bytes) {
+        //                 Ok(memo @ MemoIpld { .. }) => {
+        //                     memo.try_extend_bundle(bundle, store).await?;
+        //                 }
+        //                 _ => {
+        //                     bundle.add(cid, block_bytes);
+        //                 }
+        //             };
+        //         }
+        //         codec_id if codec_id == u64::from(RawCodec) => {
+        //             bundle.add(cid, store.require_block(&cid).await?);
+        //         }
+        //         codec_id => warn!("Unrecognized codec {}; skipping...", codec_id),
+        //     };
 
-            bundle.add(cid, store.require_block(&cid).await?);
-        }
+        //     bundle.add(cid, store.require_block(&cid).await?);
+        // }
 
         Ok(())
     }
@@ -292,7 +361,7 @@ impl TryBundle for MemoIpld {
 impl<K, V> TryBundle for VersionedMapIpld<K, V>
 where
     K: VersionedMapKey,
-    V: VersionedMapValue,
+    V: VersionedMapValue + TryBundle,
 {
     async fn try_extend_bundle<S: BlockStore>(&self, bundle: &mut Bundle, store: &S) -> Result<()> {
         let (self_cid, self_bytes) = block_serialize::<DagCborCodec, _>(self)?;

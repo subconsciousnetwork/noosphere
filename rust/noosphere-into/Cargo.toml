@@ -41,8 +41,8 @@ futures = { version = "~0.3" }
 async-compat = { version = "~0.2" }
 async-utf8-decoder = { version = "~0.3" }
 
-ucan = { version = "0.1.0" }
-ucan-key-support = { version = "0.1.0" }
+ucan = { version = "0.1.1" }
+ucan-key-support = { version = "0.1.1" }
 
 
 

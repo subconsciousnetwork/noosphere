@@ -27,7 +27,7 @@ async-stream = "~0.3"
 tokio-stream = "~0.1"
 cid = "~0.9"
 tracing = "~0.1"
-ucan = { version = "0.1.0" }
+ucan = { version = "0.1.1" }
 libipld-core = "~0.15"
 libipld-cbor = "~0.15"
 serde = "^1"

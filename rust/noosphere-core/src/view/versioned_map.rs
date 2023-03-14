@@ -5,18 +5,22 @@ use async_once_cell::OnceCell;
 use cid::Cid;
 use futures::Stream;
 use libipld_cbor::DagCborCodec;
+use libipld_core::{
+    codec::{Codec, Encode},
+    ipld::Ipld,
+};
 
 use crate::data::{
-    AddressIpld, ChangelogIpld, CidKey, DelegationIpld, LinksIpld, MapOperation, RevocationIpld,
-    VersionedMapIpld, VersionedMapKey, VersionedMapValue,
+    AddressIpld, ChangelogIpld, CidKey, DelegationIpld, LinksIpld, MapOperation, MemoIpld,
+    RevocationIpld, VersionedMapIpld, VersionedMapKey, VersionedMapValue,
 };
 
 use noosphere_collections::hamt::Hamt;
-use noosphere_storage::BlockStore;
+use noosphere_storage::{block_serialize, BlockStore};
 
 use super::VersionedMapMutation;
 
-pub type Links<S> = VersionedMap<String, Cid, S>;
+pub type Links<S> = VersionedMap<String, MemoIpld, S>;
 pub type Names<S> = VersionedMap<String, AddressIpld, S>;
 pub type AllowedUcans<S> = VersionedMap<CidKey, DelegationIpld, S>;
 pub type RevokedUcans<S> = VersionedMap<CidKey, RevocationIpld, S>;
@@ -130,6 +134,21 @@ where
         let hamt = self.get_hamt().await?;
 
         hamt.get(key).await
+    }
+
+    pub async fn get_as_cid<C>(&self, key: &K) -> Result<Option<Cid>>
+    where
+        C: Codec + Default,
+        Ipld: Encode<C>,
+        u64: From<C>,
+    {
+        let hamt = self.get_hamt().await?;
+        let value = hamt.get(key).await?;
+
+        Ok(match value {
+            Some(value) => Some(block_serialize::<C, _>(value)?.0),
+            None => None,
+        })
     }
 
     /// Same as `get`, but gives an error result if the key is not present in

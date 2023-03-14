@@ -103,6 +103,7 @@ mod tests {
 
     use crate::{
         authority::generate_ed25519_key,
+        data::MemoIpld,
         view::{Sphere, SphereMutation},
     };
 
@@ -125,7 +126,7 @@ mod tests {
             let mut mutation = SphereMutation::new(&owner_did);
             mutation.links_mut().set(
                 &format!("foo/{i}"),
-                &store.save::<RawCodec, _>(Bytes::new(&[i])).await.unwrap(),
+                &MemoIpld::for_body(&mut store, &[i]).await.unwrap(),
             );
             let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             let next_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();

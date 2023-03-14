@@ -42,8 +42,8 @@ noosphere-sphere = { version = "0.1.0", path = "../noosphere-sphere" }
 noosphere-storage = { version = "0.4.2", path = "../noosphere-storage" }
 noosphere-api = { version = "0.5.6", path = "../noosphere-api" }
 noosphere-ipfs = { version = "^0.1", path = "../noosphere-ipfs", optional = true }
-ucan = { version = "0.1.0" }
-ucan-key-support = { version = "0.1.0" }
+ucan = { version = "0.1.1" }
+ucan-key-support = { version = "0.1.1" }
 
 [dev-dependencies]
 libipld-core = "~0.15"

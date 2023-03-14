@@ -6509,9 +6509,9 @@ checksum = "dcf81ac59edc17cc8697ff311e8f5ef2d99fcbd9817b34cec66f90b6c3dfd987"
 
 [[package]]
 name = "ucan"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9297ecee0db69a2ac6dbb4ccfd3a64aab7d7da9f967b83f7ab4dd6a786de89e9"
+checksum = "4cd5d89f3eb6d7e91ebcb733ceb95d186fa3479d264b4bacd971a25b3d5d336a"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -6537,9 +6537,9 @@ dependencies = [
 
 [[package]]
 name = "ucan-key-support"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3790fac4be614b355dfe3768d1d4468c8d1ee180c2dc40348a78e3b27b9a40fa"
+checksum = "d653bf4dbc71192250b531b53820e37da8e69ebbd846bac14b9bfcbd390edb61"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6548,6 +6548,7 @@ dependencies = [
  "js-sys",
  "log 0.4.17",
  "npm_rs",
+ "p256",
  "rsa",
  "sha2 0.10.6",
  "ucan",
