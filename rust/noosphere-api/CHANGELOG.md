@@ -27,6 +27,25 @@
     * noosphere-core bumped from 0.6.2 to 0.6.3
     * noosphere-storage bumped from 0.4.1 to 0.4.2
 
+## [0.6.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.5.6...noosphere-api-v0.6.0) (2023-03-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* Petname resolution and synchronization in spheres and gateways (#253)
+
+### Features
+
+* Petname resolution and synchronization in spheres and gateways ([#253](https://github.com/subconsciousnetwork/noosphere/issues/253)) ([f7ddfa7](https://github.com/subconsciousnetwork/noosphere/commit/f7ddfa7b65129efe795c6e3fca58cdc22799127a))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.6.3 to 0.7.0
+    * noosphere-storage bumped from 0.4.2 to 0.5.0
+
 ## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.4.0...noosphere-api-v0.5.0) (2022-11-30)
 
 

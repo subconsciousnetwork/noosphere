@@ -27,6 +27,26 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-fs bumped from 0.5.2 to 0.5.3
 
+## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.4.5...noosphere-into-v0.5.0) (2023-03-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* Petname resolution and synchronization in spheres and gateways (#253)
+
+### Features
+
+* Noosphere builds and runs tests on Windows ([#228](https://github.com/subconsciousnetwork/noosphere/issues/228)) ([d1320f0](https://github.com/subconsciousnetwork/noosphere/commit/d1320f08429c8f8090fd4612b56ebf9386414cc7))
+* Petname resolution and synchronization in spheres and gateways ([#253](https://github.com/subconsciousnetwork/noosphere/issues/253)) ([f7ddfa7](https://github.com/subconsciousnetwork/noosphere/commit/f7ddfa7b65129efe795c6e3fca58cdc22799127a))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.6.3 to 0.7.0
+    * noosphere-storage bumped from 0.4.2 to 0.5.0
+
 ## [0.4.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.3.0...noosphere-into-v0.4.0) (2022-12-14)
 
 
