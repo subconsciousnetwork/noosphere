@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.4.2...noosphere-storage-v0.5.0) (2023-03-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* Petname resolution and synchronization in spheres and gateways (#253)
+* Reconfigure module dependencies so that noosphere-ipfs depends on noosphere-storage, and not the other way around creating a cycle. (#254)
+* Templatize the two IPFS HTTP APIs as noosphere_ipfs::IpfsClient, and reconfigure KuboStorage as IpfsStorage, operating on IpfsClient rather than a URL. (#252)
+
+### Features
+
+* Petname resolution and synchronization in spheres and gateways ([#253](https://github.com/subconsciousnetwork/noosphere/issues/253)) ([f7ddfa7](https://github.com/subconsciousnetwork/noosphere/commit/f7ddfa7b65129efe795c6e3fca58cdc22799127a))
+
+
+### Bug Fixes
+
+* Reconfigure module dependencies so that noosphere-ipfs depends on noosphere-storage, and not the other way around creating a cycle. ([#254](https://github.com/subconsciousnetwork/noosphere/issues/254)) ([b79872a](https://github.com/subconsciousnetwork/noosphere/commit/b79872afd54c7b69d447dfe99e750bb6a813645c))
+
+
+### Miscellaneous Chores
+
+* Templatize the two IPFS HTTP APIs as noosphere_ipfs::IpfsClient, and reconfigure KuboStorage as IpfsStorage, operating on IpfsClient rather than a URL. ([#252](https://github.com/subconsciousnetwork/noosphere/issues/252)) ([518beae](https://github.com/subconsciousnetwork/noosphere/commit/518beae563bd04c921ee3c6641a7249f14c611e4))
+
 ## [0.4.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.4.1...noosphere-storage-v0.4.2) (2023-02-16)
 
 

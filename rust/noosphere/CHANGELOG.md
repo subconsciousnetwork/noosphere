@@ -8,6 +8,42 @@
   * dependencies
     * noosphere-into bumped from 0.4.4 to 0.4.5
 
+## [0.7.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.6.3...noosphere-v0.7.0) (2023-03-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* Implement C FFI for petname management (#271)
+* Petname resolution and synchronization in spheres and gateways (#253)
+* Reconfigure module dependencies so that noosphere-ipfs depends on noosphere-storage, and not the other way around creating a cycle. (#254)
+* Templatize the two IPFS HTTP APIs as noosphere_ipfs::IpfsClient, and reconfigure KuboStorage as IpfsStorage, operating on IpfsClient rather than a URL. (#252)
+
+### Features
+
+* Implement C FFI for petname management ([#271](https://github.com/subconsciousnetwork/noosphere/issues/271)) ([d43c628](https://github.com/subconsciousnetwork/noosphere/commit/d43c6283c6b2374de503d70bd46c8df7d0337c3a))
+* Initial example of C integration. ([#242](https://github.com/subconsciousnetwork/noosphere/issues/242)) ([57beb24](https://github.com/subconsciousnetwork/noosphere/commit/57beb24f9996a92fa348657a58920a7944f53e05))
+* Introduce `noosphere-gateway` crate ([#238](https://github.com/subconsciousnetwork/noosphere/issues/238)) ([791bc39](https://github.com/subconsciousnetwork/noosphere/commit/791bc3996cfac12cb077c3721f22d080a71d33ba))
+* Noosphere builds and runs tests on Windows ([#228](https://github.com/subconsciousnetwork/noosphere/issues/228)) ([d1320f0](https://github.com/subconsciousnetwork/noosphere/commit/d1320f08429c8f8090fd4612b56ebf9386414cc7))
+* Petname resolution and synchronization in spheres and gateways ([#253](https://github.com/subconsciousnetwork/noosphere/issues/253)) ([f7ddfa7](https://github.com/subconsciousnetwork/noosphere/commit/f7ddfa7b65129efe795c6e3fca58cdc22799127a))
+
+
+### Bug Fixes
+
+* FFI header generation: Use an ordered BTreeMap to replace class token keys so that class names that are subsets of other class names are replaced appropriately. ([#270](https://github.com/subconsciousnetwork/noosphere/issues/270)) ([4cf2e40](https://github.com/subconsciousnetwork/noosphere/commit/4cf2e4053c3caad3fc903d285c98b6ac459c9582))
+* Reconfigure module dependencies so that noosphere-ipfs depends on noosphere-storage, and not the other way around creating a cycle. ([#254](https://github.com/subconsciousnetwork/noosphere/issues/254)) ([b79872a](https://github.com/subconsciousnetwork/noosphere/commit/b79872afd54c7b69d447dfe99e750bb6a813645c))
+
+
+### Miscellaneous Chores
+
+* Templatize the two IPFS HTTP APIs as noosphere_ipfs::IpfsClient, and reconfigure KuboStorage as IpfsStorage, operating on IpfsClient rather than a URL. ([#252](https://github.com/subconsciousnetwork/noosphere/issues/252)) ([518beae](https://github.com/subconsciousnetwork/noosphere/commit/518beae563bd04c921ee3c6641a7249f14c611e4))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-into bumped from 0.4.5 to 0.5.0
+
 ## [0.6.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.6.1...noosphere-v0.6.2) (2023-02-07)
 
 

@@ -4,6 +4,41 @@
   * dev-dependencies
     * noosphere-storage bumped from 0.4.0 to 0.4.2
 
+## [0.2.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.1.2...noosphere-ipfs-v0.2.0) (2023-03-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* Petname resolution and synchronization in spheres and gateways (#253)
+* Reconfigure module dependencies so that noosphere-ipfs depends on noosphere-storage, and not the other way around creating a cycle. (#254)
+* Templatize the two IPFS HTTP APIs as noosphere_ipfs::IpfsClient, and reconfigure KuboStorage as IpfsStorage, operating on IpfsClient rather than a URL. (#252)
+
+### Features
+
+* Implement `IpfsClient::get_block` for Kubo for orb/orb-ns integration with IPFS. ([#251](https://github.com/subconsciousnetwork/noosphere/issues/251)) ([f18db24](https://github.com/subconsciousnetwork/noosphere/commit/f18db2425d620165090afee9418d5f743a0cf579))
+* Introduce `noosphere-gateway` crate ([#238](https://github.com/subconsciousnetwork/noosphere/issues/238)) ([791bc39](https://github.com/subconsciousnetwork/noosphere/commit/791bc3996cfac12cb077c3721f22d080a71d33ba))
+* Petname resolution and synchronization in spheres and gateways ([#253](https://github.com/subconsciousnetwork/noosphere/issues/253)) ([f7ddfa7](https://github.com/subconsciousnetwork/noosphere/commit/f7ddfa7b65129efe795c6e3fca58cdc22799127a))
+
+
+### Bug Fixes
+
+* Reconfigure module dependencies so that noosphere-ipfs depends on noosphere-storage, and not the other way around creating a cycle. ([#254](https://github.com/subconsciousnetwork/noosphere/issues/254)) ([b79872a](https://github.com/subconsciousnetwork/noosphere/commit/b79872afd54c7b69d447dfe99e750bb6a813645c))
+
+
+### Miscellaneous Chores
+
+* Templatize the two IPFS HTTP APIs as noosphere_ipfs::IpfsClient, and reconfigure KuboStorage as IpfsStorage, operating on IpfsClient rather than a URL. ([#252](https://github.com/subconsciousnetwork/noosphere/issues/252)) ([518beae](https://github.com/subconsciousnetwork/noosphere/commit/518beae563bd04c921ee3c6641a7249f14c611e4))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.4.2 to 0.5.0
+  * dev-dependencies
+    * noosphere-storage bumped from 0.4.2 to 0.5.0
+    * noosphere-core bumped from 0.6.3 to 0.7.0
+
 ## [0.1.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.1.0...noosphere-ipfs-v0.1.1) (2023-01-31)
 
 

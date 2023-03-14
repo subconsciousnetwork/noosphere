@@ -49,13 +49,13 @@ witty-phrase-generator = "~0.2"
 toml_edit = { version = "~0.15", features = [ "serde" ] }
 globset = "~0.4"
 
-noosphere-ipfs = { version = "0.1.2", path = "../noosphere-ipfs" }
-noosphere-core = { version = "0.6.3", path = "../noosphere-core" }
-noosphere-ns = { version = "0.4.3", path = "../noosphere-ns" }
-noosphere-storage = { version = "0.4.2", path = "../noosphere-storage" }
+noosphere-ipfs = { version = "0.2.0", path = "../noosphere-ipfs" }
+noosphere-core = { version = "0.7.0", path = "../noosphere-core" }
+noosphere-ns = { version = "0.5.0", path = "../noosphere-ns" }
+noosphere-storage = { version = "0.5.0", path = "../noosphere-storage" }
 noosphere-sphere = { version = "0.1.0", path = "../noosphere-sphere" }
-noosphere-api = { version = "0.5.6", path = "../noosphere-api" }
-noosphere = { version = "0.6.3", path = "../noosphere" }
+noosphere-api = { version = "0.6.0", path = "../noosphere-api" }
+noosphere = { version = "0.7.0", path = "../noosphere" }
 ucan = { version = "0.1.0" }
 ucan-key-support = { version = "0.1.0" }
 cid = "~0.9"

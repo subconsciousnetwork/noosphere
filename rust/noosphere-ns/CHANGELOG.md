@@ -15,6 +15,39 @@
     * noosphere-core bumped from 0.6.0 to 0.6.1
     * noosphere bumped from 0.6.0 to 0.6.1
 
+## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.4.3...noosphere-ns-v0.5.0) (2023-03-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* Petname resolution and synchronization in spheres and gateways (#253)
+* Templatize the two IPFS HTTP APIs as noosphere_ipfs::IpfsClient, and reconfigure KuboStorage as IpfsStorage, operating on IpfsClient rather than a URL. (#252)
+
+### Features
+
+* Expose ipfs-api-url to orb-ns to integrate IPFS cid resolution in NS validation. ([#265](https://github.com/subconsciousnetwork/noosphere/issues/265)) ([d1bdc29](https://github.com/subconsciousnetwork/noosphere/commit/d1bdc29d28dc28e99eca794c11b4d190b7128dfe))
+* Petname resolution and synchronization in spheres and gateways ([#253](https://github.com/subconsciousnetwork/noosphere/issues/253)) ([f7ddfa7](https://github.com/subconsciousnetwork/noosphere/commit/f7ddfa7b65129efe795c6e3fca58cdc22799127a))
+
+
+### Bug Fixes
+
+* Limit delegated UCAN's lifetime to authorization token's lifetime where appropriate. ([#249](https://github.com/subconsciousnetwork/noosphere/issues/249)) ([b62fb88](https://github.com/subconsciousnetwork/noosphere/commit/b62fb888e16718cb84f33aa93c14385ddef4d8d1))
+
+
+### Miscellaneous Chores
+
+* Templatize the two IPFS HTTP APIs as noosphere_ipfs::IpfsClient, and reconfigure KuboStorage as IpfsStorage, operating on IpfsClient rather than a URL. ([#252](https://github.com/subconsciousnetwork/noosphere/issues/252)) ([518beae](https://github.com/subconsciousnetwork/noosphere/commit/518beae563bd04c921ee3c6641a7249f14c611e4))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.4.2 to 0.5.0
+    * noosphere-core bumped from 0.6.3 to 0.7.0
+    * noosphere bumped from 0.6.3 to 0.7.0
+    * noosphere-ipfs bumped from 0.1.2 to 0.2.0
+
 ## [0.4.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.4.2...noosphere-ns-v0.4.3) (2023-02-16)
 
 
