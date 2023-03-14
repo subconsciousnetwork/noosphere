@@ -13,18 +13,18 @@ use crate::{
 
 #[derive_ReprC]
 #[ReprC::opaque]
-pub struct NsNoosphereContext {
+pub struct NsNoosphere {
     inner: NoosphereContext,
     async_runtime: Arc<TokioRuntime>,
 }
 
-impl NsNoosphereContext {
+impl NsNoosphere {
     pub fn new(
         global_storage_path: &str,
         sphere_storage_path: &str,
         gateway_api: Option<&Url>,
     ) -> Result<Self> {
-        Ok(NsNoosphereContext {
+        Ok(NsNoosphere {
             inner: NoosphereContext::new(NoosphereContextConfiguration {
                 storage: NoosphereStorage::Scoped {
                     path: sphere_storage_path.into(),
@@ -78,14 +78,14 @@ pub fn ns_initialize(
     sphere_storage_path: char_p::Ref<'_>,
     gateway_url: Option<char_p::Ref<'_>>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
-) -> Option<repr_c::Box<NsNoosphereContext>> {
+) -> Option<repr_c::Box<NsNoosphere>> {
     error_out.try_or_initialize(|| {
         let gateway_url = match gateway_url {
             Some(raw_url) => Some(Url::parse(raw_url.to_str()).map_err(|error| anyhow!(error))?),
             None => None,
         };
 
-        Ok(repr_c::Box::new(NsNoosphereContext::new(
+        Ok(repr_c::Box::new(NsNoosphere::new(
             global_storage_path.to_str(),
             sphere_storage_path.to_str(),
             gateway_url.as_ref(),
@@ -96,7 +96,7 @@ pub fn ns_initialize(
 #[ffi_export]
 /// De-allocate a [NoosphereContext]. Note that this will also drop every
 /// [SphereContext] that remains active within the [NoosphereContext].
-pub fn ns_free(noosphere: repr_c::Box<NsNoosphereContext>) {
+pub fn ns_free(noosphere: repr_c::Box<NsNoosphere>) {
     drop(noosphere)
 }
 

@@ -6,8 +6,8 @@ use crate::{
 };
 use js_sys::{Array, Function};
 use noosphere_sphere::{
-    HasMutableSphereContext, SphereContentRead, SphereContentWalker, SphereContentWrite,
-    SphereContext, SphereCursor,
+    HasMutableSphereContext, SphereContentRead, SphereContentWrite, SphereContext, SphereCursor,
+    SphereWalker,
 };
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
@@ -114,7 +114,7 @@ impl SphereFs {
     /// after the callback has been invoked once for each entry in the sphere's
     /// namespace.
     pub async fn stream(&self, callback: Function) -> Result<(), String> {
-        let stream = SphereContentWalker::from(self.inner.clone()).into_stream();
+        let stream = SphereWalker::from(self.inner.clone()).into_content_stream();
         let this = JsValue::null();
 
         tokio::pin!(stream);

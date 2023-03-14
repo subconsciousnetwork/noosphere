@@ -5,7 +5,7 @@ use noosphere_sphere::{HasSphereContext, SphereSync};
 use safer_ffi::char_p::InvalidNulTerminator;
 use safer_ffi::prelude::*;
 
-use crate::ffi::{NsError, NsNoosphereContext, TryOrInitialize};
+use crate::ffi::{NsError, NsNoosphere, TryOrInitialize};
 use crate::sphere::SphereReceipt;
 
 #[derive_ReprC]
@@ -65,7 +65,7 @@ pub fn ns_sphere_receipt_free(sphere_receipt: repr_c::Box<NsSphereReceipt>) {
 /// and a human-readable mnemonic that can be used to rotate the key authorized
 /// to administer the sphere.
 pub fn ns_sphere_create(
-    noosphere: &mut NsNoosphereContext,
+    noosphere: &mut NsNoosphere,
     owner_key_name: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<repr_c::Box<NsSphereReceipt>> {
@@ -84,7 +84,7 @@ pub fn ns_sphere_create(
 /// key and authorization. The authorization should be provided in the form of
 /// a base64-encoded CID v1 string.
 pub fn ns_sphere_join(
-    noosphere: &mut NsNoosphereContext,
+    noosphere: &mut NsNoosphere,
     sphere_identity: char_p::Ref<'_>,
     local_key_name: char_p::Ref<'_>,
     authorization: char_p::Ref<'_>,
@@ -110,7 +110,7 @@ pub fn ns_sphere_join(
 /// in local history. If a version is recorded, it is returned as a
 /// base64-encoded CID v1 string.
 pub fn ns_sphere_version_get(
-    noosphere: &NsNoosphereContext,
+    noosphere: &NsNoosphere,
     sphere_identity: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<char_p::Box> {
@@ -141,7 +141,7 @@ pub fn ns_sphere_version_get(
 /// base64-encoded CID v1 of the latest locally-available sphere revision after
 /// the synchronization process has successfully completed.
 pub fn ns_sphere_sync(
-    noosphere: &mut NsNoosphereContext,
+    noosphere: &mut NsNoosphere,
     sphere_identity: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<char_p::Box> {

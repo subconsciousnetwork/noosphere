@@ -407,4 +407,200 @@ final class NoosphereTests: XCTestCase {
         ns_sphere_fs_free(sphere_fs)
         ns_free(noosphere)
     }
+    
+    func testSettingAndGettingAPetname() throws {
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
+
+        ns_key_create(noosphere, "bob", nil)
+
+        let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
+
+        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
+        let sphere = ns_sphere_fs_open(noosphere, sphere_identity_ptr, nil)
+        
+        ns_string_free(sphere_identity_ptr)
+        ns_sphere_receipt_free(sphere_receipt)
+        
+        ns_sphere_petname_set(noosphere, sphere, "alice", "did:key:alice", nil)
+        ns_sphere_fs_save(noosphere, sphere, nil, nil)
+        
+        let has_alice = ns_sphere_petname_is_set(noosphere, sphere, "alice", nil)
+
+        assert(has_alice)
+
+        let identity_ptr = ns_sphere_petname_get(noosphere, sphere, "alice", nil)
+        let identity = String.init(cString: identity_ptr!)
+        
+        assert(identity == "did:key:alice")
+
+        // Unassign the petname alice
+        ns_sphere_petname_set(noosphere, sphere, "alice", nil, nil)
+        ns_sphere_fs_save(noosphere, sphere, nil, nil)
+
+        let has_alice_after_unassign = ns_sphere_petname_is_set(noosphere, sphere, "alice", nil)
+        assert(!has_alice_after_unassign)
+        
+        ns_string_free(identity_ptr)
+        ns_sphere_fs_free(sphere)
+        ns_free(noosphere)
+    }
+
+    func testGetAllPetnamesInASphere() throws {
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
+
+        ns_key_create(noosphere, "bob", nil)
+
+        let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
+
+        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
+
+        let sphere = ns_sphere_fs_open(noosphere, sphere_identity_ptr, nil)
+
+        let changes_to_make = [
+            [
+                ["add", "alice", "did:key:alice"],
+                ["add", "cdata", "did:key:cdata"]
+            ],
+            [
+                ["add", "bijaz", "did:key:bijaz"]
+            ],
+            [
+                ["remove", "cdata"],
+                ["add", "alice", "did:key:cdata"],
+                ["add", "gordon", "did:key:gordon"]
+            ]
+        ]
+
+        var sphere_versions: [String] = [];
+
+        for i in 0..<changes_to_make.count {
+            let revision = changes_to_make[i]
+            
+            for j in 0..<revision.count {
+                let operation = revision[j]
+                switch operation[0] {
+                  case "add":
+                    ns_sphere_petname_set(noosphere, sphere, operation[1], operation[2], nil)
+                  case "remove":
+                    ns_sphere_petname_set(noosphere, sphere, operation[1], nil, nil)
+                  default:
+                    assert(false)
+                }
+            }
+            
+            ns_sphere_fs_save(noosphere, sphere, nil, nil)
+        
+            let sphere_version_ptr = ns_sphere_version_get(noosphere, sphere_identity_ptr, nil)
+            sphere_versions.append(String.init(cString: sphere_version_ptr!))
+            ns_string_free(sphere_version_ptr)
+        }
+        
+        let petnames = ns_sphere_petname_list(noosphere, sphere, nil)
+        let expected_petnames = [
+            "alice",
+            "bijaz",
+            "gordon"
+        ]
+        
+        let petname_count = petnames.len
+        
+        assert(petname_count == expected_petnames.count)
+        
+        var pointer = petnames.ptr!
+        
+        for i in 0..<petname_count {
+            let petname = String.init(cString: pointer.pointee!)
+            
+            print("Petname:", petname)
+            assert(expected_petnames[i] == petname)
+            
+            pointer += 1;
+        }
+        
+        ns_string_array_free(petnames)
+        ns_string_free(sphere_identity_ptr)
+        ns_sphere_receipt_free(sphere_receipt)
+        ns_sphere_fs_free(sphere)
+        ns_free(noosphere)
+    }
+
+    func testGettingChangedPetnamesAcrossRevisions() throws {
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
+
+        ns_key_create(noosphere, "bob", nil)
+
+        let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
+
+        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
+
+        let sphere = ns_sphere_fs_open(noosphere, sphere_identity_ptr, nil)
+
+        let changes_to_make = [
+            [
+                ["add", "alice", "did:key:alice"],
+                ["add", "cdata", "did:key:cdata"]
+            ],
+            [
+                ["add", "bijaz", "did:key:bijaz"]
+            ],
+            [
+                ["remove", "cdata"],
+                ["add", "alice", "did:key:cdata"],
+                ["add", "gordon", "did:key:gordon"]
+            ]
+        ]
+
+        var sphere_versions: [String] = [];
+
+        for i in 0..<changes_to_make.count {
+            let revision = changes_to_make[i]
+            
+            for j in 0..<revision.count {
+                let operation = revision[j]
+                switch operation[0] {
+                  case "add":
+                    ns_sphere_petname_set(noosphere, sphere, operation[1], operation[2], nil)
+                  case "remove":
+                    ns_sphere_petname_set(noosphere, sphere, operation[1], nil, nil)
+                  default:
+                    assert(false)
+                }
+            }
+            
+            ns_sphere_fs_save(noosphere, sphere, nil, nil)
+        
+            let sphere_version_ptr = ns_sphere_version_get(noosphere, sphere_identity_ptr, nil)
+            sphere_versions.append(String.init(cString: sphere_version_ptr!))
+            ns_string_free(sphere_version_ptr)
+        }
+        
+        let changes = ns_sphere_petname_changes(noosphere, sphere, sphere_versions[0], nil)
+        let expected_changes = [
+            "alice",
+            "bijaz",
+            "cdata",
+            "gordon"
+        ]
+        
+        let change_count = changes.len
+        
+        assert(change_count == expected_changes.count)
+        
+        var pointer = changes.ptr!
+        
+        for i in 0..<change_count {
+            let petname = String.init(cString: pointer.pointee!)
+            
+            print("Changed petname:", petname)
+            assert(expected_changes[i] == petname)
+            
+            pointer += 1;
+        }
+        
+        ns_string_array_free(changes)
+        ns_string_free(sphere_identity_ptr)
+        ns_sphere_receipt_free(sphere_receipt)
+        ns_sphere_fs_free(sphere)
+        ns_free(noosphere)
+    }
 }

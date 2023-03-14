@@ -65,6 +65,7 @@ mod content;
 mod context;
 mod cursor;
 mod has;
+mod walker;
 
 pub mod helpers;
 
@@ -80,3 +81,4 @@ pub use has::*;
 pub use metadata::*;
 pub use petname::*;
 pub use sync::*;
+pub use walker::*;
