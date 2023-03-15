@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 
 MOUNT_DIR="/home/dhtuser/.noosphere"
 
