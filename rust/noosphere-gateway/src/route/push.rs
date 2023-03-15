@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, sync::Arc};
+use std::{collections::BTreeSet, marker::PhantomData};
 
 use anyhow::Result;
 
@@ -11,11 +11,9 @@ use noosphere_core::{
     data::{Bundle, MapOperation},
     view::Sphere,
 };
-use noosphere_sphere::{
-    HasMutableSphereContext, HasSphereContext, SphereContentWrite, SphereContext, SphereCursor,
-};
-use noosphere_storage::NativeStorage;
-use tokio::sync::{mpsc::UnboundedSender, Mutex};
+use noosphere_sphere::{HasMutableSphereContext, SphereContentWrite, SphereCursor};
+use noosphere_storage::Storage;
+use tokio::sync::mpsc::UnboundedSender;
 use tokio_stream::StreamExt;
 use ucan::capability::{Capability, Resource, With};
 use ucan::crypto::KeyMaterial;
@@ -26,16 +24,18 @@ use crate::{
 };
 
 // #[debug_handler]
-pub async fn push_route<K>(
+pub async fn push_route<H, K, S>(
     authority: GatewayAuthority<K>,
     ContentLengthLimit(Cbor(request_body)): ContentLengthLimit<Cbor<PushBody>, { 1024 * 5000 }>,
-    Extension(sphere_context): Extension<Arc<Mutex<SphereContext<K, NativeStorage>>>>,
+    Extension(sphere_context): Extension<H>,
     Extension(gateway_scope): Extension<GatewayScope>,
-    Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<K, NativeStorage>>>,
-    Extension(name_system_tx): Extension<UnboundedSender<NameSystemJob<K, NativeStorage>>>,
+    Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<H>>>,
+    Extension(name_system_tx): Extension<UnboundedSender<NameSystemJob<H>>>,
 ) -> Result<Cbor<PushResponse>, StatusCode>
 where
+    H: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
 {
     debug!("Invoking push route...");
 
@@ -60,25 +60,33 @@ where
         syndication_tx,
         name_system_tx,
         request_body,
+        key_type: PhantomData,
+        storage_type: PhantomData,
     };
 
     Ok(Cbor(gateway_push_routine.invoke().await?))
 }
 
-pub struct GatewayPushRoutine<K>
+pub struct GatewayPushRoutine<H, K, S>
 where
+    H: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
 {
-    sphere_context: Arc<Mutex<SphereContext<K, NativeStorage>>>,
+    sphere_context: H,
     gateway_scope: GatewayScope,
-    syndication_tx: UnboundedSender<SyndicationJob<K, NativeStorage>>,
-    name_system_tx: UnboundedSender<NameSystemJob<K, NativeStorage>>,
+    syndication_tx: UnboundedSender<SyndicationJob<H>>,
+    name_system_tx: UnboundedSender<NameSystemJob<H>>,
     request_body: PushBody,
+    key_type: PhantomData<K>,
+    storage_type: PhantomData<S>,
 }
 
-impl<K> GatewayPushRoutine<K>
+impl<H, K, S> GatewayPushRoutine<H, K, S>
 where
+    H: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
 {
     pub async fn invoke(mut self) -> Result<PushResponse, PushError> {
         debug!("Invoking gateway push...");
@@ -108,7 +116,7 @@ where
         debug!("Verifying pushed sphere history...");
 
         let sphere_identity = &self.request_body.sphere;
-        let gateway_sphere_context = self.sphere_context.lock().await;
+        let gateway_sphere_context = self.sphere_context.sphere_context().await?;
         let db = gateway_sphere_context.db();
 
         let local_sphere_base_cid = db.get_version(sphere_identity).await?;
@@ -152,7 +160,7 @@ where
     async fn incorporate_history(&mut self) -> Result<(), PushError> {
         {
             debug!("Merging pushed sphere history...");
-            let mut sphere_context = self.sphere_context.lock().await;
+            let mut sphere_context = self.sphere_context.sphere_context_mut().await?;
 
             self.request_body
                 .blocks
@@ -226,7 +234,7 @@ where
                         if my_value != Some(&value) {
                             debug!("Adding name {}...", key);
                             self.sphere_context
-                                .sphere_context()
+                                .sphere_context_mut()
                                 .await?
                                 .mutation_mut()
                                 .names_mut()
@@ -243,7 +251,7 @@ where
 
                         debug!("Removing name {}...", key);
                         self.sphere_context
-                            .sphere_context()
+                            .sphere_context_mut()
                             .await?
                             .mutation_mut()
                             .names_mut()

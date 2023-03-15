@@ -5,7 +5,7 @@ use noosphere_core::data::{AddressIpld, Did, Jwt, MapOperation};
 use noosphere_ns::NsRecord;
 use noosphere_ns::{server::HttpClient as NameSystemHttpClient, NameSystemClient};
 use noosphere_sphere::{
-    HasMutableSphereContext, SphereContext, SphereCursor, SpherePetnameRead, SpherePetnameWrite,
+    HasMutableSphereContext, SphereCursor, SpherePetnameRead, SpherePetnameWrite,
 };
 use noosphere_storage::Storage;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -17,7 +17,6 @@ use tokio::{
     sync::{
         mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
         oneshot::Sender,
-        Mutex,
     },
     task::JoinHandle,
 };
@@ -33,39 +32,36 @@ pub enum NameSystemConfiguration {
 }
 
 #[derive(Display)]
-pub enum NameSystemJob<K, S>
-where
-    K: KeyMaterial + Clone + 'static,
-    S: Storage,
-{
+pub enum NameSystemJob<C> {
     /// Resolve all names in the sphere at the latest version
     ResolveAll {
-        context: Arc<Mutex<SphereContext<K, S>>>,
+        context: C,
     },
     /// Resolve a single name from a given sphere at the latest version
     #[allow(dead_code)]
     ResolveImmediately {
-        context: Arc<Mutex<SphereContext<K, S>>>,
+        context: C,
         name: String,
         tx: Sender<Option<Cid>>,
     },
     /// Resolve all added names of a given sphere since the given sphere
     /// revision
     ResolveSince {
-        context: Arc<Mutex<SphereContext<K, S>>>,
+        context: C,
         since: Option<Cid>,
     },
     Publish {
-        context: Arc<Mutex<SphereContext<K, S>>>,
+        context: C,
         record: Jwt,
     },
 }
 
-pub fn start_name_system<K, S>(
+pub fn start_name_system<H, K, S>(
     configuration: NameSystemConfiguration,
-    local_spheres: Vec<Arc<Mutex<SphereContext<K, S>>>>,
-) -> (UnboundedSender<NameSystemJob<K, S>>, JoinHandle<Result<()>>)
+    local_spheres: Vec<H>,
+) -> (UnboundedSender<NameSystemJob<H>>, JoinHandle<Result<()>>)
 where
+    H: HasMutableSphereContext<K, S> + 'static,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -85,10 +81,11 @@ where
     (tx, task)
 }
 
-async fn periodic_resolver_task<K, S>(
-    tx: UnboundedSender<NameSystemJob<K, S>>,
-    local_spheres: Vec<Arc<Mutex<SphereContext<K, S>>>>,
+async fn periodic_resolver_task<H, K, S>(
+    tx: UnboundedSender<NameSystemJob<H>>,
+    local_spheres: Vec<H>,
 ) where
+    H: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -106,11 +103,12 @@ async fn periodic_resolver_task<K, S>(
     }
 }
 
-pub async fn name_system_task<K, S>(
+pub async fn name_system_task<H, K, S>(
     configuration: NameSystemConfiguration,
-    mut receiver: UnboundedReceiver<NameSystemJob<K, S>>,
+    mut receiver: UnboundedReceiver<NameSystemJob<H>>,
 ) -> Result<()>
 where
+    H: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -127,8 +125,7 @@ where
                 }
                 NameSystemJob::ResolveAll { context } => {
                     let name_stream = {
-                        let context = context.lock().await;
-                        let sphere = context.sphere().await?;
+                        let sphere = context.to_sphere().await?;
                         let names = sphere.get_names().await?;
 
                         names.into_stream().await?
@@ -138,8 +135,7 @@ where
                 }
                 NameSystemJob::ResolveSince { context, since } => {
                     let history_stream = {
-                        let context = context.lock().await;
-                        let sphere = context.sphere().await?;
+                        let sphere = context.to_sphere().await?;
                         sphere.into_history_stream(since.as_ref())
                     };
 
@@ -195,8 +191,7 @@ where
                     // priority queue for resolutions, but that's a more
                     // involved enhancement.
                     let stream = {
-                        let context = context.lock().await;
-                        let sphere = context.sphere().await?;
+                        let sphere = context.to_sphere().await?;
                         let names = sphere.get_names().await?;
                         let address = names.get(&name).await?;
 
@@ -314,22 +309,11 @@ async fn resolve_record(
 }
 
 #[allow(dead_code)]
-pub struct OnDemandNameResolver<K, S>(UnboundedSender<NameSystemJob<K, S>>)
-where
-    K: KeyMaterial + Clone + 'static,
-    S: Storage + 'static;
+pub struct OnDemandNameResolver<H>(UnboundedSender<NameSystemJob<H>>);
 
-impl<K, S> OnDemandNameResolver<K, S>
-where
-    K: KeyMaterial + Clone + 'static,
-    S: Storage + 'static,
-{
+impl<H> OnDemandNameResolver<H> {
     #[allow(dead_code)]
-    pub async fn resolve(
-        &self,
-        context: Arc<Mutex<SphereContext<K, S>>>,
-        name: &str,
-    ) -> Result<Option<Cid>> {
+    pub async fn resolve(&self, context: H, name: &str) -> Result<Option<Cid>> {
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.0
             .send(NameSystemJob::ResolveImmediately {

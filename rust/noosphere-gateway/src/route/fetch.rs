@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 
 use axum::{extract::Query, http::StatusCode, response::IntoResponse, Extension};
@@ -10,9 +8,8 @@ use noosphere_core::{
     data::Bundle,
     view::Sphere,
 };
-use noosphere_sphere::SphereContext;
-use noosphere_storage::{NativeStorage, SphereDb};
-use tokio::sync::Mutex;
+use noosphere_sphere::HasSphereContext;
+use noosphere_storage::{SphereDb, Storage};
 use ucan::{
     capability::{Capability, Resource, With},
     crypto::KeyMaterial,
@@ -20,14 +17,16 @@ use ucan::{
 
 use crate::{authority::GatewayAuthority, extractor::Cbor, GatewayScope};
 
-pub async fn fetch_route<K>(
+pub async fn fetch_route<H, K, S>(
     authority: GatewayAuthority<K>,
     Query(FetchParameters { since }): Query<FetchParameters>,
     Extension(scope): Extension<GatewayScope>,
-    Extension(sphere_context): Extension<Arc<Mutex<SphereContext<K, NativeStorage>>>>,
+    Extension(sphere_context): Extension<H>,
 ) -> Result<impl IntoResponse, StatusCode>
 where
+    H: HasSphereContext<K, S>,
     K: KeyMaterial + Clone,
+    S: Storage,
 {
     authority.try_authorize(&Capability {
         with: With::Resource {
@@ -37,7 +36,10 @@ where
         },
         can: SphereAction::Fetch,
     })?;
-    let sphere_context = sphere_context.lock().await;
+    let sphere_context = sphere_context
+        .sphere_context()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let db = sphere_context.db();
 
     let response = match generate_fetch_bundle(&scope, since.as_ref(), db)
@@ -56,11 +58,14 @@ where
     Ok(Cbor(response))
 }
 
-pub async fn generate_fetch_bundle(
+pub async fn generate_fetch_bundle<S>(
     scope: &GatewayScope,
     since: Option<&Cid>,
-    db: &SphereDb<NativeStorage>,
-) -> Result<Option<(Cid, Bundle)>> {
+    db: &SphereDb<S>,
+) -> Result<Option<(Cid, Bundle)>>
+where
+    S: Storage,
+{
     debug!("Resolving latest local sphere version...");
 
     let latest_local_sphere_cid = db.require_version(&scope.identity).await?;
