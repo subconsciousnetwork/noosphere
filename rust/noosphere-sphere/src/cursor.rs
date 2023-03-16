@@ -44,7 +44,7 @@ where
             has_sphere_context,
             key: PhantomData,
             storage: PhantomData,
-            sphere_version: Some(sphere_version.clone()),
+            sphere_version: Some(*sphere_version),
         }
     }
 
@@ -155,7 +155,7 @@ where
 
     async fn version(&self) -> Result<Cid> {
         match &self.sphere_version {
-            Some(sphere_version) => Ok(sphere_version.clone()),
+            Some(sphere_version) => Ok(*sphere_version),
             None => self.has_sphere_context.version().await,
         }
     }
@@ -177,7 +177,7 @@ where
 
     async fn version(&self) -> Result<Cid> {
         match &self.sphere_version {
-            Some(sphere_version) => Ok(sphere_version.clone()),
+            Some(sphere_version) => Ok(*sphere_version),
             None => self.has_sphere_context.version().await,
         }
     }

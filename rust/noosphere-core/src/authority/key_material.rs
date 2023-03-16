@@ -41,7 +41,7 @@ pub const ED25519_KEYPAIR_LENGTH: usize = 64;
 pub const ED25519_KEY_LENGTH: usize = 32;
 pub fn ed25519_key_to_bytes(
     key_material: &Ed25519KeyMaterial,
-) -> Result<([u8; ED25519_KEYPAIR_LENGTH])> {
+) -> Result<[u8; ED25519_KEYPAIR_LENGTH]> {
     let public_key = key_material.0;
     let private_key: Ed25519PrivateKey = key_material
         .1

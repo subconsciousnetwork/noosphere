@@ -393,8 +393,7 @@ pub fn ns_sphere_file_header_value_first(
         .memo
         .get_first_header(name.to_str())
         .into_iter()
-        .filter_map(|value| value.try_into().ok())
-        .nth(0)
+        .filter_map(|value| value.try_into().ok()).next()
 }
 
 #[ffi_export]

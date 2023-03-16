@@ -66,7 +66,7 @@ impl<'a> SphereMutation {
     /// without being recreated. This is sometimes useful if the code that is
     /// working with the [SphereMutation] does not have sufficient information
     /// to set the author [Did] for a new [SphereMutation].
-    pub fn reset(&mut self) -> () {
+    pub fn reset(&mut self) {
         self.links = LinksMutation::new(&self.did);
         self.names = NamesMutation::new(&self.did);
         self.allowed_ucans = AllowedUcansMutation::new(&self.did);

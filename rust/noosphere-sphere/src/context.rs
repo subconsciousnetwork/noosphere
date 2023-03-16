@@ -62,12 +62,12 @@ where
     /// storage primitives as this one, but that accesses the sphere referred to by the provided
     /// [Did].
     pub async fn traverse(&self, sphere_identity: &Did) -> Result<SphereContext<K, S>> {
-        Ok(SphereContext::new(
+        SphereContext::new(
             sphere_identity.clone(),
             self.author.clone(),
             self.db.clone(),
         )
-        .await?)
+        .await
     }
 
     /// Resolve the most recent version in the local history of the sphere
@@ -182,7 +182,7 @@ where
 
     // Reset access so that it is re-evaluated the next time it is measured
     // self.access.take();
-    pub(crate) fn reset_access(&mut self) -> () {
+    pub(crate) fn reset_access(&mut self) {
         self.access.take();
     }
 }

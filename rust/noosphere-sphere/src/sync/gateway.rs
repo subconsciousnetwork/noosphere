@@ -226,7 +226,7 @@ where
             // No new history at all
             (Some(current_tip), _, _) => {
                 println!("Nothing to sync!");
-                current_tip.clone()
+                *current_tip
             }
             // We should have local history but we don't!
             _ => {
@@ -253,7 +253,7 @@ where
         context: &mut H,
         updated_names: BTreeMap<String, AddressIpld>,
     ) -> Result<Option<Cid>> {
-        if updated_names.len() == 0 {
+        if updated_names.is_empty() {
             return Ok(None);
         }
         info!(
@@ -321,7 +321,7 @@ where
 
         let name_record = Jwt(UcanBuilder::default()
             .issued_by(&context.author().key)
-            .for_audience(&local_sphere_identity)
+            .for_audience(local_sphere_identity)
             .witnessed_by(&authorization)
             .claiming_capability(&Capability {
                 with: With::Resource {

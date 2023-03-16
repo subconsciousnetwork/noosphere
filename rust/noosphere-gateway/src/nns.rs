@@ -183,7 +183,7 @@ where
                     resolve_all(
                         client.clone(),
                         context,
-                        tokio_stream::iter(names_to_resolve.into_iter().map(|item| Ok(item))),
+                        tokio_stream::iter(names_to_resolve.into_iter().map(Ok)),
                     )
                     .await?;
                 }

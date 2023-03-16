@@ -78,7 +78,7 @@ where
             .await?
             .mutation_mut()
             .links_mut()
-            .set(&slug.into(), &cid);
+            .set(&slug.into(), cid);
 
         Ok(())
     }

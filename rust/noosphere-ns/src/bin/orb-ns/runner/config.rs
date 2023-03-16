@@ -223,7 +223,7 @@ peers = [
             "expected explicit peer"
         );
         assert!(
-            config.peers.contains(&BOOTSTRAP_PEERS[..].get(0).unwrap()),
+            config.peers.contains(BOOTSTRAP_PEERS[..].get(0).unwrap()),
             "expected default peer"
         );
         assert_eq!(config.peers.len(), 2, "expected 2 peers");

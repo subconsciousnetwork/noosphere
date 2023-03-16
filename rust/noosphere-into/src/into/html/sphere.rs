@@ -215,9 +215,9 @@ pub mod tests {
 
         let html = std::str::from_utf8(&bytes).unwrap();
 
-        println!("");
+        println!();
         println!("{}", html);
-        println!("");
+        println!();
 
         let expected = r#"<!doctype html>
 <html>

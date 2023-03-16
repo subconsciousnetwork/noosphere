@@ -288,7 +288,7 @@ impl SphereContextBuilder {
                 let authorization = db
                     .get_key(AUTHORIZATION)
                     .await?
-                    .map(|cid| Authorization::Cid(cid));
+                    .map(Authorization::Cid);
 
                 let author = match self.key_storage {
                     Some(key_storage) => Author {

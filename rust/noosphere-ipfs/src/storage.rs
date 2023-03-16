@@ -124,7 +124,7 @@ where
             if let Some(bytes) = ipfs_client.get_block(cid).await? {
                 let mut local_store = self.local_store.write().await;
                 local_store.put_block(cid, &bytes).await?;
-                return Ok(Some(bytes.into()));
+                return Ok(Some(bytes));
             }
         }
         Ok(None)

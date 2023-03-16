@@ -28,7 +28,7 @@ impl GatewayClient {
         if let Some(domain) = url.domain() {
             let mut parts = domain.split('.');
 
-            if let Some(fragment) = parts.nth(0) {
+            if let Some(fragment) = parts.next() {
                 if Cid::from_str(fragment).is_ok() {
                     let upper_domain = parts
                         .map(|part| part.to_string())
@@ -104,7 +104,7 @@ mod tests {
         let test_cid =
             Cid::from_str("bafy2bzacecsjls67zqx25dcvbu6p4z4rsdkm2k6hanhd5qowrvwmhtov2sjpo")
                 .unwrap();
-        let client = GatewayClient::new(gateway_url.clone());
+        let client = GatewayClient::new(gateway_url);
         let derived_url = client.make_block_url(&test_cid);
         let expected_url = Url::from_str(
             "https://bafy2bzacecsjls67zqx25dcvbu6p4z4rsdkm2k6hanhd5qowrvwmhtov2sjpo.ipfs.noo.pub",
