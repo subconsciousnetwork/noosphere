@@ -1,18 +1,16 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 
 use axum::{extract::Query, http::StatusCode, response::IntoResponse, Extension};
 use cid::Cid;
+use libipld_cbor::DagCborCodec;
 use noosphere_api::data::{FetchParameters, FetchResponse};
 use noosphere_core::{
     authority::{SphereAction, SphereReference},
     data::Bundle,
     view::Sphere,
 };
-use noosphere_sphere::SphereContext;
-use noosphere_storage::{NativeStorage, SphereDb};
-use tokio::sync::Mutex;
+use noosphere_sphere::HasSphereContext;
+use noosphere_storage::{SphereDb, Storage};
 use ucan::{
     capability::{Capability, Resource, With},
     crypto::KeyMaterial,
@@ -20,14 +18,16 @@ use ucan::{
 
 use crate::{authority::GatewayAuthority, extractor::Cbor, GatewayScope};
 
-pub async fn fetch_route<K>(
+pub async fn fetch_route<C, K, S>(
     authority: GatewayAuthority<K>,
     Query(FetchParameters { since }): Query<FetchParameters>,
     Extension(scope): Extension<GatewayScope>,
-    Extension(sphere_context): Extension<Arc<Mutex<SphereContext<K, NativeStorage>>>>,
+    Extension(sphere_context): Extension<C>,
 ) -> Result<impl IntoResponse, StatusCode>
 where
+    C: HasSphereContext<K, S>,
     K: KeyMaterial + Clone,
+    S: Storage,
 {
     authority.try_authorize(&Capability {
         with: With::Resource {
@@ -37,7 +37,10 @@ where
         },
         can: SphereAction::Fetch,
     })?;
-    let sphere_context = sphere_context.lock().await;
+    let sphere_context = sphere_context
+        .sphere_context()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let db = sphere_context.db();
 
     let response = match generate_fetch_bundle(&scope, since.as_ref(), db)
@@ -56,11 +59,14 @@ where
     Ok(Cbor(response))
 }
 
-pub async fn generate_fetch_bundle(
+pub async fn generate_fetch_bundle<S>(
     scope: &GatewayScope,
     since: Option<&Cid>,
-    db: &SphereDb<NativeStorage>,
-) -> Result<Option<(Cid, Bundle)>> {
+    db: &SphereDb<S>,
+) -> Result<Option<(Cid, Bundle)>>
+where
+    S: Storage,
+{
     debug!("Resolving latest local sphere version...");
 
     let latest_local_sphere_cid = db.require_version(&scope.identity).await?;
@@ -91,9 +97,8 @@ pub async fn generate_fetch_bundle(
     match latest_local_sphere
         .get_links()
         .await?
-        .get(&scope.counterpart)
+        .get_as_cid::<DagCborCodec>(&scope.counterpart)
         .await?
-        .cloned()
     {
         Some(latest_counterpart_sphere_cid) => {
             debug!("Resolving oldest counterpart sphere version...");
@@ -102,7 +107,7 @@ pub async fn generate_fetch_bundle(
                 Some(since_local_sphere_cid) => {
                     let since_local_sphere = Sphere::at(since_local_sphere_cid, db);
                     let links = since_local_sphere.get_links().await?;
-                    links.get(&scope.counterpart).await?.cloned()
+                    links.get_as_cid::<DagCborCodec>(&scope.counterpart).await?
                 }
                 None => None,
             };

@@ -3,17 +3,15 @@ use axum::http::{HeaderValue, Method};
 use axum::routing::{get, put};
 use axum::{Extension, Router, Server};
 use noosphere_core::data::Did;
-use noosphere_sphere::SphereContext;
+use noosphere_sphere::HasMutableSphereContext;
+use noosphere_storage::Storage;
 use std::net::TcpListener;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use ucan::crypto::KeyMaterial;
 use url::Url;
 
 use noosphere_api::route::Route as GatewayRoute;
-use noosphere_storage::NativeStorage;
 
 use crate::nns::{start_name_system, NameSystemConfiguration};
 use crate::{
@@ -29,24 +27,25 @@ pub struct GatewayScope {
     pub counterpart: Did,
 }
 
-pub async fn start_gateway<K>(
+pub async fn start_gateway<C, K, S>(
     listener: TcpListener,
     gateway_scope: GatewayScope,
-    sphere_context: Arc<Mutex<SphereContext<K, NativeStorage>>>,
+    sphere_context: C,
     ipfs_api: Url,
     name_resolver_api: Url,
     cors_origin: Option<Url>,
 ) -> Result<()>
 where
+    C: HasMutableSphereContext<K, S> + 'static,
     K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
 {
     initialize_tracing();
 
     let gateway_key_did = {
-        let sphere_context = sphere_context.lock().await;
+        let sphere_context = sphere_context.sphere_context().await?;
         sphere_context.author().identity().await?
     };
-
     let mut cors = CorsLayer::new();
 
     if let Some(cors_origin) = cors_origin {
@@ -68,8 +67,8 @@ where
             ]);
     }
 
-    let (syndication_tx, syndication_task) = start_ipfs_syndication::<K, NativeStorage>(ipfs_api);
-    let (name_system_tx, name_system_task) = start_name_system::<K, NativeStorage>(
+    let (syndication_tx, syndication_task) = start_ipfs_syndication::<C, K, S>(ipfs_api);
+    let (name_system_tx, name_system_task) = start_name_system::<C, K, S>(
         NameSystemConfiguration::Remote(name_resolver_api),
         vec![sphere_context.clone()],
     );
@@ -78,10 +77,13 @@ where
         .route(&GatewayRoute::Did.to_string(), get(did_route::<K>))
         .route(
             &GatewayRoute::Identify.to_string(),
-            get(identify_route::<K>),
+            get(identify_route::<C, K, S>),
         )
-        .route(&GatewayRoute::Push.to_string(), put(push_route::<K>))
-        .route(&GatewayRoute::Fetch.to_string(), get(fetch_route::<K>))
+        .route(&GatewayRoute::Push.to_string(), put(push_route::<C, K, S>))
+        .route(
+            &GatewayRoute::Fetch.to_string(),
+            get(fetch_route::<C, K, S>),
+        )
         .layer(Extension(sphere_context.clone()))
         .layer(Extension(gateway_scope.clone()))
         .layer(Extension(gateway_key_did))

@@ -32,9 +32,9 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<H, K, S> SphereContentRead<K, S> for H
+impl<C, K, S> SphereContentRead<K, S> for C
 where
-    H: HasSphereContext<K, S>,
+    C: HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -46,7 +46,7 @@ where
         let hamt = links.get_hamt().await?;
 
         Ok(match hamt.get(&slug.to_string()).await? {
-            Some(content_cid) => Some(self.get_file(&revision, content_cid).await?),
+            Some(memo) => Some(self.get_file(&revision, memo.clone()).await?),
             None => None,
         })
     }

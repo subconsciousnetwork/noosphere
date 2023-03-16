@@ -24,7 +24,6 @@ use noosphere_core::{
     view::{Sphere, SphereMutation},
 };
 
-use libipld_cbor::DagCborCodec;
 use ucan::crypto::KeyMaterial;
 
 use noosphere_cli::native::{
@@ -415,15 +414,10 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() {
             let memo = MemoIpld::for_body(client_sphere_context.db_mut(), vec![value])
                 .await
                 .unwrap();
-            let memo_cid = client_sphere_context
-                .db_mut()
-                .save::<DagCborCodec, _>(&memo)
-                .await
-                .unwrap();
 
             let mut mutation =
                 SphereMutation::new(&client_sphere_context.author().identity().await.unwrap());
-            mutation.links_mut().set(&value.into(), &memo_cid);
+            mutation.links_mut().set(&value.into(), &memo);
 
             let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             final_cid = revision
@@ -566,15 +560,9 @@ async fn gateway_serves_sphere_revisions_to_a_client() {
             let memo = MemoIpld::for_body(client_sphere_context.db_mut(), vec![value])
                 .await
                 .unwrap();
-            let memo_cid = client_sphere_context
-                .db_mut()
-                .save::<DagCborCodec, _>(&memo)
-                .await
-                .unwrap();
-
             let mut mutation =
                 SphereMutation::new(&client_sphere_context.author().identity().await.unwrap());
-            mutation.links_mut().set(&value.into(), &memo_cid);
+            mutation.links_mut().set(&value.into(), &memo);
 
             let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
 

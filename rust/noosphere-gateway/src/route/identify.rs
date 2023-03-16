@@ -1,11 +1,8 @@
-use std::sync::Arc;
-
 use axum::{http::StatusCode, response::IntoResponse, Extension, Json};
 use noosphere_api::data::IdentifyResponse;
 use noosphere_core::authority::{SphereAction, SphereReference};
-use noosphere_sphere::SphereContext;
-use noosphere_storage::NativeStorage;
-use tokio::sync::Mutex;
+use noosphere_sphere::HasSphereContext;
+use noosphere_storage::Storage;
 use ucan::{
     capability::{Capability, Resource, With},
     crypto::KeyMaterial,
@@ -13,11 +10,16 @@ use ucan::{
 
 use crate::{authority::GatewayAuthority, GatewayScope};
 
-pub async fn identify_route<K: KeyMaterial + Clone>(
+pub async fn identify_route<C, K, S>(
     authority: GatewayAuthority<K>,
     Extension(scope): Extension<GatewayScope>,
-    Extension(sphere_context): Extension<Arc<Mutex<SphereContext<K, NativeStorage>>>>,
-) -> Result<impl IntoResponse, StatusCode> {
+    Extension(sphere_context): Extension<C>,
+) -> Result<impl IntoResponse, StatusCode>
+where
+    C: HasSphereContext<K, S>,
+    K: KeyMaterial + Clone,
+    S: Storage,
+{
     debug!("Invoking identify route...");
 
     authority.try_authorize(&Capability {
@@ -29,7 +31,10 @@ pub async fn identify_route<K: KeyMaterial + Clone>(
         can: SphereAction::Fetch,
     })?;
 
-    let sphere_context = sphere_context.lock().await;
+    let sphere_context = sphere_context
+        .sphere_context()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let db = sphere_context.db();
     let gateway_key = &sphere_context.author().key;
     let gateway_authorization =

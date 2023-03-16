@@ -65,20 +65,27 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<H, K, S> SphereContentWrite<K, S> for H
+impl<C, K, S> SphereContentWrite<K, S> for C
 where
-    H: HasSphereContext<K, S> + HasMutableSphereContext<K, S>,
+    C: HasSphereContext<K, S> + HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
     async fn link_raw(&mut self, slug: &str, cid: &Cid) -> Result<()> {
         self.assert_write_access().await?;
 
+        let memo = self
+            .sphere_context()
+            .await?
+            .db()
+            .load::<DagCborCodec, _>(cid)
+            .await?;
+
         self.sphere_context_mut()
             .await?
             .mutation_mut()
             .links_mut()
-            .set(&slug.into(), cid);
+            .set(&slug.into(), &memo);
 
         Ok(())
     }

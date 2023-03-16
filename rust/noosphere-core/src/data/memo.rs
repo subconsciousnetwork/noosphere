@@ -17,7 +17,7 @@ use super::ContentType;
 
 /// A basic Memo. A Memo is a history-retaining structure that pairs
 /// inline headers with a body CID.
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Eq, PartialEq, Clone, Serialize, Deserialize, Hash)]
 pub struct MemoIpld {
     /// An optional pointer to the previous version of the DAG
     pub parent: Option<Cid>,

@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use noosphere_core::data::{AddressIpld, Did, Jwt};
 use noosphere_storage::Storage;
-use ucan::crypto::KeyMaterial;
+use ucan::{crypto::KeyMaterial, store::UcanJwtStore, Ucan};
 
 use crate::{internal::SphereContextInternal, HasMutableSphereContext, SpherePetnameRead};
 
@@ -27,19 +27,14 @@ where
     /// associated [Jwt] to a known value. The [Jwt] must be a valid UCAN that
     /// publishes a name record and grants sufficient authority from the
     /// configured [Did] to the publisher.
-    async fn adopt_petname(
-        &mut self,
-        name: &str,
-        identity: &Did,
-        record: &Jwt,
-    ) -> Result<Option<Did>>;
+    async fn adopt_petname(&mut self, name: &str, record: &Jwt) -> Result<Option<Did>>;
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<H, K, S> SpherePetnameWrite<K, S> for H
+impl<C, K, S> SpherePetnameWrite<K, S> for C
 where
-    H: HasMutableSphereContext<K, S>,
+    C: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -69,16 +64,22 @@ where
         Ok(())
     }
 
-    async fn adopt_petname(
-        &mut self,
-        name: &str,
-        identity: &Did,
-        record: &Jwt,
-    ) -> Result<Option<Did>> {
+    async fn adopt_petname(&mut self, name: &str, record: &Jwt) -> Result<Option<Did>> {
         self.assert_write_access().await?;
+
+        let ucan = Ucan::try_from(record.as_str())?;
+        let identity = Did::from(ucan.audience());
+
+        let cid = self
+            .sphere_context_mut()
+            .await?
+            .db_mut()
+            .write_token(record)
+            .await?;
 
         // TODO: Verify that a record for an existing address is actually newer than the old one
         // TODO: Validate the record as a UCAN
+
         debug!(
             "Adopting '{}' ({}), resolving to {}...",
             name, identity, record
@@ -86,7 +87,7 @@ where
 
         let new_address = AddressIpld {
             identity: identity.clone(),
-            last_known_record: Some(record.clone()),
+            last_known_record: Some(cid),
         };
 
         let names = self
@@ -106,7 +107,7 @@ where
 
         match previous_address {
             Some(previous_address) => {
-                if identity != &previous_address.identity {
+                if identity != previous_address.identity {
                     return Ok(Some(previous_address.identity.to_owned()));
                 }
             }

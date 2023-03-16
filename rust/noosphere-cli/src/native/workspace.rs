@@ -1,10 +1,9 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use globset::{Glob, GlobSet, GlobSetBuilder};
-use libipld_cbor::DagCborCodec;
 use noosphere_core::{
     authority::Authorization,
-    data::{BodyChunkIpld, ContentType, Did, Header, MemoIpld},
+    data::{BodyChunkIpld, ContentType, Did, Header},
     view::Sphere,
 };
 use noosphere_storage::{BlockStore, KeyValueStore, NativeStorage, SphereDb, Store};
@@ -192,7 +191,7 @@ impl Workspace {
 
         let mut changes = ContentChanges::default();
 
-        while let Some(Ok((slug, cid))) = stream.next().await {
+        while let Some(Ok((slug, memo))) = stream.next().await {
             if content.ignored.contains(slug) {
                 continue;
             }
@@ -220,8 +219,6 @@ impl Workspace {
                         .insert(slug.clone(), Some(content_type.clone()));
                 }
                 None => {
-                    let memo = db.load::<DagCborCodec, MemoIpld>(cid).await?;
-
                     changes.removed.insert(slug.clone(), memo.content_type());
                 }
             }
