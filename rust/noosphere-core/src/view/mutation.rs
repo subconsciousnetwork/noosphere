@@ -119,7 +119,7 @@ impl<'a> SphereMutation {
     }
 }
 
-pub type LinksMutation = VersionedMapMutation<String, Cid>;
+pub type LinksMutation = VersionedMapMutation<String, MemoIpld>;
 pub type NamesMutation = VersionedMapMutation<String, AddressIpld>;
 pub type AllowedUcansMutation = VersionedMapMutation<CidKey, DelegationIpld>;
 pub type RevokedUcansMutation = VersionedMapMutation<CidKey, RevocationIpld>;

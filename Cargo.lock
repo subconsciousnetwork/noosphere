@@ -3915,6 +3915,7 @@ dependencies = [
  "cid 0.9.0",
  "futures",
  "horrorshow",
+ "libipld-cbor 0.15.0",
  "noosphere-core",
  "noosphere-sphere",
  "noosphere-storage",

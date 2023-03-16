@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, marker::PhantomData};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use libipld_cbor::DagCborCodec;
 use noosphere_api::data::{FetchParameters, FetchResponse, PushBody, PushResponse};
 use noosphere_core::{
     authority::{SphereAction, SphereReference},
@@ -182,20 +183,20 @@ where
         }
 
         let local_sphere_old_base = match counterpart_sphere_base {
-            Some(counterpart_sphere_base) => Sphere::at(counterpart_sphere_base, context.db())
-                .get_links()
-                .await?
-                .get(&local_sphere_identity)
-                .await?
-                .cloned(),
+            Some(counterpart_sphere_base) => {
+                Sphere::at(counterpart_sphere_base, context.db())
+                    .get_links()
+                    .await?
+                    .get_as_cid::<DagCborCodec>(&local_sphere_identity)
+                    .await?
+            }
             None => None,
         };
         let local_sphere_new_base = Sphere::at(&counterpart_sphere_tip, context.db())
             .get_links()
             .await?
-            .get(&local_sphere_identity)
-            .await?
-            .cloned();
+            .get_as_cid::<DagCborCodec>(&local_sphere_identity)
+            .await?;
 
         let local_sphere_tip = match (
             local_sphere_tip,
@@ -261,16 +262,11 @@ where
             updated_names.len()
         );
 
-        for (
-            name,
-            AddressIpld {
-                identity,
-                last_known_record,
-            },
-        ) in updated_names.into_iter()
-        {
-            if let Some(jwt) = last_known_record {
-                context.adopt_petname(&name, &identity, &jwt).await?;
+        let db = context.sphere_context().await?.db().clone();
+
+        for (name, address) in updated_names.into_iter() {
+            if let Some(jwt) = address.get_proof(&db).await {
+                context.adopt_petname(&name, &jwt).await?;
             }
         }
 
@@ -295,9 +291,8 @@ where
         let local_sphere_base = Sphere::at(counterpart_sphere_tip, context.db())
             .get_links()
             .await?
-            .get(context.identity())
-            .await?
-            .cloned();
+            .get_as_cid::<DagCborCodec>(context.identity())
+            .await?;
 
         if local_sphere_base.as_ref() == Some(local_sphere_tip) {
             println!("Gateway is already up to date!");

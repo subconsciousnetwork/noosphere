@@ -1,5 +1,3 @@
-use cid::Cid;
+use crate::data::{MemoIpld, VersionedMapIpld};
 
-use crate::data::VersionedMapIpld;
-
-pub type LinksIpld = VersionedMapIpld<String, Cid>;
+pub type LinksIpld = VersionedMapIpld<String, MemoIpld>;

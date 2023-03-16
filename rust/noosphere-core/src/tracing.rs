@@ -23,8 +23,9 @@ pub fn initialize_tracing() {
                     .unwrap_or_else(|_| "noosphere_cli,orb,tower_http=debug".into()),
             ))
             .with(
-                tracing_subscriber::fmt::layer(), // .with_file(true)
-                                                  // .with_line_number(true),
+                tracing_subscriber::fmt::layer()
+                    .with_file(true)
+                    .with_line_number(true),
             )
             .init();
     });

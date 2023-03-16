@@ -3,7 +3,7 @@ use crate::{AsyncFileBody, HasSphereContext};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use libipld_cbor::DagCborCodec;
-use noosphere_storage::{BlockStore, Storage};
+use noosphere_storage::{block_serialize, Storage};
 use std::str::FromStr;
 use tokio_util::io::StreamReader;
 use ucan::crypto::KeyMaterial;
@@ -31,7 +31,7 @@ where
     async fn get_file(
         &self,
         sphere_revision: &Cid,
-        memo_revision: &Cid,
+        memo: MemoIpld,
     ) -> Result<SphereFile<Box<dyn AsyncFileBody>>>;
 }
 
@@ -56,14 +56,10 @@ where
     async fn get_file(
         &self,
         sphere_revision: &Cid,
-        memo_revision: &Cid,
+        memo: MemoIpld,
     ) -> Result<SphereFile<Box<dyn AsyncFileBody>>> {
         let sphere_context = self.sphere_context().await?;
-
-        let memo = sphere_context
-            .db()
-            .load::<DagCborCodec, MemoIpld>(memo_revision)
-            .await?;
+        let (memo_version, _) = block_serialize::<DagCborCodec, _>(&memo)?;
         let content_type = match memo.get_first_header(&Header::ContentType.to_string()) {
             Some(content_type) => Some(ContentType::from_str(content_type.as_str())?),
             None => None,
@@ -78,7 +74,7 @@ where
         Ok(SphereFile {
             sphere_identity: sphere_context.identity().clone(),
             sphere_version: *sphere_revision,
-            memo_version: *memo_revision,
+            memo_version,
             memo,
             // NOTE: we have to box here because traits don't support `impl` types in return values
             contents: Box::new(StreamReader::new(stream)),

@@ -49,7 +49,7 @@ where
         trace!("Recorded address for {name}: {:?}", address_ipld);
 
         Ok(match address_ipld {
-            Some(address) => address.dereference().await,
+            Some(address) => address.dereference(self.sphere_context().await?.db()).await,
             None => None,
         })
     }

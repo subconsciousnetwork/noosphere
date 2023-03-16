@@ -30,6 +30,7 @@ anyhow = "^1"
 
 horrorshow = "~0.8"
 cid = "~0.9"
+libipld-cbor = "~0.15"
 
 bytes = "^1"
 tokio-stream = "~0.1"

@@ -74,11 +74,18 @@ where
     async fn link_raw(&mut self, slug: &str, cid: &Cid) -> Result<()> {
         self.assert_write_access().await?;
 
+        let memo = self
+            .sphere_context()
+            .await?
+            .db()
+            .load::<DagCborCodec, _>(cid)
+            .await?;
+
         self.sphere_context_mut()
             .await?
             .mutation_mut()
             .links_mut()
-            .set(&slug.into(), cid);
+            .set(&slug.into(), &memo);
 
         Ok(())
     }

@@ -2,8 +2,9 @@ use std::{collections::BTreeSet, io::Cursor, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use libipld_cbor::DagCborCodec;
 use noosphere_sphere::{HasSphereContext, SphereContentRead, SphereCursor};
-use noosphere_storage::Storage;
+use noosphere_storage::{block_serialize, Storage};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use ucan::crypto::KeyMaterial;
@@ -50,7 +51,8 @@ where
 
         let mut tasks = Vec::new();
 
-        while let Some(Ok((slug, cid))) = link_stream.next().await {
+        while let Some(Ok((slug, memo))) = link_stream.next().await {
+            let (cid, _) = block_serialize::<DagCborCodec, _>(memo)?;
             let file_name: PathBuf = format!("permalink/{}/index.html", cid).into();
 
             // Skip this write entirely if the content has been written
@@ -64,7 +66,6 @@ where
 
             tasks.push(W::spawn({
                 let slug = slug.clone();
-                let cid = *cid;
                 let write_actions = write_actions.clone();
                 let write_target = write_target.clone();
                 let latest_revision = latest_revision;

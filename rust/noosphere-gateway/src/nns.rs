@@ -240,8 +240,10 @@ where
 {
     tokio::pin!(stream);
 
+    let db = context.sphere_context().await?.db().clone();
+
     while let Some((name, address)) = stream.try_next().await? {
-        let last_known_record = address.last_known_record.clone();
+        let last_known_record = address.get_proof(&db).await;
 
         let next_record =
             match resolve_record(client.clone(), name.clone(), address.identity.clone()).await? {
@@ -264,9 +266,7 @@ where
                     "Gateway adopting petname record for '{}' ({}): {}",
                     name, address.identity, record
                 );
-                context
-                    .adopt_petname(&name, &address.identity, record)
-                    .await?;
+                context.adopt_petname(&name, record).await?;
             }
             _ => continue,
         }

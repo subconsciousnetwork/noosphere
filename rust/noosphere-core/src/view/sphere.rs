@@ -606,7 +606,7 @@ impl<S: BlockStore> Sphere<S> {
     pub fn into_link_changelog_stream(
         self,
         since: Option<&Cid>,
-    ) -> impl Stream<Item = Result<(Cid, ChangelogIpld<MapOperation<String, Cid>>)>> {
+    ) -> impl Stream<Item = Result<(Cid, ChangelogIpld<MapOperation<String, MemoIpld>>)>> {
         let since = since.cloned();
 
         try_stream! {
@@ -626,8 +626,6 @@ impl<S: BlockStore> Sphere<S> {
 #[cfg(test)]
 mod tests {
     use cid::Cid;
-    use libipld_core::raw::RawCodec;
-    use serde_bytes::Bytes;
     use tokio_stream::StreamExt;
     use ucan::{
         builder::UcanBuilder,
@@ -646,11 +644,11 @@ mod tests {
             ed25519_key_to_mnemonic, generate_ed25519_key, Authorization, SphereAction,
             SphereReference, SUPPORTED_KEYS,
         },
-        data::{AddressIpld, Bundle, CidKey, DelegationIpld, RevocationIpld},
+        data::{AddressIpld, Bundle, CidKey, DelegationIpld, MemoIpld, RevocationIpld},
         view::{Sphere, SphereMutation, Timeline},
     };
 
-    use noosphere_storage::{BlockStore, MemoryStore, Store, UcanStore};
+    use noosphere_storage::{MemoryStore, Store, UcanStore};
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
@@ -855,7 +853,8 @@ mod tests {
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_assign_a_link_and_later_read_the_link() {
         let mut store = MemoryStore::default();
-        let foo_cid = store.save::<RawCodec, _>(Bytes::new(b"foo")).await.unwrap();
+        // let foo_cid = store.save::<RawCodec, _>(Bytes::new(b"foo")).await.unwrap();
+        let foo_memo = MemoIpld::for_body(&mut store, b"foo").await.unwrap();
         let foo_key = String::from("foo");
 
         let sphere_cid = {
@@ -864,7 +863,7 @@ mod tests {
             let (sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
             let mut mutation = SphereMutation::new(&owner_did);
-            mutation.links_mut().set(&foo_key, &foo_cid);
+            mutation.links_mut().set(&foo_key, &foo_memo);
 
             let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             revision.try_sign(&owner_key, Some(&ucan)).await.unwrap()
@@ -872,9 +871,9 @@ mod tests {
 
         let restored_sphere = Sphere::at(&sphere_cid, &store);
         let restored_links = restored_sphere.get_links().await.unwrap();
-        let restored_foo_cid = restored_links.get(&foo_key).await.unwrap().unwrap();
+        let restored_foo_memo = restored_links.get(&foo_key).await.unwrap().unwrap();
 
-        assert_eq!(&foo_cid, restored_foo_cid);
+        assert_eq!(&foo_memo, restored_foo_memo);
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
@@ -892,7 +891,7 @@ mod tests {
             let mut mutation = SphereMutation::new(&owner_did);
             mutation.links_mut().set(
                 &foo_key,
-                &store.save::<RawCodec, _>(Bytes::new(&[i])).await.unwrap(),
+                &MemoIpld::for_body(&mut store, &[i]).await.unwrap(),
             );
             let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             let next_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
@@ -925,7 +924,7 @@ mod tests {
             let mut mutation = SphereMutation::new(&owner_did);
             mutation.links_mut().set(
                 &format!("foo/{i}"),
-                &store.save::<RawCodec, _>(Bytes::new(&[i])).await.unwrap(),
+                &MemoIpld::for_body(&mut store, &[i]).await.unwrap(),
             );
             let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             let next_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
@@ -968,19 +967,13 @@ mod tests {
         let bar_key = String::from("bar");
         let baz_key = String::from("baz");
 
-        let bar_cid = store.save::<RawCodec, _>(Bytes::new(b"bar")).await.unwrap();
-        let baz_cid = store.save::<RawCodec, _>(Bytes::new(b"baz")).await.unwrap();
-        let foobar_cid = store
-            .save::<RawCodec, _>(Bytes::new(b"foobar"))
-            .await
-            .unwrap();
-        let flurb_cid = store
-            .save::<RawCodec, _>(Bytes::new(b"flurb"))
-            .await
-            .unwrap();
+        let bar_memo = MemoIpld::for_body(&mut store, b"bar").await.unwrap();
+        let baz_memo = MemoIpld::for_body(&mut store, b"baz").await.unwrap();
+        let foobar_memo = MemoIpld::for_body(&mut store, b"foobar").await.unwrap();
+        let flurb_memo = MemoIpld::for_body(&mut store, b"flurb").await.unwrap();
 
         let mut base_mutation = SphereMutation::new(&owner_did);
-        base_mutation.links_mut().set(&foo_key, &bar_cid);
+        base_mutation.links_mut().set(&foo_key, &bar_memo);
 
         let mut base_revision = sphere.apply_mutation(&base_mutation).await.unwrap();
 
@@ -990,7 +983,7 @@ mod tests {
             .unwrap();
 
         let mut lineage_a_mutation = SphereMutation::new(&owner_did);
-        lineage_a_mutation.links_mut().set(&bar_key, &baz_cid);
+        lineage_a_mutation.links_mut().set(&bar_key, &baz_memo);
 
         let mut lineage_a_revision =
             Sphere::apply_mutation_with_cid(&base_cid, &lineage_a_mutation, &mut store)
@@ -1002,8 +995,8 @@ mod tests {
             .unwrap();
 
         let mut lineage_b_mutation = SphereMutation::new(&owner_did);
-        lineage_b_mutation.links_mut().set(&foo_key, &foobar_cid);
-        lineage_b_mutation.links_mut().set(&baz_key, &flurb_cid);
+        lineage_b_mutation.links_mut().set(&foo_key, &foobar_memo);
+        lineage_b_mutation.links_mut().set(&baz_key, &flurb_memo);
 
         let mut lineage_b_revision =
             Sphere::apply_mutation_with_cid(&base_cid, &lineage_b_mutation, &mut store)
@@ -1034,10 +1027,13 @@ mod tests {
 
         assert_eq!(
             rebased_links.get(&foo_key).await.unwrap(),
-            Some(&foobar_cid)
+            Some(&foobar_memo)
         );
-        assert_eq!(rebased_links.get(&bar_key).await.unwrap(), Some(&baz_cid));
-        assert_eq!(rebased_links.get(&baz_key).await.unwrap(), Some(&flurb_cid));
+        assert_eq!(rebased_links.get(&bar_key).await.unwrap(), Some(&baz_memo));
+        assert_eq!(
+            rebased_links.get(&baz_key).await.unwrap(),
+            Some(&flurb_memo)
+        );
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
@@ -1108,10 +1104,9 @@ mod tests {
             let mut mutation = SphereMutation::new(&owner_did);
             let key = format!("key{}", i);
 
-            mutation.links_mut().set(
-                &key,
-                &store.save::<RawCodec, _>(Bytes::new(&[i])).await.unwrap(),
-            );
+            mutation
+                .links_mut()
+                .set(&key, &MemoIpld::for_body(&mut store, &[i]).await.unwrap());
             let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             let next_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
             sphere = Sphere::at(&next_cid, &store);
@@ -1212,10 +1207,10 @@ mod tests {
             credential: &Credential,
             authorization: &Authorization,
             store: &mut Storage,
-            (change_key, change_cid): (&str, &Cid),
+            (change_key, change_memo): (&str, &MemoIpld),
         ) -> anyhow::Result<Cid> {
             let mut mutation = SphereMutation::new(author_did);
-            mutation.links_mut().set(&change_key.into(), change_cid);
+            mutation.links_mut().set(&change_key.into(), change_memo);
 
             let mut base_revision =
                 Sphere::apply_mutation_with_cid(base_cid, &mutation, store).await?;
@@ -1225,17 +1220,11 @@ mod tests {
                 .await
         }
 
-        let foo_cid = store.save::<RawCodec, _>(Bytes::new(b"foo")).await.unwrap();
-        let bar_cid = store.save::<RawCodec, _>(Bytes::new(b"bar")).await.unwrap();
-        let baz_cid = store.save::<RawCodec, _>(Bytes::new(b"baz")).await.unwrap();
-        let foobar_cid = store
-            .save::<RawCodec, _>(Bytes::new(b"foobar"))
-            .await
-            .unwrap();
-        let flurb_cid = store
-            .save::<RawCodec, _>(Bytes::new(b"flurb"))
-            .await
-            .unwrap();
+        let foo_memo = MemoIpld::for_body(&mut store, b"foo").await.unwrap();
+        let bar_memo = MemoIpld::for_body(&mut store, b"bar").await.unwrap();
+        let baz_memo = MemoIpld::for_body(&mut store, b"baz").await.unwrap();
+        let foobar_memo = MemoIpld::for_body(&mut store, b"foobar").await.unwrap();
+        let flurb_memo = MemoIpld::for_body(&mut store, b"flurb").await.unwrap();
 
         let (sphere, authorization, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
@@ -1245,7 +1234,7 @@ mod tests {
             &owner_key,
             &authorization,
             &mut store,
-            ("foo", &foo_cid),
+            ("foo", &foo_memo),
         )
         .await
         .unwrap();
@@ -1258,7 +1247,7 @@ mod tests {
             &owner_key,
             &authorization,
             &mut external_store,
-            ("bar", &bar_cid),
+            ("bar", &bar_memo),
         )
         .await
         .unwrap();
@@ -1269,7 +1258,7 @@ mod tests {
             &owner_key,
             &authorization,
             &mut external_store,
-            ("foobar", &foobar_cid),
+            ("foobar", &foobar_memo),
         )
         .await
         .unwrap();
@@ -1287,7 +1276,7 @@ mod tests {
             &owner_key,
             &authorization,
             &mut store,
-            ("baz", &baz_cid),
+            ("baz", &baz_memo),
         )
         .await
         .unwrap();
@@ -1298,7 +1287,7 @@ mod tests {
             &owner_key,
             &authorization,
             &mut store,
-            ("bar", &flurb_cid),
+            ("bar", &flurb_memo),
         )
         .await
         .unwrap();

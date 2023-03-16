@@ -180,11 +180,11 @@ where
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
             let links = sphere.get_links().await?;
-            let stream = links.stream().await?;
+            let stream = links.into_stream().await?;
 
             for await entry in stream {
-                let (key, memo_revision) = entry?;
-                let file = self.has_sphere_context.get_file(sphere.cid(), memo_revision).await?;
+                let (key, memo) = entry?;
+                let file = self.has_sphere_context.get_file(sphere.cid(), memo).await?;
 
                 yield (key.clone(), file);
             }
@@ -201,11 +201,11 @@ where
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
             let links = sphere.get_links().await?;
-            let stream = links.stream().await?;
+            let stream = links.into_stream().await?;
 
             for await entry in stream {
-                let (key, memo_revision) = entry?;
-                let file = self.has_sphere_context.get_file(sphere.cid(), memo_revision).await?;
+                let (key, memo) = entry?;
+                let file = self.has_sphere_context.get_file(sphere.cid(), memo).await?;
 
                 yield (key.clone(), file);
             }
