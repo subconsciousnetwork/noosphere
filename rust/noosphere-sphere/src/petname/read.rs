@@ -27,9 +27,9 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<H, K, S> SpherePetnameRead<K, S> for H
+impl<C, K, S> SpherePetnameRead<K, S> for C
 where
-    H: HasSphereContext<K, S>,
+    C: HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {

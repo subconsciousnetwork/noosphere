@@ -9,12 +9,12 @@ use ucan::crypto::KeyMaterial;
 
 /// Given a [Transform] and a [Sphere], produce a stream that yields the file
 /// content as an HTML document
-pub fn sphere_to_html_document_stream<H, K, S, T>(
-    context: H,
+pub fn sphere_to_html_document_stream<C, K, S, T>(
+    context: C,
     transform: T,
 ) -> impl Stream<Item = String>
 where
-    H: HasSphereContext<K, S>,
+    C: HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
     T: Transform,

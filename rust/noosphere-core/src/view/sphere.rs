@@ -71,7 +71,7 @@ impl<S: BlockStore> Sphere<S> {
     /// Produce a bundle that contains the sparse set of blocks needed
     /// to produce this revision to the sphere
     pub async fn to_bundle(&self) -> Result<Bundle> {
-        MemoIpld::try_bundle_with_cid(self.cid(), &self.store).await
+        MemoIpld::bundle_with_cid(self.cid(), &self.store).await
     }
 
     /// Produce a bundle that contains the sparse set of blocks needed to

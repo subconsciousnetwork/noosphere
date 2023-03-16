@@ -19,9 +19,9 @@ static DEFAULT_STYLES: &[u8] = include_bytes!("./static/styles.css");
 /// Given a sphere [Did], [SphereDb] and a [WriteTarget], produce rendered HTML
 /// output up to and including the complete historical revisions of the
 /// slug-named content of the sphere.
-pub async fn sphere_into_html<H, K, S, W>(sphere_context: H, write_target: &W) -> Result<()>
+pub async fn sphere_into_html<C, K, S, W>(sphere_context: C, write_target: &W) -> Result<()>
 where
-    H: HasSphereContext<K, S> + 'static,
+    C: HasSphereContext<K, S> + 'static,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
     W: WriteTarget + 'static,

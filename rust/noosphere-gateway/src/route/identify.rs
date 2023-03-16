@@ -10,13 +10,13 @@ use ucan::{
 
 use crate::{authority::GatewayAuthority, GatewayScope};
 
-pub async fn identify_route<H, K, S>(
+pub async fn identify_route<C, K, S>(
     authority: GatewayAuthority<K>,
     Extension(scope): Extension<GatewayScope>,
-    Extension(sphere_context): Extension<H>,
+    Extension(sphere_context): Extension<C>,
 ) -> Result<impl IntoResponse, StatusCode>
 where
-    H: HasSphereContext<K, S>,
+    C: HasSphereContext<K, S>,
     K: KeyMaterial + Clone,
     S: Storage,
 {

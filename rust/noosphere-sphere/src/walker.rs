@@ -19,24 +19,24 @@ use crate::{
 /// [HasSphereContext] into an async [Stream] over sphere content, allowing
 /// incremental iteration over both the breadth of content at any version, or
 /// the depth of changes over a range of history.
-pub struct SphereWalker<H, K, S>
+pub struct SphereWalker<C, K, S>
 where
-    H: HasSphereContext<K, S>,
+    C: HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    has_sphere_context: H,
+    has_sphere_context: C,
     key: PhantomData<K>,
     storage: PhantomData<S>,
 }
 
-impl<H, K, S> From<H> for SphereWalker<H, K, S>
+impl<C, K, S> From<C> for SphereWalker<C, K, S>
 where
-    H: HasSphereContext<K, S>,
+    C: HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    fn from(has_sphere_context: H) -> Self {
+    fn from(has_sphere_context: C) -> Self {
         SphereWalker {
             has_sphere_context,
             key: Default::default(),
@@ -45,9 +45,9 @@ where
     }
 }
 
-impl<H, K, S> SphereWalker<H, K, S>
+impl<C, K, S> SphereWalker<C, K, S>
 where
-    H: SpherePetnameRead<K, S> + HasSphereContext<K, S>,
+    C: SpherePetnameRead<K, S> + HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -165,9 +165,9 @@ where
     }
 }
 
-impl<H, K, S> SphereWalker<H, K, S>
+impl<C, K, S> SphereWalker<C, K, S>
 where
-    H: SphereContentRead<K, S> + HasSphereContext<K, S>,
+    C: SphereContentRead<K, S> + HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {

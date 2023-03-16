@@ -27,16 +27,16 @@ pub struct GatewayScope {
     pub counterpart: Did,
 }
 
-pub async fn start_gateway<H, K, S>(
+pub async fn start_gateway<C, K, S>(
     listener: TcpListener,
     gateway_scope: GatewayScope,
-    sphere_context: H,
+    sphere_context: C,
     ipfs_api: Url,
     name_resolver_api: Url,
     cors_origin: Option<Url>,
 ) -> Result<()>
 where
-    H: HasMutableSphereContext<K, S> + 'static,
+    C: HasMutableSphereContext<K, S> + 'static,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -67,8 +67,8 @@ where
             ]);
     }
 
-    let (syndication_tx, syndication_task) = start_ipfs_syndication::<H, K, S>(ipfs_api);
-    let (name_system_tx, name_system_task) = start_name_system::<H, K, S>(
+    let (syndication_tx, syndication_task) = start_ipfs_syndication::<C, K, S>(ipfs_api);
+    let (name_system_tx, name_system_task) = start_name_system::<C, K, S>(
         NameSystemConfiguration::Remote(name_resolver_api),
         vec![sphere_context.clone()],
     );
@@ -77,12 +77,12 @@ where
         .route(&GatewayRoute::Did.to_string(), get(did_route::<K>))
         .route(
             &GatewayRoute::Identify.to_string(),
-            get(identify_route::<H, K, S>),
+            get(identify_route::<C, K, S>),
         )
-        .route(&GatewayRoute::Push.to_string(), put(push_route::<H, K, S>))
+        .route(&GatewayRoute::Push.to_string(), put(push_route::<C, K, S>))
         .route(
             &GatewayRoute::Fetch.to_string(),
-            get(fetch_route::<H, K, S>),
+            get(fetch_route::<C, K, S>),
         )
         .layer(Extension(sphere_context.clone()))
         .layer(Extension(gateway_scope.clone()))

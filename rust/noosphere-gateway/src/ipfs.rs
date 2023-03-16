@@ -50,11 +50,11 @@ pub struct SyndicationCheckpoint {
 /// Start a Tokio task that waits for [SyndicationJob] messages and then
 /// attempts to syndicate to the configured IPFS RPC. Currently only Kubo IPFS
 /// backends are supported.
-pub fn start_ipfs_syndication<H, K, S>(
+pub fn start_ipfs_syndication<C, K, S>(
     ipfs_api: Url,
-) -> (UnboundedSender<SyndicationJob<H>>, JoinHandle<Result<()>>)
+) -> (UnboundedSender<SyndicationJob<C>>, JoinHandle<Result<()>>)
 where
-    H: HasMutableSphereContext<K, S> + 'static,
+    C: HasMutableSphereContext<K, S> + 'static,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -63,12 +63,12 @@ where
     (tx, tokio::task::spawn(ipfs_syndication_task(ipfs_api, rx)))
 }
 
-async fn ipfs_syndication_task<H, K, S>(
+async fn ipfs_syndication_task<C, K, S>(
     ipfs_api: Url,
-    mut receiver: UnboundedReceiver<SyndicationJob<H>>,
+    mut receiver: UnboundedReceiver<SyndicationJob<C>>,
 ) -> Result<()>
 where
-    H: HasMutableSphereContext<K, S>,
+    C: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {

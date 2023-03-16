@@ -56,12 +56,12 @@ pub enum NameSystemJob<C> {
     },
 }
 
-pub fn start_name_system<H, K, S>(
+pub fn start_name_system<C, K, S>(
     configuration: NameSystemConfiguration,
-    local_spheres: Vec<H>,
-) -> (UnboundedSender<NameSystemJob<H>>, JoinHandle<Result<()>>)
+    local_spheres: Vec<C>,
+) -> (UnboundedSender<NameSystemJob<C>>, JoinHandle<Result<()>>)
 where
-    H: HasMutableSphereContext<K, S> + 'static,
+    C: HasMutableSphereContext<K, S> + 'static,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -81,11 +81,11 @@ where
     (tx, task)
 }
 
-async fn periodic_resolver_task<H, K, S>(
-    tx: UnboundedSender<NameSystemJob<H>>,
-    local_spheres: Vec<H>,
+async fn periodic_resolver_task<C, K, S>(
+    tx: UnboundedSender<NameSystemJob<C>>,
+    local_spheres: Vec<C>,
 ) where
-    H: HasMutableSphereContext<K, S>,
+    C: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -103,12 +103,12 @@ async fn periodic_resolver_task<H, K, S>(
     }
 }
 
-pub async fn name_system_task<H, K, S>(
+pub async fn name_system_task<C, K, S>(
     configuration: NameSystemConfiguration,
-    mut receiver: UnboundedReceiver<NameSystemJob<H>>,
+    mut receiver: UnboundedReceiver<NameSystemJob<C>>,
 ) -> Result<()>
 where
-    H: HasMutableSphereContext<K, S>,
+    C: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -227,13 +227,13 @@ where
 
 /// Consumes a stream of name / address tuples, resolving them one at a time
 /// and updating the provided [SphereContext] with the latest resolved values
-async fn resolve_all<H, K, S, N>(
+async fn resolve_all<C, K, S, N>(
     client: Arc<dyn NameSystemClient>,
-    mut context: H,
+    mut context: C,
     stream: N,
 ) -> Result<()>
 where
-    H: HasMutableSphereContext<K, S>,
+    C: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
     N: Stream<Item = Result<(String, AddressIpld)>>,

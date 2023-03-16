@@ -19,27 +19,27 @@ use crate::SphereContext;
 /// implementor of [HasSphereContext] and mount it to a specific version of the
 /// sphere.
 #[derive(Clone)]
-pub struct SphereCursor<H, K, S>
+pub struct SphereCursor<C, K, S>
 where
-    H: HasSphereContext<K, S>,
+    C: HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    has_sphere_context: H,
+    has_sphere_context: C,
     key: PhantomData<K>,
     storage: PhantomData<S>,
     sphere_version: Option<Cid>,
 }
 
-impl<H, K, S> SphereCursor<H, K, S>
+impl<C, K, S> SphereCursor<C, K, S>
 where
-    H: HasSphereContext<K, S>,
+    C: HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
     /// Same as [SphereCursor::mount], but mounts the [SphereCursor] to a known
     /// version of the history of the sphere.
-    pub fn mounted_at(has_sphere_context: H, sphere_version: &Cid) -> Self {
+    pub fn mounted_at(has_sphere_context: C, sphere_version: &Cid) -> Self {
         SphereCursor {
             has_sphere_context,
             key: PhantomData,
@@ -77,7 +77,7 @@ where
     /// sphere, mounted to that version. If the latest version changes due to
     /// effects in the distance, the cursor will still point to the same version
     /// it referred to when it was created.
-    pub async fn mounted(has_sphere_context: H) -> Result<Self> {
+    pub async fn mounted(has_sphere_context: C) -> Result<Self> {
         // let sphere_version = has_sphere_context.sphere_context().await?.head().await?;
         let mut cursor = Self::latest(has_sphere_context);
         cursor.mount().await?;
@@ -87,7 +87,7 @@ where
     /// Create this [SphereCursor] at the latest local version of the associated
     /// sphere. The [SphereCursor] will always point to the latest local
     /// version, unless subsequently mounted.
-    pub fn latest(has_sphere_context: H) -> Self {
+    pub fn latest(has_sphere_context: C) -> Self {
         SphereCursor {
             has_sphere_context,
             key: PhantomData,
@@ -116,13 +116,13 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<H, K, S> HasMutableSphereContext<K, S> for SphereCursor<H, K, S>
+impl<C, K, S> HasMutableSphereContext<K, S> for SphereCursor<C, K, S>
 where
-    H: HasMutableSphereContext<K, S>,
+    C: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
-    type MutableSphereContext = H::MutableSphereContext;
+    type MutableSphereContext = C::MutableSphereContext;
 
     async fn sphere_context_mut(&mut self) -> Result<Self::MutableSphereContext> {
         self.has_sphere_context.sphere_context_mut().await
@@ -141,13 +141,13 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<H, K, S> HasSphereContext<K, S> for SphereCursor<H, K, S>
+impl<C, K, S> HasSphereContext<K, S> for SphereCursor<C, K, S>
 where
-    H: HasSphereContext<K, S>,
+    C: HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    type SphereContext = H::SphereContext;
+    type SphereContext = C::SphereContext;
 
     async fn sphere_context(&self) -> Result<Self::SphereContext> {
         self.has_sphere_context.sphere_context().await
@@ -163,13 +163,13 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<'a, H, K, S> HasSphereContext<K, S> for &'a SphereCursor<H, K, S>
+impl<'a, C, K, S> HasSphereContext<K, S> for &'a SphereCursor<C, K, S>
 where
-    H: HasSphereContext<K, S>,
+    C: HasSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    type SphereContext = H::SphereContext;
+    type SphereContext = C::SphereContext;
 
     async fn sphere_context(&self) -> Result<Self::SphereContext> {
         self.has_sphere_context.sphere_context().await

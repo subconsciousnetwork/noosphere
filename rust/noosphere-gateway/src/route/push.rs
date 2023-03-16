@@ -24,16 +24,16 @@ use crate::{
 };
 
 // #[debug_handler]
-pub async fn push_route<H, K, S>(
+pub async fn push_route<C, K, S>(
     authority: GatewayAuthority<K>,
     ContentLengthLimit(Cbor(request_body)): ContentLengthLimit<Cbor<PushBody>, { 1024 * 5000 }>,
-    Extension(sphere_context): Extension<H>,
+    Extension(sphere_context): Extension<C>,
     Extension(gateway_scope): Extension<GatewayScope>,
-    Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<H>>>,
-    Extension(name_system_tx): Extension<UnboundedSender<NameSystemJob<H>>>,
+    Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<C>>>,
+    Extension(name_system_tx): Extension<UnboundedSender<NameSystemJob<C>>>,
 ) -> Result<Cbor<PushResponse>, StatusCode>
 where
-    H: HasMutableSphereContext<K, S>,
+    C: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
@@ -67,24 +67,24 @@ where
     Ok(Cbor(gateway_push_routine.invoke().await?))
 }
 
-pub struct GatewayPushRoutine<H, K, S>
+pub struct GatewayPushRoutine<C, K, S>
 where
-    H: HasMutableSphereContext<K, S>,
+    C: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    sphere_context: H,
+    sphere_context: C,
     gateway_scope: GatewayScope,
-    syndication_tx: UnboundedSender<SyndicationJob<H>>,
-    name_system_tx: UnboundedSender<NameSystemJob<H>>,
+    syndication_tx: UnboundedSender<SyndicationJob<C>>,
+    name_system_tx: UnboundedSender<NameSystemJob<C>>,
     request_body: PushBody,
     key_type: PhantomData<K>,
     storage_type: PhantomData<S>,
 }
 
-impl<H, K, S> GatewayPushRoutine<H, K, S>
+impl<C, K, S> GatewayPushRoutine<C, K, S>
 where
-    H: HasMutableSphereContext<K, S>,
+    C: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {

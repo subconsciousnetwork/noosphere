@@ -18,14 +18,14 @@ use ucan::{
 
 use crate::{authority::GatewayAuthority, extractor::Cbor, GatewayScope};
 
-pub async fn fetch_route<H, K, S>(
+pub async fn fetch_route<C, K, S>(
     authority: GatewayAuthority<K>,
     Query(FetchParameters { since }): Query<FetchParameters>,
     Extension(scope): Extension<GatewayScope>,
-    Extension(sphere_context): Extension<H>,
+    Extension(sphere_context): Extension<C>,
 ) -> Result<impl IntoResponse, StatusCode>
 where
-    H: HasSphereContext<K, S>,
+    C: HasSphereContext<K, S>,
     K: KeyMaterial + Clone,
     S: Storage,
 {
