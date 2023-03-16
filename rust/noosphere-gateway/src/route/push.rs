@@ -114,7 +114,7 @@ where
         let local_sphere_base_cid = db.get_version(sphere_identity).await?;
         let request_sphere_base_cid = self.request_body.base;
 
-        match (local_sphere_base_cid.clone(), request_sphere_base_cid) {
+        match (local_sphere_base_cid, request_sphere_base_cid) {
             (Some(mine), theirs) => {
                 // TODO(#26): Probably should do some diligence here to check if
                 // their base is even in our lineage. Note that this condition

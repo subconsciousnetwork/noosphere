@@ -38,7 +38,7 @@ async fn start_gateway_for_workspace(
         gateway_address.port()
     ))?;
 
-    let gateway_sphere_context = workspace.sphere_context().await?.clone();
+    let gateway_sphere_context = workspace.sphere_context().await?;
 
     let client_sphere_identity = client_sphere_identity.clone();
     let ns_url = ns_url.clone();

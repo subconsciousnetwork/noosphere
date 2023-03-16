@@ -58,7 +58,7 @@ where
                     Peer::None => {
                         // TODO(#49): Perhaps this should be sensitive to external content
                         // e.g., from other spheres
-                        ()
+                        
                     }
                     _ => return Ok(None),
                 };
