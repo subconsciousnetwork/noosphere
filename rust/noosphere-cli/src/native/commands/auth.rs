@@ -21,6 +21,7 @@ use tokio_stream::StreamExt;
 use crate::native::workspace::Workspace;
 
 pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) -> Result<Cid> {
+    workspace.ensure_sphere_initialized()?;
     let sphere_did = workspace.sphere_identity().await?;
     let mut db = workspace.db().await?;
 
@@ -192,6 +193,7 @@ pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {
 }
 
 pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
+    workspace.ensure_sphere_initialized()?;
     let sphere_did = workspace.sphere_identity().await?;
     let mut db = workspace.db().await?;
 

@@ -10,12 +10,7 @@ use noosphere_sphere::SphereContext;
 use ucan::crypto::KeyMaterial;
 
 pub async fn sphere_create(owner_key: &str, workspace: &Workspace) -> Result<()> {
-    if workspace.sphere_directory().exists() {
-        return Err(anyhow!(
-            "A sphere is already initialized in {:?}",
-            workspace.root_directory()
-        ));
-    }
+    workspace.ensure_sphere_uninitialized()?;
 
     let sphere_context_artifacts = SphereContextBuilder::default()
         .create_sphere()
@@ -56,12 +51,7 @@ pub async fn sphere_join(
     sphere_identity: &Did,
     workspace: &Workspace,
 ) -> Result<()> {
-    if workspace.sphere_directory().exists() {
-        return Err(anyhow!(
-            "A sphere is already initialized in {:?}",
-            workspace.root_directory()
-        ));
-    }
+    workspace.ensure_sphere_uninitialized()?;
     println!("Joining sphere {}...", sphere_identity);
 
     let did = {

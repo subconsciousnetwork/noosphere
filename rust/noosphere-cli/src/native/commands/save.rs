@@ -10,6 +10,8 @@ use crate::native::workspace::{FileReference, Workspace};
 /// TODO(#105): We may want to change this to take an optional list of paths to
 /// consider, and allow the user to rely on their shell for glob filtering
 pub async fn save(workspace: &Workspace) -> Result<()> {
+    workspace.ensure_sphere_initialized()?;
+
     let mut memory_store = MemoryStore::default();
     let mut db = workspace.db().await?;
 

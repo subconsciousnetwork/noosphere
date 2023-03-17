@@ -57,6 +57,7 @@ impl<'a> Config<'a> {
 }
 
 pub async fn config_set(command: ConfigSetCommand, workspace: &Workspace) -> Result<()> {
+    workspace.ensure_sphere_initialized()?;
     let context = workspace.sphere_context().await?;
     let context = context.lock().await;
 
@@ -72,6 +73,7 @@ pub async fn config_set(command: ConfigSetCommand, workspace: &Workspace) -> Res
 }
 
 pub async fn config_get(command: ConfigGetCommand, workspace: &Workspace) -> Result<()> {
+    workspace.ensure_sphere_initialized()?;
     let context = workspace.sphere_context().await?;
     let context = context.lock().await;
 
