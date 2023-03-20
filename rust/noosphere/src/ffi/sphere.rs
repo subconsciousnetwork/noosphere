@@ -8,8 +8,11 @@ use safer_ffi::prelude::*;
 use crate::ffi::{NsError, NsNoosphere, TryOrInitialize};
 use crate::sphere::SphereReceipt;
 
-#[derive_ReprC]
-#[ReprC::opaque]
+#[derive_ReprC(rename = "ns_sphere_receipt")]
+#[repr(opaque)]
+/// @class ns_sphere_receipt_t
+///
+/// TBD.
 pub struct NsSphereReceipt {
     inner: SphereReceipt,
 }
@@ -70,12 +73,13 @@ pub fn ns_sphere_create(
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<repr_c::Box<NsSphereReceipt>> {
     error_out.try_or_initialize(|| {
-        Ok(repr_c::Box::new(
+        Ok(Box::<NsSphereReceipt>::new(
             noosphere
                 .async_runtime()
                 .block_on(noosphere.inner_mut().create_sphere(owner_key_name.to_str()))
                 .map(|receipt| receipt.into())?,
-        ))
+        )
+        .into())
     })
 }
 

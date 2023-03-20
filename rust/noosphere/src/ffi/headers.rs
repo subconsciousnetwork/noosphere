@@ -1,7 +1,10 @@
 use safer_ffi::prelude::*;
 
-#[derive_ReprC]
-#[ReprC::opaque]
+#[derive_ReprC(rename = "ns_headers")]
+#[repr(opaque)]
+/// @class ns_headers_t
+///
+/// TBD
 pub struct NsHeaders {
     inner: Vec<(String, String)>,
 }
@@ -20,7 +23,7 @@ impl NsHeaders {
 /// Create a [NsHeaders] buffer for the purpose of building up a set of headers
 /// intended to be added to a memo before it is written to a sphere
 pub fn ns_headers_create() -> repr_c::Box<NsHeaders> {
-    repr_c::Box::new(NsHeaders { inner: Vec::new() })
+    Box::new(NsHeaders { inner: Vec::new() }).into()
 }
 
 #[ffi_export]

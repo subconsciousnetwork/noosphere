@@ -11,8 +11,11 @@ use crate::{
     NoosphereNetwork, NoosphereSecurity, NoosphereStorage,
 };
 
-#[derive_ReprC]
-#[ReprC::opaque]
+#[derive_ReprC(rename = "ns_noosphere")]
+#[repr(opaque)]
+/// @class ns_noosphere_t
+///
+/// Core noosphere class.
 pub struct NsNoosphere {
     inner: NoosphereContext,
     async_runtime: Arc<TokioRuntime>,
@@ -85,11 +88,12 @@ pub fn ns_initialize(
             None => None,
         };
 
-        Ok(repr_c::Box::new(NsNoosphere::new(
+        Ok(Box::new(NsNoosphere::new(
             global_storage_path.to_str(),
             sphere_storage_path.to_str(),
             gateway_url.as_ref(),
-        )?))
+        )?)
+        .into())
     })
 }
 

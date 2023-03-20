@@ -23,8 +23,11 @@ use noosphere_sphere::{
     SphereContext, SphereCursor, SphereFile, SphereWalker,
 };
 
-#[derive_ReprC]
-#[ReprC::opaque]
+#[derive_ReprC(rename = "ns_sphere")]
+#[repr(opaque)]
+/// @class ns_sphere_t
+///
+/// A sphere class.
 pub struct NsSphere {
     inner: SphereCursor<
         Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>,
@@ -55,8 +58,11 @@ impl NsSphere {
     }
 }
 
-#[derive_ReprC]
-#[ReprC::opaque]
+#[derive_ReprC(rename = "ns_sphere_file")]
+#[repr(opaque)]
+/// @class ns_sphere_file_t
+///
+/// TBD
 pub struct NsSphereFile {
     inner: SphereFile<Pin<Box<dyn AsyncRead>>>,
 }
@@ -91,7 +97,7 @@ pub fn ns_sphere_fs_open(
 
             let cursor = SphereCursor::latest(sphere_context);
 
-            Ok(repr_c::Box::new(NsSphere { inner: cursor })) as Result<_, anyhow::Error>
+            Ok(Box::new(NsSphere { inner: cursor }).into()) as Result<_, anyhow::Error>
         })?;
 
         Ok(fs)
@@ -148,9 +154,10 @@ pub fn ns_sphere_fs_read(
                 let file = cursor.read(&slug).await?;
 
                 Ok(file.map(|sphere_file| {
-                    repr_c::Box::new(NsSphereFile {
+                    Box::new(NsSphereFile {
                         inner: sphere_file.boxed(),
                     })
+                    .into()
                 }))
             })
             .map_err(|error| error.into())
@@ -393,7 +400,8 @@ pub fn ns_sphere_file_header_value_first(
         .memo
         .get_first_header(name.to_str())
         .into_iter()
-        .filter_map(|value| value.try_into().ok()).next()
+        .filter_map(|value| value.try_into().ok())
+        .next()
 }
 
 #[ffi_export]
