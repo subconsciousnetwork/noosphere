@@ -1,6 +1,5 @@
 use anyhow::Result;
 use cid::Cid;
-pub use crdts::{map, Orswot};
 use libipld_cbor::DagCborCodec;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{fmt::Display, hash::Hash, marker::PhantomData};

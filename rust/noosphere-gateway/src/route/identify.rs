@@ -1,3 +1,4 @@
+use crate::{authority::GatewayAuthority, GatewayScope};
 use axum::{http::StatusCode, response::IntoResponse, Extension, Json};
 use noosphere_api::data::IdentifyResponse;
 use noosphere_core::authority::{SphereAction, SphereReference};
@@ -8,12 +9,10 @@ use ucan::{
     crypto::KeyMaterial,
 };
 
-use crate::{authority::GatewayAuthority, GatewayScope};
-
 pub async fn identify_route<C, K, S>(
-    authority: GatewayAuthority<K>,
     Extension(scope): Extension<GatewayScope>,
     Extension(sphere_context): Extension<C>,
+    authority: GatewayAuthority<K>,
 ) -> Result<impl IntoResponse, StatusCode>
 where
     C: HasSphereContext<K, S>,

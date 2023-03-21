@@ -37,7 +37,7 @@ impl NsNoosphere {
                 },
                 network: NoosphereNetwork::Http {
                     gateway_api: gateway_api.cloned(),
-                    ipfs_gateway_url: None,
+                    ipfs_api: None,
                 },
             })?,
             async_runtime: Arc::new(TokioRuntime::new()?),

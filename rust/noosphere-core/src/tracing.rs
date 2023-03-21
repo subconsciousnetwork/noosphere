@@ -22,11 +22,7 @@ pub fn initialize_tracing() {
                 std::env::var("RUST_LOG")
                     .unwrap_or_else(|_| "noosphere_cli,orb,tower_http=debug".into()),
             ))
-            .with(
-                tracing_subscriber::fmt::layer()
-                    .with_file(true)
-                    .with_line_number(true),
-            )
+            .with(tracing_subscriber::fmt::layer())
             .init();
     });
 }

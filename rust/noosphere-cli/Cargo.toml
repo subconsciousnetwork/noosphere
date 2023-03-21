@@ -16,10 +16,13 @@ repository = "https://github.com/subconsciousnetwork/noosphere"
 homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
+[features]
+test_kubo = []
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls", "stream"] }
 noosphere-ns = { version = "0.5.0", path = "../noosphere-ns" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -29,7 +32,6 @@ anyhow = "^1"
 
 tokio = { version = "^1", features = ["full"] }
 tokio-stream = "~0.1"
-axum = { version = "~0.5", features = ["headers", "macros"] }
 tower = "~0.4"
 tower-http = { version = "~0.3", features = ["cors", "trace"] }
 async-trait = "~0.1"

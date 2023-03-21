@@ -41,7 +41,7 @@ pub async fn main() -> Result<()> {
     db.set_version(&sphere_identity, sphere.cid()).await?;
 
     let context = Arc::new(Mutex::new(
-        SphereContext::new(sphere_identity, author, db).await?,
+        SphereContext::new(sphere_identity, author, db, None).await?,
     ));
     let mut cursor = SphereCursor::latest(context);
 

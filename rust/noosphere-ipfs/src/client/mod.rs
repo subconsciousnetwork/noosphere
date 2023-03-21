@@ -9,7 +9,7 @@ mod kubo;
 #[cfg(not(target_arch = "wasm32"))]
 pub use kubo::KuboClient;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use cid::Cid;
 use tokio::io::AsyncRead;
@@ -53,4 +53,12 @@ pub trait IpfsClient: Clone {
 
     /// Places the associated block with cid on the corresponding backend.
     async fn put_block(&mut self, cid: &Cid, block: &[u8]) -> Result<()>;
+
+    /// Same as `get_block`, but turns a `None` value into an error.
+    async fn require_block(&self, cid: &Cid) -> Result<Vec<u8>> {
+        match self.get_block(cid).await? {
+            Some(block) => Ok(block),
+            None => Err(anyhow!("No block found for CID {}", cid)),
+        }
+    }
 }

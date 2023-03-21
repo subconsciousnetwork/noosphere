@@ -48,7 +48,7 @@ pub async fn simulated_sphere_context(
     db.set_version(&sphere_identity, sphere.cid()).await?;
 
     Ok(Arc::new(Mutex::new(
-        SphereContext::new(sphere_identity, author, db)
+        SphereContext::new(sphere_identity, author, db, None)
             .await
             .unwrap(),
     )))

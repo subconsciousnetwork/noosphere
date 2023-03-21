@@ -9,10 +9,7 @@ mod authority;
 mod extractor;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod ipfs;
-
-#[cfg(not(target_arch = "wasm32"))]
-mod nns;
+mod worker;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod route;

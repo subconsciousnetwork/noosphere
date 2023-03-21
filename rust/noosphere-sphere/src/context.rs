@@ -2,14 +2,16 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use futures_util::TryStreamExt;
+use libipld_cbor::DagCborCodec;
 use noosphere_api::client::Client;
 
 use noosphere_core::{
     authority::{Access, Author, SUPPORTED_KEYS},
-    data::Did,
+    data::{ContentType, Did, MemoIpld, SphereIpld},
     view::{Sphere, SphereMutation},
 };
-use noosphere_storage::{KeyValueStore, SphereDb, Storage};
+use noosphere_storage::{BlockStore, KeyValueStore, SphereDb, Storage};
 use tokio::sync::OnceCell;
 use ucan::crypto::{did::DidParser, KeyMaterial};
 use url::Url;
@@ -31,6 +33,7 @@ where
     S: Storage,
 {
     sphere_identity: Did,
+    origin_sphere_identity: Did,
     author: Author<K>,
     access: OnceCell<Access>,
     db: SphereDb<S>,
@@ -44,11 +47,19 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
-    pub async fn new(sphere_identity: Did, author: Author<K>, db: SphereDb<S>) -> Result<Self> {
+    pub async fn new(
+        sphere_identity: Did,
+        author: Author<K>,
+        db: SphereDb<S>,
+        origin_sphere_identity: Option<Did>,
+    ) -> Result<Self> {
         let author_did = author.identity().await?;
+        let origin_sphere_identity =
+            origin_sphere_identity.unwrap_or_else(|| sphere_identity.clone());
 
         Ok(SphereContext {
             sphere_identity,
+            origin_sphere_identity,
             access: OnceCell::new(),
             author,
             db,
@@ -58,16 +69,116 @@ where
         })
     }
 
+    /// Given a petname that has been assigned to a sphere identity within this
+    /// sphere's address book, produce a [SphereContext] backed by the same
+    /// credentials and storage primitives as this one, but that accesses the
+    /// sphere referred to by the provided [Did]. If the local data for the
+    /// sphere being traversed to is not available, an attempt will be made to
+    /// replicate the data from a Noosphere Gateway.
+    pub async fn traverse_by_petname(&mut self, petname: &str) -> Result<SphereContext<K, S>> {
+        // Resolve petname to sphere version via address book entry
+
+        let address = match self
+            .sphere()
+            .await?
+            .get_names()
+            .await?
+            .get(&petname.to_string())
+            .await?
+        {
+            Some(address) => address.clone(),
+            None => return Err(anyhow!("\"{petname}\" is not assigned to an identity")),
+        };
+
+        let resolved_version = match address.dereference(self.db()).await {
+            Some(cid) => cid,
+            None => {
+                return Err(anyhow!(
+                    "No version has been resolved for \"{petname}\" ({})",
+                    address.identity
+                ));
+            }
+        };
+
+        // Check for version in local sphere DB
+
+        let maybe_has_resolved_version = match self.db().get_version(&address.identity).await? {
+            Some(local_version) => local_version == resolved_version,
+            None => false,
+        };
+
+        // If version available, check for memo and body blocks
+
+        let should_replicate_from_gateway = if maybe_has_resolved_version {
+            match self
+                .db()
+                .load::<DagCborCodec, MemoIpld>(&resolved_version)
+                .await
+            {
+                Ok(memo) => {
+                    if memo.content_type() != Some(ContentType::Sphere) {
+                        return Err(anyhow!(
+                            "Resolved content for \"{petname}\" ({}) does not refer to a sphere",
+                            address.identity
+                        ));
+                    }
+
+                    match self.db().load::<DagCborCodec, SphereIpld>(&memo.body).await {
+                        Ok(_) => false,
+                        Err(error) => {
+                            warn!("{error}");
+                            true
+                        }
+                    }
+                }
+                Err(error) => {
+                    warn!("{error}");
+                    true
+                }
+            }
+        } else {
+            true
+        };
+
+        // If no version available or memo/body missing, replicate from gateway
+
+        if should_replicate_from_gateway {
+            let client = self.client().await?;
+            let stream = client.replicate(&resolved_version).await?;
+
+            tokio::pin!(stream);
+
+            while let Some((cid, block)) = stream.try_next().await? {
+                self.db_mut().put_block(&cid, &block).await?;
+            }
+        }
+
+        // Update the version in local sphere DB
+
+        self.db_mut()
+            .set_version(&address.identity, &resolved_version)
+            .await?;
+
+        // Initialize a `SphereContext` with the same author and sphere DB as
+        // this one, but referring to the resolved sphere DID, and return it
+
+        SphereContext::new(
+            address.identity.clone(),
+            self.author.clone(),
+            self.db.clone(),
+            Some(self.sphere_identity.clone()),
+        )
+        .await
+    }
+
     /// Given a [Did] of a sphere, produce a [SphereContext] backed by the same credentials and
     /// storage primitives as this one, but that accesses the sphere referred to by the provided
     /// [Did].
-    pub async fn traverse(&self, sphere_identity: &Did) -> Result<SphereContext<K, S>> {
-        SphereContext::new(
-            sphere_identity.clone(),
-            self.author.clone(),
-            self.db.clone(),
-        )
-        .await
+    pub async fn traverse_by_identity(
+        &self,
+        _sphere_identity: &Did,
+    ) -> Result<SphereContext<K, S>> {
+        unimplemented!()
     }
 
     /// Resolve the most recent version in the local history of the sphere
@@ -158,7 +269,7 @@ where
     /// for one has been configured). This will initialize a [Client] if one is
     /// not already intialized, and will fail if the [Client] is unable to
     /// verify the identity of the gateway or otherwise connect to it.
-    pub async fn client(&mut self) -> Result<Arc<Client<K, SphereDb<S>>>> {
+    pub async fn client(&self) -> Result<Arc<Client<K, SphereDb<S>>>> {
         let client = self
             .client
             .get_or_try_init::<anyhow::Error, _, _>(|| async {
@@ -166,10 +277,11 @@ where
 
                 Ok(Arc::new(
                     Client::identify(
-                        &self.sphere_identity,
+                        &self.origin_sphere_identity,
                         &gateway_url,
                         &self.author,
-                        &mut self.did_parser,
+                        // TODO: Kill `DidParser` with fire
+                        &mut DidParser::new(SUPPORTED_KEYS),
                         self.db.clone(),
                     )
                     .await?,

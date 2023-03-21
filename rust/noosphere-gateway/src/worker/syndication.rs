@@ -33,7 +33,8 @@ pub struct SyndicationJob<C> {
     /// from; the counterpart sphere's revision will need to be derived using
     /// this checkpoint in local sphere history.
     pub revision: Cid,
-    /// The [SphereContext] that corresponds to the _local_ sphere.
+    /// The [SphereContext] that corresponds to the _local_ sphere relative to
+    /// the gateway.
     pub context: C,
 }
 
@@ -77,6 +78,7 @@ where
     let kubo_client = Arc::new(KuboClient::new(&ipfs_api)?);
 
     while let Some(SyndicationJob { revision, context }) = receiver.recv().await {
+        debug!("Attempting to syndicate version DAG {revision} to IPFS");
         let kubo_identity = match kubo_client.server_identity().await {
             Ok(id) => id,
             Err(error) => {
@@ -89,6 +91,8 @@ where
         };
         let checkpoint_key = format!("syndication/kubo/{kubo_identity}");
 
+        debug!("IPFS node identified as {}", kubo_identity);
+
         // Take a lock on the `SphereContext` and look up the most recent
         // syndication checkpoint for this Kubo node
         let (sphere_revision, ancestor_revision, mut syndicated_blocks, db) = {
@@ -96,8 +100,10 @@ where
                 let context = context.sphere_context().await?;
                 context.db().clone()
             };
+            info!("CHECKPOINT A");
 
             let counterpart_identity = db.require_key::<_, Did>(COUNTERPART).await?;
+            info!("CHECKPOINT B");
             let sphere = context.to_sphere().await?;
             let links = sphere.get_links().await?;
 
@@ -187,6 +193,7 @@ where
             loop {
                 match stream.try_next().await {
                     Ok(Some(cid)) => {
+                        trace!("Syndication will include block {}", cid);
                         // TODO(#176): We need to build-up a list of blocks that aren't
                         // able to be loaded so that we can be resilient to incomplete
                         // data when syndicating to IPFS

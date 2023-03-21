@@ -1,7 +1,6 @@
 use std::{collections::BTreeMap, pin::Pin};
 
 use anyhow::{anyhow, Result};
-use async_once_cell::OnceCell;
 use cid::Cid;
 use futures::Stream;
 use libipld_cbor::DagCborCodec;
@@ -9,6 +8,7 @@ use libipld_core::{
     codec::{Codec, Encode},
     ipld::Ipld,
 };
+use tokio::sync::OnceCell;
 
 use crate::data::{
     AddressIpld, ChangelogIpld, CidKey, DelegationIpld, LinksIpld, MapOperation, MemoIpld,
@@ -40,6 +40,7 @@ where
     cid: Cid,
     store: S,
     // NOTE: OnceCell used here for the caching benefits; it may not be necessary for changelog
+    body: OnceCell<VersionedMapIpld<K, V>>,
     hamt: OnceCell<Hamt<S, V, K>>,
     changelog: OnceCell<ChangelogIpld<MapOperation<K, V>>>,
 }
@@ -50,17 +51,24 @@ where
     V: VersionedMapValue,
     S: BlockStore,
 {
+    /// Loads the underlying IPLD (if it hasn't been loaded already) and returns
+    /// an owned copy of it
+    pub async fn to_body(&self) -> Result<VersionedMapIpld<K, V>> {
+        Ok(self
+            .body
+            .get_or_try_init(|| async { self.store.load::<DagCborCodec, _>(&self.cid).await })
+            .await?
+            .clone())
+    }
+
     pub async fn get_changelog(&self) -> Result<&ChangelogIpld<MapOperation<K, V>>> {
         self.changelog
-            .get_or_try_init(async { self.load_changelog().await })
+            .get_or_try_init(|| async { self.load_changelog().await })
             .await
     }
 
     pub async fn load_changelog(&self) -> Result<ChangelogIpld<MapOperation<K, V>>> {
-        let ipld = self
-            .store
-            .load::<DagCborCodec, VersionedMapIpld<K, V>>(&self.cid)
-            .await?;
+        let ipld = self.to_body().await?;
         self.store
             .load::<DagCborCodec, ChangelogIpld<MapOperation<K, V>>>(&ipld.changelog)
             .await
@@ -68,16 +76,12 @@ where
 
     pub async fn get_hamt(&self) -> Result<&Hamt<S, V, K>> {
         self.hamt
-            .get_or_try_init(async { self.load_hamt().await })
+            .get_or_try_init(|| async { self.load_hamt().await })
             .await
     }
 
     async fn load_hamt(&self) -> Result<Hamt<S, V, K>> {
-        let ipld = self
-            .store
-            .load::<DagCborCodec, VersionedMapIpld<K, V>>(&self.cid)
-            .await?;
-
+        let ipld = self.to_body().await?;
         ipld.load_hamt(&self.store).await
     }
 
@@ -96,18 +100,20 @@ where
         VersionedMap {
             cid: *cid,
             store: store.clone(),
+            body: OnceCell::new(),
             hamt: OnceCell::new(),
             changelog: OnceCell::new(),
         }
     }
 
     pub async fn empty(store: &mut S) -> Result<VersionedMap<K, V, S>> {
-        let ipld = LinksIpld::empty(store).await?;
+        let ipld = VersionedMapIpld::<K, V>::empty(store).await?;
         let cid = store.save::<DagCborCodec, _>(ipld).await?;
 
         Ok(VersionedMap {
             cid,
             hamt: OnceCell::new(),
+            body: OnceCell::new(),
             changelog: OnceCell::new(),
             store: store.clone(),
         })

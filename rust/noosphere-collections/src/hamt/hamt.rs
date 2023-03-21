@@ -7,7 +7,7 @@ use anyhow::Result;
 use libipld_cbor::DagCborCodec;
 
 use noosphere_storage::BlockStore;
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
 use std::marker::PhantomData;
 use std::pin::Pin;
 use tokio_stream::{Stream, StreamExt};
@@ -170,7 +170,7 @@ where
     /// ```
     pub async fn set(&mut self, key: K, value: V) -> Result<Option<V>> {
         self.root
-            .set(key, value, self.store.borrow(), self.bit_width, true)
+            .set(key, value, self.store.borrow_mut(), self.bit_width, true)
             .await
             .map(|(r, _)| r)
     }
@@ -208,7 +208,7 @@ where
         V: PartialEq,
     {
         self.root
-            .set(key, value, self.store.borrow(), self.bit_width, false)
+            .set(key, value, self.store.borrow_mut(), self.bit_width, false)
             .await
             .map(|(_, set)| set)
     }

@@ -11,8 +11,10 @@ mod key_value;
 
 mod db;
 mod encoding;
+mod retry;
 mod storage;
 mod store;
+mod tap;
 mod ucan;
 
 pub use crate::ucan::*;
@@ -21,10 +23,10 @@ pub use db::*;
 pub use encoding::*;
 pub use implementation::*;
 pub use key_value::*;
+pub use retry::*;
 pub use storage::*;
 pub use store::*;
-
-pub const BLOCK_STORE: &str = "blocks";
+pub use tap::*;
 
 #[cfg(test)]
 pub mod helpers;

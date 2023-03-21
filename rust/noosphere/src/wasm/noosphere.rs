@@ -72,7 +72,7 @@ impl NoosphereContext {
             None
         };
 
-        let ipfs_gateway_url = if let Some(ipfs_gateway_url) = ipfs_gateway_url {
+        let ipfs_api = if let Some(ipfs_gateway_url) = ipfs_gateway_url {
             Url::parse(&ipfs_gateway_url).ok()
         } else {
             None
@@ -85,7 +85,7 @@ impl NoosphereContext {
             security: NoosphereSecurity::Opaque,
             network: NoosphereNetwork::Http {
                 gateway_api,
-                ipfs_gateway_url,
+                ipfs_api,
             },
         })
         .unwrap();

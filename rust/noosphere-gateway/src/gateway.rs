@@ -3,6 +3,7 @@ use axum::http::{HeaderValue, Method};
 use axum::routing::{get, put};
 use axum::{Extension, Router, Server};
 use noosphere_core::data::Did;
+use noosphere_ipfs::KuboClient;
 use noosphere_sphere::HasMutableSphereContext;
 use noosphere_storage::Storage;
 use std::net::TcpListener;
@@ -13,10 +14,10 @@ use url::Url;
 
 use noosphere_api::route::Route as GatewayRoute;
 
-use crate::nns::{start_name_system, NameSystemConfiguration};
+use crate::route::replicate_route;
 use crate::{
-    ipfs::start_ipfs_syndication,
     route::{did_route, fetch_route, identify_route, push_route},
+    worker::{start_ipfs_syndication, start_name_system, NameSystemConfiguration},
 };
 
 use noosphere_core::tracing::initialize_tracing;
@@ -67,6 +68,8 @@ where
             ]);
     }
 
+    let ipfs_client = KuboClient::new(&ipfs_api)?;
+
     let (syndication_tx, syndication_task) = start_ipfs_syndication::<C, K, S>(ipfs_api);
     let (name_system_tx, name_system_task) = start_name_system::<C, K, S>(
         NameSystemConfiguration::Remote(name_resolver_api),
@@ -74,7 +77,11 @@ where
     );
 
     let app = Router::new()
-        .route(&GatewayRoute::Did.to_string(), get(did_route::<K>))
+        .route(&GatewayRoute::Did.to_string(), get(did_route))
+        .route(
+            &GatewayRoute::Replicate(None).to_string(),
+            get(replicate_route::<C, K, S>),
+        )
         .route(
             &GatewayRoute::Identify.to_string(),
             get(identify_route::<C, K, S>),
@@ -86,6 +93,7 @@ where
         )
         .layer(Extension(sphere_context.clone()))
         .layer(Extension(gateway_scope.clone()))
+        .layer(Extension(ipfs_client))
         .layer(Extension(gateway_key_did))
         .layer(Extension(syndication_tx))
         .layer(Extension(name_system_tx))

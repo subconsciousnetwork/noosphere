@@ -2,7 +2,7 @@ use std::{collections::BTreeSet, marker::PhantomData};
 
 use anyhow::Result;
 
-use axum::{extract::ContentLengthLimit, http::StatusCode, Extension};
+use axum::{http::StatusCode, Extension};
 
 use cid::Cid;
 use noosphere_api::data::{PushBody, PushError, PushResponse};
@@ -19,22 +19,24 @@ use ucan::capability::{Capability, Resource, With};
 use ucan::crypto::KeyMaterial;
 
 use crate::{
-    authority::GatewayAuthority, extractor::Cbor, ipfs::SyndicationJob, nns::NameSystemJob,
+    authority::GatewayAuthority,
+    extractor::Cbor,
+    worker::{NameSystemJob, SyndicationJob},
     GatewayScope,
 };
 
 // #[debug_handler]
 pub async fn push_route<C, K, S>(
     authority: GatewayAuthority<K>,
-    ContentLengthLimit(Cbor(request_body)): ContentLengthLimit<Cbor<PushBody>, { 1024 * 5000 }>,
     Extension(sphere_context): Extension<C>,
     Extension(gateway_scope): Extension<GatewayScope>,
     Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<C>>>,
     Extension(name_system_tx): Extension<UnboundedSender<NameSystemJob<C>>>,
+    Cbor(request_body): Cbor<PushBody>,
 ) -> Result<Cbor<PushResponse>, StatusCode>
 where
     C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    K: KeyMaterial + Clone,
     S: Storage + 'static,
 {
     debug!("Invoking push route...");

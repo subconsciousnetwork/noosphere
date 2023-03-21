@@ -135,8 +135,8 @@ where
     V: Serialize + DeserializeOwned + TargetConditionalSendSync,
     H: HashAlgorithm,
 {
-    pub(crate) fn from_key_value(key: K, value: V) -> Self {
-        Pointer::Values(vec![KeyValuePair::new(key, value)])
+    pub(crate) fn from_key_value(kv: KeyValuePair<K, V>) -> Self {
+        Pointer::Values(vec![kv])
     }
 
     /// Internal method to cleanup children, to ensure consistent tree representation

@@ -65,6 +65,8 @@ mod content;
 mod context;
 mod cursor;
 mod has;
+#[cfg(not(target_arch = "wasm32"))]
+mod replication;
 mod walker;
 
 pub mod helpers;
@@ -80,5 +82,7 @@ pub use cursor::*;
 pub use has::*;
 pub use metadata::*;
 pub use petname::*;
+#[cfg(not(target_arch = "wasm32"))]
+pub use replication::*;
 pub use sync::*;
 pub use walker::*;
