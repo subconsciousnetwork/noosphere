@@ -37,7 +37,7 @@ tracing = "~0.1"
 tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
 multipart = "~0.18"
 wnfs = { version = "0.1.9" }
-iroh-car = { version = "0.1.3" }
+noosphere-car = { version = "0.1.0", path = "../noosphere-car" }
 
 url = { version = "^2", features = [ "serde" ] }
 whoami = "^1"

@@ -2,6 +2,7 @@
 members = [
   "rust/noosphere",
   "rust/noosphere-api",
+  "rust/noosphere-car",
   "rust/noosphere-cli",
   "rust/noosphere-collections",
   "rust/noosphere-core",
