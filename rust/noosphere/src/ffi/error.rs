@@ -4,7 +4,7 @@ use crate::error::NoosphereError;
 
 impl From<NoosphereError> for repr_c::Box<NsError> {
     fn from(error: NoosphereError) -> Self {
-        repr_c::Box::new(NsError { inner: error })
+        Box::new(NsError { inner: error }).into()
     }
 }
 
@@ -45,8 +45,11 @@ impl TryOrInitialize<repr_c::Box<NsError>> for Option<Out<'_, repr_c::Box<NsErro
     }
 }
 
-#[derive_ReprC]
-#[ReprC::opaque]
+#[derive_ReprC(rename = "ns_error")]
+#[repr(opaque)]
+/// @class ns_error_t
+///
+/// An error class.
 pub struct NsError {
     inner: NoosphereError,
 }

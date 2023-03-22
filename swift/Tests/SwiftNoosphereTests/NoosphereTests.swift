@@ -424,7 +424,7 @@ final class NoosphereTests: XCTestCase {
         ns_sphere_petname_set(noosphere, sphere, "alice", "did:key:alice", nil)
         ns_sphere_fs_save(noosphere, sphere, nil, nil)
         
-        let has_alice = ns_sphere_petname_is_set(noosphere, sphere, "alice", nil)
+        let has_alice = ns_sphere_petname_is_set(noosphere, sphere, "alice", nil) == 1
 
         assert(has_alice)
 
@@ -437,7 +437,7 @@ final class NoosphereTests: XCTestCase {
         ns_sphere_petname_set(noosphere, sphere, "alice", nil, nil)
         ns_sphere_fs_save(noosphere, sphere, nil, nil)
 
-        let has_alice_after_unassign = ns_sphere_petname_is_set(noosphere, sphere, "alice", nil)
+        let has_alice_after_unassign = ns_sphere_petname_is_set(noosphere, sphere, "alice", nil) == 1
         assert(!has_alice_after_unassign)
         
         ns_string_free(identity_ptr)

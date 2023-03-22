@@ -21,7 +21,7 @@ pub fn ns_sphere_petname_is_set(
     sphere: &NsSphere,
     petname: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
-) -> safer_ffi::bool {
+) -> u8 {
     if let Some(result) = error_out.try_or_initialize(|| {
         noosphere.async_runtime().block_on(async {
             Ok(match sphere.inner().get_petname(petname.to_str()).await? {
@@ -30,9 +30,13 @@ pub fn ns_sphere_petname_is_set(
             })
         })
     }) {
-        result
+        if result {
+            1
+        } else {
+            0
+        }
     } else {
-        false
+        0
     }
 }
 
