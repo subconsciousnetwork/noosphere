@@ -6,6 +6,7 @@
   "bump-patch-for-minor-pre-major": true,
   "packages": {
     "rust/noosphere-api": {},
+    "rust/noosphere-car": {},
     "rust/noosphere-cli": {
       "draft": true
     },

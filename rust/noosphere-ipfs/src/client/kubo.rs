@@ -133,8 +133,8 @@ mod tests {
     use std::io::Cursor;
 
     use cid::Cid;
-    use iroh_car::{CarHeader, CarWriter};
     use libipld_cbor::DagCborCodec;
+    use noosphere_car::{CarHeader, CarWriter};
     // use noosphere_core::tracing::initialize_tracing;
     use noosphere_storage::{block_deserialize, block_serialize};
     use serde::{Deserialize, Serialize};
