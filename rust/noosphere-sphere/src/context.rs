@@ -18,6 +18,9 @@ use url::Url;
 
 use crate::metadata::GATEWAY_URL;
 
+#[cfg(doc)]
+use crate::has::HasSphereContext;
+
 /// A [SphereContext] is an accessor construct over locally replicated sphere
 /// data. It embodies both the storage layer that contains the sphere's data
 /// as the information needed to verify a user's intended level of access to
@@ -255,7 +258,7 @@ where
     }
 
     /// Get a [Sphere] view over the current sphere's latest revision. This view
-    /// offers lower-level access than [SphereFs], but includes affordances to
+    /// offers lower-level access than [HasSphereContext], but includes affordances to
     /// help tranversing and manipulating IPLD structures that are more
     /// convenient than working directly with raw data.
     pub async fn sphere(&self) -> Result<Sphere<SphereDb<S>>> {

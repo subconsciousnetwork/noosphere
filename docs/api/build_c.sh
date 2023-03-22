@@ -7,5 +7,5 @@ cargo run --features=headers --example generate_header
 cp noosphere.h "$SCRIPT_DIR/noosphere.h"
 cd "$SCRIPT_DIR"
 
-doxygen noosphere.doxygen
+doxygen ./doxyfile
 rm "$SCRIPT_DIR/noosphere.h"

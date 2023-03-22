@@ -48,20 +48,23 @@ impl TryOrInitialize<repr_c::Box<NsError>> for Option<Out<'_, repr_c::Box<NsErro
 #[derive_ReprC(rename = "ns_error")]
 #[repr(opaque)]
 /// @class ns_error_t
-///
-/// An error class.
+/// An opaque struct representing an error.
 pub struct NsError {
     inner: NoosphereError,
 }
 
 #[ffi_export]
-/// De-allocate an [NsError]
+/// @memberof ns_error_t
+/// Deallocate an ns_error_t.
 pub fn ns_error_free(error: repr_c::Box<NsError>) {
     drop(error)
 }
 
 #[ffi_export]
-/// Returns a string message that describes the error in greater detail.
+/// @memberof ns_error_t
+/// Returns an owned string describing the error in greater detail.
+///
+/// Caller is responsible for deallocating returned string via ns_string_free.
 pub fn ns_error_string(error: &NsError) -> char_p::Box {
     error
         .inner
