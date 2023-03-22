@@ -109,9 +109,10 @@ pub async fn post_record(
     Json(record): Json<NsRecord>,
 ) -> JsonResponse<()> {
     let ns = name_system.lock().await;
-    ns.put_record(record)
-        .await
-        .map_err(move |error| JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    ns.put_record(record).await.map_err(move |error| {
+        error!("500: {}", error);
+        JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+    })?;
     Ok(Json(()))
 }
 

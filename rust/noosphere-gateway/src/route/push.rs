@@ -100,8 +100,8 @@ where
 
         // These steps are order-independent
         let _ = tokio::join!(
+            self.notify_ipfs_syndicator(next_version),
             self.notify_name_resolver(),
-            self.notify_ipfs_syndicator(next_version)
         );
 
         Ok(PushResponse::Accepted {

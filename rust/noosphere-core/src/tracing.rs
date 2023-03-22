@@ -20,7 +20,11 @@ pub fn initialize_tracing() {
         tracing_subscriber::registry()
             .with(tracing_subscriber::EnvFilter::new(
                 std::env::var("RUST_LOG")
-                    .unwrap_or_else(|_| "noosphere_cli,orb,tower_http=debug".into()),
+                    //.unwrap_or_else(|_| "noosphere_cli,orb,tower_http=debug".into()),
+                    .unwrap_or_else(|_| {
+                        "noosphere_gateway,noosphere_ipfs=info,noosphere_ns,noosphere_storage"
+                            .into()
+                    }),
             ))
             .with(tracing_subscriber::fmt::layer())
             .init();

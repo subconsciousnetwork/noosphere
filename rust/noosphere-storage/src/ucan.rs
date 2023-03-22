@@ -26,3 +26,9 @@ impl<S: BlockStore> UcanStoreTrait<RawCodec> for UcanStore<S> {
         self.0.put::<RawCodec, T>(token).await
     }
 }
+
+impl<S: BlockStore + Clone> Clone for UcanStore<S> {
+    fn clone(&self) -> Self {
+        UcanStore(self.0.clone())
+    }
+}

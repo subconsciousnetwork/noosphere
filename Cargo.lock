@@ -4048,12 +4048,14 @@ dependencies = [
  "noosphere-car",
  "noosphere-core",
  "noosphere-storage",
+ "rand 0.8.5",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
  "tokio-stream",
  "tracing",
+ "ucan",
  "url 2.3.1",
 ]
 
@@ -4081,6 +4083,7 @@ dependencies = [
  "serde_json",
  "tempdir",
  "test-log",
+ "thiserror",
  "tokio",
  "toml",
  "tower-http",

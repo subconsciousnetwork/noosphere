@@ -1,9 +1,8 @@
 use crate::{
     client::NameSystemClient,
-    dht::{
-        DhtConfig, DhtError, DhtKeyMaterial, DhtNode, DhtRecord, NetworkInfo, Peer, RecordValidator,
-    },
-    records::NsRecord,
+    dht::{DhtConfig, DhtError, DhtNode, DhtRecord, NetworkInfo, Peer},
+    keys::NameSystemKeyMaterial,
+    records::{NsRecord, RecordValidator},
     utils::make_p2p_address,
     PeerId,
 };
@@ -16,6 +15,7 @@ use libp2p::Multiaddr;
 use noosphere_core::data::Did;
 use std::collections::HashMap;
 use tokio::sync::{Mutex, MutexGuard};
+use ucan::store::UcanJwtStore;
 
 pub static BOOTSTRAP_PEERS_ADDRESSES: [&str; 1] =
     ["/ip4/134.122.20.28/tcp/6666/p2p/12D3KooWPyjAB3XWUboGmLLPkR53fTyj4GaNi65RvQ61BVwqV4HG"];
@@ -50,20 +50,22 @@ pub struct NameSystem {
 }
 
 impl NameSystem {
-    pub fn new<K: DhtKeyMaterial, V: RecordValidator + 'static>(
+    pub fn new<K: NameSystemKeyMaterial, S: UcanJwtStore + 'static>(
         key_material: &K,
         dht_config: DhtConfig,
-        validator: Option<V>,
+        store: S,
     ) -> Result<Self> {
+        let keypair = key_material.to_dht_keypair()?;
+        let validator = RecordValidator::new(store);
         Ok(NameSystem {
-            dht: DhtNode::new(key_material, dht_config, validator)?,
+            dht: DhtNode::new(keypair, dht_config, Some(validator))?,
             hosted_records: Mutex::new(HashMap::new()),
             resolved_records: Mutex::new(HashMap::new()),
         })
     }
 
     /// Propagates all hosted records on nearby peers in the DHT network.
-    /// Automatically propagated by the intervals configured in provided [DHTConfig].
+    /// Automatically propagated by the intervals configured in provided [DhtConfig].
     ///
     /// Can fail if NameSystem is not connected or if no peers can be found.
     pub async fn propagate_records(&self) -> Result<()> {
@@ -260,7 +262,7 @@ mod test {
         assert_eq!(BOOTSTRAP_PEERS.len(), 1);
     }
 
-    use crate::{ns_client_tests, Validator};
+    use crate::ns_client_tests;
     use crate::{utils::wait_for_peers, NameSystemBuilder, NameSystemClient};
     use noosphere_core::authority::generate_ed25519_key;
     use noosphere_storage::{MemoryStorage, SphereDb};
@@ -280,7 +282,7 @@ mod test {
             let key_material = generate_ed25519_key();
             let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
-                .validator(Validator::new(store.clone()))
+                .ucan_store(store)
                 .key_material(&key_material)
                 .listening_port(0)
                 .use_test_config()
@@ -296,7 +298,7 @@ mod test {
             let key_material = generate_ed25519_key();
             let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
-                .validator(Validator::new(store.clone()))
+                .ucan_store(store)
                 .key_material(&key_material)
                 .bootstrap_peers(&[bootstrap_address.clone()])
                 .use_test_config()

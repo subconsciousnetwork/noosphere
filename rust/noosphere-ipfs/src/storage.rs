@@ -130,3 +130,52 @@ where
         Ok(None)
     }
 }
+
+// Note that these tests require that there is a locally available IPFS Kubo
+// node running with the RPC API enabled
+#[cfg(all(test, feature = "test_kubo"))]
+mod tests {
+    use super::*;
+    use crate::KuboClient;
+    use libipld_cbor::DagCborCodec;
+    use noosphere_core::tracing::initialize_tracing;
+    use noosphere_storage::{block_serialize, BlockStoreRetry, MemoryStore};
+    use rand::prelude::*;
+    use serde::{Deserialize, Serialize};
+    use std::time::Duration;
+    use url::Url;
+
+    #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+    struct TestData {
+        value_a: i64,
+        value_b: i64,
+    }
+
+    /// Fetching a block from IPFS that isn't already on IPFS can hang
+    /// indefinitely. This test ensures that [BlockStoreRetry] wraps
+    /// [IpfsStore] successfully, producing an error.
+    #[tokio::test]
+    pub async fn it_fails_gracefully_if_block_not_found() {
+        initialize_tracing();
+
+        let mut rng = thread_rng();
+        let foo = TestData {
+            // uniquely generate value such that
+            // it is not found on the IPFS network.
+            value_a: rng.gen(),
+            value_b: rng.gen(),
+        };
+
+        let (foo_cid, _) = block_serialize::<DagCborCodec, _>(foo.clone()).unwrap();
+
+        let ipfs_url = Url::parse("http://127.0.0.1:5001").unwrap();
+        let kubo_client = KuboClient::new(&ipfs_url).unwrap();
+        let ipfs_store = {
+            let inner = MemoryStore::default();
+            let inner = IpfsStore::new(inner, Some(kubo_client));
+            BlockStoreRetry::new(inner, 3u32, Duration::new(0, 100))
+        };
+
+        assert!(ipfs_store.get_block(&foo_cid).await.is_err());
+    }
+}

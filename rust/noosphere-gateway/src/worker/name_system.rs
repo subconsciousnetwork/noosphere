@@ -1,14 +1,14 @@
 use anyhow::anyhow;
 use anyhow::Result;
 use cid::Cid;
-use noosphere_core::data::IdentityIpld;
-use noosphere_core::data::{Did, Jwt, MapOperation};
+use noosphere_core::data::{Did, IdentityIpld, Jwt, LinkRecord, MapOperation};
+use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_ns::NsRecord;
 use noosphere_ns::{server::HttpClient as NameSystemHttpClient, NameSystemClient};
 use noosphere_sphere::{
     HasMutableSphereContext, SphereCursor, SpherePetnameRead, SpherePetnameWrite,
 };
-use noosphere_storage::Storage;
+use noosphere_storage::{BlockStoreRetry, MemoryStore, Storage, UcanStore};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -25,8 +25,13 @@ use tokio_stream::{Stream, StreamExt};
 use ucan::crypto::KeyMaterial;
 use url::Url;
 
+pub struct NameSystemConfiguration {
+    pub connection_type: NameSystemConnectionType,
+    pub ipfs_api: Url,
+}
+
 #[derive(Clone)]
-pub enum NameSystemConfiguration {
+pub enum NameSystemConnectionType {
     Remote(Url),
     // TODO(#255): Configuration for self-managed node
     //InProcess(...)
@@ -104,7 +109,7 @@ async fn periodic_resolver_task<C, K, S>(
     }
 }
 
-pub async fn name_system_task<C, K, S>(
+async fn name_system_task<C, K, S>(
     configuration: NameSystemConfiguration,
     mut receiver: UnboundedReceiver<NameSystemJob<C>>,
 ) -> Result<()>
@@ -113,9 +118,10 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    let client: Arc<dyn NameSystemClient> = Arc::new(match configuration {
-        NameSystemConfiguration::Remote(url) => NameSystemHttpClient::new(url).await?,
+    let client: Arc<dyn NameSystemClient> = Arc::new(match configuration.connection_type {
+        NameSystemConnectionType::Remote(url) => NameSystemHttpClient::new(url).await?,
     });
+    let kubo_client = KuboClient::new(&configuration.ipfs_api)?;
 
     while let Some(job) = receiver.recv().await {
         let run_job = || async {
@@ -132,7 +138,7 @@ where
                         names.into_stream().await?
                     };
 
-                    resolve_all(client.clone(), context, name_stream).await?;
+                    resolve_all(client.clone(), context, name_stream, kubo_client.clone()).await?;
                 }
                 NameSystemJob::ResolveSince { context, since } => {
                     let history_stream = {
@@ -181,6 +187,7 @@ where
                         client.clone(),
                         context,
                         tokio_stream::iter(names_to_resolve.into_iter().map(Ok)),
+                        kubo_client.clone(),
                     )
                     .await?;
                 }
@@ -207,7 +214,8 @@ where
                         }
                     };
 
-                    resolve_all(client.clone(), context.clone(), stream).await?;
+                    resolve_all(client.clone(), context.clone(), stream, kubo_client.clone())
+                        .await?;
 
                     let cid = context.resolve_petname(&name).await?;
 
@@ -232,6 +240,7 @@ async fn resolve_all<C, K, S, N>(
     client: Arc<dyn NameSystemClient>,
     mut context: C,
     stream: N,
+    ipfs_client: KuboClient,
 ) -> Result<()>
 where
     C: HasMutableSphereContext<K, S>,
@@ -242,16 +251,26 @@ where
     tokio::pin!(stream);
 
     let db = context.sphere_context().await?.db().clone();
+    let ipfs_store = {
+        let inner = MemoryStore::default();
+        let inner = IpfsStore::new(inner, Some(ipfs_client));
+        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(1, 0));
+        UcanStore(inner)
+    };
 
     while let Some((name, identity)) = stream.try_next().await? {
         let last_known_record = identity.link_record(&db).await;
 
         let next_record =
-            match resolve_record(client.clone(), name.clone(), identity.did.clone()).await? {
-                Some(token) => {
+            match fetch_record(client.clone(), name.clone(), identity.did.clone()).await? {
+                Some(record) => {
+                    if let Err(error) = record.validate(&ipfs_store, None).await {
+                        error!("Failed record validation: {}", error);
+                        continue;
+                    }
+
                     // TODO(#258): Verify that the new value is the most recent value
-                    // TODO(#257): Verify the proof chain of the new value
-                    Some(token.into())
+                    Some(LinkRecord::from(Jwt(record.try_to_string()?)))
                 }
                 None => {
                     // TODO(#259): Expire recorded value if we don't get an updated
@@ -280,24 +299,23 @@ where
     Ok(())
 }
 
-/// Attempts to resolve a single name record from the name system
-async fn resolve_record(
+/// Attempts to fetch a single name record from the name system.
+async fn fetch_record(
     client: Arc<dyn NameSystemClient>,
     name: String,
     identity: Did,
-) -> Result<Option<Jwt>> {
+) -> Result<Option<NsRecord>> {
     debug!("Resolving record '{}' ({})...", name, identity);
     Ok(match client.get_record(&identity).await {
-        Ok(Some(record)) => match record.try_to_string() {
-            Ok(token) => {
-                debug!("Resolved record for '{}' ({}): {}", name, identity, token);
-                Some(token.into())
-            }
-            Err(error) => {
-                warn!("Failed to interpret resolved record as JWT: {:?}", error);
-                None
-            }
-        },
+        Ok(Some(record)) => {
+            debug!(
+                "Resolved record for '{}' ({}): {}",
+                name,
+                identity,
+                record.to_string()
+            );
+            Some(record)
+        }
         Ok(None) => {
             warn!("No record found for {} ({})", name, identity);
             None

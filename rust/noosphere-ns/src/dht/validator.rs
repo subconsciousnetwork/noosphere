@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+
 /// Trait that implements a `validate` function that determines
 /// what records can be set and stored on the [crate::dht::DHTNode].
 /// Currently only validates "Value" records.
@@ -6,7 +7,7 @@ use async_trait::async_trait;
 /// # Example
 ///
 /// ```
-/// use noosphere_ns::dht::RecordValidator;
+/// use noosphere_ns::dht::Validator;
 /// use async_trait::async_trait;
 /// use tokio;
 ///
@@ -14,7 +15,7 @@ use async_trait::async_trait;
 /// struct MyValidator;
 ///
 /// #[async_trait]
-/// impl RecordValidator for MyValidator {
+/// impl Validator for MyValidator {
 ///     // Ensures value is "hello" in bytes.
 ///     async fn validate(&mut self, data: &[u8]) -> bool {
 ///         data[..] == [104, 101, 108, 108, 111][..]
@@ -29,7 +30,7 @@ use async_trait::async_trait;
 ///     assert!(is_valid);
 /// }
 #[async_trait]
-pub trait RecordValidator: Send + Sync + Clone {
+pub trait Validator: Send + Sync {
     async fn validate(&mut self, record_value: &[u8]) -> bool;
 }
 
@@ -39,7 +40,7 @@ pub trait RecordValidator: Send + Sync + Clone {
 pub struct AllowAllValidator {}
 
 #[async_trait]
-impl RecordValidator for AllowAllValidator {
+impl Validator for AllowAllValidator {
     async fn validate(&mut self, _data: &[u8]) -> bool {
         true
     }

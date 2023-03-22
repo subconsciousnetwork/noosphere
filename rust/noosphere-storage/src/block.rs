@@ -7,12 +7,9 @@ use cid::{
     Cid,
 };
 use libipld_core::{
-    codec::References,
-    serde::{from_ipld, to_ipld},
-};
-use libipld_core::{
-    codec::{Codec, Decode, Encode},
+    codec::{Codec, Decode, Encode, References},
     ipld::Ipld,
+    serde::{from_ipld, to_ipld},
 };
 use serde::{de::DeserializeOwned, Serialize};
 
