@@ -150,6 +150,26 @@ impl Workspace {
         Ok(context.identity().clone())
     }
 
+    pub fn ensure_sphere_initialized(&self) -> Result<()> {
+        match self.sphere_directory().exists() {
+            false => Err(anyhow!(
+                "No sphere initialized in {:?}",
+                self.root_directory()
+            )),
+            true => Ok(()),
+        }
+    }
+
+    pub fn ensure_sphere_uninitialized(&self) -> Result<()> {
+        match self.sphere_directory().exists() {
+            true => Err(anyhow!(
+                "A sphere is already initialized in {:?}",
+                self.root_directory()
+            )),
+            false => Ok(()),
+        }
+    }
+
     /// Returns true if the given path has a .sphere folder in it
     fn has_sphere_directory(path: &Path) -> bool {
         path.is_absolute() && path.join(SPHERE_DIRECTORY).is_dir()

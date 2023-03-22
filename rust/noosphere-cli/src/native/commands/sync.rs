@@ -1,11 +1,10 @@
 use crate::native::workspace::Workspace;
 use anyhow::{anyhow, Result};
-use noosphere_core::tracing::initialize_tracing;
 use noosphere_sphere::SphereSync;
 use noosphere_storage::MemoryStore;
 
 pub async fn sync(workspace: &Workspace) -> Result<()> {
-    initialize_tracing();
+    workspace.ensure_sphere_initialized()?;
 
     let mut memory_store = MemoryStore::default();
 

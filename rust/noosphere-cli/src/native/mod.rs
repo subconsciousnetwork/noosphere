@@ -3,7 +3,7 @@ pub mod workspace;
 
 use anyhow::Result;
 
-use noosphere_core::data::Did;
+use noosphere_core::{data::Did, tracing::initialize_tracing};
 use std::ffi::OsString;
 
 use std::net::IpAddr;
@@ -192,6 +192,7 @@ pub enum KeyCommand {
     },
 
     /// Print the pet name and DID for all available keys
+    #[clap(alias = "ls")]
     List {
         /// Output the list of available keys as formatted JSON
         #[clap(short = 'j', long)]
@@ -268,6 +269,7 @@ pub enum AuthCommand {
 }
 
 pub async fn main() -> Result<()> {
+    initialize_tracing();
     let args = Cli::parse();
 
     let current_working_directory = std::env::current_dir()?;

@@ -16,6 +16,8 @@ pub async fn serve(
     cors_origin: Option<Url>,
     workspace: &Workspace,
 ) -> Result<()> {
+    workspace.ensure_sphere_initialized()?;
+
     let listener = TcpListener::bind((interface, port))?;
 
     let counterpart = workspace.counterpart_identity().await?;

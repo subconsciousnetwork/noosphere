@@ -26,6 +26,8 @@ pub fn status_section(
 }
 
 pub async fn status(workspace: &Workspace) -> Result<()> {
+    workspace.ensure_sphere_initialized()?;
+
     let identity = workspace.sphere_identity().await?;
 
     println!("This sphere's identity is {identity}");
