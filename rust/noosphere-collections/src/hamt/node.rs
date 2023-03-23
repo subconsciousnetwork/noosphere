@@ -394,7 +394,6 @@ where
                         // ! exit. These both come at costs, and this isn't a concern.
                         let value_changed = vals[i].get_value(store).await? != &value;
                         return Ok((
-                            // Some(std::mem::replace(vals[i].value_mut(), value)),
                             Some(vals[i].overwrite_value(value, store).await?),
                             value_changed,
                         ));
