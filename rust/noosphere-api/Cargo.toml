@@ -28,11 +28,13 @@ serde_urlencoded = "~0.7"
 tracing = "~0.1"
 noosphere-core = { version = "0.7.0", path = "../noosphere-core" }
 noosphere-storage = { version = "0.5.0", path = "../noosphere-storage" }
-reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls"] }
+noosphere-car = { version = "0.1.0", path = "../noosphere-car" }
+reqwest = { version = "0.11.15", default-features = false, features = ["json", "rustls-tls", "stream"] }
+tokio-stream = "~0.1"
+tokio-util = "0.7.7"
 
 ucan = { version = "0.1.0" }
 ucan-key-support = { version = "0.1.0" }
-
 
 libipld-core = "~0.15"
 libipld-cbor = "~0.15"

@@ -3,6 +3,7 @@ use async_stream::try_stream;
 use cid::Cid;
 use futures::Stream;
 use libipld_cbor::DagCborCodec;
+use tokio::sync::OnceCell;
 use tokio_stream::StreamExt;
 
 use ucan::{
@@ -25,7 +26,7 @@ use crate::{
     view::{Links, SphereMutation, SphereRevision, Timeline},
 };
 
-use noosphere_storage::{BlockStore, UcanStore};
+use noosphere_storage::{block_serialize, BlockStore, UcanStore};
 
 use super::{AllowedUcans, Authority, Names, RevokedUcans};
 
@@ -36,6 +37,8 @@ pub const SPHERE_LIFETIME: u64 = 315360000000; // 10,000 years (arbitrarily high
 pub struct Sphere<S: BlockStore> {
     store: S,
     cid: Cid,
+    body: OnceCell<SphereIpld>,
+    memo: OnceCell<MemoIpld>,
 }
 
 impl<S: BlockStore> Sphere<S> {
@@ -43,7 +46,21 @@ impl<S: BlockStore> Sphere<S> {
         Sphere {
             store: store.clone(),
             cid: *cid,
+            body: OnceCell::new(),
+            memo: OnceCell::new(),
         }
+    }
+
+    /// Given a memo that refers to a [SphereIpld] body, compute the memo's
+    /// [Cid] and initialize a [Sphere] for it.
+    pub fn from_memo(memo: &MemoIpld, store: &S) -> Result<Sphere<S>> {
+        let (cid, _) = block_serialize::<DagCborCodec, _>(memo)?;
+        Ok(Sphere {
+            store: store.clone(),
+            cid,
+            body: OnceCell::new(),
+            memo: OnceCell::new_with(Some(memo.clone())),
+        })
     }
 
     pub fn store(&self) -> &S {
@@ -58,14 +75,24 @@ impl<S: BlockStore> Sphere<S> {
 
     /// Load the wrapping [MemoIpld] of the sphere data
     pub async fn to_memo(&self) -> Result<MemoIpld> {
-        self.store.load::<DagCborCodec, _>(&self.cid).await
+        Ok(self
+            .memo
+            .get_or_try_init(|| async { self.store.load::<DagCborCodec, _>(&self.cid).await })
+            .await?
+            .clone())
     }
 
     /// Load the body [SphereIpld] of this sphere
     pub async fn to_body(&self) -> Result<SphereIpld> {
-        self.store
-            .load::<DagCborCodec, _>(&self.to_memo().await?.body)
-            .await
+        Ok(self
+            .body
+            .get_or_try_init(|| async {
+                self.store
+                    .load::<DagCborCodec, _>(&self.to_memo().await?.body)
+                    .await
+            })
+            .await?
+            .clone())
     }
 
     /// Produce a bundle that contains the sparse set of blocks needed
@@ -317,8 +344,9 @@ impl<S: BlockStore> Sphere<S> {
     /// Attempt to "hydrate" the sphere at the current revision by replaying all
     /// of the changes that were made according to the sphere's changelogs. This
     /// is necessary if the blocks of the sphere were retrieved using sparse
-    /// synchronization in order to ensure that interstitial nodes in the various
-    /// versioned maps (which are each backed by a HAMT) are populated.
+    /// synchronization in order to ensure that interstitial nodes in the
+    /// various versioned maps (which are each backed by a HAMT) are
+    /// populated.
     pub async fn hydrate(&self) -> Result<()> {
         Sphere::hydrate_with_cid(self.cid(), &mut self.store.clone()).await
     }

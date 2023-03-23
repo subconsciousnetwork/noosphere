@@ -98,6 +98,7 @@ impl IpfsClient for KuboClient {
     }
 
     async fn get_block(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
+        trace!("Getting block {cid} from IPFS...");
         let mut api_url = self.api_url.clone();
         api_url.set_path("/api/v0/dag/get");
         api_url

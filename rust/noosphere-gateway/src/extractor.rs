@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use axum::{
     body::{Bytes, HttpBody},
-    extract::{FromRequest, RequestParts},
-    http::{header, StatusCode},
+    extract::FromRequest,
+    http::{header, Request, StatusCode},
     response::IntoResponse,
     BoxError,
 };
@@ -30,21 +30,22 @@ where
 }
 
 #[async_trait]
-impl<T, B> FromRequest<B> for Cbor<T>
+impl<S, T, B> FromRequest<S, B> for Cbor<T>
 where
     T: Serialize + DeserializeOwned,
-    B: HttpBody + Send,
+    S: Send + Sync,
+    B: HttpBody + Send + 'static,
     B::Data: Send,
     B::Error: Into<BoxError>,
 {
     type Rejection = StatusCode;
 
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        if !is_octet_stream_content_type(req) {
+    async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
+        if !is_octet_stream_content_type(&req) {
             return Err(StatusCode::BAD_REQUEST);
         }
 
-        let bytes = Bytes::from_request(req).await.map_err(|error| {
+        let bytes = Bytes::from_request(req, state).await.map_err(|error| {
             error!("{:?}", error);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
@@ -58,7 +59,7 @@ where
     }
 }
 
-fn is_octet_stream_content_type<B>(req: &RequestParts<B>) -> bool {
+fn is_octet_stream_content_type<B>(req: &Request<B>) -> bool {
     let content_type = if let Some(content_type) = req.headers().get(header::CONTENT_TYPE) {
         content_type
     } else {

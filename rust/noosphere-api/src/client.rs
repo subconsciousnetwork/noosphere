@@ -8,10 +8,13 @@ use crate::{
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
+use noosphere_car::CarReader;
 
 use noosphere_core::authority::{Author, SphereAction, SphereReference};
 use noosphere_storage::{block_deserialize, block_serialize};
 use reqwest::{header::HeaderMap, Body, StatusCode};
+use tokio_stream::{Stream, StreamExt};
+use tokio_util::io::StreamReader;
 use ucan::{
     builder::UcanBuilder,
     capability::{Capability, Resource, With},
@@ -171,6 +174,68 @@ where
         // same efficiency as what we had before when UCANs were all inlined to
         // a single token.
         Ok((jwt, ucan_headers))
+    }
+
+    /// Replicate content from Noosphere, streaming its blocks from the
+    /// configured gateway. If the gateway doesn't have the desired content, it
+    /// will look it up from other sources such as IPFS if they are available.
+    /// Note that this means this call can potentially block on upstream
+    /// access to an IPFS node (which, depending on the node's network
+    /// configuration and peering status, can be quite slow).
+    pub async fn replicate(
+        &self,
+        memo_version: &Cid,
+    ) -> Result<impl Stream<Item = Result<(Cid, Vec<u8>)>>> {
+        let url = Url::try_from(RouteUrl::<()>(
+            &self.api_base,
+            Route::Replicate(Some(memo_version.clone())),
+            None,
+        ))?;
+
+        debug!("Client replicating memo from {}", url);
+
+        let capability = Capability {
+            with: With::Resource {
+                kind: Resource::Scoped(SphereReference {
+                    did: self.sphere_identity.clone(),
+                }),
+            },
+            can: SphereAction::Fetch,
+        };
+
+        let (token, ucan_headers) = Self::make_bearer_token(
+            &self.session.gateway_identity,
+            &self.author,
+            &capability,
+            &self.store,
+        )
+        .await?;
+
+        let response = self
+            .client
+            .get(url)
+            .bearer_auth(token)
+            .headers(ucan_headers)
+            .send()
+            .await?;
+
+        Ok(
+            CarReader::new(StreamReader::new(response.bytes_stream().map(
+                |item| match item {
+                    Ok(item) => Ok(item),
+                    Err(error) => {
+                        error!("Failed to read CAR stream: {}", error);
+                        Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe))
+                    }
+                },
+            )))
+            .await?
+            .stream()
+            .map(|block| match block {
+                Ok(block) => Ok(block),
+                Err(error) => Err(anyhow!(error)),
+            }),
+        )
     }
 
     pub async fn fetch(&self, params: &FetchParameters) -> Result<FetchResponse> {

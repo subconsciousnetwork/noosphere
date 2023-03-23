@@ -1,6 +1,8 @@
+use anyhow::Result;
 use cid::Cid;
-use integer_encoding::VarIntAsyncReader;
 use tokio::io::{AsyncRead, AsyncReadExt};
+
+use crate::{reader::CarReaderSend, varint::read_varint_async};
 
 use super::error::Error;
 
@@ -9,9 +11,9 @@ pub(crate) const MAX_ALLOC: usize = 4 * 1024 * 1024;
 
 pub(crate) async fn ld_read<R>(mut reader: R, buf: &mut Vec<u8>) -> Result<Option<&[u8]>, Error>
 where
-    R: AsyncRead + Send + Unpin,
+    R: AsyncRead + CarReaderSend + Unpin,
 {
-    let length: usize = match VarIntAsyncReader::read_varint_async(&mut reader).await {
+    let length: usize = match read_varint_async(&mut reader).await {
         Ok(len) => len,
         Err(e) => {
             if e.kind() == std::io::ErrorKind::UnexpectedEof {
@@ -41,7 +43,7 @@ pub(crate) async fn read_node<R>(
     buf: &mut Vec<u8>,
 ) -> Result<Option<(Cid, Vec<u8>)>, Error>
 where
-    R: AsyncRead + Send + Unpin,
+    R: AsyncRead + CarReaderSend + Unpin,
 {
     if let Some(buf) = ld_read(buf_reader, buf).await? {
         let mut cursor = std::io::Cursor::new(buf);
@@ -60,6 +62,12 @@ mod tests {
 
     use super::*;
 
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
     async fn ld_write<'a, W>(writer: &mut W, bytes: &[u8]) -> Result<(), Error>
     where
         W: AsyncWrite + Send + Unpin,
@@ -70,7 +78,8 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn ld_read_write_good() {
         let mut buffer = Vec::<u8>::new();
         ld_write(&mut buffer, b"test bytes").await.unwrap();
@@ -81,7 +90,8 @@ mod tests {
         assert_eq!(read, b"test bytes");
     }
 
-    #[tokio::test]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn ld_read_write_fail() {
         let mut buffer = Vec::<u8>::new();
         let size = MAX_ALLOC + 1;

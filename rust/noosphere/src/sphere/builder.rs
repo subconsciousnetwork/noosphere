@@ -215,6 +215,7 @@ impl SphereContextBuilder {
                         authorization: Some(authorization),
                     },
                     db,
+                    None,
                 )
                 .await?;
 
@@ -262,6 +263,7 @@ impl SphereContextBuilder {
                         authorization: self.authorization,
                     },
                     db,
+                    None,
                 )
                 .await?;
 
@@ -285,10 +287,7 @@ impl SphereContextBuilder {
                 .await?;
 
                 let user_key_name: String = db.require_key(USER_KEY_NAME).await?;
-                let authorization = db
-                    .get_key(AUTHORIZATION)
-                    .await?
-                    .map(Authorization::Cid);
+                let authorization = db.get_key(AUTHORIZATION).await?.map(Authorization::Cid);
 
                 let author = match self.key_storage {
                     Some(key_storage) => Author {
@@ -299,7 +298,7 @@ impl SphereContextBuilder {
                 };
 
                 let sphere_identity = db.require_key(IDENTITY).await?;
-                let mut context = SphereContext::new(sphere_identity, author, db).await?;
+                let mut context = SphereContext::new(sphere_identity, author, db, None).await?;
 
                 if self.gateway_api.is_some() {
                     context

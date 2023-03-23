@@ -3,9 +3,9 @@ use std::{marker::PhantomData, sync::Arc};
 use anyhow::Result;
 use async_trait::async_trait;
 use axum::{
-    extract::{FromRequest, RequestParts},
+    extract::FromRequestParts,
     headers::{authorization::Bearer, Authorization},
-    http::StatusCode,
+    http::{request::Parts, StatusCode},
     TypedHeader,
 };
 use libipld_core::cid::Cid;
@@ -59,17 +59,16 @@ where
 }
 
 #[async_trait]
-impl<B, K> FromRequest<B> for GatewayAuthority<K>
+impl<S, K> FromRequestParts<S> for GatewayAuthority<K>
 where
-    B: Send,
+    S: Send + Sync,
     K: KeyMaterial + Clone + 'static,
 {
     type Rejection = StatusCode;
 
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        // Look for the SphereContext
-        let sphere_context = req
-            .extensions()
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let sphere_context = parts
+            .extensions
             .get::<Arc<Mutex<SphereContext<K, NativeStorage>>>>()
             .ok_or_else(|| {
                 error!("Could not find DidParser in extensions");
@@ -78,8 +77,8 @@ where
             .clone();
 
         // Get the scope of this gateway
-        let gateway_scope = req
-            .extensions()
+        let gateway_scope = parts
+            .extensions
             .get::<GatewayScope>()
             .ok_or_else(|| {
                 error!("Could not find GatewayScope in extensions");
@@ -89,7 +88,7 @@ where
 
         // Extract the bearer token
         let TypedHeader(Authorization(bearer)) =
-            TypedHeader::<Authorization<Bearer>>::from_request(req)
+            TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state)
                 .await
                 .map_err(|error| {
                     error!("{:?}", error);
@@ -101,9 +100,10 @@ where
             sphere_context.db().clone()
         };
 
+        let ucan_headers = parts.headers.get_all("ucan").into_iter();
+
         // TODO: We should write a typed header thing for this:
-        let ucan_headers = req.headers().get_all("ucan");
-        for header in ucan_headers.iter() {
+        for header in ucan_headers {
             let value = header.to_str().map_err(|_| StatusCode::BAD_REQUEST)?;
             let mut parts: Vec<&str> = value.split_ascii_whitespace().take(2).collect();
 

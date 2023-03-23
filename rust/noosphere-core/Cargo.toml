@@ -41,7 +41,6 @@ rand = "~0.8"
 once_cell = "^1"
 serde_ipld_dagcbor = "~0.2"
 tiny-bip39 = "^1"
-crdts = "^7"
 tokio-stream = "~0.1"
 libipld-core = "~0.15"
 libipld-cbor = "~0.15"
@@ -63,8 +62,6 @@ tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # NOTE: This is needed so that rand can be included in WASM builds
 getrandom = { version = "~0.2", features = ["js"] }
+tokio = { version = "^1", features = ["sync", "macros"] }
 console_error_panic_hook = "0.1"
 tracing-wasm = "~0.2"
-
-[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-tokio = { version = "^1", features = ["sync"] }

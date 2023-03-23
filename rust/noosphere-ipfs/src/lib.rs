@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate tracing;
+
 mod client;
 mod storage;
 

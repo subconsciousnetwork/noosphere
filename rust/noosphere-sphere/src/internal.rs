@@ -2,8 +2,9 @@ use super::{BodyChunkDecoder, SphereFile};
 use crate::{AsyncFileBody, HasSphereContext};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use futures_util::TryStreamExt;
 use libipld_cbor::DagCborCodec;
-use noosphere_storage::{block_serialize, Storage};
+use noosphere_storage::{block_serialize, BlockStore, Storage};
 use std::str::FromStr;
 use tokio_util::io::StreamReader;
 use ucan::crypto::KeyMaterial;
@@ -60,6 +61,28 @@ where
     ) -> Result<SphereFile<Box<dyn AsyncFileBody>>> {
         let sphere_context = self.sphere_context().await?;
         let (memo_version, _) = block_serialize::<DagCborCodec, _>(&memo)?;
+
+        // If we have a memo, but not the content it refers to, we should try to
+        // replicate from the gateway
+        if sphere_context.db().get_block(&memo.body).await?.is_none() {
+            let client = sphere_context.client().await.map_err(|error| {
+                warn!("Unable to initialize API client for replicating missing content");
+                error
+            })?;
+
+            // NOTE: This is kind of a hack, since we may be accessing a
+            // "read-only" context. Technically this should be acceptable
+            // because our mutation here is propagating immutable blocks
+            // into the local DB
+            let mut db = sphere_context.db().clone();
+            let stream = client.replicate(&memo_version).await?;
+
+            tokio::pin!(stream);
+            while let Some((cid, block)) = stream.try_next().await? {
+                db.put_block(&cid, &block).await?;
+            }
+        }
+
         let content_type = match memo.get_first_header(&Header::ContentType.to_string()) {
             Some(content_type) => Some(ContentType::from_str(content_type.as_str())?),
             None => None,

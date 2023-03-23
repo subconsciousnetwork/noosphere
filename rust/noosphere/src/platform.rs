@@ -17,7 +17,15 @@ mod inner {
     // This key material type implies insecure storage on disk
     pub type PlatformKeyMaterial = Ed25519KeyMaterial;
     pub type PlatformKeyStorage = InsecureKeyStorage;
+
+    #[cfg(not(feature = "ipfs-storage"))]
     pub type PlatformStorage = NativeStorage;
+
+    #[cfg(feature = "ipfs-storage")]
+    use noosphere_ipfs::{IpfsStorage, KuboClient};
+
+    #[cfg(feature = "ipfs-storage")]
+    pub type PlatformStorage = IpfsStorage<NativeStorage, KuboClient>;
 
     #[cfg(test)]
     use anyhow::Result;
@@ -103,7 +111,15 @@ mod inner {
 
     pub type PlatformKeyMaterial = Ed25519KeyMaterial;
     pub type PlatformKeyStorage = InsecureKeyStorage;
+
+    #[cfg(not(feature = "ipfs-storage"))]
     pub type PlatformStorage = NativeStorage;
+
+    #[cfg(feature = "ipfs-storage")]
+    use noosphere_ipfs::{IpfsStorage, KuboClient};
+
+    #[cfg(feature = "ipfs-storage")]
+    pub type PlatformStorage = IpfsStorage<NativeStorage, KuboClient>;
 
     #[cfg(test)]
     use anyhow::Result;

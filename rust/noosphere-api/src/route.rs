@@ -1,6 +1,7 @@
 use anyhow::Result;
+use cid::Cid;
 use std::fmt::Display;
-use url::{Url};
+use url::Url;
 
 use crate::data::AsQuery;
 
@@ -12,16 +13,21 @@ pub enum Route {
     Publish,
     Did,
     Identify,
+    Replicate(Option<Cid>),
 }
 
 impl Display for Route {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let fragment = match self {
-            Route::Fetch => "fetch",
-            Route::Push => "push",
-            Route::Publish => "publish",
-            Route::Did => "did",
-            Route::Identify => "identify",
+            Route::Fetch => "fetch".into(),
+            Route::Push => "push".into(),
+            Route::Publish => "publish".into(),
+            Route::Did => "did".into(),
+            Route::Identify => "identify".into(),
+            Route::Replicate(cid) => match cid {
+                Some(cid) => format!("replicate/{}", cid),
+                None => "replicate/:memo".into(),
+            },
         };
 
         write!(f, "/api/{}/{}", API_VERSION, fragment)
