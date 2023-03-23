@@ -4,6 +4,18 @@ use async_trait::async_trait;
 use cid::Cid;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
+/// Wraps any [BlockStore] and "taps" it by cloning any block successfully
+/// retrieved from the store and sending over an MPSC channel. This allows an
+/// observer to record all the blocks needed to load arbitrarily deep and
+/// complex DAGs into memory without orchestrating a dedicated callback for the
+/// DAG implementations to invoke.
+///
+/// Note that the [Receiver] end of the channel will consider the channel open
+/// (and thus will continue to await values) until all of its associated
+/// [BlockStoreTap] clones are dropped. If you expect a finite number of blocks
+/// to be sent to the [Receiver], ensure that all [BlockStoreTap] clones are
+/// eventually dropped. Otherwise, the [Receiver] will continue waiting to
+/// receive blocks.
 #[derive(Clone)]
 pub struct BlockStoreTap<S>
 where

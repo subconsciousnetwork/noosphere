@@ -100,10 +100,8 @@ where
                 let context = context.sphere_context().await?;
                 context.db().clone()
             };
-            info!("CHECKPOINT A");
 
             let counterpart_identity = db.require_key::<_, Did>(COUNTERPART).await?;
-            info!("CHECKPOINT B");
             let sphere = context.to_sphere().await?;
             let links = sphere.get_links().await?;
 

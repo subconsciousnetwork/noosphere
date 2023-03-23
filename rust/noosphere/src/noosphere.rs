@@ -51,7 +51,7 @@ pub enum NoosphereNetwork {
     /// Uses an HTTP REST client to interact with various network resources
     Http {
         gateway_api: Option<Url>,
-        ipfs_api: Option<Url>,
+        ipfs_gateway_url: Option<Url>,
     },
 }
 
@@ -115,7 +115,10 @@ impl NoosphereContext {
 
     fn ipfs_api(&self) -> Option<&Url> {
         match &self.configuration.network {
-            NoosphereNetwork::Http { ipfs_api, .. } => ipfs_api.as_ref(),
+            NoosphereNetwork::Http {
+                ipfs_gateway_url: ipfs_api,
+                ..
+            } => ipfs_api.as_ref(),
         }
     }
 

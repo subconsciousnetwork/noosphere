@@ -24,7 +24,7 @@ fn platform_configuration() -> (NoosphereContextConfiguration, ()) {
         security: NoosphereSecurity::Opaque,
         network: NoosphereNetwork::Http {
             gateway_api: None,
-            ipfs_api: None,
+            ipfs_gateway_url: None,
         },
     };
 
@@ -50,7 +50,7 @@ fn platform_configuration() -> (
         },
         network: NoosphereNetwork::Http {
             gateway_api: None,
-            ipfs_api: None,
+            ipfs_gateway_url: None,
         },
     };
 
