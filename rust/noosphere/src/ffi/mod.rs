@@ -1,5 +1,5 @@
+mod context;
 mod error;
-mod fs;
 mod headers;
 mod key;
 mod noosphere;
@@ -7,8 +7,8 @@ mod petname;
 mod sphere;
 
 pub use crate::ffi::noosphere::*;
+pub use context::*;
 pub use error::*;
-pub use fs::*;
 pub use headers::*;
 pub use key::*;
 pub use petname::*;

@@ -78,12 +78,12 @@ impl NsSphereFile {
 }
 
 #[ffi_export]
-/// Initialize an instance of a [NsSphere] that is a read/write view into
+/// Initialize an instance of a `ns_sphere_t` that is a read/write view into
 /// the contents (as addressed by the slug namespace) of the identitifed sphere
 /// This will fail if it is not possible to initialize a sphere with the given
 /// identity (which implies that no such sphere was ever created or joined on
 /// this device).
-pub fn ns_sphere_fs_open(
+pub fn ns_sphere_open(
     noosphere: &NsNoosphere,
     sphere_identity: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
@@ -105,21 +105,61 @@ pub fn ns_sphere_fs_open(
 }
 
 #[ffi_export]
-/// De-allocate an [NsSphere] instance
-pub fn ns_sphere_fs_free(sphere: repr_c::Box<NsSphere>) {
+/// Access another sphere by a petname.
+///
+/// The petname should be one that has been assigned to the sphere's identity
+/// using `ns_sphere_petname_set()`. If any of the data required to access the
+/// target sphere is not available locally, it will be replicated from the
+/// network through a the configured Noosphere Gateway. If no such gateway is
+/// configured and the data is not available locally, this call will fail. The
+/// returned `NsSphere` pointer can be used to access the content, petnames,
+/// revision history and other features of the target sphere with the same APIs
+/// used to access the local user's sphere, except that any operations that
+/// attempt to modify the sphere will be rejected. Note that since this function
+/// has a reasonable likelihood to call out to the network, it is possible that
+/// it may block for a significant amount of time when network conditions are
+/// poor.
+pub fn ns_sphere_traverse_by_petname(
+    noosphere: &NsNoosphere,
+    sphere: &mut NsSphere,
+    petname: char_p::Ref<'_>,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<repr_c::Box<NsSphere>> {
+    error_out.try_or_initialize(|| {
+        let sphere = noosphere.async_runtime().block_on(async {
+            let sphere_context = sphere.inner_mut();
+            let next_sphere_context = sphere_context
+                .sphere_context_mut()
+                .await?
+                .traverse_by_petname(petname.to_str())
+                .await?;
+
+            Ok(Box::new(NsSphere {
+                inner: SphereCursor::latest(Arc::new(Mutex::new(next_sphere_context))),
+            })
+            .into()) as Result<_, anyhow::Error>
+        })?;
+
+        Ok(sphere)
+    })
+}
+
+#[ffi_export]
+/// De-allocate an `ns_sphere_t`
+pub fn ns_sphere_free(sphere: repr_c::Box<NsSphere>) {
     drop(sphere)
 }
 
 #[ffi_export]
-/// Read a [NsSphereFile] from a [NsSphere] instance by slashlink. Note that
-/// although this function will eventually support slashlinks that include the
-/// pet name of a peer, at this time only slashlinks with slugs referencing the
-/// slug namespace of the local sphere are allowed.
+/// Read a `ns_sphere_file_t` from a `ns_sphere_t` instance by slashlink. Note
+/// that although this function will eventually support slashlinks that include
+/// the pet name of a peer, at this time only slashlinks with slugs referencing
+/// the slug namespace of the local sphere are allowed.
 ///
 /// This function will return a null pointer if the slug does not have a file
 /// associated with it at the revision of the sphere that is referred to by the
-/// [NsSphere] being read from.
-pub fn ns_sphere_fs_read(
+/// `ns_sphere_t` being read from.
+pub fn ns_sphere_content_read(
     noosphere: &NsNoosphere,
     sphere: &NsSphere,
     slashlink: char_p::Ref<'_>,
@@ -168,16 +208,16 @@ pub fn ns_sphere_fs_read(
 }
 
 #[ffi_export]
-/// Write a byte buffer to a slug in the given [NsSphere] instance, assigning
+/// Write a byte buffer to a slug in the given `ns_sphere_t` instance, assigning
 /// its content-type header to the specified value. If additional headers are
 /// specified, they will be appended to the list of headers in the memo that is
 /// created for the content. If some content already exists at the specified
 /// slug, it will be assigned to be the previous historical revision of the new
 /// content.
 ///
-/// Note that you must invoke [ns_sphere_fs_save] to commit one or more writes
-/// to the sphere.
-pub fn ns_sphere_fs_write(
+/// Note that you must invoke `ns_sphere_save()` to commit one or more writes to
+/// the sphere.
+pub fn ns_sphere_content_write(
     noosphere: &NsNoosphere,
     sphere: &mut NsSphere,
     slug: char_p::Ref<'_>,
@@ -219,7 +259,7 @@ pub fn ns_sphere_fs_write(
 /// slug, because they will still be available at an earlier revision of the
 /// sphere. In order to commit the change, you must save. Note that this call is
 /// a no-op if there is no matching slug linked in the sphere.
-pub fn ns_sphere_fs_remove(
+pub fn ns_sphere_content_remove(
     noosphere: &NsNoosphere,
     sphere: &mut NsSphere,
     slug: char_p::Ref<'_>,
@@ -234,13 +274,13 @@ pub fn ns_sphere_fs_remove(
 }
 
 #[ffi_export]
-/// Save any writes performed on the [NsSphere] instance. If additional
+/// Save any writes performed on the `ns_sphere_t` instance. If additional
 /// headers are specified, they will be appended to the headers in the memo that
 /// is created to wrap the latest sphere revision.
 ///
 /// This will fail if both no writes have been performed and no additional
 /// headers were specified (in other words: no actual changes were made).
-pub fn ns_sphere_fs_save(
+pub fn ns_sphere_save(
     noosphere: &NsNoosphere,
     sphere: &mut NsSphere,
     additional_headers: Option<&NsHeaders>,
@@ -261,7 +301,7 @@ pub fn ns_sphere_fs_save(
 
 #[ffi_export]
 /// Get an array of all of the slugs in a sphere at the current version.
-pub fn ns_sphere_fs_list(
+pub fn ns_sphere_content_list(
     noosphere: &NsNoosphere,
     sphere: &NsSphere,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
@@ -300,7 +340,7 @@ pub fn ns_sphere_fs_list(
 /// Note that a slug change may mean the slug was added, updated or removed.
 /// Also note that multiple changes to the same slug will be reduced to a
 /// single entry in the array that is returned.
-pub fn ns_sphere_fs_changes(
+pub fn ns_sphere_content_changes(
     noosphere: &NsNoosphere,
     sphere: &NsSphere,
     since_cid: Option<char_p::Ref<'_>>,
@@ -340,16 +380,16 @@ pub fn ns_sphere_fs_changes(
 }
 
 #[ffi_export]
-/// De-allocate an [NsSphereFile] instance
+/// De-allocate an `ns_sphere_file_t`
 pub fn ns_sphere_file_free(sphere_file: repr_c::Box<NsSphereFile>) {
     drop(sphere_file)
 }
 
 #[ffi_export]
-/// Read the contents of an [NsSphereFile] as a byte array. Note that the
-/// [NsSphereFile] is lazy and stateful: it doesn't read any bytes from disk
+/// Read the contents of an `ns_sphere_file_t` as a byte array. Note that the
+/// `ns_sphere_file_t` is lazy and stateful: it doesn't read any bytes from disk
 /// until this function is invoked, and once the bytes have been read from the
-/// file you must create a new [NsSphereFile] instance to read them again.
+/// file you must create a new `ns_sphere_file_t` instance to read them again.
 pub fn ns_sphere_file_contents_read(
     noosphere: &NsNoosphere,
     sphere_file: &mut NsSphereFile,
@@ -424,7 +464,7 @@ pub fn ns_sphere_file_header_names_read(sphere_file: &NsSphereFile) -> c_slice::
 
 #[ffi_export]
 /// Get the base64-encoded CID v1 string for the memo that refers to the content
-/// of this [SphereFile].
+/// of this `ns_sphere_file_t`.
 pub fn ns_sphere_file_version_get(
     sphere_file: &NsSphereFile,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,

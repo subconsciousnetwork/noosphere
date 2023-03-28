@@ -33,7 +33,7 @@ void test_noosphere()
   setbuf(stdout, NULL);
   const char *hello_message = "Hello, Subconscious";
 
-  ns_noosphere_context_t *noosphere =
+  ns_noosphere_t *noosphere =
       ns_initialize("/tmp/foo", "/tmp/bar", NULL, NULL);
 
   ns_key_create(noosphere, "bob", NULL);
@@ -44,15 +44,15 @@ void test_noosphere()
   // printf("Sphere identity: %s\n", sphere_identity);
   // printf("Recovery code: %s\n", sphere_mnemonic);
 
-  ns_sphere_fs_t *sphere_fs = ns_sphere_fs_open(noosphere, sphere_identity, NULL);
+  ns_sphere_t *sphere = ns_sphere_open(noosphere, sphere_identity, NULL);
   slice_ref_uint8_t data = str_to_buffer(hello_message);
 
-  ns_sphere_fs_write(noosphere, sphere_fs, "hello", "text/subtext", data, NULL,
+  ns_sphere_content_write(noosphere, sphere, "hello", "text/subtext", data, NULL,
                      NULL);
-  ns_sphere_fs_save(noosphere, sphere_fs, NULL, NULL);
+  ns_sphere_save(noosphere, sphere, NULL, NULL);
 
   ns_sphere_file_t *file =
-      ns_sphere_fs_read(noosphere, sphere_fs, "/hello", NULL);
+      ns_sphere_content_read(noosphere, sphere, "/hello", NULL);
 
   slice_boxed_char_ptr_t headers =
       ns_sphere_file_header_values_read(file, "Content-Type");
@@ -73,7 +73,7 @@ void test_noosphere()
   ns_string_array_free(headers);
   ns_bytes_free(contents);
   ns_sphere_file_free(file);
-  ns_sphere_fs_free(sphere_fs);
+  ns_sphere_free(sphere);
   ns_string_free(sphere_identity);
   ns_string_free(sphere_mnemonic);
   ns_sphere_receipt_free(sphere_receipt);
