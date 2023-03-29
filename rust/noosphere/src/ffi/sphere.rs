@@ -11,8 +11,11 @@ use crate::sphere::SphereReceipt;
 #[derive_ReprC(rename = "ns_sphere_receipt")]
 #[repr(opaque)]
 /// @class ns_sphere_receipt_t
+/// An opaque struct representing initialization information of a sphere.
 ///
-/// TBD.
+/// Contains the identity of a sphere (DID) and a human-readable
+/// mnemonic that can be used to rotate the key authorized
+/// to administer the sphere.
 pub struct NsSphereReceipt {
     inner: SphereReceipt,
 }
@@ -24,8 +27,9 @@ impl From<SphereReceipt> for NsSphereReceipt {
 }
 
 #[ffi_export]
+/// @memberof ns_sphere_receipt_t
 /// Read the sphere identity (a DID encoded as a UTF-8 string) from a
-/// [SphereReceipt]
+/// ns_sphere_receipt_t
 pub fn ns_sphere_receipt_identity<'a>(
     sphere_receipt: &'a NsSphereReceipt,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
@@ -41,7 +45,8 @@ pub fn ns_sphere_receipt_identity<'a>(
 }
 
 #[ffi_export]
-/// Read the mnemonic from a [SphereReceipt]
+/// @memberof ns_sphere_receipt_t
+/// Read the mnemonic from a ns_sphere_receipt_t.
 pub fn ns_sphere_receipt_mnemonic<'a>(
     sphere_receipt: &'a NsSphereReceipt,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
@@ -57,14 +62,17 @@ pub fn ns_sphere_receipt_mnemonic<'a>(
 }
 
 #[ffi_export]
-/// De-allocate a [SphereReceipt]
+/// @memberof ns_sphere_receipt_t
+/// Deallocate a ns_sphere_receipt_t
 pub fn ns_sphere_receipt_free(sphere_receipt: repr_c::Box<NsSphereReceipt>) {
     drop(sphere_receipt)
 }
 
 #[ffi_export]
+/// @memberof ns_sphere_t
 /// Initialize a brand new sphere, authorizing the given key to administer it.
-/// The returned value is a [SphereReceipt], containing the DID of the sphere
+///
+/// The returned value is a ns_sphere_receipt_t, containing the DID of the sphere
 /// and a human-readable mnemonic that can be used to rotate the key authorized
 /// to administer the sphere.
 pub fn ns_sphere_create(
@@ -84,8 +92,11 @@ pub fn ns_sphere_create(
 }
 
 #[ffi_export]
+/// @memberof ns_sphere_t
 /// Join a sphere by initializing it and configuring it to use the specified
-/// key and authorization. The authorization should be provided in the form of
+/// key and authorization.
+///
+/// The authorization should be provided in the form of
 /// a base64-encoded CID v1 string.
 pub fn ns_sphere_join(
     noosphere: &mut NsNoosphere,
@@ -110,9 +121,11 @@ pub fn ns_sphere_join(
 }
 
 #[ffi_export]
+/// @memberof ns_sphere_t
 /// Get the version of a given sphere that is considered the most recent version
-/// in local history. If a version is recorded, it is returned as a
-/// base64-encoded CID v1 string.
+/// in local history.
+///
+/// If a version is recorded, it is returned as a base64-encoded CID v1 string.
 pub fn ns_sphere_version_get(
     noosphere: &NsNoosphere,
     sphere_identity: char_p::Ref<'_>,
@@ -138,8 +151,11 @@ pub fn ns_sphere_version_get(
 }
 
 #[ffi_export]
-/// Sync a sphere with a gateway. A gateway URL must have been configured when
-/// the [NoosphereContext] was initialized. And, the sphere must have already
+/// @memberof ns_sphere_t
+/// Sync a sphere with a gateway.
+///
+/// A gateway URL must have been configured when
+/// the ns_noosphere_t was initialized. And, the sphere must have already
 /// been created or joined by the caller so that it is locally initialized (it's
 /// okay if this was done in an earlier session). The returned string is the
 /// base64-encoded CID v1 of the latest locally-available sphere revision after

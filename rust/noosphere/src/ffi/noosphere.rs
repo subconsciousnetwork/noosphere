@@ -14,8 +14,7 @@ use crate::{
 #[derive_ReprC(rename = "ns_noosphere")]
 #[repr(opaque)]
 /// @class ns_noosphere_t
-///
-/// Core noosphere class.
+/// Root noosphere context, entrypoint of the Noosphere API.
 pub struct NsNoosphere {
     inner: NoosphereContext,
     async_runtime: Arc<TokioRuntime>,
@@ -58,24 +57,18 @@ impl NsNoosphere {
 }
 
 #[ffi_export]
-/// Initialize a [NoosphereContext] and return a boxed pointer to it. This is
-/// the entrypoint to the Noosphere API, and the returned pointer is used to
-/// invoke almost all other API functions.
+/// @memberof ns_noosphere_t
+/// Initialize a ns_noosphere_t instance.
 ///
-/// In order to initialize the [NoosphereContext], you must provide two
+/// In order to initialize the ns_noosphere_t, you must provide two
 /// namespace strings: one for "global" Noosphere configuration, and another for
 /// sphere storage. Note that at this time "global" configuration is only used
 /// for insecure, on-disk key storage and we will probably deprecate such
 /// configuration at a future date.
 ///
-/// You can also initialize the [NoosphereContext] with an optional third
+/// You can also initialize the ns_noosphere_t with an optional third
 /// argument: a URL string that refers to a Noosphere Gateway API somewhere on
 /// the network that one or more local spheres may have access to.
-///
-/// For this and all other ns_* functions that return a pointer, the pointer
-/// should be considered to refer to owned data unless specified otherwise in
-/// documentation. This means that you _must_ manually free all data given to
-/// you by the FFI (using the appropriate ns-prefixed "free" function).
 pub fn ns_initialize(
     global_storage_path: char_p::Ref<'_>,
     sphere_storage_path: char_p::Ref<'_>,
@@ -98,26 +91,29 @@ pub fn ns_initialize(
 }
 
 #[ffi_export]
-/// De-allocate a [NoosphereContext]. Note that this will also drop every
-/// [SphereContext] that remains active within the [NoosphereContext].
+/// @memberof ns_noosphere_t
+/// Deallocate a ns_noosphere_t instance.
+///
+/// Note that this will also deallocate every ns_sphere_t that remains
+/// active within the ns_noosphere_t.
 pub fn ns_free(noosphere: repr_c::Box<NsNoosphere>) {
     drop(noosphere)
 }
 
 #[ffi_export]
-/// De-allocate a Noosphere-allocated byte array
+/// Deallocate a Noosphere-allocated byte array.
 pub fn ns_bytes_free(bytes: c_slice::Box<u8>) {
     drop(bytes)
 }
 
 #[ffi_export]
-/// De-allocate a Noosphere-allocated string
+/// Deallocate a Noosphere-allocated string.
 pub fn ns_string_free(string: char_p::Box) {
     drop(string)
 }
 
 #[ffi_export]
-/// De-allocate a Noosphere-allocated array of strings
+/// Deallocate a Noosphere-allocated array of strings.
 pub fn ns_string_array_free(string_array: c_slice::Box<char_p::Box>) {
     drop(string_array)
 }

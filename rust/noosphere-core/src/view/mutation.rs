@@ -15,6 +15,8 @@ use noosphere_storage::BlockStore;
 
 #[cfg(doc)]
 use crate::view::Sphere;
+#[cfg(doc)]
+use crate::data::Did;
 
 /// A [SphereRevision] represents a new, unsigned version of a [Sphere]. A
 /// [SphereRevision] must be signed as a final step before the [Cid] of a new

@@ -27,7 +27,7 @@ use noosphere_sphere::{
 #[repr(opaque)]
 /// @class ns_sphere_t
 ///
-/// A sphere class.
+/// An opaque struct representing a sphere.
 pub struct NsSphere {
     inner: SphereCursor<
         Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>,
@@ -61,8 +61,10 @@ impl NsSphere {
 #[derive_ReprC(rename = "ns_sphere_file")]
 #[repr(opaque)]
 /// @class ns_sphere_file_t
+/// A read/write view into a sphere's memo.
 ///
-/// TBD
+/// ns_sphere_file_t is a lazy, stateful view into a single memo.
+/// No bytes are read from disk until ns_sphere_file_contents_read() is invoked.
 pub struct NsSphereFile {
     inner: SphereFile<Pin<Box<dyn AsyncRead>>>,
 }
@@ -78,8 +80,9 @@ impl NsSphereFile {
 }
 
 #[ffi_export]
-/// Initialize an instance of a `ns_sphere_t` that is a read/write view into
-/// the contents (as addressed by the slug namespace) of the identitifed sphere
+/// @memberof ns_sphere_t
+/// Initialize an ns_sphere_t instance.
+///
 /// This will fail if it is not possible to initialize a sphere with the given
 /// identity (which implies that no such sphere was ever created or joined on
 /// this device).
@@ -105,14 +108,15 @@ pub fn ns_sphere_open(
 }
 
 #[ffi_export]
+/// @memberof ns_sphere_t
 /// Access another sphere by a petname.
 ///
 /// The petname should be one that has been assigned to the sphere's identity
-/// using `ns_sphere_petname_set()`. If any of the data required to access the
+/// using ns_sphere_petname_set(). If any of the data required to access the
 /// target sphere is not available locally, it will be replicated from the
 /// network through a the configured Noosphere Gateway. If no such gateway is
 /// configured and the data is not available locally, this call will fail. The
-/// returned `NsSphere` pointer can be used to access the content, petnames,
+/// returned ns_sphere_t pointer can be used to access the content, petnames,
 /// revision history and other features of the target sphere with the same APIs
 /// used to access the local user's sphere, except that any operations that
 /// attempt to modify the sphere will be rejected. Note that since this function
@@ -145,20 +149,23 @@ pub fn ns_sphere_traverse_by_petname(
 }
 
 #[ffi_export]
-/// De-allocate an `ns_sphere_t`
+/// @memberof ns_sphere_t
+/// Deallocate an ns_sphere_t instance.
 pub fn ns_sphere_free(sphere: repr_c::Box<NsSphere>) {
     drop(sphere)
 }
 
 #[ffi_export]
-/// Read a `ns_sphere_file_t` from a `ns_sphere_t` instance by slashlink. Note
-/// that although this function will eventually support slashlinks that include
-/// the pet name of a peer, at this time only slashlinks with slugs referencing
-/// the slug namespace of the local sphere are allowed.
+/// @memberof ns_sphere_t
+/// Read a memo as a ns_sphere_file_t from a ns_sphere_t by slashlink.
+///
+/// Note that although this function will eventually support slashlinks
+/// that include the pet name of a peer, at this time only slashlinks
+/// with slugs referencing the slug namespace of the local sphere are allowed.
 ///
 /// This function will return a null pointer if the slug does not have a file
 /// associated with it at the revision of the sphere that is referred to by the
-/// `ns_sphere_t` being read from.
+/// ns_sphere_t being read from.
 pub fn ns_sphere_content_read(
     noosphere: &NsNoosphere,
     sphere: &NsSphere,
@@ -208,15 +215,17 @@ pub fn ns_sphere_content_read(
 }
 
 #[ffi_export]
-/// Write a byte buffer to a slug in the given `ns_sphere_t` instance, assigning
-/// its content-type header to the specified value. If additional headers are
-/// specified, they will be appended to the list of headers in the memo that is
-/// created for the content. If some content already exists at the specified
-/// slug, it will be assigned to be the previous historical revision of the new
-/// content.
+/// @memberof ns_sphere_t
+/// Write content to a ns_sphere_t instance, keyed by `slug`, assigning its
+/// content-type header to the specified value.
 ///
-/// Note that you must invoke `ns_sphere_save()` to commit one or more writes to
-/// the sphere.
+/// If additional headers are specified, they will be appended to the list
+/// of headers in the memo that is created for the content. If some content
+/// already exists at the specified slug, it will be assigned to be the
+/// previous historical revision of the new content.
+///
+/// Note that you must invoke ns_sphere_save() to commit one or more writes
+/// to the sphere.
 pub fn ns_sphere_content_write(
     noosphere: &NsNoosphere,
     sphere: &mut NsSphere,
@@ -254,11 +263,14 @@ pub fn ns_sphere_content_write(
 }
 
 #[ffi_export]
-/// Unlinks a slug from the content space. Note that this does not remove the
-/// blocks that were previously associated with the content found at the given
-/// slug, because they will still be available at an earlier revision of the
-/// sphere. In order to commit the change, you must save. Note that this call is
-/// a no-op if there is no matching slug linked in the sphere.
+/// @memberof ns_sphere_t
+/// Unlinks a slug from the content space.
+///
+/// Note that this does not remove the blocks that were previously associated
+/// with the content found at the given slug, because they will still be
+/// available at an earlier revision of the sphere. In order to commit the
+/// change, you must save. Note that this call is a no-op if there is
+/// no matching slug linked in the sphere.
 pub fn ns_sphere_content_remove(
     noosphere: &NsNoosphere,
     sphere: &mut NsSphere,
@@ -274,12 +286,11 @@ pub fn ns_sphere_content_remove(
 }
 
 #[ffi_export]
-/// Save any writes performed on the `ns_sphere_t` instance. If additional
-/// headers are specified, they will be appended to the headers in the memo that
-/// is created to wrap the latest sphere revision.
+/// @memberof ns_sphere_t
+/// Save any writes performed on the ns_sphere_t instance.
 ///
-/// This will fail if both no writes have been performed and no additional
-/// headers were specified (in other words: no actual changes were made).
+/// If additional headers are specified, they will be appended to
+/// the headers in the memo that is created to wrap the latest sphere revision.
 pub fn ns_sphere_save(
     noosphere: &NsNoosphere,
     sphere: &mut NsSphere,
@@ -300,6 +311,7 @@ pub fn ns_sphere_save(
 }
 
 #[ffi_export]
+/// @memberof ns_sphere_t
 /// Get an array of all of the slugs in a sphere at the current version.
 pub fn ns_sphere_content_list(
     noosphere: &NsNoosphere,
@@ -331,11 +343,13 @@ pub fn ns_sphere_content_list(
 }
 
 #[ffi_export]
+/// @memberof ns_sphere_t
 /// Get an array of all of the slugs that changed in a given sphere since a
-/// given revision of that sphere (excluding the given revision). The revision
-/// should be provided as a base64-encoded CID v1 string. If no revision is
-/// provided, the entire history will be considered (back to and including the
-/// first revision).
+/// given revision of that sphere (excluding the given revision).
+///
+/// The revision should be provided as a base64-encoded CID v1 string.
+/// If no revision is provided, the entire history will be considered,
+/// back to and including the first revision.
 ///
 /// Note that a slug change may mean the slug was added, updated or removed.
 /// Also note that multiple changes to the same slug will be reduced to a
@@ -380,16 +394,17 @@ pub fn ns_sphere_content_changes(
 }
 
 #[ffi_export]
-/// De-allocate an `ns_sphere_file_t`
+/// @memberof ns_sphere_file_t
+/// Deallocate a ns_sphere_file_t instance.
 pub fn ns_sphere_file_free(sphere_file: repr_c::Box<NsSphereFile>) {
     drop(sphere_file)
 }
 
 #[ffi_export]
-/// Read the contents of an `ns_sphere_file_t` as a byte array. Note that the
-/// `ns_sphere_file_t` is lazy and stateful: it doesn't read any bytes from disk
-/// until this function is invoked, and once the bytes have been read from the
-/// file you must create a new `ns_sphere_file_t` instance to read them again.
+/// @memberof ns_sphere_file_t
+/// Read the contents of an ns_sphere_file_t as a byte array.
+///
+/// Bytes can be read from a ns_sphere_file_t instance only once.
 pub fn ns_sphere_file_contents_read(
     noosphere: &NsNoosphere,
     sphere_file: &mut NsSphereFile,
@@ -412,6 +427,7 @@ pub fn ns_sphere_file_contents_read(
 }
 
 #[ffi_export]
+/// @memberof ns_sphere_file_t
 /// Read all header values for a file that correspond to a given name, returning
 /// them as an array of strings
 pub fn ns_sphere_file_header_values_read(
@@ -430,7 +446,8 @@ pub fn ns_sphere_file_header_values_read(
 }
 
 #[ffi_export]
-/// Get the first header value for a given name in the file, if any
+/// @memberof ns_sphere_file_t
+/// Get the first header value for a given name in the file, if any.
 pub fn ns_sphere_file_header_value_first(
     sphere_file: &NsSphereFile,
     name: char_p::Ref<'_>,
@@ -445,8 +462,10 @@ pub fn ns_sphere_file_header_value_first(
 }
 
 #[ffi_export]
-/// Read all the headers associated with a file as an array of strings. Note
-/// that headers will be reduced to a single entry in cases where multiple
+/// @memberof ns_sphere_file_t
+/// Read all the headers associated with a file as an array of strings.
+///
+/// The headers will be reduced to a single entry in cases where multiple
 /// headers share the same name.
 pub fn ns_sphere_file_header_names_read(sphere_file: &NsSphereFile) -> c_slice::Box<char_p::Box> {
     sphere_file
@@ -463,8 +482,9 @@ pub fn ns_sphere_file_header_names_read(sphere_file: &NsSphereFile) -> c_slice::
 }
 
 #[ffi_export]
+/// @memberof ns_sphere_file_t
 /// Get the base64-encoded CID v1 string for the memo that refers to the content
-/// of this `ns_sphere_file_t`.
+/// of this ns_sphere_file_t.
 pub fn ns_sphere_file_version_get(
     sphere_file: &NsSphereFile,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,

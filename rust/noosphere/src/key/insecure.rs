@@ -56,7 +56,7 @@ impl InsecureKeyStorage {
     /// but for now we aren't certain if we can depend on the ability to
     /// enumerate keys in general WebAuthn cases.
     ///
-    /// See: https://www.w3.org/TR/webauthn-3/#client-side-discoverable-credential
+    /// See: <https://www.w3.org/TR/webauthn-3/#client-side-discoverable-credential>
     pub async fn get_discoverable_keys(&self) -> Result<BTreeMap<String, Did>> {
         let mut discoverable_keys = BTreeMap::<String, Did>::new();
         let mut directory = fs::read_dir(&self.storage_path).await?;

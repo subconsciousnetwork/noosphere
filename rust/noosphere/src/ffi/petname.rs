@@ -12,8 +12,10 @@ use crate::ffi::{NsError, TryOrInitialize};
 use super::{NsNoosphere, NsSphere};
 
 #[ffi_export]
-/// Returns true if the given petname has been assigned to a sphere identity. If
-/// it returns false, it implies one of the following: the petname has never
+/// @memberof ns_sphere_t
+/// Whether the given petname has been assigned to a sphere identity.
+///
+/// If return value is `0`, it implies one of the following: the petname has never
 /// been assigned to any sphere identity, _or_ it was previously assigned to a
 /// sphere identity at least once but has since been unassigned.
 pub fn ns_sphere_petname_is_set(
@@ -41,8 +43,11 @@ pub fn ns_sphere_petname_is_set(
 }
 
 #[ffi_export]
-/// Get the sphere identity - a DID - that the given petname is assigned to in
-/// the sphere. Note that this call will produce an error if the petname has not
+/// @memberof ns_sphere_t
+/// Get the sphere identity as a DID that the given petname is assigned to in
+/// the sphere.
+///
+/// This call will produce an error if the petname has not
 /// been assigned to a sphere identity (or was previously assigned to a sphere
 /// identity but has since been unassigned).
 pub fn ns_sphere_petname_get(
@@ -66,9 +71,11 @@ pub fn ns_sphere_petname_get(
 }
 
 #[ffi_export]
-/// Assign a petname to a sphere identity (a DID). This will overwrite the
-/// petname so that it is assigned to the new sphere identity if it had been
-/// assigned to a different sphere identity previously.
+/// @memberof ns_sphere_t
+/// Assign a petname to a sphere identity (a DID).
+///
+/// This will overwrite the petname so that it is assigned to the new sphere
+/// identity if it had been assigned to a different sphere identity previously.
 ///
 /// When a petname is assigned to a new sphere identity, its entry in the
 /// address book will be set to an unresolved state. You may pass null as the
@@ -99,8 +106,11 @@ pub fn ns_sphere_petname_set(
 }
 
 #[ffi_export]
-/// Resolve a configured petname, using the sphere identity that it is assigned
-/// to and determining a link - a CID - that is associated with it. The returned
+/// @memberof ns_sphere_t
+/// Resolve a configured petname.
+///
+/// Uses the sphere identity that the petname is assigned to and determining
+/// a link - a CID - that is associated with it. The returned
 /// link is a UTF-8, base64-encoded CIDv1 string that may be used to resolve
 /// data from the IPFS content space. Note that this call will produce an error
 /// if no address has been assigned to the given petname.
@@ -125,6 +135,7 @@ pub fn ns_sphere_petname_resolve(
 }
 
 #[ffi_export]
+/// @memberof ns_sphere_t
 /// Get an array of all of the petnames in a sphere at the current version.
 pub fn ns_sphere_petname_list(
     noosphere: &NsNoosphere,
@@ -157,8 +168,10 @@ pub fn ns_sphere_petname_list(
 }
 
 #[ffi_export]
-/// Get an array of all of the petnames that changed in a given sphere since a
-/// given revision of that sphere (excluding the given revision). The revision
+/// @memberof ns_sphere_t
+/// Get an array of all of the petnames that changed in a given sphere.
+///
+/// Includes changes since, and excluding, the given revision. The revision
 /// should be provided as a UTF-8 base64-encoded CIDv1 string. If no revision is
 /// provided, the entire history will be considered (back to and including the
 /// first revision).

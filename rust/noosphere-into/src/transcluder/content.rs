@@ -10,7 +10,7 @@ use subtext::{block::Block, primitive::Entity, Peer};
 use tokio_stream::StreamExt;
 use ucan::crypto::KeyMaterial;
 
-/// A [Transcluder] implementation that uses [SphereFs] to resolve the content
+/// A [Transcluder] implementation that uses [HasSphereContext] to resolve the content
 /// being transcluded.
 #[derive(Clone)]
 pub struct SphereContentTranscluder<R, K, S>

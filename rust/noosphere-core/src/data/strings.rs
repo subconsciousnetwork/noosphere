@@ -101,8 +101,8 @@ macro_rules! string_coherent {
 /// resolved into a so-called DID Document, usually in order to obtain PKI
 /// details related to a particular user or process.
 ///
-/// See: https://en.wikipedia.org/wiki/Decentralized_identifier
-/// See: https://www.w3.org/TR/did-core/
+/// See: <https://en.wikipedia.org/wiki/Decentralized_identifier>
+/// See: <https://www.w3.org/TR/did-core/>
 #[repr(transparent)]
 #[derive(Default, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct Did(pub String);
@@ -113,8 +113,8 @@ string_coherent!(Did);
 /// particular format of JSON and an associated signature, commonly used for
 /// authorization flows on the web, but notably also used by the UCAN spec.
 ///
-/// See: https://jwt.io/
-/// See: https://ucan.xyz/
+/// See: <https://jwt.io/>
+/// See: <https://ucan.xyz/>
 #[repr(transparent)]
 #[derive(Default, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct Jwt(pub String);
@@ -124,7 +124,7 @@ string_coherent!(Jwt);
 /// A BIP39-compatible mnemonic phrase that represents the data needed to
 /// recover the private half of a cryptographic key pair.
 ///
-/// See: https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+/// See: <https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki>
 #[repr(transparent)]
 #[derive(Default, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct Mnemonic(pub String);

@@ -16,6 +16,9 @@ use libipld_core::{
 };
 use serde::{de::DeserializeOwned, Serialize};
 
+#[cfg(doc)]
+use serde::Deserialize;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub trait BlockStoreSendSync: Send + Sync {}
 
