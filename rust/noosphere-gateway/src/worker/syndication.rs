@@ -24,7 +24,7 @@ use ucan::crypto::KeyMaterial;
 use url::Url;
 
 use noosphere_car::{CarHeader, CarWriter};
-use wnfs::private::namefilter::BloomFilter;
+use wnfs_namefilter::BloomFilter;
 
 /// A [SyndicationJob] is a request to syndicate the blocks of a _counterpart_
 /// sphere to the broader IPFS network.

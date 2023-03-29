@@ -37,7 +37,7 @@ async-stream = "~0.3"
 tracing = "~0.1"
 tracing-subscriber = { version = "~0.3", features = ["env-filter"] }
 multipart = "~0.18"
-wnfs = { version = "0.1.9" }
+wnfs-namefilter = { version = "0.1.19" }
 
 url = { version = "^2", features = [ "serde" ] }
 whoami = "^1"
