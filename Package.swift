@@ -27,8 +27,8 @@ let package = Package(
             path: "swift/Sources/SwiftNoosphere"),
         .binaryTarget(
             name: "LibNoosphere",
-            url: "https://github.com/subconsciousnetwork/noosphere/releases/download/noosphere-v0.7.0/libnoosphere-apple-xcframework.zip",
-            checksum: "42ca0507afceb102c5d54838c871f9415335fd40babac0b27f030b88514fd705"),
+            url: "https://github.com/subconsciousnetwork/noosphere/releases/download/noosphere-v0.8.0/libnoosphere-apple-xcframework.zip",
+            checksum: "2a97476b0e2a3803a3672489580ed29622e26bf38aa5f5c2f8329c375efc53a4"),
         .testTarget(
             name: "SwiftNoosphereTests",
             dependencies: ["SwiftNoosphere"],
