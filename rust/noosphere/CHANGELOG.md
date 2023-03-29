@@ -8,6 +8,26 @@
   * dependencies
     * noosphere-into bumped from 0.4.4 to 0.4.5
 
+## [0.8.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.7.0...noosphere-v0.8.0) (2023-03-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* Sphere traversal C FFI (#292)
+* Traverse the Noosphere vast (#284)
+
+### Features
+
+* Sphere traversal C FFI ([#292](https://github.com/subconsciousnetwork/noosphere/issues/292)) ([5d55e60](https://github.com/subconsciousnetwork/noosphere/commit/5d55e60789fcec6abdcc50df10f0038274972806))
+* Traverse the Noosphere vast ([#284](https://github.com/subconsciousnetwork/noosphere/issues/284)) ([43bceaf](https://github.com/subconsciousnetwork/noosphere/commit/43bceafcc838c5b06565780f372bf7b401de288e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-into bumped from 0.5.0 to 0.6.0
+
 ## [0.7.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.6.3...noosphere-v0.7.0) (2023-03-14)
 
 

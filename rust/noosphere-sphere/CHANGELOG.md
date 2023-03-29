@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.2.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.1.0...noosphere-sphere-v0.2.0) (2023-03-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* Traverse the Noosphere vast (#284)
+* Revise links and gateway (#278)
+
+### Features
+
+* Revise links and gateway ([#278](https://github.com/subconsciousnetwork/noosphere/issues/278)) ([4cd2e3a](https://github.com/subconsciousnetwork/noosphere/commit/4cd2e3af8b10cdaae710d87e4b919b5180d10fec))
+* Traverse the Noosphere vast ([#284](https://github.com/subconsciousnetwork/noosphere/issues/284)) ([43bceaf](https://github.com/subconsciousnetwork/noosphere/commit/43bceafcc838c5b06565780f372bf7b401de288e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.7.0 to 0.8.0
+    * noosphere-storage bumped from 0.5.0 to 0.6.0
+    * noosphere-api bumped from 0.6.0 to 0.7.0
+    * noosphere-ipfs bumped from 0.2.0 to 0.3.0
+
 ## 0.1.0 (2023-03-14)
 
 
