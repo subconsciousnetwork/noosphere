@@ -4,6 +4,29 @@
   * dev-dependencies
     * noosphere-storage bumped from 0.4.0 to 0.4.2
 
+## [0.3.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.2.0...noosphere-ipfs-v0.3.0) (2023-03-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* Traverse the Noosphere vast (#284)
+* Fork `iroh-car` as `noosphere-car` (#283)
+
+### Features
+
+* Fork `iroh-car` as `noosphere-car` ([#283](https://github.com/subconsciousnetwork/noosphere/issues/283)) ([b0b7c38](https://github.com/subconsciousnetwork/noosphere/commit/b0b7c3835ff1ef271bbe0f833f6f7856fcc30de1))
+* Traverse the Noosphere vast ([#284](https://github.com/subconsciousnetwork/noosphere/issues/284)) ([43bceaf](https://github.com/subconsciousnetwork/noosphere/commit/43bceafcc838c5b06565780f372bf7b401de288e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.5.0 to 0.6.0
+  * dev-dependencies
+    * noosphere-storage bumped from 0.5.0 to 0.6.0
+    * noosphere-core bumped from 0.7.0 to 0.8.0
+
 ## [0.2.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.1.2...noosphere-ipfs-v0.2.0) (2023-03-14)
 
 

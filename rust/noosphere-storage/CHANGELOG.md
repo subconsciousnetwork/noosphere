@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.5.0...noosphere-storage-v0.6.0) (2023-03-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* Traverse the Noosphere vast (#284)
+
+### Features
+
+* Traverse the Noosphere vast ([#284](https://github.com/subconsciousnetwork/noosphere/issues/284)) ([43bceaf](https://github.com/subconsciousnetwork/noosphere/commit/43bceafcc838c5b06565780f372bf7b401de288e))
+
 ## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.4.2...noosphere-storage-v0.5.0) (2023-03-14)
 
 
