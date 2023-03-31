@@ -1,5 +1,8 @@
 on:
   pull_request:
+  push:
+    branches:
+      - main
   workflow_call:
     inputs:
       image-tag:
@@ -34,9 +37,14 @@ jobs:
             concurrency="$concurrency-pr-$PR_NUMBER"
           fi
 
-          if [[ "$IMAGE_TAG" != "" ]]; then
-            tags+=("$IMAGE_TAG")
-            concurrency="$concurrency-$IMAGE_TAG"
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            tags+=("latest")
+            concurrency="$concurrency-latest"
+          fi
+
+          if [[ "$CUSTOM_TAG" != "" ]]; then
+            tags+=("$CUSTOM_TAG")
+            concurrency="$concurrency-$CUSTOM_TAG"
           fi
 
           concurrency="$concurrency-$GITHUB_SHA"
