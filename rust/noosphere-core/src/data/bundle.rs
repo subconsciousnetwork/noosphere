@@ -296,26 +296,9 @@ impl TryBundle for SphereIpld {
 
         bundle.add(*cid, self_bytes);
 
-        match sphere.content {
-            Some(cid) => {
-                ContentIpld::extend_bundle_with_cid(&cid, bundle, store).await?;
-            }
-            _ => (),
-        }
-
-        match sphere.authority {
-            Some(cid) => {
-                AuthorityIpld::extend_bundle_with_cid(&cid, bundle, store).await?;
-            }
-            _ => (),
-        }
-
-        match sphere.address_book {
-            Some(cid) => {
-                NamesIpld::extend_bundle_with_cid(&cid, bundle, store).await?;
-            }
-            _ => (),
-        }
+        ContentIpld::extend_bundle_with_cid(&sphere.content, bundle, store).await?;
+        AuthorityIpld::extend_bundle_with_cid(&sphere.authority, bundle, store).await?;
+        NamesIpld::extend_bundle_with_cid(&sphere.address_book, bundle, store).await?;
 
         match sphere.private {
             Some(_cid) => {
@@ -481,7 +464,7 @@ mod tests {
         assert!(bundle.contains(&memo.body));
 
         let sphere_ipld = sphere.to_body().await.unwrap();
-        let links_cid = sphere_ipld.content.unwrap();
+        let links_cid = sphere_ipld.content;
 
         assert!(bundle.contains(&links_cid));
 

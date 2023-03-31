@@ -20,8 +20,8 @@ use crate::{
         SphereAction, SphereReference, SPHERE_SEMANTICS,
     },
     data::{
-        AddressIpld, AuthorityIpld, Bundle, ChangelogIpld, CidKey, ContentType, DelegationIpld,
-        Did, Header, MapOperation, MemoIpld, RevocationIpld, SphereIpld, TryBundle, Version,
+        AddressIpld, Bundle, ChangelogIpld, CidKey, ContentType, DelegationIpld, Did, Header,
+        MapOperation, MemoIpld, RevocationIpld, SphereIpld, TryBundle, Version,
     },
     view::{Content, SphereMutation, SphereRevision, Timeline},
 };
@@ -128,7 +128,7 @@ impl<S: BlockStore> Sphere<S> {
     pub async fn get_links(&self) -> Result<Content<S>> {
         let sphere = self.to_body().await?;
 
-        Content::at_or_empty(sphere.content, &mut self.store.clone()).await
+        Ok(Content::at(&sphere.content, &mut self.store.clone()))
     }
 
     /// Attempt to load the [Authority] of this sphere. If no authorizations or
@@ -137,7 +137,7 @@ impl<S: BlockStore> Sphere<S> {
     pub async fn get_authority(&self) -> Result<Authority<S>> {
         let sphere = self.to_body().await?;
 
-        Authority::at_or_empty(sphere.authority, &mut self.store.clone()).await
+        Ok(Authority::at(&sphere.authority, &mut self.store.clone()))
     }
 
     /// Attempt to load the [Names] of this sphere. If no names have been added
@@ -146,7 +146,7 @@ impl<S: BlockStore> Sphere<S> {
     pub async fn get_names(&self) -> Result<Names<S>> {
         let sphere = self.to_body().await?;
 
-        Names::at_or_empty(sphere.address_book, &mut self.store.clone()).await
+        Ok(Names::at(&sphere.address_book, &mut self.store.clone()))
     }
 
     /// Get the [Did] identity of the sphere
@@ -253,53 +253,45 @@ impl<S: BlockStore> Sphere<S> {
         let mut sphere = store.load::<DagCborCodec, SphereIpld>(&memo.body).await?;
 
         sphere.content = match !links_mutation.changes().is_empty() {
-            true => Some(
-                Content::apply_with_cid(sphere.content, links_mutation, store)
-                    .await?
-                    .into(),
-            ),
+            true => Content::apply_with_cid(Some(sphere.content), links_mutation, store)
+                .await?
+                .into(),
             false => sphere.content,
         };
 
         sphere.address_book = match !names_mutation.changes().is_empty() {
-            true => Some(
-                Names::apply_with_cid(sphere.address_book, names_mutation, store)
-                    .await?
-                    .into(),
-            ),
+            true => Names::apply_with_cid(Some(sphere.address_book), names_mutation, store)
+                .await?
+                .into(),
             false => sphere.address_book,
         };
 
-        let allowed_ucans_mutation = mutation.allowed_ucans();
-        let revoked_ucans_mutation = mutation.revoked_ucans();
+        let delegations_mutation = mutation.allowed_ucans();
+        let revocations_mutation = mutation.revoked_ucans();
 
-        if !allowed_ucans_mutation.changes().is_empty()
-            || !revoked_ucans_mutation.changes().is_empty()
+        if !delegations_mutation.changes().is_empty() || !revocations_mutation.changes().is_empty()
         {
-            let mut authorization = match sphere.authority {
-                Some(cid) => store.load::<DagCborCodec, AuthorityIpld>(&cid).await?,
-                None => AuthorityIpld::empty(store).await?,
-            };
+            let mut authority = sphere.authority.load_from(store).await?;
 
-            if !allowed_ucans_mutation.changes().is_empty() {
-                authorization.delegations = Delegations::apply_with_cid(
-                    Some(&authorization.delegations),
-                    allowed_ucans_mutation,
+            if !delegations_mutation.changes().is_empty() {
+                authority.delegations = Delegations::apply_with_cid(
+                    Some(&authority.delegations),
+                    delegations_mutation,
                     store,
                 )
                 .await?;
             }
 
-            if !revoked_ucans_mutation.changes().is_empty() {
-                authorization.revocations = Revocations::apply_with_cid(
-                    Some(&authorization.revocations),
-                    revoked_ucans_mutation,
+            if !revocations_mutation.changes().is_empty() {
+                authority.revocations = Revocations::apply_with_cid(
+                    Some(&authority.revocations),
+                    revocations_mutation,
                     store,
                 )
                 .await?;
             }
 
-            sphere.authority = Some(store.save::<DagCborCodec, _>(&authorization).await?.into());
+            sphere.authority = store.save::<DagCborCodec, _>(&authority).await?.into();
         }
 
         memo.body = store.save::<DagCborCodec, _>(&sphere).await?;
@@ -358,8 +350,7 @@ impl<S: BlockStore> Sphere<S> {
         let base_cid = match memo.parent {
             Some(cid) => cid,
             None => {
-                let mut base_sphere = SphereIpld::default();
-                base_sphere.identity = sphere.get_identity().await?;
+                let base_sphere = SphereIpld::new(&sphere.get_identity().await?, store).await?;
                 let empty_dag = MemoIpld::for_body(store, &base_sphere).await?;
                 store.save::<DagCborCodec, _>(&empty_dag).await?
             }
@@ -419,17 +410,8 @@ impl<S: BlockStore> Sphere<S> {
         let sphere_key = generate_ed25519_key();
         let mnemonic = ed25519_key_to_mnemonic(&sphere_key)?;
         let sphere_did = Did(sphere_key.get_did().await?);
-        let mut memo = MemoIpld::for_body(
-            store,
-            &SphereIpld {
-                identity: sphere_did.clone(),
-                content: None,
-                address_book: None,
-                private: None,
-                authority: None,
-            },
-        )
-        .await?;
+        let sphere = SphereIpld::new(&sphere_did, store).await?;
+        let mut memo = MemoIpld::for_body(store, &sphere).await?;
 
         memo.headers.push((
             Header::ContentType.to_string(),
