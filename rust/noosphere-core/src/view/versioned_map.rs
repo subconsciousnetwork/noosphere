@@ -11,7 +11,7 @@ use libipld_core::{
 use tokio::sync::OnceCell;
 
 use crate::data::{
-    AddressIpld, ChangelogIpld, CidKey, DelegationIpld, LinksIpld, MapOperation, MemoIpld,
+    AddressIpld, ChangelogIpld, CidKey, ContentIpld, DelegationIpld, MapOperation, MemoIpld,
     RevocationIpld, VersionedMapIpld, VersionedMapKey, VersionedMapValue,
 };
 
@@ -20,10 +20,10 @@ use noosphere_storage::{block_serialize, BlockStore};
 
 use super::VersionedMapMutation;
 
-pub type Links<S> = VersionedMap<String, MemoIpld, S>;
+pub type Content<S> = VersionedMap<String, MemoIpld, S>;
 pub type Names<S> = VersionedMap<String, AddressIpld, S>;
-pub type AllowedUcans<S> = VersionedMap<CidKey, DelegationIpld, S>;
-pub type RevokedUcans<S> = VersionedMap<CidKey, RevocationIpld, S>;
+pub type Delegations<S> = VersionedMap<CidKey, DelegationIpld, S>;
+pub type Revocations<S> = VersionedMap<CidKey, RevocationIpld, S>;
 
 /// A view over a [VersionedMapIpld] which provides high-level traversal of the
 /// underlying data structure, including ergonomic access to its internal
@@ -214,7 +214,7 @@ where
 
         let changelog_cid = store.save::<DagCborCodec, _>(&changelog).await?;
         let hamt_cid = hamt.flush().await?;
-        let links_ipld = LinksIpld {
+        let links_ipld = ContentIpld {
             hamt: hamt_cid,
             changelog: changelog_cid,
             ..Default::default()

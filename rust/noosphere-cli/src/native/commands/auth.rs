@@ -29,7 +29,7 @@ pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) ->
     let sphere = Sphere::at(&latest_sphere_cid, &db);
 
     let authority = sphere.get_authority().await?;
-    let allowed_ucans = authority.try_get_allowed_ucans().await?;
+    let allowed_ucans = authority.get_delegations().await?;
     let mut allowed_stream = allowed_ucans.stream().await?;
 
     while let Some((CidKey(cid), delegation)) = allowed_stream.try_next().await? {
@@ -105,7 +105,7 @@ You will be able to add a new one after the old one is revoked"#,
 
     let jwt = signable.sign().await?.encode()?;
 
-    let delegation = DelegationIpld::try_register(&name, &jwt, &mut db).await?;
+    let delegation = DelegationIpld::register(&name, &jwt, &mut db).await?;
 
     let sphere = Sphere::at(&latest_sphere_cid, &db);
 
@@ -116,7 +116,7 @@ You will be able to add a new one after the old one is revoked"#,
         .set(&CidKey(delegation.jwt), &delegation);
 
     let mut revision = sphere.apply_mutation(&mutation).await?;
-    let version_cid = revision.try_sign(&my_key, Some(&authorization)).await?;
+    let version_cid = revision.sign(&my_key, Some(&authorization)).await?;
 
     db.set_version(&sphere_did, &version_cid).await?;
 
@@ -151,7 +151,7 @@ pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {
 
     let authorization = sphere.get_authority().await?;
 
-    let allowed_ucans = authorization.try_get_allowed_ucans().await?;
+    let allowed_ucans = authorization.get_delegations().await?;
 
     let mut authorizations: Vec<(String, String, Cid)> = Vec::new();
     let mut delegation_stream = allowed_ucans.stream().await?;
@@ -209,13 +209,13 @@ pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
 
     let authorization = sphere.get_authority().await?;
 
-    let allowed_ucans = authorization.try_get_allowed_ucans().await?;
+    let allowed_ucans = authorization.get_delegations().await?;
 
     let mut delegation_stream = allowed_ucans.stream().await?;
 
     while let Some(Ok((CidKey(cid), delegation))) = delegation_stream.next().await {
         if delegation.name == name {
-            let revocation = RevocationIpld::try_revoke(cid, &my_key).await?;
+            let revocation = RevocationIpld::revoke(cid, &my_key).await?;
 
             let mut mutation = SphereMutation::new(&my_did);
 
@@ -227,7 +227,7 @@ pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
             let mut revision = sphere.apply_mutation(&mutation).await?;
             let ucan = workspace.authorization().await?;
 
-            let sphere_cid = revision.try_sign(&my_key, Some(&ucan)).await?;
+            let sphere_cid = revision.sign(&my_key, Some(&ucan)).await?;
 
             db.set_version(&sphere_did, &sphere_cid).await?;
 

@@ -50,8 +50,8 @@ where
                 let authority = sphere.get_authority().await?;
                 let names = sphere.get_names().await?;
                 let links = sphere.get_links().await?;
-                let delegations = authority.try_get_allowed_ucans().await?;
-                let revocations = authority.try_get_revoked_ucans().await?;
+                let delegations = authority.get_delegations().await?;
+                let revocations = authority.get_revocations().await?;
 
                 // Drop, so that their internal store is dropped, so that the
                 // store's internal sender is dropped, so that the receiver doesn't
@@ -261,8 +261,8 @@ mod tests {
         }
 
         let authority = sphere.get_authority().await.unwrap();
-        let delegations = authority.try_get_allowed_ucans().await.unwrap();
-        let revocations = authority.try_get_revoked_ucans().await.unwrap();
+        let delegations = authority.get_delegations().await.unwrap();
+        let revocations = authority.get_revocations().await.unwrap();
 
         walk_versioned_map(delegations).await.unwrap();
         walk_versioned_map(revocations).await.unwrap();
@@ -422,8 +422,8 @@ mod tests {
         }
 
         let authority = sphere.get_authority().await.unwrap();
-        let delegations = authority.try_get_allowed_ucans().await.unwrap();
-        let revocations = authority.try_get_revoked_ucans().await.unwrap();
+        let delegations = authority.get_delegations().await.unwrap();
+        let revocations = authority.get_revocations().await.unwrap();
 
         walk_versioned_map(delegations).await.unwrap();
         walk_versioned_map(revocations).await.unwrap();

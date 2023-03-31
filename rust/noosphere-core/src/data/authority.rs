@@ -11,18 +11,21 @@ use crate::data::{CidKey, VersionedMapIpld};
 
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct AuthorityIpld {
-    pub allowed: Cid,
-    pub revoked: Cid,
+    pub delegations: Cid,
+    pub revocations: Cid,
 }
 
 impl AuthorityIpld {
-    pub async fn try_empty<S: BlockStore>(store: &mut S) -> Result<Self> {
-        let allowed_ipld = AllowedIpld::empty(store).await?;
-        let allowed = store.save::<DagCborCodec, _>(allowed_ipld).await?;
-        let revoked_ipld = RevokedIpld::empty(store).await?;
-        let revoked = store.save::<DagCborCodec, _>(revoked_ipld).await?;
+    pub async fn empty<S: BlockStore>(store: &mut S) -> Result<Self> {
+        let delegations_ipld = DelegationsIpld::empty(store).await?;
+        let delegations = store.save::<DagCborCodec, _>(delegations_ipld).await?;
+        let revocations_ipld = RevocationsIpld::empty(store).await?;
+        let revocations = store.save::<DagCborCodec, _>(revocations_ipld).await?;
 
-        Ok(AuthorityIpld { allowed, revoked })
+        Ok(AuthorityIpld {
+            delegations,
+            revocations,
+        })
     }
 }
 
@@ -37,7 +40,7 @@ pub struct DelegationIpld {
 }
 
 impl DelegationIpld {
-    pub async fn try_register<S: BlockStore>(name: &str, jwt: &str, store: &S) -> Result<Self> {
+    pub async fn register<S: BlockStore>(name: &str, jwt: &str, store: &S) -> Result<Self> {
         let mut store = UcanStore(store.clone());
         let cid = store.write_token(jwt).await?;
 
@@ -70,7 +73,7 @@ pub struct RevocationIpld {
 }
 
 impl RevocationIpld {
-    pub async fn try_revoke<K: KeyMaterial>(cid: &Cid, issuer: &K) -> Result<Self> {
+    pub async fn revoke<K: KeyMaterial>(cid: &Cid, issuer: &K) -> Result<Self> {
         Ok(RevocationIpld {
             iss: issuer.get_did().await?,
             revoke: cid.to_string(),
@@ -78,7 +81,7 @@ impl RevocationIpld {
         })
     }
 
-    pub async fn try_verify<K: KeyMaterial + ?Sized>(&self, claimed_issuer: &K) -> Result<()> {
+    pub async fn verify<K: KeyMaterial + ?Sized>(&self, claimed_issuer: &K) -> Result<()> {
         let cid = Cid::try_from(self.revoke.as_str())?;
         let challenge_payload = Self::make_challenge_payload(&cid);
         let signature = base64_decode(&self.challenge)?;
@@ -96,11 +99,11 @@ impl RevocationIpld {
 }
 
 /// The key is the CID of a UCAN JWT, and the value is the JWT itself
-pub type AllowedIpld = VersionedMapIpld<CidKey, DelegationIpld>;
+pub type DelegationsIpld = VersionedMapIpld<CidKey, DelegationIpld>;
 
 /// The key is the CID of the original UCAN JWT, and the value is the revocation
 /// order by the UCAN issuer
-pub type RevokedIpld = VersionedMapIpld<CidKey, RevocationIpld>;
+pub type RevocationsIpld = VersionedMapIpld<CidKey, RevocationIpld>;
 
 #[cfg(test)]
 mod tests {
@@ -135,7 +138,7 @@ mod tests {
             .encode()
             .unwrap();
 
-        let delegation = DelegationIpld::try_register("foobar", &ucan_jwt, &store)
+        let delegation = DelegationIpld::register("foobar", &ucan_jwt, &store)
             .await
             .unwrap();
 
@@ -164,15 +167,13 @@ mod tests {
             .encode()
             .unwrap();
 
-        let delegation = DelegationIpld::try_register("foobar", &ucan_jwt, &store)
+        let delegation = DelegationIpld::register("foobar", &ucan_jwt, &store)
             .await
             .unwrap();
 
-        let revocation = RevocationIpld::try_revoke(&delegation.jwt, &key)
-            .await
-            .unwrap();
+        let revocation = RevocationIpld::revoke(&delegation.jwt, &key).await.unwrap();
 
-        assert!(revocation.try_verify(&key).await.is_ok());
-        assert!(revocation.try_verify(&other_key).await.is_err());
+        assert!(revocation.verify(&key).await.is_ok());
+        assert!(revocation.verify(&other_key).await.is_err());
     }
 }

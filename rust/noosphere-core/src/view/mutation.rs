@@ -14,9 +14,9 @@ use crate::{
 use noosphere_storage::BlockStore;
 
 #[cfg(doc)]
-use crate::view::Sphere;
-#[cfg(doc)]
 use crate::data::Did;
+#[cfg(doc)]
+use crate::view::Sphere;
 
 /// A [SphereRevision] represents a new, unsigned version of a [Sphere]. A
 /// [SphereRevision] must be signed as a final step before the [Cid] of a new
@@ -30,7 +30,7 @@ pub struct SphereRevision<S: BlockStore> {
 }
 
 impl<S: BlockStore> SphereRevision<S> {
-    pub async fn try_sign<Credential: KeyMaterial>(
+    pub async fn sign<Credential: KeyMaterial>(
         &mut self,
         credential: &Credential,
         authorization: Option<&Authorization>,
@@ -141,10 +141,7 @@ where
     K: VersionedMapKey,
     V: VersionedMapValue,
 {
-    pub fn try_apply_changelog(
-        &mut self,
-        changelog: &ChangelogIpld<MapOperation<K, V>>,
-    ) -> Result<()> {
+    pub fn apply_changelog(&mut self, changelog: &ChangelogIpld<MapOperation<K, V>>) -> Result<()> {
         let did = changelog
             .did
             .as_ref()

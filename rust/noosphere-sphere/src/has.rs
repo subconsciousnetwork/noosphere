@@ -118,7 +118,7 @@ where
         }
 
         let new_sphere_version = revision
-            .try_sign(
+            .sign(
                 &sphere_context.author().key,
                 sphere_context.author().authorization.as_ref(),
             )

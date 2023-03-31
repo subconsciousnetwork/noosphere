@@ -136,7 +136,7 @@ where
 
         let timeline = Timeline::new(&db)
             .slice(&sphere_revision, ancestor_revision.as_ref())
-            .try_to_chronological()
+            .to_chronological()
             .await?;
 
         // For all CIDs since the last historical checkpoint, syndicate a CAR

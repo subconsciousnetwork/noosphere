@@ -421,7 +421,7 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() {
 
             let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             final_cid = revision
-                .try_sign(
+                .sign(
                     &client_sphere_context.author().key,
                     client_sphere_context.author().authorization.as_ref(),
                 )
@@ -567,7 +567,7 @@ async fn gateway_serves_sphere_revisions_to_a_client() {
             let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
 
             final_cid = revision
-                .try_sign(
+                .sign(
                     &client_sphere_context.author().key,
                     client_sphere_context.author().authorization.as_ref(),
                 )

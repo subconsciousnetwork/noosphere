@@ -1,3 +1,3 @@
 use crate::data::{MemoIpld, VersionedMapIpld};
 
-pub type LinksIpld = VersionedMapIpld<String, MemoIpld>;
+pub type ContentIpld = VersionedMapIpld<String, MemoIpld>;

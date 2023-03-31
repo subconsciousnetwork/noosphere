@@ -1,7 +1,7 @@
 use cid::Cid;
 use serde::{Deserialize, Serialize};
 
-use super::{AuthorityIpld, Did, Link, LinksIpld, NamesIpld};
+use super::{AuthorityIpld, ContentIpld, Did, Link, NamesIpld};
 
 /// The root of the sphere, containing pointers to public details such as names
 /// and links, as well as "sealed" (private) data. While public details are accessible
@@ -13,16 +13,16 @@ pub struct SphereIpld {
     pub identity: Did,
 
     /// The public links for the sphere
-    pub links: Option<Link<LinksIpld>>,
+    pub content: Option<Link<ContentIpld>>,
 
     /// The public pet names for the sphere
-    pub names: Option<Link<NamesIpld>>,
+    pub address_book: Option<Link<NamesIpld>>,
 
     /// The non-public content of the sphere
-    pub sealed: Option<Cid>,
+    pub private: Option<Cid>,
 
     /// Authorization and revocation state for non-owner keys
-    pub authorization: Option<Link<AuthorityIpld>>,
+    pub authority: Option<Link<AuthorityIpld>>,
 }
 
 impl SphereIpld {}
@@ -66,10 +66,10 @@ mod tests {
 
         let sphere = SphereIpld {
             identity: identity_did.clone(),
-            links: None,
-            names: None,
-            sealed: None,
-            authorization: None,
+            content: None,
+            address_book: None,
+            private: None,
+            authority: None,
         };
 
         let sphere_cid = store.save::<DagCborCodec, _>(&sphere).await.unwrap();
@@ -143,10 +143,10 @@ mod tests {
 
         let sphere = SphereIpld {
             identity: identity_did.clone(),
-            links: None,
-            names: None,
-            sealed: None,
-            authorization: None,
+            content: None,
+            address_book: None,
+            private: None,
+            authority: None,
         };
 
         let sphere_cid = store.save::<DagCborCodec, _>(&sphere).await.unwrap();

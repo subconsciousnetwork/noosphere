@@ -12,9 +12,9 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
     data::{
-        AddressIpld, AllowedIpld, AuthorityIpld, BodyChunkIpld, ChangelogIpld, ContentType,
-        DelegationIpld, Header, LinksIpld, MapOperation, MemoIpld, NamesIpld, RevocationIpld,
-        RevokedIpld, SphereIpld, VersionedMapIpld, VersionedMapKey, VersionedMapValue,
+        AddressIpld, AuthorityIpld, BodyChunkIpld, ChangelogIpld, ContentIpld, ContentType,
+        DelegationIpld, DelegationsIpld, Header, MapOperation, MemoIpld, NamesIpld, RevocationIpld,
+        RevocationsIpld, SphereIpld, VersionedMapIpld, VersionedMapKey, VersionedMapValue,
     },
     view::Timeslice,
 };
@@ -58,11 +58,11 @@ impl Bundle {
         Ok(())
     }
 
-    pub async fn try_from_timeslice<'a, S: BlockStore>(
+    pub async fn from_timeslice<'a, S: BlockStore>(
         timeslice: &Timeslice<'a, S>,
         store: &S,
     ) -> Result<Bundle> {
-        let stream = timeslice.try_stream();
+        let stream = timeslice.stream();
         let mut bundle = Bundle::default();
 
         pin_mut!(stream);
@@ -296,28 +296,28 @@ impl TryBundle for SphereIpld {
 
         bundle.add(*cid, self_bytes);
 
-        match sphere.links {
+        match sphere.content {
             Some(cid) => {
-                LinksIpld::extend_bundle_with_cid(&cid, bundle, store).await?;
+                ContentIpld::extend_bundle_with_cid(&cid, bundle, store).await?;
             }
             _ => (),
         }
 
-        match sphere.authorization {
+        match sphere.authority {
             Some(cid) => {
                 AuthorityIpld::extend_bundle_with_cid(&cid, bundle, store).await?;
             }
             _ => (),
         }
 
-        match sphere.names {
+        match sphere.address_book {
             Some(cid) => {
                 NamesIpld::extend_bundle_with_cid(&cid, bundle, store).await?;
             }
             _ => (),
         }
 
-        match sphere.sealed {
+        match sphere.private {
             Some(_cid) => {
                 todo!();
             }
@@ -370,8 +370,10 @@ impl TryBundle for AuthorityIpld {
         let self_bytes = store.require_block(cid).await?;
         let authorization_ipld = block_deserialize::<DagCborCodec, AuthorityIpld>(&self_bytes)?;
 
-        AllowedIpld::extend_bundle_with_cid(&authorization_ipld.allowed, bundle, store).await?;
-        RevokedIpld::extend_bundle_with_cid(&authorization_ipld.revoked, bundle, store).await?;
+        DelegationsIpld::extend_bundle_with_cid(&authorization_ipld.delegations, bundle, store)
+            .await?;
+        RevocationsIpld::extend_bundle_with_cid(&authorization_ipld.revocations, bundle, store)
+            .await?;
 
         bundle.add(*cid, self_bytes);
 
@@ -394,7 +396,7 @@ mod tests {
 
     use crate::{
         authority::generate_ed25519_key,
-        data::{Bundle, DelegationIpld, LinksIpld, MemoIpld, TryBundle},
+        data::{Bundle, ContentIpld, DelegationIpld, MemoIpld, TryBundle},
         view::{Sphere, SphereMutation, Timeline},
     };
 
@@ -437,9 +439,7 @@ mod tests {
         let (jwt_cid, _) =
             block_serialize::<RawCodec, _>(Ipld::Bytes(jwt.as_bytes().to_vec())).unwrap();
 
-        let delegation = DelegationIpld::try_register("foo", &jwt, &store)
-            .await
-            .unwrap();
+        let delegation = DelegationIpld::register("foo", &jwt, &store).await.unwrap();
 
         let (delegation_cid, _) = block_serialize::<DagCborCodec, _>(&delegation).unwrap();
 
@@ -466,7 +466,7 @@ mod tests {
         mutation.links_mut().set(&foo_key, &foo_memo);
 
         let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
-        let new_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
+        let new_cid = revision.sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let bundle = MemoIpld::bundle_with_cid(&new_cid, &store).await.unwrap();
 
@@ -481,12 +481,12 @@ mod tests {
         assert!(bundle.contains(&memo.body));
 
         let sphere_ipld = sphere.to_body().await.unwrap();
-        let links_cid = sphere_ipld.links.unwrap();
+        let links_cid = sphere_ipld.content.unwrap();
 
         assert!(bundle.contains(&links_cid));
 
         let links_ipld = store
-            .load::<DagCborCodec, LinksIpld>(&links_cid)
+            .load::<DagCborCodec, ContentIpld>(&links_cid)
             .await
             .unwrap();
 
@@ -523,7 +523,7 @@ mod tests {
         let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
 
         let sphere_revision = revision
-            .try_sign(&owner_key, Some(&authorization))
+            .sign(&owner_key, Some(&authorization))
             .await
             .unwrap();
 
@@ -550,7 +550,7 @@ mod tests {
         first_mutation.links_mut().set(&foo_key, &foo_memo);
 
         let mut revision = sphere.apply_mutation(&first_mutation).await.unwrap();
-        let new_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
+        let new_cid = revision.sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let sphere = Sphere::at(&new_cid, &store);
 
@@ -562,7 +562,7 @@ mod tests {
         second_mutation.links_mut().set(&bar_key, &bar_memo);
 
         let mut revision = sphere.apply_mutation(&second_mutation).await.unwrap();
-        let new_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
+        let new_cid = revision.sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let bundle = MemoIpld::bundle_with_cid(&new_cid, &store).await.unwrap();
 
@@ -589,7 +589,7 @@ mod tests {
         first_mutation.links_mut().set(&foo_key, &foo_memo);
 
         let mut revision = sphere.apply_mutation(&first_mutation).await.unwrap();
-        let second_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
+        let second_cid = revision.sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let sphere = Sphere::at(&second_cid, &store);
 
@@ -601,14 +601,13 @@ mod tests {
         second_mutation.links_mut().set(&bar_key, &bar_memo);
 
         let mut revision = sphere.apply_mutation(&second_mutation).await.unwrap();
-        let final_cid = revision.try_sign(&owner_key, Some(&ucan)).await.unwrap();
+        let final_cid = revision.sign(&owner_key, Some(&ucan)).await.unwrap();
 
         let timeline = Timeline::new(&store);
 
-        let bundle =
-            Bundle::try_from_timeslice(&timeline.slice(&final_cid, Some(&second_cid)), &store)
-                .await
-                .unwrap();
+        let bundle = Bundle::from_timeslice(&timeline.slice(&final_cid, Some(&second_cid)), &store)
+            .await
+            .unwrap();
 
         assert_eq!(bundle.map().keys().len(), 19);
 
