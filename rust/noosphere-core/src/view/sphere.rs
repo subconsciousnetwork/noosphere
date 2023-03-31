@@ -128,7 +128,7 @@ impl<S: BlockStore> Sphere<S> {
     pub async fn get_links(&self) -> Result<Links<S>> {
         let sphere = self.to_body().await?;
 
-        Links::at_or_empty(sphere.links.as_ref(), &mut self.store.clone()).await
+        Links::at_or_empty(sphere.links, &mut self.store.clone()).await
     }
 
     /// Attempt to load the [Authority] of this sphere. If no authorizations or
@@ -137,7 +137,7 @@ impl<S: BlockStore> Sphere<S> {
     pub async fn get_authority(&self) -> Result<Authority<S>> {
         let sphere = self.to_body().await?;
 
-        Authority::try_at_or_empty(sphere.authorization.as_ref(), &mut self.store.clone()).await
+        Authority::try_at_or_empty(sphere.authorization, &mut self.store.clone()).await
     }
 
     /// Attempt to load the [Names] of this sphere. If no names have been added
@@ -146,7 +146,7 @@ impl<S: BlockStore> Sphere<S> {
     pub async fn get_names(&self) -> Result<Names<S>> {
         let sphere = self.to_body().await?;
 
-        Names::at_or_empty(sphere.names.as_ref(), &mut self.store.clone()).await
+        Names::at_or_empty(sphere.names, &mut self.store.clone()).await
     }
 
     /// Get the [Did] identity of the sphere
@@ -257,16 +257,20 @@ impl<S: BlockStore> Sphere<S> {
         let mut sphere = store.load::<DagCborCodec, SphereIpld>(&memo.body).await?;
 
         sphere.links = match !links_mutation.changes().is_empty() {
-            true => {
-                Some(Links::apply_with_cid(sphere.links.as_ref(), links_mutation, store).await?)
-            }
+            true => Some(
+                Links::apply_with_cid(sphere.links, links_mutation, store)
+                    .await?
+                    .into(),
+            ),
             false => sphere.links,
         };
 
         sphere.names = match !names_mutation.changes().is_empty() {
-            true => {
-                Some(Names::apply_with_cid(sphere.names.as_ref(), names_mutation, store).await?)
-            }
+            true => Some(
+                Names::apply_with_cid(sphere.names, names_mutation, store)
+                    .await?
+                    .into(),
+            ),
             false => sphere.names,
         };
 
@@ -299,7 +303,8 @@ impl<S: BlockStore> Sphere<S> {
                 .await?;
             }
 
-            sphere.authorization = Some(store.save::<DagCborCodec, _>(&authorization).await?);
+            sphere.authorization =
+                Some(store.save::<DagCborCodec, _>(&authorization).await?.into());
         }
 
         memo.body = store.save::<DagCborCodec, _>(&sphere).await?;

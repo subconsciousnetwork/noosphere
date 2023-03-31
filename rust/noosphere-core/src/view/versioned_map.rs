@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, pin::Pin};
+use std::{collections::BTreeMap, ops::Deref, pin::Pin};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
@@ -85,9 +85,12 @@ where
         ipld.load_hamt(&self.store).await
     }
 
-    pub async fn at_or_empty(cid: Option<&Cid>, store: &mut S) -> Result<VersionedMap<K, V, S>> {
+    pub async fn at_or_empty<C>(cid: Option<C>, store: &mut S) -> Result<VersionedMap<K, V, S>>
+    where
+        C: Deref<Target = Cid>,
+    {
         Ok(match cid {
-            Some(cid) => VersionedMap::<K, V, S>::at(cid, store),
+            Some(cid) => VersionedMap::<K, V, S>::at(&cid, store),
             None => VersionedMap::<K, V, S>::empty(store).await?,
         })
     }
@@ -184,11 +187,14 @@ where
             .ok_or_else(|| anyhow!("Key {} not found!", key))
     }
 
-    pub async fn apply_with_cid(
-        cid: Option<&Cid>,
+    pub async fn apply_with_cid<C>(
+        cid: Option<C>,
         mutation: &VersionedMapMutation<K, V>,
         store: &mut S,
-    ) -> Result<Cid> {
+    ) -> Result<Cid>
+    where
+        C: Deref<Target = Cid>,
+    {
         let map = Self::at_or_empty(cid, store).await?;
         let mut changelog = map.get_changelog().await?.mark(mutation.did());
         let mut hamt = map.load_hamt().await?;
