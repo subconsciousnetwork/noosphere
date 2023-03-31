@@ -77,6 +77,14 @@ jobs:
           files: orb-*/orb-*
           tag_name: ${{ needs['release-please'].outputs.noosphere_cli_release_tag_name }}
 
+  build-container-images:
+    name: 'Build container images for release'
+    needs: ['release-please']
+    if: ${{ needs['release-please'].outputs.noosphere_released }}
+    uses: ./.github/workflows/container_images.yaml
+    with:
+      image-tag: ${{ needs['release-please'].outputs.noosphere_release_tag_name }}
+
   noosphere-apple-build:
     name: 'Build Noosphere artifacts (Apple)'
     needs: ['release-please']
@@ -132,7 +140,7 @@ jobs:
           URL="https://github.com/subconsciousnetwork/noosphere/releases/download/${{ needs.release-please.outputs.noosphere_release_tag_name }}/libnoosphere-apple-xcframework.zip"
 
           sed -i -e "s#url: \"[^\"]*\",#url: \"$URL\",#" ./Package.swift
-          sed -i -e "s#checksum: \"[^\"]*\"),#checksum: \"${{ steps.generate-checksum.checksum }}\"),#" ./Package.swift
+          sed -i -e "s#checksum: \"[^\"]*\"),#checksum: \"${{ steps.generate-checksum.outputs.checksum }}\"),#" ./Package.swift
       # TODO(#135): Evaluate if we want to automatically check this change in
       # and push it to the project repository
       - uses: actions/upload-artifact@v3
