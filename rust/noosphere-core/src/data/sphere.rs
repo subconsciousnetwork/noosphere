@@ -1,7 +1,7 @@
 use cid::Cid;
 use serde::{Deserialize, Serialize};
 
-use super::Did;
+use super::{AuthorityIpld, Did, Link, LinksIpld, NamesIpld};
 
 /// The root of the sphere, containing pointers to public details such as names
 /// and links, as well as "sealed" (private) data. While public details are accessible
@@ -13,16 +13,16 @@ pub struct SphereIpld {
     pub identity: Did,
 
     /// The public links for the sphere
-    pub links: Option<Cid>,
+    pub links: Option<Link<LinksIpld>>,
 
     /// The public pet names for the sphere
-    pub names: Option<Cid>,
+    pub names: Option<Link<NamesIpld>>,
 
     /// The non-public content of the sphere
     pub sealed: Option<Cid>,
 
     /// Authorization and revocation state for non-owner keys
-    pub authorization: Option<Cid>,
+    pub authorization: Option<Link<AuthorityIpld>>,
 }
 
 impl SphereIpld {}

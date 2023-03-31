@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use anyhow::Result;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
@@ -43,9 +45,12 @@ where
             .clone())
     }
 
-    pub async fn try_at_or_empty(cid: Option<&Cid>, store: &mut S) -> Result<Authority<S>> {
+    pub async fn try_at_or_empty<C>(cid: Option<C>, store: &mut S) -> Result<Authority<S>>
+    where
+        C: Deref<Target = Cid>,
+    {
         Ok(match cid {
-            Some(cid) => Self::at(cid, store),
+            Some(cid) => Self::at(&cid, store),
             None => Self::try_empty(store).await?,
         })
     }

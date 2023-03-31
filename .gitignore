@@ -6,4 +6,5 @@ noosphere.h
 lib
 node_modules
 .wireit
+.build
 *.tsbuildinfo
