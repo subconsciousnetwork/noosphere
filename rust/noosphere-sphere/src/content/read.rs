@@ -42,7 +42,7 @@ where
         let revision = self.version().await?;
         let sphere = self.to_sphere().await?;
 
-        let links = sphere.get_links().await?;
+        let links = sphere.get_content().await?;
         let hamt = links.get_hamt().await?;
 
         Ok(match hamt.get(&slug.to_string()).await? {

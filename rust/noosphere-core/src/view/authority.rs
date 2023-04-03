@@ -8,7 +8,7 @@ use tokio::sync::OnceCell;
 
 use crate::{
     data::AuthorityIpld,
-    view::{AllowedUcans, RevokedUcans},
+    view::{Delegations, Revocations},
 };
 
 /// A view in to the authorizations (and associated revocations) that pertain
@@ -45,18 +45,18 @@ where
             .clone())
     }
 
-    pub async fn try_at_or_empty<C>(cid: Option<C>, store: &mut S) -> Result<Authority<S>>
+    pub async fn at_or_empty<C>(cid: Option<C>, store: &mut S) -> Result<Authority<S>>
     where
         C: Deref<Target = Cid>,
     {
         Ok(match cid {
             Some(cid) => Self::at(&cid, store),
-            None => Self::try_empty(store).await?,
+            None => Self::empty(store).await?,
         })
     }
 
-    pub async fn try_empty(store: &mut S) -> Result<Self> {
-        let ipld = AuthorityIpld::try_empty(store).await?;
+    pub async fn empty(store: &mut S) -> Result<Self> {
+        let ipld = AuthorityIpld::empty(store).await?;
         let cid = store.save::<DagCborCodec, _>(ipld).await?;
 
         Ok(Authority {
@@ -66,15 +66,15 @@ where
         })
     }
 
-    pub async fn try_get_allowed_ucans(&self) -> Result<AllowedUcans<S>> {
+    pub async fn get_delegations(&self) -> Result<Delegations<S>> {
         let ipld = self.to_body().await?;
 
-        AllowedUcans::at_or_empty(Some(&ipld.allowed), &mut self.store.clone()).await
+        Delegations::at_or_empty(Some(ipld.delegations), &mut self.store.clone()).await
     }
 
-    pub async fn try_get_revoked_ucans(&self) -> Result<RevokedUcans<S>> {
+    pub async fn get_revocations(&self) -> Result<Revocations<S>> {
         let ipld = self.to_body().await?;
 
-        RevokedUcans::at_or_empty(Some(&ipld.revoked), &mut self.store.clone()).await
+        Revocations::at_or_empty(Some(ipld.revocations), &mut self.store.clone()).await
     }
 }

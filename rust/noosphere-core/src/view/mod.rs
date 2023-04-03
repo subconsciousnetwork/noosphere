@@ -1,3 +1,4 @@
+mod address;
 mod authority;
 mod mutation;
 mod sphere;

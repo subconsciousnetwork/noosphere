@@ -1,6 +1,6 @@
 use anyhow::Result;
 use cid::Cid;
-use noosphere_core::data::{AddressIpld, MapOperation};
+use noosphere_core::data::{IdentityIpld, MapOperation};
 use std::{collections::BTreeSet, marker::PhantomData};
 
 use async_stream::try_stream;
@@ -55,10 +55,10 @@ where
     /// corresponding [AddressIpld]. This is useful for iterating over sphere
     /// petnames incrementally without having to load the entire index into
     /// memory at once.
-    pub fn petname_stream<'a>(&'a self) -> impl Stream<Item = Result<(String, AddressIpld)>> + 'a {
+    pub fn petname_stream<'a>(&'a self) -> impl Stream<Item = Result<(String, IdentityIpld)>> + 'a {
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
-            let petnames = sphere.get_names().await?;
+            let petnames = sphere.get_address_book().await?.get_identities().await?;
             let stream = petnames.stream().await?;
 
             for await entry in stream {
@@ -79,7 +79,7 @@ where
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
             let since = since.cloned();
-            let stream = sphere.into_name_changelog_stream(since.as_ref());
+            let stream = sphere.into_identities_changelog_stream(since.as_ref());
 
             for await change in stream {
                 let (cid, changelog) = change?;
@@ -179,12 +179,12 @@ where
     ) -> impl Stream<Item = Result<(String, SphereFile<impl AsyncRead>)>> {
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
-            let links = sphere.get_links().await?;
-            let stream = links.into_stream().await?;
+            let content = sphere.get_content().await?;
+            let stream = content.into_stream().await?;
 
             for await entry in stream {
-                let (key, memo) = entry?;
-                let file = self.has_sphere_context.get_file(sphere.cid(), memo).await?;
+                let (key, memo_link) = entry?;
+                let file = self.has_sphere_context.get_file(sphere.cid(), memo_link).await?;
 
                 yield (key.clone(), file);
             }
@@ -200,7 +200,7 @@ where
     ) -> impl Stream<Item = Result<(String, SphereFile<impl AsyncRead + 'a>)>> {
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
-            let links = sphere.get_links().await?;
+            let links = sphere.get_content().await?;
             let stream = links.into_stream().await?;
 
             for await entry in stream {
@@ -222,7 +222,7 @@ where
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
             let since = since.cloned();
-            let stream = sphere.into_link_changelog_stream(since.as_ref());
+            let stream = sphere.into_content_changelog_stream(since.as_ref());
 
             for await change in stream {
                 let (cid, changelog) = change?;

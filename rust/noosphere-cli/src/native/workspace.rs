@@ -202,21 +202,21 @@ impl Workspace {
         let sphere_context = self.sphere_context().await?;
         let sphere_cid = sphere_context.version().await?;
 
-        let content = self.read_file_content(new_blocks).await?;
+        let file_content = self.read_file_content(new_blocks).await?;
 
         let sphere = Sphere::at(&sphere_cid, &db);
-        let links = sphere.get_links().await?;
+        let content = sphere.get_content().await?;
 
-        let mut stream = links.stream().await?;
+        let mut stream = content.stream().await?;
 
         let mut changes = ContentChanges::default();
 
         while let Some(Ok((slug, memo))) = stream.next().await {
-            if content.ignored.contains(slug) {
+            if file_content.ignored.contains(slug) {
                 continue;
             }
 
-            match content.matched.get(slug) {
+            match file_content.matched.get(slug) {
                 Some(FileReference {
                     cid: body_cid,
                     content_type,
@@ -239,12 +239,13 @@ impl Workspace {
                         .insert(slug.clone(), Some(content_type.clone()));
                 }
                 None => {
+                    let memo = memo.load_from(&db).await?;
                     changes.removed.insert(slug.clone(), memo.content_type());
                 }
             }
         }
 
-        for (slug, FileReference { content_type, .. }) in &content.matched {
+        for (slug, FileReference { content_type, .. }) in &file_content.matched {
             if changes.updated.contains_key(slug)
                 || changes.removed.contains_key(slug)
                 || changes.unchanged.contains(slug)
@@ -255,7 +256,7 @@ impl Workspace {
             changes.new.insert(slug.clone(), Some(content_type.clone()));
         }
 
-        Ok(Some((content, changes)))
+        Ok(Some((file_content, changes)))
     }
 
     /// Read the local content of the workspace in its entirety.
@@ -346,9 +347,9 @@ impl Workspace {
         let context = self.sphere_context().await?;
         let sphere = context.to_sphere().await?;
 
-        let links = sphere.get_links().await?;
+        let content = sphere.get_content().await?;
 
-        let mut stream = links.stream().await?;
+        let mut stream = content.stream().await?;
 
         // TODO(#106): We render the whole sphere every time, but we should probably
         // have a fast path where we only render the changes within a CID range

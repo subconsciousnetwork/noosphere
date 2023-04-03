@@ -1,6 +1,6 @@
-use std::{fmt::Display, hash::Hash, ops::Deref};
-
+use noosphere_collections::hamt::Hash as HamtHash;
 use serde::{Deserialize, Serialize};
+use std::{fmt::Display, hash::Hash, ops::Deref};
 
 /// A helper to stamp out trait implementations that promote coherence between
 /// Rust strings and a given wrapper type
@@ -19,7 +19,16 @@ macro_rules! string_coherent {
             where
                 H: std::hash::Hasher,
             {
-                self.0.hash(hasher)
+                Hash::hash(&self.0, hasher)
+            }
+        }
+
+        impl HamtHash for $wrapper {
+            fn hash<H>(&self, hasher: &mut H)
+            where
+                H: std::hash::Hasher,
+            {
+                Hash::hash(&self.0, hasher)
             }
         }
 

@@ -1,31 +1,59 @@
+use anyhow::Result;
 use cid::Cid;
+use libipld_cbor::DagCborCodec;
+use noosphere_storage::BlockStore;
 use serde::{Deserialize, Serialize};
 
-use super::{AuthorityIpld, Did, Link, LinksIpld, NamesIpld};
+use super::{AddressBookIpld, AuthorityIpld, ContentIpld, Did, Link};
 
 /// The root of the sphere, containing pointers to public details such as names
 /// and links, as well as "sealed" (private) data. While public details are accessible
 /// to all, sealed data is encrypted at rest and only accessible to the user who
 /// owns the sphere.
-#[derive(Default, Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SphereIpld {
     /// A DID that is the identity of the originating key that owns the sphere
     pub identity: Did,
 
     /// The public links for the sphere
-    pub links: Option<Link<LinksIpld>>,
+    pub content: Link<ContentIpld>,
 
     /// The public pet names for the sphere
-    pub names: Option<Link<NamesIpld>>,
-
-    /// The non-public content of the sphere
-    pub sealed: Option<Cid>,
+    pub address_book: Link<AddressBookIpld>,
 
     /// Authorization and revocation state for non-owner keys
-    pub authorization: Option<Link<AuthorityIpld>>,
+    pub authority: Link<AuthorityIpld>,
+
+    /// The non-public content of the sphere
+    pub private: Option<Cid>,
 }
 
-impl SphereIpld {}
+impl SphereIpld {
+    pub async fn new<S>(identity: &Did, store: &mut S) -> Result<SphereIpld>
+    where
+        S: BlockStore,
+    {
+        let content_ipld = ContentIpld::empty(store).await?;
+        let content = store.save::<DagCborCodec, _>(&content_ipld).await?.into();
+
+        let address_book_ipld = AddressBookIpld::empty(store).await?;
+        let address_book = store
+            .save::<DagCborCodec, _>(&address_book_ipld)
+            .await?
+            .into();
+
+        let authority_ipld = AuthorityIpld::empty(store).await?;
+        let authority = store.save::<DagCborCodec, _>(&authority_ipld).await?.into();
+
+        Ok(SphereIpld {
+            identity: identity.clone(),
+            content,
+            address_book,
+            authority,
+            private: None,
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -60,17 +88,11 @@ mod tests {
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_be_signed_by_identity_key_and_verified() {
         let identity_credential = generate_credential();
-        let identity_did = Did(identity_credential.get_did().await.unwrap());
+        let identity = Did(identity_credential.get_did().await.unwrap());
 
         let mut store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
-        let sphere = SphereIpld {
-            identity: identity_did.clone(),
-            links: None,
-            names: None,
-            sealed: None,
-            authorization: None,
-        };
+        let sphere = SphereIpld::new(&identity, &mut store).await.unwrap();
 
         let sphere_cid = store.save::<DagCborCodec, _>(&sphere).await.unwrap();
 
@@ -86,7 +108,7 @@ mod tests {
         let capability: Capability<SphereReference, SphereAction> = Capability {
             with: With::Resource {
                 kind: Resource::Scoped(SphereReference {
-                    did: identity_did.to_string(),
+                    did: identity.to_string(),
                 }),
             },
             can: SphereAction::Authorize,
@@ -95,7 +117,7 @@ mod tests {
         let authorization = Authorization::Ucan(
             UcanBuilder::default()
                 .issued_by(&identity_credential)
-                .for_audience(&identity_did)
+                .for_audience(&identity)
                 .with_lifetime(100)
                 .claiming_capability(&capability)
                 .build()
@@ -136,18 +158,12 @@ mod tests {
         let identity_credential = generate_credential();
         let authorized_credential = generate_credential();
 
-        let identity_did = Did(identity_credential.get_did().await.unwrap());
-        let authorized_did = Did(authorized_credential.get_did().await.unwrap());
+        let identity = Did(identity_credential.get_did().await.unwrap());
+        let authorized = Did(authorized_credential.get_did().await.unwrap());
 
         let mut store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
-        let sphere = SphereIpld {
-            identity: identity_did.clone(),
-            links: None,
-            names: None,
-            sealed: None,
-            authorization: None,
-        };
+        let sphere = SphereIpld::new(&identity, &mut store).await.unwrap();
 
         let sphere_cid = store.save::<DagCborCodec, _>(&sphere).await.unwrap();
 
@@ -163,7 +179,7 @@ mod tests {
         let capability: Capability<SphereReference, SphereAction> = Capability {
             with: With::Resource {
                 kind: Resource::Scoped(SphereReference {
-                    did: identity_did.to_string(),
+                    did: identity.to_string(),
                 }),
             },
             can: SphereAction::Authorize,
@@ -172,7 +188,7 @@ mod tests {
         let authorization = Authorization::Ucan(
             UcanBuilder::default()
                 .issued_by(&identity_credential)
-                .for_audience(&authorized_did)
+                .for_audience(&authorized)
                 .with_lifetime(100)
                 .claiming_capability(&capability)
                 .build()

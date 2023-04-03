@@ -97,7 +97,7 @@ where
         &mut self,
         key: K,
         value: V,
-        store: &mut S,
+        store: &S,
         bit_width: u32,
         overwrite: bool,
     ) -> Result<(Option<V>, bool)>
@@ -127,12 +127,7 @@ where
         K: Borrow<Q>,
         Q: Eq + Hash,
     {
-        let value = if let Some(kv) = self.search(k, store, bit_width).await? {
-            Some(kv.get_value(store).await?)
-        } else {
-            None
-        };
-        Ok(value)
+        Ok(self.search(k, store, bit_width).await?.map(|kv| kv.value()))
     }
 
     #[inline]
@@ -201,7 +196,7 @@ where
                     }
                     Pointer::Values(kvs) => {
                         for kv in kvs {
-                            yield (kv.key(), kv.get_value(store).await?);
+                            yield (kv.key(), kv.value());
                         }
                     }
                 }
@@ -239,7 +234,7 @@ where
                     }
                     Pointer::Values(kvs) => {
                         for kv in kvs {
-                            let (key, value) = kv.take(&store).await?;
+                            let (key, value) = kv.take();
                             yield (key, value);
                         }
                     }
@@ -330,7 +325,7 @@ where
         depth: u64,
         key: K,
         value: V,
-        store: &mut S,
+        store: &S,
         overwrite: bool,
     ) -> Result<(Option<V>, bool)>
     where
@@ -340,8 +335,7 @@ where
 
         // No existing values at this point.
         if !self.bitfield.test_bit(idx) {
-            let kv = KeyValuePair::new(key, value, store).await?;
-            self.insert_child(idx, kv);
+            self.insert_child(idx, key, value);
             return Ok((None, true));
         }
 
@@ -392,9 +386,9 @@ where
                         // ! To be absolutely sure, can serialize each value and compare or
                         // ! refactor the Hamt to not be type safe and serialize on entry and
                         // ! exit. These both come at costs, and this isn't a concern.
-                        let value_changed = vals[i].get_value(store).await? != &value;
+                        let value_changed = vals[i].value() != &value;
                         return Ok((
-                            Some(vals[i].overwrite_value(value, store).await?),
+                            Some(std::mem::replace(vals[i].value_mut(), value)),
                             value_changed,
                         ));
                     } else {
@@ -422,7 +416,7 @@ where
 
                     for p in kvs.into_iter() {
                         let hash = H::hash(p.key());
-                        let (key, value) = p.take(store).await?;
+                        let (key, value) = p.take();
                         sub.modify_value(
                             HashBits::new_at_index(hash, consumed),
                             bit_width,
@@ -444,7 +438,7 @@ where
                 let max = vals.len();
                 let idx = vals.iter().position(|c| c.key() > &key).unwrap_or(max);
 
-                let np = KeyValuePair::new(key, value, store).await?;
+                let np = KeyValuePair::new(key, value);
                 vals.insert(idx, np);
 
                 Ok((None, true))
@@ -518,7 +512,7 @@ where
                         } else {
                             vals.remove(i)
                         };
-                        let (key, value) = old.take(store).await?;
+                        let (key, value) = old.take();
                         return Ok(Some((key, value)));
                     }
                 }
@@ -555,10 +549,10 @@ where
         self.pointers.remove(i)
     }
 
-    fn insert_child(&mut self, idx: u32, kv: KeyValuePair<K, V>) {
+    fn insert_child(&mut self, idx: u32, key: K, value: V) {
         let i = self.index_for_bit_pos(idx);
         self.bitfield.set_bit(idx);
-        self.pointers.insert(i, Pointer::from_key_value(kv))
+        self.pointers.insert(i, Pointer::from_key_value(key, value))
     }
 
     fn index_for_bit_pos(&self, bp: u32) -> usize {

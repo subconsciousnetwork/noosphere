@@ -6,17 +6,20 @@ use ucan::crypto::KeyMaterial;
 use crate::{
     authority::Authorization,
     data::{
-        AddressIpld, ChangelogIpld, CidKey, DelegationIpld, MapOperation, MemoIpld, RevocationIpld,
-        VersionedMapKey, VersionedMapValue,
+        ChangelogIpld, DelegationIpld, IdentityIpld, Jwt, Link, MapOperation, MemoIpld,
+        RevocationIpld, VersionedMapKey, VersionedMapValue,
     },
 };
 
 use noosphere_storage::BlockStore;
 
+pub type ContentMutation = VersionedMapMutation<String, Link<MemoIpld>>;
+pub type IdentitiesMutation = VersionedMapMutation<String, IdentityIpld>;
+pub type DelegationsMutation = VersionedMapMutation<Link<Jwt>, DelegationIpld>;
+pub type RevocationsMutation = VersionedMapMutation<Link<Jwt>, RevocationIpld>;
+
 #[cfg(doc)]
 use crate::view::Sphere;
-#[cfg(doc)]
-use crate::data::Did;
 
 /// A [SphereRevision] represents a new, unsigned version of a [Sphere]. A
 /// [SphereRevision] must be signed as a final step before the [Cid] of a new
@@ -30,7 +33,7 @@ pub struct SphereRevision<S: BlockStore> {
 }
 
 impl<S: BlockStore> SphereRevision<S> {
-    pub async fn try_sign<Credential: KeyMaterial>(
+    pub async fn sign<Credential: KeyMaterial>(
         &mut self,
         credential: &Credential,
         authorization: Option<&Authorization>,
@@ -47,20 +50,20 @@ impl<S: BlockStore> SphereRevision<S> {
 #[derive(Debug)]
 pub struct SphereMutation {
     did: String,
-    links: LinksMutation,
-    names: NamesMutation,
-    allowed_ucans: AllowedUcansMutation,
-    revoked_ucans: RevokedUcansMutation,
+    content: ContentMutation,
+    identities: IdentitiesMutation,
+    delegations: DelegationsMutation,
+    revocations: RevocationsMutation,
 }
 
 impl<'a> SphereMutation {
     pub fn new(did: &str) -> Self {
         SphereMutation {
             did: did.into(),
-            links: LinksMutation::new(did),
-            names: NamesMutation::new(did),
-            allowed_ucans: AllowedUcansMutation::new(did),
-            revoked_ucans: RevokedUcansMutation::new(did),
+            content: ContentMutation::new(did),
+            identities: IdentitiesMutation::new(did),
+            delegations: DelegationsMutation::new(did),
+            revocations: RevocationsMutation::new(did),
         }
     }
 
@@ -69,62 +72,57 @@ impl<'a> SphereMutation {
     /// working with the [SphereMutation] does not have sufficient information
     /// to set the author [Did] for a new [SphereMutation].
     pub fn reset(&mut self) {
-        self.links = LinksMutation::new(&self.did);
-        self.names = NamesMutation::new(&self.did);
-        self.allowed_ucans = AllowedUcansMutation::new(&self.did);
-        self.revoked_ucans = RevokedUcansMutation::new(&self.did);
+        self.content = ContentMutation::new(&self.did);
+        self.identities = IdentitiesMutation::new(&self.did);
+        self.delegations = DelegationsMutation::new(&self.did);
+        self.revocations = RevocationsMutation::new(&self.did);
     }
 
     pub fn did(&self) -> &str {
         &self.did
     }
 
-    pub fn links_mut(&mut self) -> &mut LinksMutation {
-        &mut self.links
+    pub fn content_mut(&mut self) -> &mut ContentMutation {
+        &mut self.content
     }
 
-    pub fn links(&self) -> &LinksMutation {
-        &self.links
+    pub fn content(&self) -> &ContentMutation {
+        &self.content
     }
 
-    pub fn names_mut(&mut self) -> &mut NamesMutation {
-        &mut self.names
+    pub fn identities_mut(&mut self) -> &mut IdentitiesMutation {
+        &mut self.identities
     }
 
-    pub fn names(&self) -> &NamesMutation {
-        &self.names
+    pub fn identities(&self) -> &IdentitiesMutation {
+        &self.identities
     }
 
-    pub fn allowed_ucans_mut(&mut self) -> &mut AllowedUcansMutation {
-        &mut self.allowed_ucans
+    pub fn delegations_mut(&mut self) -> &mut DelegationsMutation {
+        &mut self.delegations
     }
 
-    pub fn allowed_ucans(&self) -> &AllowedUcansMutation {
-        &self.allowed_ucans
+    pub fn delegations(&self) -> &DelegationsMutation {
+        &self.delegations
     }
 
-    pub fn revoked_ucans_mut(&mut self) -> &mut RevokedUcansMutation {
-        &mut self.revoked_ucans
+    pub fn revocations_mut(&mut self) -> &mut RevocationsMutation {
+        &mut self.revocations
     }
 
-    pub fn revoked_ucans(&self) -> &RevokedUcansMutation {
-        &self.revoked_ucans
+    pub fn revocations(&self) -> &RevocationsMutation {
+        &self.revocations
     }
 
     /// Returns true if no new changes would be made by applying this
     /// mutation to a [Sphere]. Otherwise, false.
     pub fn is_empty(&self) -> bool {
-        self.links.changes.len() == 0
-            && self.names.changes.len() == 0
-            && self.allowed_ucans.changes.len() == 0
-            && self.revoked_ucans.changes.len() == 0
+        self.content.changes.len() == 0
+            && self.identities.changes.len() == 0
+            && self.delegations.changes.len() == 0
+            && self.revocations.changes.len() == 0
     }
 }
-
-pub type LinksMutation = VersionedMapMutation<String, MemoIpld>;
-pub type NamesMutation = VersionedMapMutation<String, AddressIpld>;
-pub type AllowedUcansMutation = VersionedMapMutation<CidKey, DelegationIpld>;
-pub type RevokedUcansMutation = VersionedMapMutation<CidKey, RevocationIpld>;
 
 #[derive(Default, Debug)]
 pub struct VersionedMapMutation<K, V>
@@ -141,10 +139,7 @@ where
     K: VersionedMapKey,
     V: VersionedMapValue,
 {
-    pub fn try_apply_changelog(
-        &mut self,
-        changelog: &ChangelogIpld<MapOperation<K, V>>,
-    ) -> Result<()> {
+    pub fn apply_changelog(&mut self, changelog: &ChangelogIpld<MapOperation<K, V>>) -> Result<()> {
         let did = changelog
             .did
             .as_ref()

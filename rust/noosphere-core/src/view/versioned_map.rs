@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ops::Deref, pin::Pin};
+use std::{collections::BTreeMap, marker::PhantomData, ops::Deref, pin::Pin};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
@@ -11,7 +11,7 @@ use libipld_core::{
 use tokio::sync::OnceCell;
 
 use crate::data::{
-    AddressIpld, ChangelogIpld, CidKey, DelegationIpld, LinksIpld, MapOperation, MemoIpld,
+    ChangelogIpld, ContentIpld, DelegationIpld, IdentityIpld, Jwt, Link, MapOperation, MemoIpld,
     RevocationIpld, VersionedMapIpld, VersionedMapKey, VersionedMapValue,
 };
 
@@ -20,10 +20,10 @@ use noosphere_storage::{block_serialize, BlockStore};
 
 use super::VersionedMapMutation;
 
-pub type Links<S> = VersionedMap<String, MemoIpld, S>;
-pub type Names<S> = VersionedMap<String, AddressIpld, S>;
-pub type AllowedUcans<S> = VersionedMap<CidKey, DelegationIpld, S>;
-pub type RevokedUcans<S> = VersionedMap<CidKey, RevocationIpld, S>;
+pub type Content<S> = VersionedMap<String, Link<MemoIpld>, S>;
+pub type Identities<S> = VersionedMap<String, IdentityIpld, S>;
+pub type Delegations<S> = VersionedMap<Link<Jwt>, DelegationIpld, S>;
+pub type Revocations<S> = VersionedMap<Link<Jwt>, RevocationIpld, S>;
 
 /// A view over a [VersionedMapIpld] which provides high-level traversal of the
 /// underlying data structure, including ergonomic access to its internal
@@ -153,10 +153,6 @@ where
         Ipld: Encode<C>,
         u64: From<C>,
     {
-        // TODO: We should explore refering to values internally via links, so
-        // that we can avoid this re-serialization just to derive a CID. This may
-        // be incompatible with other IPLD HAMT implementations, but may be a
-        // worthy optimization none-the-less.
         let hamt = self.get_hamt().await?;
         let value = hamt.get(key).await?;
 
@@ -214,10 +210,10 @@ where
 
         let changelog_cid = store.save::<DagCborCodec, _>(&changelog).await?;
         let hamt_cid = hamt.flush().await?;
-        let links_ipld = LinksIpld {
+        let links_ipld = ContentIpld {
             hamt: hamt_cid,
             changelog: changelog_cid,
-            ..Default::default()
+            signature: PhantomData,
         };
 
         store.save::<DagCborCodec, _>(&links_ipld).await

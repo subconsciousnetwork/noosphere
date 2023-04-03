@@ -74,18 +74,11 @@ where
     async fn link_raw(&mut self, slug: &str, cid: &Cid) -> Result<()> {
         self.assert_write_access().await?;
 
-        let memo = self
-            .sphere_context()
-            .await?
-            .db()
-            .load::<DagCborCodec, _>(cid)
-            .await?;
-
         self.sphere_context_mut()
             .await?
             .mutation_mut()
-            .links_mut()
-            .set(&slug.into(), &memo);
+            .content_mut()
+            .set(&slug.into(), &cid.clone().into());
 
         Ok(())
     }
@@ -170,7 +163,7 @@ where
                 self.sphere_context_mut()
                     .await?
                     .mutation_mut()
-                    .links_mut()
+                    .content_mut()
                     .remove(&String::from(slug));
 
                 Some(file.memo_version)

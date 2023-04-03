@@ -103,11 +103,9 @@ where
 
             let counterpart_identity = db.require_key::<_, Did>(COUNTERPART).await?;
             let sphere = context.to_sphere().await?;
-            let links = sphere.get_links().await?;
+            let content = sphere.get_content().await?;
 
-            let counterpart_revision = links
-                .require_as_cid::<DagCborCodec>(&counterpart_identity)
-                .await?;
+            let counterpart_revision = content.require(&counterpart_identity).await?.clone();
 
             let (last_syndicated_revision, syndicated_blocks) =
                 match context.read(&checkpoint_key).await? {
@@ -136,7 +134,7 @@ where
 
         let timeline = Timeline::new(&db)
             .slice(&sphere_revision, ancestor_revision.as_ref())
-            .try_to_chronological()
+            .to_chronological()
             .await?;
 
         // For all CIDs since the last historical checkpoint, syndicate a CAR

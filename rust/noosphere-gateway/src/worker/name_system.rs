@@ -1,7 +1,8 @@
 use anyhow::anyhow;
 use anyhow::Result;
 use cid::Cid;
-use noosphere_core::data::{AddressIpld, Did, Jwt, MapOperation};
+use noosphere_core::data::IdentityIpld;
+use noosphere_core::data::{Did, Jwt, MapOperation};
 use noosphere_ns::NsRecord;
 use noosphere_ns::{server::HttpClient as NameSystemHttpClient, NameSystemClient};
 use noosphere_sphere::{
@@ -126,7 +127,7 @@ where
                 NameSystemJob::ResolveAll { context } => {
                     let name_stream = {
                         let sphere = context.to_sphere().await?;
-                        let names = sphere.get_names().await?;
+                        let names = sphere.get_address_book().await?.get_identities().await?;
 
                         names.into_stream().await?
                     };
@@ -150,11 +151,11 @@ where
                         })
                         .await;
 
-                    let mut names_to_resolve = BTreeMap::<String, AddressIpld>::new();
+                    let mut names_to_resolve = BTreeMap::<String, IdentityIpld>::new();
                     let mut names_to_ignore = BTreeSet::new();
 
                     for (_, sphere) in reverse_history {
-                        let names = sphere.get_names().await?;
+                        let names = sphere.get_address_book().await?.get_identities().await?;
                         let changelog = names.load_changelog().await?;
 
                         for operation in changelog.changes.iter() {
@@ -192,7 +193,7 @@ where
                     // involved enhancement.
                     let stream = {
                         let sphere = context.to_sphere().await?;
-                        let names = sphere.get_names().await?;
+                        let names = sphere.get_address_book().await?.get_identities().await?;
                         let address = names.get(&name).await?;
 
                         match address {
@@ -236,21 +237,21 @@ where
     C: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
-    N: Stream<Item = Result<(String, AddressIpld)>>,
+    N: Stream<Item = Result<(String, IdentityIpld)>>,
 {
     tokio::pin!(stream);
 
     let db = context.sphere_context().await?.db().clone();
 
-    while let Some((name, address)) = stream.try_next().await? {
-        let last_known_record = address.get_proof(&db).await;
+    while let Some((name, identity)) = stream.try_next().await? {
+        let last_known_record = identity.link_record(&db).await;
 
         let next_record =
-            match resolve_record(client.clone(), name.clone(), address.identity.clone()).await? {
+            match resolve_record(client.clone(), name.clone(), identity.did.clone()).await? {
                 Some(token) => {
                     // TODO(#258): Verify that the new value is the most recent value
                     // TODO(#257): Verify the proof chain of the new value
-                    Some(token)
+                    Some(token.into())
                 }
                 None => {
                     // TODO(#259): Expire recorded value if we don't get an updated
@@ -264,7 +265,7 @@ where
             Some(record) if last_known_record != next_record => {
                 debug!(
                     "Gateway adopting petname record for '{}' ({}): {}",
-                    name, address.identity, record
+                    name, identity.did, &record
                 );
                 context.adopt_petname(&name, record).await?;
             }

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use noosphere_core::data::{AddressIpld, Did, Jwt};
+use noosphere_core::data::{Did, IdentityIpld, Jwt};
 use noosphere_storage::Storage;
 use ucan::{crypto::KeyMaterial, store::UcanJwtStore, Ucan};
 
@@ -47,17 +47,20 @@ where
             let mut context = self.sphere_context_mut().await?;
             match identity {
                 Some(identity) => {
-                    context.mutation_mut().names_mut().set(
+                    context.mutation_mut().identities_mut().set(
                         &name.to_string(),
-                        &AddressIpld {
-                            identity,
+                        &IdentityIpld {
+                            did: identity,
                             // TODO: We should backfill this if we have already resolved
                             // this address by another name
-                            last_known_record: None,
+                            link_record: None,
                         },
                     );
                 }
-                None => context.mutation_mut().names_mut().remove(&name.to_string()),
+                None => context
+                    .mutation_mut()
+                    .identities_mut()
+                    .remove(&name.to_string()),
             };
         }
 
@@ -85,30 +88,32 @@ where
             name, identity, record
         );
 
-        let new_address = AddressIpld {
-            identity: identity.clone(),
-            last_known_record: Some(cid),
+        let new_address = IdentityIpld {
+            did: identity.clone(),
+            link_record: Some(cid.into()),
         };
 
-        let names = self
+        let identities = self
             .sphere_context()
             .await?
             .sphere()
             .await?
-            .get_names()
+            .get_address_book()
+            .await?
+            .get_identities()
             .await?;
-        let previous_address = names.get(&name.into()).await?;
+        let previous_identity = identities.get(&name.into()).await?;
 
         self.sphere_context_mut()
             .await?
             .mutation_mut()
-            .names_mut()
+            .identities_mut()
             .set(&name.into(), &new_address);
 
-        match previous_address {
-            Some(previous_address) => {
-                if identity != previous_address.identity {
-                    return Ok(Some(previous_address.identity.to_owned()));
+        match previous_identity {
+            Some(previous_identity) => {
+                if identity != previous_identity.did {
+                    return Ok(Some(previous_identity.did.to_owned()));
                 }
             }
             _ => (),
