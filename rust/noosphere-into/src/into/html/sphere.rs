@@ -2,9 +2,8 @@ use std::{collections::BTreeSet, io::Cursor, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use libipld_cbor::DagCborCodec;
 use noosphere_sphere::{HasSphereContext, SphereContentRead, SphereCursor};
-use noosphere_storage::{block_serialize, Storage};
+use noosphere_storage::Storage;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use ucan::crypto::KeyMaterial;
@@ -46,13 +45,13 @@ where
 
         let write_actions = Arc::new(Mutex::new(BTreeSet::<Cid>::new()));
         let sphere = cursor.to_sphere().await?;
-        let links = sphere.get_links().await?;
+        let links = sphere.get_content().await?;
         let mut link_stream = links.stream().await?;
 
         let mut tasks = Vec::new();
 
-        while let Some(Ok((slug, memo))) = link_stream.next().await {
-            let (cid, _) = block_serialize::<DagCborCodec, _>(memo)?;
+        while let Some(Ok((slug, link))) = link_stream.next().await {
+            let cid = link.cid;
             let file_name: PathBuf = format!("permalink/{}/index.html", cid).into();
 
             // Skip this write entirely if the content has been written

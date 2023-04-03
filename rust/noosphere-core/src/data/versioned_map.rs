@@ -7,7 +7,12 @@ use std::{fmt::Display, hash::Hash, marker::PhantomData};
 use noosphere_collections::hamt::{Hamt, Hash as HamtHash, Sha256};
 use noosphere_storage::BlockStore;
 
-use super::ChangelogIpld;
+use super::{ChangelogIpld, DelegationIpld, IdentityIpld, Jwt, Link, MemoIpld, RevocationIpld};
+
+pub type IdentitiesIpld = VersionedMapIpld<String, IdentityIpld>;
+pub type ContentIpld = VersionedMapIpld<String, Link<MemoIpld>>;
+pub type DelegationsIpld = VersionedMapIpld<Link<Jwt>, DelegationIpld>;
+pub type RevocationsIpld = VersionedMapIpld<Link<Jwt>, RevocationIpld>;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub trait VersionedMapSendSync: Send + Sync {}
@@ -20,22 +25,6 @@ pub trait VersionedMapSendSync {}
 
 #[cfg(target_arch = "wasm32")]
 impl<T> VersionedMapSendSync for T {}
-
-#[repr(transparent)]
-#[derive(Ord, Eq, PartialEq, PartialOrd, Debug, Clone, Serialize, Deserialize)]
-pub struct CidKey(pub Cid);
-
-impl HamtHash for CidKey {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.hash().hash(state);
-    }
-}
-
-impl Display for CidKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
 
 pub trait VersionedMapKey:
     Serialize + DeserializeOwned + HamtHash + Clone + Eq + Ord + VersionedMapSendSync + Display

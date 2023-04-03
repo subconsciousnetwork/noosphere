@@ -43,7 +43,7 @@ pub struct Link<T>
 where
     T: Clone,
 {
-    cid: Cid,
+    pub cid: Cid,
     linked_type: PhantomData<T>,
 }
 

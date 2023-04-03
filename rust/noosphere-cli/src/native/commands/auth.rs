@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_core::{
     authority::{SphereAction, SphereReference},
-    data::{CidKey, DelegationIpld, RevocationIpld},
+    data::{DelegationIpld, Link, RevocationIpld},
     view::{Sphere, SphereMutation},
 };
 use serde_json::{json, Value};
@@ -29,10 +29,10 @@ pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) ->
     let sphere = Sphere::at(&latest_sphere_cid, &db);
 
     let authority = sphere.get_authority().await?;
-    let allowed_ucans = authority.get_delegations().await?;
-    let mut allowed_stream = allowed_ucans.stream().await?;
+    let delegations = authority.get_delegations().await?;
+    let mut delegations_stream = delegations.stream().await?;
 
-    while let Some((CidKey(cid), delegation)) = allowed_stream.try_next().await? {
+    while let Some((Link { cid, .. }, delegation)) = delegations_stream.try_next().await? {
         let ucan = delegation.resolve_ucan(&db).await?;
         let authorized_did = ucan.audience();
 
@@ -112,8 +112,8 @@ You will be able to add a new one after the old one is revoked"#,
     let mut mutation = SphereMutation::new(&my_did);
 
     mutation
-        .allowed_ucans_mut()
-        .set(&CidKey(delegation.jwt), &delegation);
+        .delegations_mut()
+        .set(&Link::new(delegation.jwt), &delegation);
 
     let mut revision = sphere.apply_mutation(&mutation).await?;
     let version_cid = revision.sign(&my_key, Some(&authorization)).await?;
@@ -207,22 +207,22 @@ pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
 
     let sphere = Sphere::at(&latest_sphere_cid, &db);
 
-    let authorization = sphere.get_authority().await?;
+    let authority = sphere.get_authority().await?;
 
-    let allowed_ucans = authorization.get_delegations().await?;
+    let delegations = authority.get_delegations().await?;
 
-    let mut delegation_stream = allowed_ucans.stream().await?;
+    let mut delegation_stream = delegations.stream().await?;
 
-    while let Some(Ok((CidKey(cid), delegation))) = delegation_stream.next().await {
+    while let Some(Ok((Link { cid, .. }, delegation))) = delegation_stream.next().await {
         if delegation.name == name {
             let revocation = RevocationIpld::revoke(cid, &my_key).await?;
 
             let mut mutation = SphereMutation::new(&my_did);
 
-            let key = CidKey(*cid);
+            let key = Link::new(*cid);
 
-            mutation.allowed_ucans_mut().remove(&key);
-            mutation.revoked_ucans_mut().set(&key, &revocation);
+            mutation.delegations_mut().remove(&key);
+            mutation.revocations_mut().set(&key, &revocation);
 
             let mut revision = sphere.apply_mutation(&mutation).await?;
             let ucan = workspace.authorization().await?;

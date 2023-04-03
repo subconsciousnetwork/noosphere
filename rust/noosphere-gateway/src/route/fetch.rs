@@ -2,7 +2,6 @@ use anyhow::Result;
 
 use axum::{extract::Query, http::StatusCode, response::IntoResponse, Extension};
 use cid::Cid;
-use libipld_cbor::DagCborCodec;
 use noosphere_api::data::{FetchParameters, FetchResponse};
 use noosphere_core::{
     authority::{SphereAction, SphereReference},
@@ -95,9 +94,9 @@ where
     debug!("Resolving latest counterpart sphere version...");
 
     match latest_local_sphere
-        .get_links()
+        .get_content()
         .await?
-        .get_as_cid::<DagCborCodec>(&scope.counterpart)
+        .get(&scope.counterpart)
         .await?
     {
         Some(latest_counterpart_sphere_cid) => {
@@ -106,8 +105,11 @@ where
             let since = match since {
                 Some(since_local_sphere_cid) => {
                     let since_local_sphere = Sphere::at(since_local_sphere_cid, db);
-                    let links = since_local_sphere.get_links().await?;
-                    links.get_as_cid::<DagCborCodec>(&scope.counterpart).await?
+                    let links = since_local_sphere.get_content().await?;
+                    links
+                        .get(&scope.counterpart)
+                        .await?
+                        .map(|link| Cid::from(link.clone()))
                 }
                 None => None,
             };

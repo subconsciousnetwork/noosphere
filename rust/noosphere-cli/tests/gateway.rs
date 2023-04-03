@@ -1,9 +1,7 @@
 #![cfg(not(target_arch = "wasm32"))]
 
-#[macro_use]
-extern crate tracing;
-
 use anyhow::anyhow;
+use libipld_cbor::DagCborCodec;
 use noosphere::key::KeyStorage;
 use noosphere_sphere::{
     HasMutableSphereContext, SphereContentRead, SphereContentWrite, SphereCursor, SphereSync,
@@ -414,10 +412,15 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() {
             let memo = MemoIpld::for_body(client_sphere_context.db_mut(), vec![value])
                 .await
                 .unwrap();
+            let memo_cid = client_sphere_context
+                .db_mut()
+                .save::<DagCborCodec, _>(memo)
+                .await
+                .unwrap();
 
             let mut mutation =
                 SphereMutation::new(&client_sphere_context.author().identity().await.unwrap());
-            mutation.links_mut().set(&value.into(), &memo);
+            mutation.content_mut().set(&value.into(), &memo_cid.into());
 
             let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             final_cid = revision
@@ -560,9 +563,14 @@ async fn gateway_serves_sphere_revisions_to_a_client() {
             let memo = MemoIpld::for_body(client_sphere_context.db_mut(), vec![value])
                 .await
                 .unwrap();
+            let memo_cid = client_sphere_context
+                .db_mut()
+                .save::<DagCborCodec, _>(memo)
+                .await
+                .unwrap();
             let mut mutation =
                 SphereMutation::new(&client_sphere_context.author().identity().await.unwrap());
-            mutation.links_mut().set(&value.into(), &memo);
+            mutation.content_mut().set(&value.into(), &memo_cid.into());
 
             let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
 
@@ -689,9 +697,6 @@ async fn gateway_can_sync_an_authorized_sphere_across_multiple_replicas() {
         .unwrap(),
     );
 
-    debug!("EXPECTED AUTHORIZATION: {}", client_replica_authorization);
-    debug!("SPHERE_JOIN");
-
     sphere_join(
         client_replica_key_name,
         Some(client_replica_authorization.to_string()),
@@ -700,8 +705,6 @@ async fn gateway_can_sync_an_authorized_sphere_across_multiple_replicas() {
     )
     .await
     .unwrap();
-
-    debug!("STARTING CLIENT TASK");
 
     let mut client_sphere_context = client_workspace.sphere_context().await.unwrap();
     let mut client_replica_sphere_context =

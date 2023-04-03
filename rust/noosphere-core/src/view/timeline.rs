@@ -94,7 +94,8 @@ impl<'a, S: BlockStore> Display for Timeslice<'a, S> {
 #[cfg(test)]
 mod tests {
     use cid::Cid;
-    use noosphere_storage::MemoryStore;
+    use libipld_cbor::DagCborCodec;
+    use noosphere_storage::{BlockStore, MemoryStore};
     use ucan::crypto::KeyMaterial;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -122,10 +123,10 @@ mod tests {
 
         for i in 0..5u8 {
             let mut mutation = SphereMutation::new(&owner_did);
-            mutation.links_mut().set(
-                &format!("foo/{i}"),
-                &MemoIpld::for_body(&mut store, &[i]).await.unwrap(),
-            );
+            let memo = MemoIpld::for_body(&mut store, &[i]).await.unwrap();
+            let cid = store.save::<DagCborCodec, _>(&memo).await.unwrap();
+
+            mutation.content_mut().set(&format!("foo/{i}"), &cid.into());
             let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
             let next_cid = revision.sign(&owner_key, Some(&ucan)).await.unwrap();
 

@@ -6,10 +6,14 @@ use futures_util::sink::SinkExt;
 use libipld_cbor::DagCborCodec;
 use noosphere_car::{CarHeader, CarWriter};
 use noosphere_core::{
-    data::{ContentType, MemoIpld, VersionedMapKey, VersionedMapValue},
+    data::{
+        ContentType, Link, LinkSend, MemoIpld, VersionedMapKey, VersionedMapSendSync,
+        VersionedMapValue,
+    },
     view::{Sphere, VersionedMap},
 };
 use noosphere_storage::{BlockStore, BlockStoreTap};
+use serde::{de::DeserializeOwned, Serialize};
 use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 use tokio::sync::mpsc::{channel, error::TryRecvError};
 use tokio_stream::{Stream, StreamExt};
@@ -33,6 +37,25 @@ where
     Ok(())
 }
 
+pub(crate) async fn walk_versioned_map_and_dereference_links<K, V, S>(
+    versioned_map: VersionedMap<K, Link<V>, S>,
+    store: S,
+) -> Result<()>
+where
+    K: VersionedMapKey + 'static,
+    V: Serialize + DeserializeOwned + Clone + LinkSend + 'static,
+    Link<V>: Eq + VersionedMapSendSync,
+    S: BlockStore + 'static,
+{
+    versioned_map.get_changelog().await?;
+    let stream = versioned_map.into_stream().await?;
+    tokio::pin!(stream);
+    while let Some((_, value)) = stream.try_next().await? {
+        store.get_block(&value.into()).await?;
+    }
+    Ok(())
+}
+
 pub fn block_stream<S>(
     store: S,
     memo_version: Cid,
@@ -48,37 +71,39 @@ where
             Some(ContentType::Sphere) => {
                 let sphere = Sphere::from_memo(&memo, &store)?;
                 let authority = sphere.get_authority().await?;
-                let names = sphere.get_names().await?;
-                let links = sphere.get_links().await?;
+                let address_book = sphere.get_address_book().await?;
+                let content = sphere.get_content().await?;
+                let identities = address_book.get_identities().await?;
                 let delegations = authority.get_delegations().await?;
                 let revocations = authority.get_revocations().await?;
+
+                let identities_task = tokio::spawn(walk_versioned_map(identities));
+                let content_task = tokio::spawn(walk_versioned_map_and_dereference_links(content, store.clone()));
+                let delegations_task = tokio::spawn(walk_versioned_map(delegations));
+                let revocations_task = tokio::spawn(walk_versioned_map(revocations));
 
                 // Drop, so that their internal store is dropped, so that the
                 // store's internal sender is dropped, so that the receiver doesn't
                 // think there are outstanding senders after our tasks are finished:
                 drop(sphere);
                 drop(authority);
+                drop(address_book);
                 drop(store);
-
-                let names_task = tokio::spawn(walk_versioned_map(names));
-                let links_task = tokio::spawn(walk_versioned_map(links));
-                let delegations_task = tokio::spawn(walk_versioned_map(delegations));
-                let revocations_task = tokio::spawn(walk_versioned_map(revocations));
 
                 while let Some(block) = rx.recv().await {
                     trace!("Yielding {}", block.0);
                     yield block;
                 }
 
-                let (names_result, links_result, delegations_result, revocations_result) = tokio::join!(
-                    names_task,
-                    links_task,
+                let (identities_result, content_result, delegations_result, revocations_result) = tokio::join!(
+                    identities_task,
+                    content_task,
                     delegations_task,
                     revocations_task
                 );
 
-                names_result??;
-                links_result??;
+                identities_result??;
+                content_result??;
                 delegations_result??;
                 revocations_result??;
             }
@@ -235,19 +260,29 @@ mod tests {
         tokio::pin!(stream);
 
         while let Some((cid, block)) = stream.try_next().await.unwrap() {
-            assert!(!received.contains(&cid));
+            debug!("Received {cid}");
+            assert!(
+                !received.contains(&cid),
+                "Got {cid} but we already received it",
+            );
             received.insert(cid.clone());
             other_store.put_block(&cid, &block).await.unwrap();
         }
 
         let sphere = Sphere::at(&final_version, &other_store);
 
-        let links = sphere.get_links().await.unwrap();
-        let petnames = sphere.get_names().await.unwrap();
+        let content = sphere.get_content().await.unwrap();
+        let identities = sphere
+            .get_address_book()
+            .await
+            .unwrap()
+            .get_identities()
+            .await
+            .unwrap();
 
         for (content_change, petname_change) in changes.iter() {
             for slug in content_change {
-                let _ = links
+                let _ = content
                     .get(&slug.to_string())
                     .await
                     .unwrap()
@@ -256,7 +291,7 @@ mod tests {
             }
 
             for petname in petname_change {
-                let _ = petnames.get(&petname.to_string()).await.unwrap();
+                let _ = identities.get(&petname.to_string()).await.unwrap();
             }
         }
 
@@ -396,19 +431,28 @@ mod tests {
 
         while let Some((cid, block)) = block_stream.try_next().await.unwrap() {
             debug!("Received {cid}");
-            assert!(!received.contains(&cid));
+            assert!(
+                !received.contains(&cid),
+                "Got {cid} but we already received it",
+            );
             received.insert(cid);
             other_store.put_block(&cid, &block).await.unwrap();
         }
 
         let sphere = Sphere::at(&final_version, &other_store);
 
-        let links = sphere.get_links().await.unwrap();
-        let petnames = sphere.get_names().await.unwrap();
+        let content = sphere.get_content().await.unwrap();
+        let identities = sphere
+            .get_address_book()
+            .await
+            .unwrap()
+            .get_identities()
+            .await
+            .unwrap();
 
         for (content_change, petname_change) in changes.iter() {
             for slug in content_change {
-                let _ = links
+                let _ = content
                     .get(&slug.to_string())
                     .await
                     .unwrap()
@@ -417,7 +461,7 @@ mod tests {
             }
 
             for petname in petname_change {
-                let _ = petnames.get(&petname.to_string()).await.unwrap();
+                let _ = identities.get(&petname.to_string()).await.unwrap();
             }
         }
 

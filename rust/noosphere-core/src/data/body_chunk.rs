@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use fastcdc::FastCDC;
+use fastcdc::ronomon::FastCDC;
 use libipld_cbor::DagCborCodec;
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +24,7 @@ impl BodyChunkIpld {
     pub async fn store_bytes<S: BlockStore>(bytes: &[u8], store: &mut S) -> Result<Cid> {
         let chunks = FastCDC::new(
             bytes,
-            fastcdc::MINIMUM_MIN,
+            fastcdc::ronomon::MINIMUM_MIN,
             BODY_CHUNK_MAX_SIZE / 2,
             BODY_CHUNK_MAX_SIZE,
         );

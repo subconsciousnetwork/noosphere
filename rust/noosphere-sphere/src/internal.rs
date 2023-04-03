@@ -3,8 +3,7 @@ use crate::{AsyncFileBody, HasSphereContext};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use futures_util::TryStreamExt;
-use libipld_cbor::DagCborCodec;
-use noosphere_storage::{block_serialize, BlockStore, Storage};
+use noosphere_storage::{BlockStore, Storage};
 use std::str::FromStr;
 use tokio_util::io::StreamReader;
 use ucan::crypto::KeyMaterial;
@@ -12,7 +11,7 @@ use ucan::crypto::KeyMaterial;
 use cid::Cid;
 use noosphere_core::{
     authority::Access,
-    data::{ContentType, Header, MemoIpld},
+    data::{ContentType, Header, Link, MemoIpld},
 };
 
 /// A module-private trait for internal trait methods; this is a workaround for
@@ -32,7 +31,7 @@ where
     async fn get_file(
         &self,
         sphere_revision: &Cid,
-        memo: MemoIpld,
+        memo_link: Link<MemoIpld>,
     ) -> Result<SphereFile<Box<dyn AsyncFileBody>>>;
 }
 
@@ -57,10 +56,10 @@ where
     async fn get_file(
         &self,
         sphere_revision: &Cid,
-        memo: MemoIpld,
+        memo_link: Link<MemoIpld>,
     ) -> Result<SphereFile<Box<dyn AsyncFileBody>>> {
         let sphere_context = self.sphere_context().await?;
-        let (memo_version, _) = block_serialize::<DagCborCodec, _>(&memo)?;
+        let memo = memo_link.load_from(sphere_context.db()).await?;
 
         // If we have a memo, but not the content it refers to, we should try to
         // replicate from the gateway
@@ -75,7 +74,7 @@ where
             // because our mutation here is propagating immutable blocks
             // into the local DB
             let mut db = sphere_context.db().clone();
-            let stream = client.replicate(&memo_version).await?;
+            let stream = client.replicate(&memo_link).await?;
 
             tokio::pin!(stream);
             while let Some((cid, block)) = stream.try_next().await? {
@@ -97,7 +96,7 @@ where
         Ok(SphereFile {
             sphere_identity: sphere_context.identity().clone(),
             sphere_version: *sphere_revision,
-            memo_version,
+            memo_version: memo_link.into(),
             memo,
             // NOTE: we have to box here because traits don't support `impl` types in return values
             contents: Box::new(StreamReader::new(stream)),

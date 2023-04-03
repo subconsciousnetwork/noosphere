@@ -2,11 +2,10 @@ use std::{collections::BTreeMap, marker::PhantomData};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use libipld_cbor::DagCborCodec;
 use noosphere_api::data::{FetchParameters, FetchResponse, PushBody, PushResponse};
 use noosphere_core::{
     authority::{SphereAction, SphereReference},
-    data::{AddressIpld, Did, Jwt},
+    data::{Did, IdentityIpld, Jwt},
     view::Sphere,
 };
 use noosphere_storage::{KeyValueStore, SphereDb, Storage};
@@ -91,6 +90,7 @@ where
                 &counterpart_sphere_version,
             )
             .await?;
+
             Ok(())
         };
 
@@ -143,7 +143,7 @@ where
         local_sphere_tip: Option<&Cid>,
         counterpart_sphere_identity: &Did,
         counterpart_sphere_base: Option<&Cid>,
-    ) -> Result<(Cid, Cid, BTreeMap<String, AddressIpld>)> {
+    ) -> Result<(Cid, Cid, BTreeMap<String, IdentityIpld>)> {
         let mut context = context.sphere_context_mut().await?;
         let local_sphere_identity = context.identity().clone();
         let client = context.client().await?;
@@ -179,24 +179,32 @@ where
         for item in counterpart_history.into_iter().rev() {
             let (_, sphere) = item?;
             sphere.hydrate().await?;
-            updated_names.append(&mut sphere.get_names().await?.get_added().await?);
+            updated_names.append(
+                &mut sphere
+                    .get_address_book()
+                    .await?
+                    .get_identities()
+                    .await?
+                    .get_added()
+                    .await?,
+            );
         }
 
         let local_sphere_old_base = match counterpart_sphere_base {
-            Some(counterpart_sphere_base) => {
-                Sphere::at(counterpart_sphere_base, context.db())
-                    .get_links()
-                    .await?
-                    .get_as_cid::<DagCborCodec>(&local_sphere_identity)
-                    .await?
-            }
+            Some(counterpart_sphere_base) => Sphere::at(counterpart_sphere_base, context.db())
+                .get_content()
+                .await?
+                .get(&local_sphere_identity)
+                .await?
+                .map(|link| link.cid),
             None => None,
         };
         let local_sphere_new_base = Sphere::at(&counterpart_sphere_tip, context.db())
-            .get_links()
+            .get_content()
             .await?
-            .get_as_cid::<DagCborCodec>(&local_sphere_identity)
-            .await?;
+            .get(&local_sphere_identity)
+            .await?
+            .map(|link| link.cid);
 
         let local_sphere_tip = match (
             local_sphere_tip,
@@ -252,7 +260,7 @@ where
     async fn adopt_names(
         &self,
         context: &mut C,
-        updated_names: BTreeMap<String, AddressIpld>,
+        updated_names: BTreeMap<String, IdentityIpld>,
     ) -> Result<Option<Cid>> {
         if updated_names.is_empty() {
             return Ok(None);
@@ -265,8 +273,8 @@ where
         let db = context.sphere_context().await?.db().clone();
 
         for (name, address) in updated_names.into_iter() {
-            if let Some(jwt) = address.get_proof(&db).await {
-                context.adopt_petname(&name, &jwt).await?;
+            if let Some(link_record) = address.link_record(&db).await {
+                context.adopt_petname(&name, &link_record.into()).await?;
             }
         }
 
@@ -289,10 +297,11 @@ where
         let mut context = context.sphere_context_mut().await?;
 
         let local_sphere_base = Sphere::at(counterpart_sphere_tip, context.db())
-            .get_links()
+            .get_content()
             .await?
-            .get_as_cid::<DagCborCodec>(context.identity())
-            .await?;
+            .get(context.identity())
+            .await?
+            .map(|link| link.cid);
 
         if local_sphere_base.as_ref() == Some(local_sphere_tip) {
             println!("Gateway is already up to date!");

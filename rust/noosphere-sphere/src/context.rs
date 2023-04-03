@@ -81,10 +81,12 @@ where
     pub async fn traverse_by_petname(&mut self, petname: &str) -> Result<SphereContext<K, S>> {
         // Resolve petname to sphere version via address book entry
 
-        let address = match self
+        let identity = match self
             .sphere()
             .await?
-            .get_names()
+            .get_address_book()
+            .await?
+            .get_identities()
             .await?
             .get(&petname.to_string())
             .await?
@@ -93,19 +95,24 @@ where
             None => return Err(anyhow!("\"{petname}\" is not assigned to an identity")),
         };
 
-        let resolved_version = match address.dereference(self.db()).await {
+        let resolved_version = match identity.link_record(self.db()).await {
+            Some(link_record) => link_record.dereference().await,
+            None => None,
+        };
+
+        let resolved_version = match resolved_version {
             Some(cid) => cid,
             None => {
                 return Err(anyhow!(
                     "No version has been resolved for \"{petname}\" ({})",
-                    address.identity
+                    identity.did
                 ));
             }
         };
 
         // Check for version in local sphere DB
 
-        let maybe_has_resolved_version = match self.db().get_version(&address.identity).await? {
+        let maybe_has_resolved_version = match self.db().get_version(&identity.did).await? {
             Some(local_version) => local_version == resolved_version,
             None => false,
         };
@@ -122,7 +129,7 @@ where
                     if memo.content_type() != Some(ContentType::Sphere) {
                         return Err(anyhow!(
                             "Resolved content for \"{petname}\" ({}) does not refer to a sphere",
-                            address.identity
+                            identity.did
                         ));
                     }
 
@@ -159,14 +166,14 @@ where
         // Update the version in local sphere DB
 
         self.db_mut()
-            .set_version(&address.identity, &resolved_version)
+            .set_version(&identity.did, &resolved_version)
             .await?;
 
         // Initialize a `SphereContext` with the same author and sphere DB as
         // this one, but referring to the resolved sphere DID, and return it
 
         SphereContext::new(
-            address.identity.clone(),
+            identity.did.clone(),
             self.author.clone(),
             self.db.clone(),
             Some(self.sphere_identity.clone()),

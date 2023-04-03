@@ -7,20 +7,34 @@ use ucan::{crypto::KeyMaterial, store::UcanJwtStore, Ucan};
 use noosphere_storage::{base64_decode, base64_encode, BlockStore, UcanStore};
 use serde::{Deserialize, Serialize};
 
-use crate::data::{CidKey, VersionedMapIpld};
+use super::{DelegationsIpld, Link, RevocationsIpld};
 
+#[cfg(docs)]
+use crate::data::SphereIpld;
+
+/// A subdomain of a [SphereIpld] that pertains to the delegated authority to
+/// access a sphere, as well as the revocations of that authority.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct AuthorityIpld {
-    pub delegations: Cid,
-    pub revocations: Cid,
+    pub delegations: Link<DelegationsIpld>,
+    pub revocations: Link<RevocationsIpld>,
 }
 
 impl AuthorityIpld {
+    /// Initialize an empty [AuthorityIpld], with valid [Cid]s referring to
+    /// empty [DelegationsIpld] and [RevocationsIpld] that are persisted in the
+    /// provided storage
     pub async fn empty<S: BlockStore>(store: &mut S) -> Result<Self> {
         let delegations_ipld = DelegationsIpld::empty(store).await?;
-        let delegations = store.save::<DagCborCodec, _>(delegations_ipld).await?;
+        let delegations = store
+            .save::<DagCborCodec, _>(delegations_ipld)
+            .await?
+            .into();
         let revocations_ipld = RevocationsIpld::empty(store).await?;
-        let revocations = store.save::<DagCborCodec, _>(revocations_ipld).await?;
+        let revocations = store
+            .save::<DagCborCodec, _>(revocations_ipld)
+            .await?
+            .into();
 
         Ok(AuthorityIpld {
             delegations,
@@ -97,13 +111,6 @@ impl RevocationIpld {
         format!("REVOKE:{cid}").as_bytes().to_vec()
     }
 }
-
-/// The key is the CID of a UCAN JWT, and the value is the JWT itself
-pub type DelegationsIpld = VersionedMapIpld<CidKey, DelegationIpld>;
-
-/// The key is the CID of the original UCAN JWT, and the value is the revocation
-/// order by the UCAN issuer
-pub type RevocationsIpld = VersionedMapIpld<CidKey, RevocationIpld>;
 
 #[cfg(test)]
 mod tests {

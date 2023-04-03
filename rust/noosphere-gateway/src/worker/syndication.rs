@@ -103,11 +103,9 @@ where
 
             let counterpart_identity = db.require_key::<_, Did>(COUNTERPART).await?;
             let sphere = context.to_sphere().await?;
-            let links = sphere.get_links().await?;
+            let content = sphere.get_content().await?;
 
-            let counterpart_revision = links
-                .require_as_cid::<DagCborCodec>(&counterpart_identity)
-                .await?;
+            let counterpart_revision = content.require(&counterpart_identity).await?.clone();
 
             let (last_syndicated_revision, syndicated_blocks) =
                 match context.read(&checkpoint_key).await? {

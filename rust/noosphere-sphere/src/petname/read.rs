@@ -35,21 +35,30 @@ where
 {
     async fn get_petname(&self, name: &str) -> Result<Option<Did>> {
         let sphere = self.to_sphere().await?;
-        let names = sphere.get_names().await?;
-        let address_ipld = names.get(&name.to_string()).await?;
+        let identities = sphere.get_address_book().await?.get_identities().await?;
+        let address_ipld = identities.get(&name.to_string()).await?;
 
-        Ok(address_ipld.map(|ipld| ipld.identity.clone()))
+        Ok(address_ipld.map(|ipld| ipld.did.clone()))
     }
 
     async fn resolve_petname(&self, name: &str) -> Result<Option<Cid>> {
         let sphere = self.to_sphere().await?;
-        let names = sphere.get_names().await?;
-        let address_ipld = names.get(&name.to_string()).await?;
+        let identities = sphere.get_address_book().await?.get_identities().await?;
+        let address_ipld = identities.get(&name.to_string()).await?;
 
         trace!("Recorded address for {name}: {:?}", address_ipld);
 
         Ok(match address_ipld {
-            Some(address) => address.dereference(self.sphere_context().await?.db()).await,
+            Some(identity) => {
+                let link_record = identity
+                    .link_record(self.sphere_context().await?.db())
+                    .await;
+
+                match link_record {
+                    Some(link_record) => link_record.dereference().await,
+                    None => None,
+                }
+            }
             None => None,
         })
     }

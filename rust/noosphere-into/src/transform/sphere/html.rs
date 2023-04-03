@@ -73,7 +73,7 @@ where
     S: BlockStore + 'static,
 {
     stream! {
-        let links = match sphere.get_links().await {
+        let links = match sphere.get_content().await {
             Ok(links) => links,
             Err(error) => {
                 warn!("Could not resolve links for sphere: {}", error);

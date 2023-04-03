@@ -4,7 +4,7 @@ use libipld_cbor::DagCborCodec;
 use noosphere_storage::BlockStore;
 use serde::{Deserialize, Serialize};
 
-use super::{AuthorityIpld, ContentIpld, Did, Link, NamesIpld};
+use super::{AddressBookIpld, AuthorityIpld, ContentIpld, Did, Link};
 
 /// The root of the sphere, containing pointers to public details such as names
 /// and links, as well as "sealed" (private) data. While public details are accessible
@@ -19,7 +19,7 @@ pub struct SphereIpld {
     pub content: Link<ContentIpld>,
 
     /// The public pet names for the sphere
-    pub address_book: Link<NamesIpld>,
+    pub address_book: Link<AddressBookIpld>,
 
     /// Authorization and revocation state for non-owner keys
     pub authority: Link<AuthorityIpld>,
@@ -36,7 +36,7 @@ impl SphereIpld {
         let content_ipld = ContentIpld::empty(store).await?;
         let content = store.save::<DagCborCodec, _>(&content_ipld).await?.into();
 
-        let address_book_ipld = NamesIpld::empty(store).await?;
+        let address_book_ipld = AddressBookIpld::empty(store).await?;
         let address_book = store
             .save::<DagCborCodec, _>(&address_book_ipld)
             .await?

@@ -1717,9 +1717,9 @@ dependencies = [
 
 [[package]]
 name = "fastcdc"
-version = "1.0.6"
+version = "3.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "861d7b3427fbf3e06300b4aca5c430a2e263b7a7b6821faff8b200d3dc4a61cb"
+checksum = "10010f9b2e601acfda445cb35385cf4241fce85c6e1ea702b157c39f79f8787a"
 
 [[package]]
 name = "fastrand"
@@ -3917,7 +3917,7 @@ dependencies = [
  "async-std",
  "async-stream",
  "async-trait",
- "base64 0.13.0",
+ "base64 0.21.0",
  "byteorder",
  "cid 0.9.0",
  "console_error_panic_hook",
@@ -4108,6 +4108,7 @@ dependencies = [
  "noosphere-core",
  "noosphere-ipfs",
  "noosphere-storage",
+ "serde",
  "serde_json",
  "tokio",
  "tokio-stream",

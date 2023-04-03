@@ -204,7 +204,7 @@ where
         debug!("Synchronizing name changes to local sphere...");
 
         let my_sphere = self.sphere_context.to_sphere().await?;
-        let my_names = my_sphere.get_names().await?;
+        let my_names = my_sphere.get_address_book().await?.get_identities().await?;
 
         let sphere = Sphere::at(&self.request_body.tip, my_sphere.store());
         let stream = sphere.into_history_stream(self.request_body.base.as_ref());
@@ -216,7 +216,13 @@ where
         // Walk backwards through the history of the pushed sphere and aggregate
         // name changes into a single mutation
         while let Ok(Some((_, sphere))) = stream.try_next().await {
-            let changed_names = sphere.get_names().await?.load_changelog().await?;
+            let changed_names = sphere
+                .get_address_book()
+                .await?
+                .get_identities()
+                .await?
+                .load_changelog()
+                .await?;
             for operation in changed_names.changes {
                 match operation {
                     MapOperation::Add { key, value } => {
@@ -239,7 +245,7 @@ where
                                 .sphere_context_mut()
                                 .await?
                                 .mutation_mut()
-                                .names_mut()
+                                .identities_mut()
                                 .set(&key, &value);
                         }
 
@@ -256,7 +262,7 @@ where
                             .sphere_context_mut()
                             .await?
                             .mutation_mut()
-                            .names_mut()
+                            .identities_mut()
                             .remove(&key);
 
                         updated_names.insert(key);

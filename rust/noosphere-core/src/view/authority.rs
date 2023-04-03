@@ -69,12 +69,12 @@ where
     pub async fn get_delegations(&self) -> Result<Delegations<S>> {
         let ipld = self.to_body().await?;
 
-        Delegations::at_or_empty(Some(&ipld.delegations), &mut self.store.clone()).await
+        Delegations::at_or_empty(Some(ipld.delegations), &mut self.store.clone()).await
     }
 
     pub async fn get_revocations(&self) -> Result<Revocations<S>> {
         let ipld = self.to_body().await?;
 
-        Revocations::at_or_empty(Some(&ipld.revocations), &mut self.store.clone()).await
+        Revocations::at_or_empty(Some(ipld.revocations), &mut self.store.clone()).await
     }
 }
