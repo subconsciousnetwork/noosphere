@@ -82,6 +82,7 @@ jobs:
     needs: ['release-please']
     if: ${{ needs['release-please'].outputs.noosphere_released }}
     uses: ./.github/workflows/container_images.yaml
+    secrets: inherit
     with:
       image-tag: ${{ needs['release-please'].outputs.noosphere_release_tag_name }}
 
