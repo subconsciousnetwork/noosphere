@@ -4,6 +4,10 @@
   * dev-dependencies
     * noosphere-storage bumped from 0.4.0 to 0.4.2
 
+* The following workspace dependencies were updated
+  * dev-dependencies
+    * noosphere-core bumped from 0.8.0 to 0.9.0
+
 ## [0.3.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.2.0...noosphere-ipfs-v0.3.0) (2023-03-29)
 
 

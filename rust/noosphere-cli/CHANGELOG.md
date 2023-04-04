@@ -43,6 +43,31 @@
     * noosphere-api bumped from 0.5.5 to 0.5.6
     * noosphere bumped from 0.6.2 to 0.6.3
 
+## [0.9.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.8.0...noosphere-cli-v0.9.0) (2023-04-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* Apply breaking domain concept in anticipation of beta (#298)
+
+### Miscellaneous Chores
+
+* Apply breaking domain concept in anticipation of beta ([#298](https://github.com/subconsciousnetwork/noosphere/issues/298)) ([bd34ab4](https://github.com/subconsciousnetwork/noosphere/commit/bd34ab49b2d2c65cffe25657cf4d188d5c79d15f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.3.0 to 0.3.1
+    * noosphere-core bumped from 0.8.0 to 0.9.0
+    * noosphere-sphere bumped from 0.2.0 to 0.3.0
+    * noosphere-api bumped from 0.7.0 to 0.7.1
+    * noosphere-gateway bumped from 0.2.0 to 0.3.0
+    * noosphere bumped from 0.8.0 to 0.8.1
+  * dev-dependencies
+    * noosphere-ns bumped from 0.5.1 to 0.5.2
+
 ## [0.8.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.7.0...noosphere-cli-v0.8.0) (2023-03-29)
 
 
