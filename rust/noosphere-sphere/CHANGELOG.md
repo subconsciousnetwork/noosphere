@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.2.0...noosphere-sphere-v0.3.0) (2023-04-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* Apply breaking domain concept in anticipation of beta (#298)
+
+### Miscellaneous Chores
+
+* Apply breaking domain concept in anticipation of beta ([#298](https://github.com/subconsciousnetwork/noosphere/issues/298)) ([bd34ab4](https://github.com/subconsciousnetwork/noosphere/commit/bd34ab49b2d2c65cffe25657cf4d188d5c79d15f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.8.0 to 0.9.0
+    * noosphere-api bumped from 0.7.0 to 0.7.1
+    * noosphere-ipfs bumped from 0.3.0 to 0.3.1
+
 ## [0.2.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.1.0...noosphere-sphere-v0.2.0) (2023-03-29)
 
 

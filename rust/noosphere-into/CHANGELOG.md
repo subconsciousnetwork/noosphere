@@ -27,6 +27,27 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-fs bumped from 0.5.2 to 0.5.3
 
+## [0.7.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.6.0...noosphere-into-v0.7.0) (2023-04-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* Apply breaking domain concept in anticipation of beta (#298)
+
+### Miscellaneous Chores
+
+* Apply breaking domain concept in anticipation of beta ([#298](https://github.com/subconsciousnetwork/noosphere/issues/298)) ([bd34ab4](https://github.com/subconsciousnetwork/noosphere/commit/bd34ab49b2d2c65cffe25657cf4d188d5c79d15f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.8.0 to 0.9.0
+    * noosphere-sphere bumped from 0.2.0 to 0.3.0
+  * dev-dependencies
+    * noosphere-sphere bumped from 0.2.0 to 0.3.0
+
 ## [0.6.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.5.0...noosphere-into-v0.6.0) (2023-03-29)
 
 

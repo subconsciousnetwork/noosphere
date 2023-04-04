@@ -5,6 +5,29 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-collections bumped from 0.3.1 to 0.3.2
 
+## [0.9.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.8.0...noosphere-core-v0.9.0) (2023-04-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* Apply breaking domain concept in anticipation of beta (#298)
+
+### Features
+
+* Introduce `Link`, a typed `Cid` ([#297](https://github.com/subconsciousnetwork/noosphere/issues/297)) ([9520826](https://github.com/subconsciousnetwork/noosphere/commit/9520826029235e5dc32adca77193b4f82b9de80c))
+
+
+### Miscellaneous Chores
+
+* Apply breaking domain concept in anticipation of beta ([#298](https://github.com/subconsciousnetwork/noosphere/issues/298)) ([bd34ab4](https://github.com/subconsciousnetwork/noosphere/commit/bd34ab49b2d2c65cffe25657cf4d188d5c79d15f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-collections bumped from 0.4.0 to 0.5.0
+
 ## [0.8.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.7.0...noosphere-core-v0.8.0) (2023-03-29)
 
 

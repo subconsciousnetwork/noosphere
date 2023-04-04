@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-ipfs"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 description = "An interface for an IPFS client."
 keywords = [
@@ -50,4 +50,4 @@ ipfs-api-prelude = "~0.5"
 noosphere-car = { version = "0.1.0", path = "../noosphere-car" }
 libipld-cbor = "~0.15"
 noosphere-storage = { version = "0.6.0", path = "../noosphere-storage" }
-noosphere-core = { version = "0.8.0", path = "../noosphere-core" }
+noosphere-core = { version = "0.9.0", path = "../noosphere-core" }

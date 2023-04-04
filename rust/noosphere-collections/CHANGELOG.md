@@ -8,6 +8,17 @@
   * dependencies
     * noosphere-storage bumped from 0.4.2 to 0.5.0
 
+## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.4.0...noosphere-collections-v0.5.0) (2023-04-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* Apply breaking domain concept in anticipation of beta (#298)
+
+### Miscellaneous Chores
+
+* Apply breaking domain concept in anticipation of beta ([#298](https://github.com/subconsciousnetwork/noosphere/issues/298)) ([bd34ab4](https://github.com/subconsciousnetwork/noosphere/commit/bd34ab49b2d2c65cffe25657cf4d188d5c79d15f))
+
 ## [0.4.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.3.3...noosphere-collections-v0.4.0) (2023-03-29)
 
 
