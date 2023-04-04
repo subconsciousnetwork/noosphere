@@ -27,7 +27,7 @@ lazy_static = "^1"
 cid = "~0.9"
 async-trait = "~0.1"
 async-stream = "~0.3"
-tracing = "~0.1"
+tracing = { workspace = true }
 url = { version = "^2", features = ["serde"] }
 subtext = { version = "0.3.2" }
 itertools = "0.10.5"

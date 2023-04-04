@@ -34,7 +34,6 @@ libipld-cbor = "~0.15"
 noosphere-storage = { version = "0.6.0", path = "../noosphere-storage" }
 
 tokio = { version = "^1", features = ["sync", "io-util"] }
-# tokio-util = { version = "~0.7", features = ["io"] }
 tokio-stream = "~0.1"
 async-stream = "~0.3"
 

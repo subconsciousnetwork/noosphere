@@ -13,6 +13,7 @@ FROM ubuntu:latest
 RUN mkdir -p /root/.noosphere
 RUN mkdir -p /root/sphere
 
+ENV RUST_LOG="info,tower_http,noosphere,noosphere_cli,noosphere_ipfs,noosphere_storage,noosphere_core,noosphere_storage,noosphere_api,orb=debug"
 VOLUME ["/root/.noosphere", "/root/sphere"]
 EXPOSE 4433
 

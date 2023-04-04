@@ -25,7 +25,7 @@ cid = "~0.9"
 url = "^2"
 serde = "^1"
 serde_urlencoded = "~0.7"
-tracing = "~0.1"
+tracing = { workspace = true }
 noosphere-core = { version = "0.8.0", path = "../noosphere-core" }
 noosphere-storage = { version = "0.6.0", path = "../noosphere-storage" }
 noosphere-car = { version = "0.1.0", path = "../noosphere-car" }
