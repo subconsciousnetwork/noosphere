@@ -20,7 +20,7 @@ helpers = []
 anyhow = "^1"
 cid = "~0.9"
 url = { version = "^2", features = ["serde"] }
-tracing = "~0.1"
+tracing = { workspace = true }
 
 noosphere-core = { version = "0.8.0", path = "../noosphere-core" }
 noosphere-storage = { version = "0.6.0", path = "../noosphere-storage" }

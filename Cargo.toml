@@ -17,6 +17,10 @@ members = [
 # See: https://github.com/rust-lang/rust/issues/90148#issuecomment-949194352
 resolver = "2"
 
+[workspace.dependencies]
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "~0.3", features = ["env-filter", "tracing-log"] }
+
 [profile.release]
 opt-level = 'z'
 lto = true
