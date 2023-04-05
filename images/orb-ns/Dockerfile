@@ -14,6 +14,8 @@ RUN useradd -ms /bin/bash dhtuser
 USER dhtuser 
 WORKDIR /home/dhtuser
 
+ENV RUST_LOG="info,tower_http,noosphere,noosphere_ns,noosphere_ipfs,noosphere_storage,noosphere_core,noosphere_storage,orb_ns=debug"
+
 COPY --from=builder /noosphere/target/release/orb-ns /usr/bin/orb-ns
 COPY --chown=dhtuser:dhtuser ./images/orb-ns/start.sh /home/dhtuser/start.sh
 
