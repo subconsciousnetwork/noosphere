@@ -22,6 +22,7 @@ pub struct KuboClient {
 }
 
 impl KuboClient {
+    // TODO: This probably doesn't need to return a result
     pub fn new(api_url: &Url) -> Result<Self> {
         let client = hyper::Client::builder().build_http();
         Ok(KuboClient {
