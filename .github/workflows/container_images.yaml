@@ -48,6 +48,7 @@ jobs:
           fi
 
           concurrency="$concurrency-$GITHUB_SHA"
+          tags+=("${GITHUB_SHA:0:6}")
 
           tags_out=""
 
