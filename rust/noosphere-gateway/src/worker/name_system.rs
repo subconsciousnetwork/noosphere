@@ -1,4 +1,4 @@
-use crate::again::Again;
+use crate::try_or_reset::TryOrReset;
 use anyhow::anyhow;
 use anyhow::Result;
 use cid::Cid;
@@ -109,14 +109,14 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    let mut with_client = Again::new(|| async {
+    let mut with_client = TryOrReset::new(|| async {
         match &configuration {
             NameSystemConfiguration::Remote(url) => NameSystemHttpClient::new(url.clone()).await,
         }
     });
 
     while let Some(job) = receiver.recv().await {
-        let run_job = with_client.invoke_or_reset(|client| async move {
+        let run_job = with_client.invoke(|client| async move {
             debug!("Running {}", job);
             match job {
                 NameSystemJob::Publish { record, .. } => {
