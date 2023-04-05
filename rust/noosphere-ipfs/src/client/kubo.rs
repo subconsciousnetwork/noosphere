@@ -10,7 +10,20 @@ use hyper::{
 };
 use hyper_multipart_rfc7578::client::multipart::{Body as MultipartBody, Form};
 use ipfs_api_prelude::response::{IdResponse, PinLsResponse};
+use libipld_cbor::DagCborCodec;
+use libipld_core::raw::RawCodec;
 use url::Url;
+
+/// Maps a codec defined in a [Cid] to a string
+/// used in the Kubo RPC API. Mappings can be found:
+/// <https://github.com/multiformats/multicodec/blob/master/table.csv>
+fn get_codec(cid: &Cid) -> Result<String> {
+    match cid.codec() {
+        codec if codec == u64::from(RawCodec) => Ok(String::from("raw")),
+        codec if codec == u64::from(DagCborCodec) => Ok(String::from("dag-cbor")),
+        codec @ _ => Err(anyhow!("Codec not supported {}", codec)),
+    }
+}
 
 /// A high-level HTTP client for accessing IPFS
 /// [Kubo RPC APIs](https://docs.ipfs.tech/reference/kubo/rpc/) and normalizing
@@ -95,27 +108,30 @@ impl IpfsClient for KuboClient {
 
     async fn put_block(&mut self, _cid: &Cid, _block: &[u8]) -> Result<()> {
         unimplemented!();
+        /*
+        let mut car = Vec::new();
+        let mut car_writer = CarWriter::new(CarHeader::new_v1(vec![cid.to_owned()]), &mut car);
+        car_writer.write(cid.to_owned(), block).await?;
+        self.syndicate_blocks(Cursor::new(car)).await
+        */
     }
 
     async fn get_block(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
-        trace!("Getting block {cid} from IPFS...");
+        let output_codec = get_codec(cid)?;
         let mut api_url = self.api_url.clone();
         api_url.set_path("/api/v0/dag/get");
         api_url
             .query_pairs_mut()
             .clear()
             .append_pair("arg", &cid.to_string())
-            .append_pair("output-codec", "dag-cbor");
+            .append_pair("output-codec", &output_codec);
 
-        let response = self
-            .client
-            .request(
-                Request::builder()
-                    .method("POST")
-                    .uri(&api_url.to_string())
-                    .body(Body::empty())?,
-            )
-            .await?;
+        let req = Request::builder()
+            .method("POST")
+            .uri(&api_url.to_string())
+            .body(Body::empty())?;
+
+        let response = self.client.request(req).await?;
 
         match response.status() {
             StatusCode::OK => {
@@ -133,33 +149,39 @@ impl IpfsClient for KuboClient {
 mod tests {
     use std::io::Cursor;
 
+    use super::{IpfsClient, KuboClient};
     use cid::Cid;
     use libipld_cbor::DagCborCodec;
     use noosphere_car::{CarHeader, CarWriter};
-    // use noosphere_core::tracing::initialize_tracing;
+    use noosphere_core::tracing::initialize_tracing;
     use noosphere_storage::{block_deserialize, block_serialize};
+    use rand::prelude::*;
     use serde::{Deserialize, Serialize};
     use url::Url;
 
-    use super::{IpfsClient, KuboClient};
+    #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+    struct TestData {
+        value: String,
+        rng: i64,
+        next: Option<Cid>,
+    }
 
     #[tokio::test]
     pub async fn it_can_interact_with_a_kubo_server() {
-        #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-        struct SomeData {
-            value: String,
-            next: Option<Cid>,
-        }
+        initialize_tracing();
+        let mut rng = rand::thread_rng();
 
-        let bar = SomeData {
+        let bar = TestData {
             value: "bar".into(),
+            rng: rng.gen(),
             next: None,
         };
 
         let (bar_cid, bar_block) = block_serialize::<DagCborCodec, _>(bar.clone()).unwrap();
 
-        let foo = SomeData {
+        let foo = TestData {
             value: "foo".into(),
+            rng: rng.gen(),
             next: Some(bar_cid.clone()),
         };
 
@@ -187,19 +209,19 @@ mod tests {
 
         let foo_bytes = kubo_client.get_block(&foo_cid).await.unwrap().unwrap();
         assert_eq!(
-            block_deserialize::<DagCborCodec, SomeData>(&foo_bytes).unwrap(),
+            block_deserialize::<DagCborCodec, TestData>(&foo_bytes).unwrap(),
             foo
         );
         let bar_bytes = kubo_client.get_block(&bar_cid).await.unwrap().unwrap();
         assert_eq!(
-            block_deserialize::<DagCborCodec, SomeData>(&bar_bytes).unwrap(),
+            block_deserialize::<DagCborCodec, TestData>(&bar_bytes).unwrap(),
             bar,
         );
     }
 
     #[tokio::test]
     pub async fn it_gives_a_useful_result_when_a_block_is_not_pinned() {
-        // initialize_tracing();
+        initialize_tracing();
 
         let (cid, _) = block_serialize::<DagCborCodec, _>(vec![1, 2, 3]).unwrap();
 
