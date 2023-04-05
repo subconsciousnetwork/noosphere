@@ -6,6 +6,9 @@ extern crate tracing;
 mod authority;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod try_or_reset;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod extractor;
 
 #[cfg(not(target_arch = "wasm32"))]

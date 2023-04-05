@@ -1,3 +1,4 @@
+use crate::try_or_reset::TryOrReset;
 use anyhow::anyhow;
 use anyhow::Result;
 use cid::Cid;
@@ -9,10 +10,12 @@ use noosphere_sphere::{
     HasMutableSphereContext, SphereCursor, SpherePetnameRead, SpherePetnameWrite,
 };
 use noosphere_storage::Storage;
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
-use std::str::FromStr;
-use std::sync::Arc;
-use std::time::Duration;
+use std::{
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    str::FromStr,
+    sync::Arc,
+    time::Duration,
+};
 use strum_macros::Display;
 use tokio::{
     sync::{
@@ -35,9 +38,7 @@ pub enum NameSystemConfiguration {
 #[derive(Display)]
 pub enum NameSystemJob<C> {
     /// Resolve all names in the sphere at the latest version
-    ResolveAll {
-        context: C,
-    },
+    ResolveAll { context: C },
     /// Resolve a single name from a given sphere at the latest version
     #[allow(dead_code)]
     ResolveImmediately {
@@ -47,14 +48,9 @@ pub enum NameSystemJob<C> {
     },
     /// Resolve all added names of a given sphere since the given sphere
     /// revision
-    ResolveSince {
-        context: C,
-        since: Option<Cid>,
-    },
-    Publish {
-        context: C,
-        record: Jwt,
-    },
+    ResolveSince { context: C, since: Option<Cid> },
+    /// Publish a link record (given as a [Jwt]) to the name system
+    Publish { context: C, record: Jwt },
 }
 
 pub fn start_name_system<C, K, S>(
@@ -113,12 +109,14 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    let client: Arc<dyn NameSystemClient> = Arc::new(match configuration {
-        NameSystemConfiguration::Remote(url) => NameSystemHttpClient::new(url).await?,
+    let mut with_client = TryOrReset::new(|| async {
+        match &configuration {
+            NameSystemConfiguration::Remote(url) => NameSystemHttpClient::new(url.clone()).await,
+        }
     });
 
     while let Some(job) = receiver.recv().await {
-        let run_job = || async {
+        let run_job = with_client.invoke(|client| async move {
             debug!("Running {}", job);
             match job {
                 NameSystemJob::Publish { record, .. } => {
@@ -215,9 +213,9 @@ where
                 }
             };
             Ok(())
-        };
+        });
 
-        match run_job().await {
+        match run_job.await {
             Err(error) => error!("NNS job failed: {}", error),
             _ => debug!("NNS job completed successfully"),
         }
@@ -265,7 +263,7 @@ where
             Some(record) if last_known_record != next_record => {
                 debug!(
                     "Gateway adopting petname record for '{}' ({}): {}",
-                    name, identity.did, &record
+                    name, identity.did, record
                 );
                 context.adopt_petname(&name, record).await?;
             }
