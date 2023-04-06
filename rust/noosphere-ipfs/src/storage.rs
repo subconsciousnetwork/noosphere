@@ -105,23 +105,29 @@ where
     B: BlockStore,
     C: IpfsClient + IpfsStorageConditionalSendSync,
 {
+    #[instrument(skip(self), level = "trace")]
     async fn put_block(&mut self, cid: &Cid, block: &[u8]) -> Result<()> {
         let mut local_store = self.local_store.write().await;
         local_store.put_block(cid, block).await
     }
 
+    #[instrument(skip(self), level = "trace")]
     async fn get_block(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
+        trace!("IpfsStore: Getting block {}...", cid);
         let maybe_block = {
             let local_store = self.local_store.read().await;
             local_store.get_block(cid).await?
         };
 
         if let Some(block) = maybe_block {
+            trace!("IpfsStore: Got block locally {}", cid);
             return Ok(Some(block));
         }
 
         if let Some(ipfs_client) = self.ipfs_client.as_ref() {
+            trace!("IpfsStore: Querying IPFS for {}...", cid);
             if let Some(bytes) = ipfs_client.get_block(cid).await? {
+                trace!("IpfsStore: Got block via IPFS {}", cid);
                 let mut local_store = self.local_store.write().await;
                 local_store.put_block(cid, &bytes).await?;
                 return Ok(Some(bytes));

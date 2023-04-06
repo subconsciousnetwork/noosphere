@@ -130,6 +130,7 @@ impl NsRecord {
     /// Validates the underlying [Ucan] token, ensuring that
     /// the sphere's owner authorized the publishing of a new
     /// content address. Returns an `Err` if validation fails.
+    #[instrument(skip(store, did_parser), level = "trace")]
     pub async fn validate<S: Storage>(
         &self,
         store: &SphereDb<S>,

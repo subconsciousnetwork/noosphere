@@ -111,24 +111,11 @@ impl NameSystem {
                     // Validation/correctness and filtering through
                     // the most recent values can be performed here
                     let record = NsRecord::try_from(value)?;
-                    info!(
-                        "NameSystem: GetRecord: {} {}",
-                        identity,
-                        record
-                            .link()
-                            .map_or_else(|| String::from("None"), |cid| cid.to_string())
-                    );
                     Ok((identity.to_owned(), Some(record)))
                 }
-                None => {
-                    warn!("NameSystem: GetRecord: No record found for {}.", identity);
-                    Ok((identity.to_owned(), None))
-                }
+                None => Ok((identity.to_owned(), None)),
             },
-            Err(e) => {
-                warn!("NameSystem: GetRecord: Failure for {} {:?}.", identity, e);
-                Err(anyhow!(e.to_string()))
-            }
+            Err(e) => Err(anyhow!(e.to_string())),
         }
     }
 
@@ -139,14 +126,8 @@ impl NameSystem {
     async fn dht_put_record(&self, identity: &Did, record: &NsRecord) -> Result<()> {
         let record: Vec<u8> = record.try_into()?;
         match self.dht.put_record(identity.as_bytes(), &record).await {
-            Ok(_) => {
-                info!("NameSystem: PutRecord: {}", identity);
-                Ok(())
-            }
-            Err(e) => {
-                warn!("NameSystem: PutRecord: Failure for {} {:?}.", identity, e);
-                Err(anyhow!(e.to_string()))
-            }
+            Ok(_) => Ok(()),
+            Err(e) => Err(anyhow!(e.to_string())),
         }
     }
 }
