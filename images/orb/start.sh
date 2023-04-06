@@ -1,10 +1,10 @@
 #!/bin/bash
 set -x
 
-KEY=$1
-COUNTERPART=$2
-IPFS_API=$3
-NS_API=$4
+KEY="${1:-${ORB_KEY}}"
+COUNTERPART="${2:-${ORB_COUNTERPART}}"
+IPFS_API="${3:-${ORB_IPFS_API}}"
+NS_API="${4:-${ORB_NS_API}}"
 
 cd /root/sphere
 
