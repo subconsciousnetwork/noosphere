@@ -28,11 +28,8 @@ pub async fn get_network_info(
     Ok(Json(network_info))
 }
 
-pub async fn get_peer_id(
-    Extension(name_system): Extension<Arc<Mutex<NameSystem>>>,
-) -> JsonResponse<PeerId> {
-    let ns = name_system.lock().await;
-    Ok(Json(ns.peer_id().to_owned()))
+pub async fn get_peer_id(Extension(peer_id): Extension<PeerId>) -> JsonResponse<PeerId> {
+    Ok(Json(peer_id))
 }
 
 pub async fn get_peers(

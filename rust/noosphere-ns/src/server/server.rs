@@ -1,5 +1,5 @@
 use crate::server::{handlers, routes::Route};
-use crate::NameSystem;
+use crate::{NameSystem, NameSystemClient};
 use anyhow::Result;
 use axum::routing::{delete, get, post};
 use axum::{Extension, Router, Server};
@@ -12,6 +12,11 @@ pub async fn start_name_system_api_server(
     ns: Arc<Mutex<NameSystem>>,
     listener: TcpListener,
 ) -> Result<()> {
+    let peer_id = {
+        let resolver = ns.lock().await;
+        resolver.peer_id().to_owned()
+    };
+
     let app = Router::new()
         .route(
             &Route::NetworkInfo.to_string(),
@@ -30,6 +35,7 @@ pub async fn start_name_system_api_server(
         .route(&Route::PostRecord.to_string(), post(handlers::post_record))
         .route(&Route::Bootstrap.to_string(), post(handlers::bootstrap))
         .layer(Extension(ns))
+        .layer(Extension(peer_id))
         .layer(TraceLayer::new_for_http());
 
     Server::from_tcp(listener)?
