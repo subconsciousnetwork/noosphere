@@ -128,9 +128,8 @@ where
     /// immediately if possible (synchronous error or pulling value from cache),
     /// otherwise, the message will be mapped to a query, where it can be fulfilled
     /// later, most likely in `process_kad_result()`.
+    #[instrument(skip(self), level = "trace")]
     async fn process_message(&mut self, message: DhtMessage) {
-        dht_event_trace(self, &message);
-
         // Process client requests.
         match message.request {
             DhtRequest::AddPeers { ref peers } => {
@@ -218,7 +217,6 @@ where
             }
             DhtRequest::PutRecord { ref key, ref value } => {
                 let value_owned = value.to_owned();
-                trace!("VALIDATE: {}", self.validate(value).await);
                 if self.validate(value).await {
                     let record = Record {
                         key: Key::new(key),
@@ -244,8 +242,8 @@ where
     /// Processes an incoming SwarmEvent, triggered from swarm activity or
     /// a swarm query. If a SwarmEvent has an associated DHTQuery,
     /// the pending query will be fulfilled.
+    #[instrument(skip(self), level = "trace")]
     async fn process_swarm_event(&mut self, event: DHTSwarmEvent) {
-        dht_event_trace(self, &event);
         match event {
             SwarmEvent::Behaviour(DHTEvent::Kademlia(e)) => self.process_kad_event(e).await,
             SwarmEvent::Behaviour(DHTEvent::Identify(e)) => self.process_identify_event(e),
@@ -359,21 +357,6 @@ where
                     }
                 }
                 QueryResult::PutRecord(Err(e)) => {
-                    match e {
-                        kad::PutRecordError::Timeout {
-                            ref key,
-                            quorum: _,
-                            success: _,
-                        }
-                        | kad::PutRecordError::QuorumFailed {
-                            ref key,
-                            quorum: _,
-                            success: _,
-                        } => {
-                            let record = self.swarm.behaviour_mut().kad.store_mut().get(key);
-                            trace!("Has internal record? {:?}", record);
-                        }
-                    }
                     if let Some(message) = self.requests.remove(&id) {
                         message.respond(Err(DhtError::from(e)));
                     }
@@ -529,8 +512,6 @@ where
 
     /// Starts listening on the provided address.
     fn listen(&mut self, address: &libp2p::Multiaddr) -> Result<(), DhtError> {
-        dht_event_trace(self, &format!("Start listening on {}", address));
-
         self.stop_listening()?;
         let listener_id = self.swarm.listen_on(address.to_owned())?;
         self.active_listener = Some(listener_id);
@@ -539,7 +520,6 @@ where
 
     /// Stops listening on the provided address.
     fn stop_listening(&mut self) -> Result<(), DhtError> {
-        dht_event_trace(self, &"Stop listening".to_string());
         if let Some(active_listener) = self.active_listener.take() {
             assert!(self.swarm.remove_listener(active_listener));
         }
@@ -578,7 +558,6 @@ where
     }
 
     fn execute_bootstrap(&mut self) -> Result<(), DhtError> {
-        dht_event_trace(self, &"Execute bootstrap");
         match self.swarm.behaviour_mut().kad.bootstrap() {
             Ok(_) => Ok(()),
             Err(_) => {
@@ -588,6 +567,7 @@ where
         }
     }
 
+    #[instrument(skip(self), level = "trace")]
     async fn validate(&mut self, data: &[u8]) -> bool {
         if let Some(v) = self.validator.as_mut() {
             v.validate(data).await
@@ -608,40 +588,3 @@ where
             .finish()
     }
 }
-
-impl<V> Drop for DhtProcessor<V>
-where
-    V: RecordValidator + 'static,
-{
-    fn drop(&mut self) {}
-}
-
-// #[cfg(test)]
-/// Logging utility. Unfortunately, integration tests do not work
-/// with `#[cfg(test)]` to enable the option of rendering the full
-/// peer id during non-testing (one process, one peer id) scenarios.
-/// https://doc.rust-lang.org/book/ch11-03-test-organization.html
-fn dht_event_trace<V: RecordValidator, T: std::fmt::Debug>(processor: &DhtProcessor<V>, data: &T) {
-    // Convert a full PeerId to a shorter, more identifiable
-    // string for comparison in logs during tests, where multiple nodes
-    // are shared by a single process. All Ed25519 keys have
-    // the prefix `12D3KooW`, so skip the commonalities and use
-    // the next 6 characters for logging.
-    let peer_id_b58 = processor.peer_id.to_base58();
-    trace!(
-        "\nFrom ..{:#?}..\n{:?}",
-        peer_id_b58.get(8..14).unwrap_or("INVALID PEER ID"),
-        data
-    );
-}
-
-/*
-#[cfg(not(test))]
-fn dht_event_trace<T: std::fmt::Debug>(processor: &DHTProcessor, data: &T) {
-    trace!(
-        "\nFrom ..{:#?}..\n{:#?}",
-        processor.peer_id.to_base58(),
-        data
-    );
-}
-*/

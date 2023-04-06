@@ -47,6 +47,7 @@ impl KuboClient {
 
 #[async_trait]
 impl IpfsClient for KuboClient {
+    #[instrument(skip(self), level = "trace")]
     async fn block_is_pinned(&self, cid: &Cid) -> Result<bool> {
         let mut api_url = self.api_url.clone();
         let cid_base64 = cid.to_string();
@@ -67,6 +68,7 @@ impl IpfsClient for KuboClient {
         }
     }
 
+    #[instrument(skip(self), level = "trace")]
     async fn server_identity(&self) -> Result<String> {
         let mut api_url = self.api_url.clone();
 
@@ -85,6 +87,7 @@ impl IpfsClient for KuboClient {
         }
     }
 
+    #[instrument(skip(self, car), level = "trace")]
     async fn syndicate_blocks<R>(&self, car: R) -> Result<()>
     where
         R: IpfsClientAsyncReadSendSync,
@@ -117,6 +120,7 @@ impl IpfsClient for KuboClient {
         */
     }
 
+    #[instrument(skip(self), level = "trace")]
     async fn get_block(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
         let output_codec = get_codec(cid)?;
         let mut api_url = self.api_url.clone();

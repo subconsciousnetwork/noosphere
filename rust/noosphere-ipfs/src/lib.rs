@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate tracing;
+
 mod client;
 #[cfg(feature = "storage")]
 mod storage;
