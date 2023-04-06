@@ -19,7 +19,7 @@ orb config set counterpart $COUNTERPART
 ARGS="-i 0.0.0.0"
 ARGS="${ARGS} --ipfs-api ${IPFS_API}"
 
-if ! [ -z "$4" ]; then
+if ! [ -z "$NS_API" ]; then
 	ARGS="${ARGS} --name-resolver-api ${NS_API}"
 fi
 
