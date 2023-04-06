@@ -10,6 +10,7 @@ use noosphere_sphere::{
     HasMutableSphereContext, SphereCursor, SpherePetnameRead, SpherePetnameWrite,
 };
 use noosphere_storage::Storage;
+use std::fmt::Display;
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     str::FromStr,
@@ -33,6 +34,14 @@ pub enum NameSystemConfiguration {
     Remote(Url),
     // TODO(#255): Configuration for self-managed node
     //InProcess(...)
+}
+
+impl Display for NameSystemConfiguration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NameSystemConfiguration::Remote(url) => Display::fmt(url, f),
+        }
+    }
 }
 
 #[derive(Display)]
@@ -109,6 +118,8 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
+    debug!("Resolving from and publishing to NNS at {}", configuration);
+
     let mut with_client = TryOrReset::new(|| async {
         match &configuration {
             NameSystemConfiguration::Remote(url) => NameSystemHttpClient::new(url.clone()).await,
