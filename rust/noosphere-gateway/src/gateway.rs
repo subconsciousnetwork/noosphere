@@ -14,10 +14,12 @@ use url::Url;
 
 use noosphere_api::route::Route as GatewayRoute;
 
-use crate::route::replicate_route;
 use crate::{
-    route::{did_route, fetch_route, identify_route, push_route},
-    worker::{start_ipfs_syndication, start_name_system, NameSystemConfiguration},
+    route::{did_route, fetch_route, identify_route, push_route, replicate_route},
+    worker::{
+        start_ipfs_syndication, start_name_system, NameSystemConfiguration,
+        NameSystemConnectionType,
+    },
 };
 
 use noosphere_core::tracing::initialize_tracing;
@@ -70,9 +72,12 @@ where
 
     let ipfs_client = KuboClient::new(&ipfs_api)?;
 
-    let (syndication_tx, syndication_task) = start_ipfs_syndication::<C, K, S>(ipfs_api);
+    let (syndication_tx, syndication_task) = start_ipfs_syndication::<C, K, S>(ipfs_api.clone());
     let (name_system_tx, name_system_task) = start_name_system::<C, K, S>(
-        NameSystemConfiguration::Remote(name_resolver_api),
+        NameSystemConfiguration {
+            connection_type: NameSystemConnectionType::Remote(name_resolver_api),
+            ipfs_api,
+        },
         vec![sphere_context.clone()],
     );
 
