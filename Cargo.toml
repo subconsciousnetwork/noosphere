@@ -20,6 +20,7 @@ resolver = "2"
 [workspace.dependencies]
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "~0.3", features = ["env-filter", "tracing-log"] }
+thiserror = { version = "^1.0.38" }
 
 [profile.release]
 opt-level = 'z'

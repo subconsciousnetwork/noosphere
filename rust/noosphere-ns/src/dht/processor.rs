@@ -1,9 +1,9 @@
-use crate::dht::{
+use super::{
     errors::DhtError,
     rpc::{DhtMessage, DhtMessageProcessor, DhtRequest, DhtResponse},
     swarm::{build_swarm, DHTEvent, DHTSwarmEvent, DhtSwarm},
     types::{DhtRecord, Peer},
-    DhtConfig, RecordValidator,
+    DhtConfig, Validator,
 };
 use libp2p::{
     core::transport::ListenerId,
@@ -28,7 +28,7 @@ use tokio;
 
 /// The processing component of a [DHTNode]/[DHTProcessor] pair. Consumers
 /// should only interface with a [DHTProcessor] via [DHTNode].
-pub struct DhtProcessor<V: RecordValidator + 'static> {
+pub struct DhtProcessor<V: Validator + 'static> {
     config: DhtConfig,
     peer_id: PeerId,
     processor: DhtMessageProcessor,
@@ -59,7 +59,7 @@ macro_rules! store_request {
 
 impl<V> DhtProcessor<V>
 where
-    V: RecordValidator + 'static,
+    V: Validator + 'static,
 {
     /// Creates a new [DHTProcessor] and spawns a networking thread for processing.
     /// The processor can only be accessed through channels via the corresponding
@@ -579,7 +579,7 @@ where
 
 impl<V> fmt::Debug for DhtProcessor<V>
 where
-    V: RecordValidator + 'static,
+    V: Validator + 'static,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DHTNode")

@@ -25,7 +25,8 @@ readme = "README.md"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow = "^1"
-tracing = { workspace = true}
+tracing = { workspace = true }
+thiserror = { workspace = true }
 lazy_static = "^1"
 cid = "~0.9"
 serde = "^1"

@@ -22,7 +22,7 @@ reqwest = { version = "~0.11", default-features = false, features = ["json", "ru
 tempfile = "^3"
 clap = { version = "^4", features = ["derive", "cargo"] }
 anyhow = "^1"
-thiserror = "1.0.38"
+thiserror = { workspace = true }
 strum = "0.24"
 strum_macros = "0.24"
 bytes = "^1"
