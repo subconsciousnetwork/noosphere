@@ -75,7 +75,7 @@ impl<S: Store> Store for TrackingStore<S> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TrackingStorage<S: Storage> {
     storage: S,
 }

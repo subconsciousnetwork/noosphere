@@ -213,7 +213,7 @@ mod tests {
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_stream_all_blocks_in_a_sphere_version() {
         initialize_tracing();
-        let mut sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite)
+        let mut sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
 
@@ -308,7 +308,7 @@ mod tests {
     async fn it_can_stream_all_blocks_in_some_sphere_content() {
         initialize_tracing();
 
-        let mut sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite)
+        let mut sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut db = sphere_context
@@ -378,7 +378,7 @@ mod tests {
     async fn it_can_stream_all_blocks_in_a_sphere_version_as_a_car() {
         initialize_tracing();
 
-        let mut sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite)
+        let mut sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
 

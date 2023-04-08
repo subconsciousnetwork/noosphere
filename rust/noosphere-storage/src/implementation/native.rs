@@ -12,7 +12,7 @@ pub enum NativeStorageInit {
     Db(Db),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct NativeStorage {
     db: Db,
 }

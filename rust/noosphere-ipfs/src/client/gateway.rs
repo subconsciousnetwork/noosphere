@@ -10,7 +10,7 @@ use url::Url;
 /// A high-level HTTP client for accessing IPFS
 /// [HTTP Gateway](https://docs.ipfs.tech/reference/http/gateway/) and normalizing
 /// their expected payloads to Noosphere-friendly formats.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GatewayClient {
     client: Client,
     api_url: Url,

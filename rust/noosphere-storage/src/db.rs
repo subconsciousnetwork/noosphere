@@ -42,7 +42,7 @@ pub const SPHERE_DB_STORE_NAMES: &[&str] =
 /// orchestrating writes so that as blocks are stored, links are also extracted
 /// and tracked separately, and also hosting metadata information such as sphere
 /// version records and other purely local configuration
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SphereDb<S>
 where
     S: Storage,

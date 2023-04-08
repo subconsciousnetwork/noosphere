@@ -203,7 +203,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_unlink_slugs_from_the_content_space() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite)
+        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -231,7 +231,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_flushes_on_every_save() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite)
+        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let initial_stats = {
@@ -288,7 +288,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_does_not_allow_writes_when_an_author_has_read_only_access() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::Readonly)
+        let sphere_context = simulated_sphere_context(SimulationAccess::Readonly, None)
             .await
             .unwrap();
 
@@ -309,7 +309,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_write_a_file_and_read_it_back() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite)
+        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -344,7 +344,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_overwrite_a_file_with_new_contents_and_preserve_history() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite)
+        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -407,7 +407,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_throws_an_error_when_saving_without_changes() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite)
+        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -421,7 +421,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_throws_an_error_when_saving_with_empty_mutation_and_empty_headers() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite)
+        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);

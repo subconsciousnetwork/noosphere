@@ -177,7 +177,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_writes_a_file_from_the_sphere_to_the_target_as_html() {
-        let context = simulated_sphere_context(SimulationAccess::ReadWrite)
+        let context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(context);
@@ -246,7 +246,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_symlinks_a_file_slug_to_the_latest_file_version() {
-        let context = simulated_sphere_context(SimulationAccess::ReadWrite)
+        let context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(context);

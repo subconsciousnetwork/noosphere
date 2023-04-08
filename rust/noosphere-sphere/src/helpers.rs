@@ -27,9 +27,15 @@ pub enum SimulationAccess {
 /// have to the [SphereContext].
 pub async fn simulated_sphere_context(
     profile: SimulationAccess,
+    db: Option<SphereDb<TrackingStorage<MemoryStorage>>>,
 ) -> Result<Arc<Mutex<SphereContext<Ed25519KeyMaterial, TrackingStorage<MemoryStorage>>>>> {
-    let storage_provider = TrackingStorage::wrap(MemoryStorage::default());
-    let mut db = SphereDb::new(&storage_provider).await?;
+    let mut db = match db {
+        Some(db) => db,
+        None => {
+            let storage_provider = TrackingStorage::wrap(MemoryStorage::default());
+            SphereDb::new(&storage_provider).await?
+        }
+    };
 
     let owner_key = generate_ed25519_key();
     let owner_did = owner_key.get_did().await?;

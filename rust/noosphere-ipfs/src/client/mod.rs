@@ -12,6 +12,7 @@ pub use kubo::KuboClient;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use cid::Cid;
+use std::fmt::Debug;
 use tokio::io::AsyncRead;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -30,7 +31,7 @@ impl<S> IpfsClientAsyncReadSendSync for S where S: AsyncRead {}
 /// intended to be general enough to apply to other IPFS implementations.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait IpfsClient: Clone {
+pub trait IpfsClient: Clone + Debug {
     /// Returns true if the block (referenced by [Cid]) is pinned by the IPFS
     /// server
     async fn block_is_pinned(&self, cid: &Cid) -> Result<bool>;
