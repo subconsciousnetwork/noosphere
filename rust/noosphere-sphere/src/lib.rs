@@ -18,7 +18,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<()> {
-//!   let mut sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite).await?;
+//!   let mut sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 //!
 //!   sphere_context.write("/foo", "text/plain", "bar".as_ref(), None).await?;
 //!   sphere_context.save(None).await?;
@@ -38,7 +38,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<()> {
-//!   let mut sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite).await?;
+//!   let mut sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 //!
 //!   sphere_context.set_petname("cdata", Some("did:key:example".into())).await?;
 //!   sphere_context.save(None).await?;

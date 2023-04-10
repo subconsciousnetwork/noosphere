@@ -21,7 +21,7 @@ impl<S: Store> StoreContainsCid for S {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct MemoryStorage {
     stores: Arc<Mutex<HashMap<String, MemoryStore>>>,
 }

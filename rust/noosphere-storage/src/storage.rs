@@ -2,6 +2,7 @@ use crate::block::BlockStore;
 use crate::key_value::KeyValueStore;
 use anyhow::Result;
 use async_trait::async_trait;
+use std::fmt::Debug;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub trait StorageSendSync: Send + Sync {}
@@ -23,7 +24,7 @@ impl<T> StorageSendSync for T {}
 /// other Noosphere constructs.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait Storage: Clone + StorageSendSync {
+pub trait Storage: Clone + StorageSendSync + Debug {
     type BlockStore: BlockStore;
     type KeyValueStore: KeyValueStore;
 

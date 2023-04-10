@@ -108,21 +108,26 @@ pub fn ns_sphere_open(
 }
 
 #[ffi_export]
-/// @memberof ns_sphere_t
-/// Access another sphere by a petname.
+/// @memberof ns_sphere_t Access another sphere by a petname.
 ///
 /// The petname should be one that has been assigned to the sphere's identity
 /// using ns_sphere_petname_set(). If any of the data required to access the
 /// target sphere is not available locally, it will be replicated from the
-/// network through a the configured Noosphere Gateway. If no such gateway is
+/// network through the configured Noosphere Gateway. If no such gateway is
 /// configured and the data is not available locally, this call will fail. The
 /// returned ns_sphere_t pointer can be used to access the content, petnames,
 /// revision history and other features of the target sphere with the same APIs
 /// used to access the local user's sphere, except that any operations that
-/// attempt to modify the sphere will be rejected. Note that since this function
-/// has a reasonable likelihood to call out to the network, it is possible that
-/// it may block for a significant amount of time when network conditions are
-/// poor.
+/// attempt to modify the sphere will be rejected.
+///
+/// The traversal can be made recursive by chaining together petnames with a '.'
+/// as a delimiter. The name traversal will be from back to front, so if you
+/// traverse to the name "bob.alice.carol" it will first traverse to "carol",
+/// then to carol's "alice", then to carol's alice's "bob."
+///
+/// Note that since this function has a reasonable likelihood to call out to the
+/// network, it is possible that it may block for a significant amount of time
+/// when network conditions are poor.
 pub fn ns_sphere_traverse_by_petname(
     noosphere: &NsNoosphere,
     sphere: &mut NsSphere,
@@ -131,11 +136,18 @@ pub fn ns_sphere_traverse_by_petname(
 ) -> Option<repr_c::Box<NsSphere>> {
     error_out.try_or_initialize(|| {
         let sphere = noosphere.async_runtime().block_on(async {
+            let raw_petnames = petname.to_str();
+            let link = Slashlink::from_str(&format!("@{}", raw_petnames))?;
+            let petnames = match link.peer {
+                Peer::Name(petnames) => petnames,
+                _ => return Err(anyhow!("No petnames found in {}", raw_petnames)),
+            };
+
             let sphere_context = sphere.inner_mut();
             let next_sphere_context = sphere_context
                 .sphere_context_mut()
                 .await?
-                .traverse_by_petname(petname.to_str())
+                .traverse_by_petnames(&petnames)
                 .await?;
 
             Ok(Box::new(NsSphere {
@@ -159,9 +171,12 @@ pub fn ns_sphere_free(sphere: repr_c::Box<NsSphere>) {
 /// @memberof ns_sphere_t
 /// Read a memo as a ns_sphere_file_t from a ns_sphere_t by slashlink.
 ///
+/// This function supports slashlinks that contain only a slug component or
+/// with both a slug and a peer component.
+///
 /// Note that although this function will eventually support slashlinks
-/// that include the pet name of a peer, at this time only slashlinks
-/// with slugs referencing the slug namespace of the local sphere are allowed.
+/// that use a raw DID as the peer, it is not supported at this time and trying
+/// to read from such a link will fail with an error.
 ///
 /// This function will return a null pointer if the slug does not have a file
 /// associated with it at the revision of the sphere that is referred to by the
@@ -181,16 +196,23 @@ pub fn ns_sphere_content_read(
                     _ => return Ok(None),
                 };
 
-                if Peer::None != slashlink.peer {
-                    return Err(anyhow!("Peer in slashlink not yet supported"));
-                }
-
                 let slug = match slashlink.slug {
                     Some(slug) => slug,
                     None => return Err(anyhow!("No slug specified in slashlink!")),
                 };
 
-                let cursor = sphere.inner();
+                let cursor = match slashlink.peer {
+                    Peer::Name(petnames) => SphereCursor::latest(Arc::new(Mutex::new(
+                        sphere
+                            .inner()
+                            .sphere_context()
+                            .await?
+                            .traverse_by_petnames(&petnames)
+                            .await?,
+                    ))),
+                    Peer::None => sphere.inner().clone(),
+                    Peer::Did(_) => return Err(anyhow!("DID peer in slashlink not yet supported")),
+                };
 
                 println!(
                     "Reading sphere {} slug {}...",

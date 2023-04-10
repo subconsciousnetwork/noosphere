@@ -6,7 +6,7 @@ use js_sys::Uint8Array;
 use rexie::{
     KeyRange, ObjectStore, Rexie, RexieBuilder, Store as IdbStore, Transaction, TransactionMode,
 };
-use std::rc::Rc;
+use std::{fmt::Debug, rc::Rc};
 use wasm_bindgen::{JsCast, JsValue};
 
 pub const INDEXEDDB_STORAGE_VERSION: u32 = 1;
@@ -14,6 +14,12 @@ pub const INDEXEDDB_STORAGE_VERSION: u32 = 1;
 #[derive(Clone)]
 pub struct WebStorage {
     db: Rc<Rexie>,
+}
+
+impl Debug for WebStorage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WebStorage").finish()
+    }
 }
 
 impl WebStorage {

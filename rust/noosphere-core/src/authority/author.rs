@@ -27,7 +27,7 @@ pub enum Access {
 /// content to a sphere. This construct collects the identity and the
 /// authorization of that entity to make it easier to determine their level of
 /// access to the content of a given sphere.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Author<K>
 where
     K: KeyMaterial + Clone + 'static,

@@ -28,7 +28,7 @@ fn get_codec(cid: &Cid) -> Result<String> {
 /// A high-level HTTP client for accessing IPFS
 /// [Kubo RPC APIs](https://docs.ipfs.tech/reference/kubo/rpc/) and normalizing
 /// their expected payloads to Noosphere-friendly formats
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct KuboClient {
     client: Client<HttpConnector<GaiResolver>>,
     api_url: Url,

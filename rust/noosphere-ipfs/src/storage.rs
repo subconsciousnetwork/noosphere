@@ -13,7 +13,7 @@ use noosphere_storage::KeyValueStore;
 /// implementation of [Storage] and an [IpfsClient].
 /// [IpfsStorage] is generic over [BlockStore] and [KeyValueStore]
 /// but will produce a [IpfsStore] wrapped [BlockStore]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct IpfsStorage<S, C>
 where
     S: Storage,

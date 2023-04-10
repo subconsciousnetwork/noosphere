@@ -72,12 +72,36 @@ where
         })
     }
 
+    /// The same as [SphereContext::traverse_by_petname], but accepts a linear
+    /// sequence of petnames and attempts to recursively traverse through
+    /// spheres using that sequence. The sequence is traversed from back to
+    /// front. So, if the sequence is "gold", "cat", "bob", it will traverse to
+    /// bob, then to bob's cat, then to bob's cat's gold.
+    pub async fn traverse_by_petnames(
+        &mut self,
+        petname_path: &[String],
+    ) -> Result<SphereContext<K, S>> {
+        let mut sphere_context: Option<Self> = None;
+        let mut path = Vec::from(petname_path);
+
+        while let Some(petname) = path.pop() {
+            sphere_context = Some(match sphere_context {
+                None => self.traverse_by_petname(&petname).await?,
+                Some(mut sphere_context) => sphere_context.traverse_by_petname(&petname).await?,
+            })
+        }
+
+        Ok(sphere_context
+            .ok_or_else(|| anyhow!("Unable to traverse to {}", petname_path.join(".")))?)
+    }
+
     /// Given a petname that has been assigned to a sphere identity within this
     /// sphere's address book, produce a [SphereContext] backed by the same
     /// credentials and storage primitives as this one, but that accesses the
     /// sphere referred to by the provided [Did]. If the local data for the
     /// sphere being traversed to is not available, an attempt will be made to
     /// replicate the data from a Noosphere Gateway.
+    #[instrument(level = "debug", skip(self))]
     pub async fn traverse_by_petname(&mut self, petname: &str) -> Result<SphereContext<K, S>> {
         // Resolve petname to sphere version via address book entry
 
@@ -95,6 +119,8 @@ where
             None => return Err(anyhow!("\"{petname}\" is not assigned to an identity")),
         };
 
+        debug!("{:?}", identity);
+
         let resolved_version = match identity.link_record(self.db()).await {
             Some(link_record) => link_record.dereference().await,
             None => None,
@@ -110,10 +136,18 @@ where
             }
         };
 
+        debug!("Resolved version is {}", resolved_version);
+
         // Check for version in local sphere DB
 
         let maybe_has_resolved_version = match self.db().get_version(&identity.did).await? {
-            Some(local_version) => local_version == resolved_version,
+            Some(local_version) => {
+                debug!(
+                    "Local version: {}, resolved version: {}",
+                    local_version, resolved_version
+                );
+                local_version == resolved_version
+            }
             None => false,
         };
 
@@ -132,6 +166,8 @@ where
                             identity.did
                         ));
                     }
+
+                    debug!("Checking to see if we can get the sphere body...");
 
                     match self.db().load::<DagCborCodec, SphereIpld>(&memo.body).await {
                         Ok(_) => false,
@@ -153,6 +189,7 @@ where
         // If no version available or memo/body missing, replicate from gateway
 
         if should_replicate_from_gateway {
+            debug!("Attempting to replicate from gateway...");
             let client = self.client().await?;
             let stream = client.replicate(&resolved_version).await?;
 
@@ -306,5 +343,166 @@ where
     // self.access.take();
     pub(crate) fn reset_access(&mut self) {
         self.access.take();
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use std::sync::Arc;
+
+    use noosphere_core::{
+        authority::{SphereAction, SphereReference},
+        data::{ContentType, Jwt},
+        tracing::initialize_tracing,
+    };
+    use noosphere_storage::{MemoryStorage, TrackingStorage};
+    use serde_json::json;
+    use tokio::{io::AsyncReadExt, sync::Mutex};
+    use ucan::{
+        builder::UcanBuilder,
+        capability::{Capability, Resource, With},
+    };
+    use ucan_key_support::ed25519::Ed25519KeyMaterial;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    use crate::{
+        helpers::{simulated_sphere_context, SimulationAccess},
+        HasMutableSphereContext, HasSphereContext, SphereContentRead, SphereContentWrite,
+        SphereContext, SpherePetnameWrite,
+    };
+
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_traverse_a_sequence_of_petnames() {
+        initialize_tracing();
+
+        let origin_sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+            .await
+            .unwrap();
+
+        let name_seqeuence: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+
+        let mut db = origin_sphere_context
+            .sphere_context()
+            .await
+            .unwrap()
+            .db()
+            .clone();
+
+        let mut contexts = vec![origin_sphere_context.clone()];
+
+        for name in name_seqeuence.iter() {
+            let mut sphere_context =
+                simulated_sphere_context(SimulationAccess::ReadWrite, Some(db.clone()))
+                    .await
+                    .unwrap();
+
+            sphere_context
+                .write(
+                    "my-name",
+                    &ContentType::Subtext.to_string(),
+                    name.as_bytes(),
+                    None,
+                )
+                .await
+                .unwrap();
+            sphere_context.save(None).await.unwrap();
+
+            contexts.push(sphere_context);
+        }
+
+        let mut next_sphere_context: Option<
+            Arc<Mutex<SphereContext<Ed25519KeyMaterial, TrackingStorage<MemoryStorage>>>>,
+        > = None;
+
+        for mut sphere_context in contexts.into_iter().rev() {
+            if let Some(next_sphere_context) = next_sphere_context {
+                let version = next_sphere_context.version().await.unwrap();
+
+                let next_author = next_sphere_context
+                    .sphere_context()
+                    .await
+                    .unwrap()
+                    .author()
+                    .clone();
+                let next_identity = next_sphere_context.identity().await.unwrap();
+
+                let link_record = Jwt(UcanBuilder::default()
+                    .issued_by(&next_author.key)
+                    .for_audience(&next_identity)
+                    .witnessed_by(
+                        &next_author
+                            .authorization
+                            .as_ref()
+                            .unwrap()
+                            .resolve_ucan(&db)
+                            .await
+                            .unwrap(),
+                    )
+                    .claiming_capability(&Capability {
+                        with: With::Resource {
+                            kind: Resource::Scoped(SphereReference {
+                                did: next_identity.into(),
+                            }),
+                        },
+                        can: SphereAction::Publish,
+                    })
+                    .with_lifetime(120)
+                    .with_fact(json!({
+                    "link": version.to_string()
+                    }))
+                    .build()
+                    .unwrap()
+                    .sign()
+                    .await
+                    .unwrap()
+                    .encode()
+                    .unwrap());
+
+                let mut name = String::new();
+                let mut file = next_sphere_context.read("my-name").await.unwrap().unwrap();
+                file.contents.read_to_string(&mut name).await.unwrap();
+
+                println!("Adopting {name}");
+
+                sphere_context
+                    .adopt_petname(&name, &link_record)
+                    .await
+                    .unwrap();
+
+                db.set_version(
+                    &sphere_context.identity().await.unwrap(),
+                    &sphere_context.save(None).await.unwrap(),
+                )
+                .await
+                .unwrap();
+            }
+
+            next_sphere_context = Some(sphere_context);
+        }
+
+        let target_sphere_context = Arc::new(
+            origin_sphere_context
+                .sphere_context()
+                .await
+                .unwrap()
+                .traverse_by_petnames(&name_seqeuence.into_iter().rev().collect::<Vec<String>>())
+                .await
+                .unwrap(),
+        );
+
+        let mut name = String::new();
+        let mut file = target_sphere_context
+            .read("my-name")
+            .await
+            .unwrap()
+            .unwrap();
+        file.contents.read_to_string(&mut name).await.unwrap();
+
+        assert_eq!(name.as_str(), "c");
     }
 }
