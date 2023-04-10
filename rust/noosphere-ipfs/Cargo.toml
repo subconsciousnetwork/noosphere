@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-ipfs"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 description = "An interface for an IPFS client."
 keywords = [
@@ -39,7 +39,7 @@ serde_json = "^1"
 tokio = { version = "^1", features = ["io-util"] }
 tracing = { workspace = true }
 url = { version = "^2", features = [ "serde" ] }
-noosphere-storage = { version = "0.6.0", path = "../noosphere-storage" }
+noosphere-storage = { version = "0.6.1", path = "../noosphere-storage" }
 ucan = { version = "0.1.0", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -53,5 +53,5 @@ ipfs-api-prelude = "~0.5"
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 rand = "~0.8"
 libipld-cbor = "~0.15"
-noosphere-storage = { version = "0.6.0", path = "../noosphere-storage" }
-noosphere-core = { version = "0.9.0", path = "../noosphere-core" }
+noosphere-storage = { version = "0.6.1", path = "../noosphere-storage" }
+noosphere-core = { version = "0.9.1", path = "../noosphere-core" }

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.6.0...noosphere-storage-v0.6.1) (2023-04-10)
+
+
+### Features
+
+* Dot syntax when traversing by petname ([#306](https://github.com/subconsciousnetwork/noosphere/issues/306)) ([cd87b05](https://github.com/subconsciousnetwork/noosphere/commit/cd87b0533c21bbbd4d82332556e70ecc706a5531))
+
 ## [0.6.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.5.0...noosphere-storage-v0.6.0) (2023-03-29)
 
 

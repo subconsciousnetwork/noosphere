@@ -8,6 +8,10 @@
   * dependencies
     * noosphere-storage bumped from 0.4.2 to 0.5.0
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.6.0 to 0.6.1
+
 ## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.4.0...noosphere-collections-v0.5.0) (2023-04-04)
 
 
