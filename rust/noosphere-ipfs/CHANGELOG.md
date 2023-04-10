@@ -8,6 +8,30 @@
   * dev-dependencies
     * noosphere-core bumped from 0.8.0 to 0.9.0
 
+## [0.3.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.3.1...noosphere-ipfs-v0.3.2) (2023-04-10)
+
+
+### Features
+
+* Add instrumentation to `noosphere-ns` and `noosphere-ipfs`. ([#304](https://github.com/subconsciousnetwork/noosphere/issues/304)) ([3d6062d](https://github.com/subconsciousnetwork/noosphere/commit/3d6062d501e21393532b2db6f9ac740a041d91ba))
+* Dot syntax when traversing by petname ([#306](https://github.com/subconsciousnetwork/noosphere/issues/306)) ([cd87b05](https://github.com/subconsciousnetwork/noosphere/commit/cd87b0533c21bbbd4d82332556e70ecc706a5531))
+
+
+### Bug Fixes
+
+* Introduce `TryOrReset` to help worker threads ([#300](https://github.com/subconsciousnetwork/noosphere/issues/300)) ([5ea4b2c](https://github.com/subconsciousnetwork/noosphere/commit/5ea4b2c91d0b829e22f0c0b3cd22fe837eddf905))
+* Several fixes for noosphere-ipfs as it gets further integrated ([#302](https://github.com/subconsciousnetwork/noosphere/issues/302)) ([9da4dd0](https://github.com/subconsciousnetwork/noosphere/commit/9da4dd063edf5bbf1a86556db64428d2ecb43f79))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.6.0 to 0.6.1
+  * dev-dependencies
+    * noosphere-storage bumped from 0.6.0 to 0.6.1
+    * noosphere-core bumped from 0.9.0 to 0.9.1
+
 ## [0.3.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.2.0...noosphere-ipfs-v0.3.0) (2023-03-29)
 
 

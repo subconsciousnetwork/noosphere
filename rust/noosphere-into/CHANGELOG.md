@@ -27,6 +27,24 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-fs bumped from 0.5.2 to 0.5.3
 
+## [0.7.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.7.0...noosphere-into-v0.7.1) (2023-04-10)
+
+
+### Features
+
+* Dot syntax when traversing by petname ([#306](https://github.com/subconsciousnetwork/noosphere/issues/306)) ([cd87b05](https://github.com/subconsciousnetwork/noosphere/commit/cd87b0533c21bbbd4d82332556e70ecc706a5531))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.9.0 to 0.9.1
+    * noosphere-storage bumped from 0.6.0 to 0.6.1
+    * noosphere-sphere bumped from 0.3.0 to 0.3.1
+  * dev-dependencies
+    * noosphere-sphere bumped from 0.3.0 to 0.3.1
+
 ## [0.7.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.6.0...noosphere-into-v0.7.0) (2023-04-04)
 
 

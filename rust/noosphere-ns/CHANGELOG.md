@@ -28,6 +28,24 @@
     * noosphere bumped from 0.8.0 to 0.8.1
     * noosphere-ipfs bumped from 0.3.0 to 0.3.1
 
+## [0.5.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.5.2...noosphere-ns-v0.5.3) (2023-04-10)
+
+
+### Features
+
+* Add instrumentation to `noosphere-ns` and `noosphere-ipfs`. ([#304](https://github.com/subconsciousnetwork/noosphere/issues/304)) ([3d6062d](https://github.com/subconsciousnetwork/noosphere/commit/3d6062d501e21393532b2db6f9ac740a041d91ba))
+* cache 'peer_id' in orb-ns to provide a HTTP route that does not lock the NS mutex for testing. ([#303](https://github.com/subconsciousnetwork/noosphere/issues/303)) ([8e4769f](https://github.com/subconsciousnetwork/noosphere/commit/8e4769f548b486147a9b1e72d86555fe4246fa14))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.6.0 to 0.6.1
+    * noosphere-core bumped from 0.9.0 to 0.9.1
+    * noosphere bumped from 0.8.1 to 0.8.2
+    * noosphere-ipfs bumped from 0.3.1 to 0.3.2
+
 ## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.4.3...noosphere-ns-v0.5.0) (2023-03-14)
 
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.3.0...noosphere-gateway-v0.3.1) (2023-04-10)
+
+
+### Bug Fixes
+
+* Introduce `TryOrReset` to help worker threads ([#300](https://github.com/subconsciousnetwork/noosphere/issues/300)) ([5ea4b2c](https://github.com/subconsciousnetwork/noosphere/commit/5ea4b2c91d0b829e22f0c0b3cd22fe837eddf905))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.3.1 to 0.3.2
+    * noosphere-core bumped from 0.9.0 to 0.9.1
+    * noosphere-ns bumped from 0.5.2 to 0.5.3
+    * noosphere-storage bumped from 0.6.0 to 0.6.1
+    * noosphere-sphere bumped from 0.3.0 to 0.3.1
+    * noosphere-api bumped from 0.7.1 to 0.7.2
+    * noosphere bumped from 0.8.1 to 0.8.2
+
 ## [0.3.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.2.0...noosphere-gateway-v0.3.0) (2023-04-04)
 
 
