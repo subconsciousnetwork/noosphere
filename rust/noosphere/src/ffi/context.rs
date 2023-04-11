@@ -134,7 +134,7 @@ pub fn ns_sphere_traverse_by_petname(
     petname: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<repr_c::Box<NsSphere>> {
-    error_out.try_or_initialize(|| {
+    match error_out.try_or_initialize(|| {
         let sphere = noosphere.async_runtime().block_on(async {
             let raw_petnames = petname.to_str();
             let link = Slashlink::from_str(&format!("@{}", raw_petnames))?;
@@ -150,14 +150,19 @@ pub fn ns_sphere_traverse_by_petname(
                 .traverse_by_petnames(&petnames)
                 .await?;
 
-            Ok(Box::new(NsSphere {
-                inner: SphereCursor::latest(Arc::new(Mutex::new(next_sphere_context))),
-            })
-            .into()) as Result<_, anyhow::Error>
+            Ok(next_sphere_context.map(|next_sphere_context| {
+                Box::new(NsSphere {
+                    inner: SphereCursor::latest(Arc::new(Mutex::new(next_sphere_context))),
+                })
+                .into()
+            })) as Result<Option<_>, anyhow::Error>
         })?;
 
         Ok(sphere)
-    })
+    }) {
+        Some(maybe_sphere) => maybe_sphere,
+        None => None,
+    }
 }
 
 #[ffi_export]
@@ -191,10 +196,7 @@ pub fn ns_sphere_content_read(
         noosphere
             .async_runtime()
             .block_on(async {
-                let slashlink = match Slashlink::from_str(slashlink.to_str()) {
-                    Ok(slashlink) => slashlink,
-                    _ => return Ok(None),
-                };
+                let slashlink = Slashlink::from_str(slashlink.to_str())?;
 
                 let slug = match slashlink.slug {
                     Some(slug) => slug,
@@ -202,14 +204,20 @@ pub fn ns_sphere_content_read(
                 };
 
                 let cursor = match slashlink.peer {
-                    Peer::Name(petnames) => SphereCursor::latest(Arc::new(Mutex::new(
-                        sphere
+                    Peer::Name(petnames) => {
+                        match sphere
                             .inner()
                             .sphere_context()
                             .await?
                             .traverse_by_petnames(&petnames)
-                            .await?,
-                    ))),
+                            .await?
+                        {
+                            Some(sphere_context) => {
+                                SphereCursor::latest(Arc::new(Mutex::new(sphere_context)))
+                            }
+                            None => return Ok(None),
+                        }
+                    }
                     Peer::None => sphere.inner().clone(),
                     Peer::Did(_) => return Err(anyhow!("DID peer in slashlink not yet supported")),
                 };

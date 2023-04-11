@@ -603,4 +603,56 @@ final class NoosphereTests: XCTestCase {
         ns_sphere_free(sphere)
         ns_free(noosphere)
     }
+
+    // TODO(#315): Re-enable this test at some point
+    /*
+    func testDoesNotPanicWhenReadingProblematicSlashlinks() throws {
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
+
+        ns_key_create(noosphere, "bob", nil)
+
+        let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
+
+        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
+
+        let sphere = ns_sphere_open(noosphere, sphere_identity_ptr, nil)
+
+        var maybe_error = UnsafeMutablePointer<OpaquePointer?>.allocate(capacity: 1)
+
+        // Invalid slashlink
+        var result = ns_sphere_content_read(noosphere, sphere, "cdata.dev/does-not-exist", maybe_error)
+        
+        assert(result == nil)
+        assert(maybe_error.pointee != nil)
+
+        let error_message_ptr = ns_error_string(maybe_error.pointee)
+        let error_message = String.init(cString: error_message_ptr!)
+        print(error_message)
+
+        maybe_error.deallocate()
+        maybe_error = UnsafeMutablePointer<OpaquePointer?>.allocate(capacity: 1)
+
+        // Valid slashlink, unresolvable peer
+        result = ns_sphere_content_read(noosphere, sphere, "@ben/does-not-exist", maybe_error)
+
+        if maybe_error.pointee != nil {
+            let error_message_ptr = ns_error_string(maybe_error.pointee)
+            let error_message = String.init(cString: error_message_ptr!)
+            print(error_message)
+        }
+
+        assert(result == nil)
+        // NOTE: This assertion always fails on Github (and only on Github)
+        assert(maybe_error.pointee == nil)
+
+        maybe_error.deallocate()
+        maybe_error = UnsafeMutablePointer<OpaquePointer?>.allocate(capacity: 1)
+
+        // Valid slashlink, unresolvable slug
+        result = ns_sphere_content_read(noosphere, sphere, "/does-not-exist", maybe_error)
+
+        assert(result == nil)
+        assert(maybe_error.pointee == nil)
+    }
+    */
 }
