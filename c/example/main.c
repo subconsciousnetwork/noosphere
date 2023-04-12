@@ -10,13 +10,15 @@
 #error Asserting asserts are asserted.
 #endif
 
-slice_ref_uint8_t str_to_buffer(const char *text)
+char *str_from_buffer(slice_boxed_uint8_t buffer)
 {
-  size_t message_len = strlen(text);
-  char *message = (char *)malloc(message_len + 1);
-  snprintf(message, message_len + 1, "%s", text);
-  slice_ref_uint8_t data = {(uint8_t *)message, message_len};
-  return data;
+  char *message = (char *)malloc(buffer.len + 1);
+  if (message)
+  {
+    strncpy(message, (char *)buffer.ptr, buffer.len);
+    message[buffer.len] = '\0';
+  }
+  return message;
 }
 
 void assert_streq(const char *s1, const char *s2)
@@ -45,10 +47,10 @@ void test_noosphere()
   // printf("Recovery code: %s\n", sphere_mnemonic);
 
   ns_sphere_t *sphere = ns_sphere_open(noosphere, sphere_identity, NULL);
-  slice_ref_uint8_t data = str_to_buffer(hello_message);
+  slice_ref_uint8_t data = {(uint8_t *)hello_message, strlen(hello_message)};
 
   ns_sphere_content_write(noosphere, sphere, "hello", "text/subtext", data, NULL,
-                     NULL);
+                          NULL);
   ns_sphere_save(noosphere, sphere, NULL, NULL);
 
   ns_sphere_file_t *file =
@@ -68,8 +70,10 @@ void test_noosphere()
 
   slice_boxed_uint8_t contents =
       ns_sphere_file_contents_read(noosphere, file, NULL);
-  assert_streq((char *)contents.ptr, hello_message);
+  char *contents_str = str_from_buffer(contents);
+  assert_streq(contents_str, hello_message);
 
+  free(contents_str);
   ns_string_array_free(headers);
   ns_bytes_free(contents);
   ns_sphere_file_free(file);

@@ -9,9 +9,9 @@ main.o: noosphere.h
 main.out: main.o $(LIBNOOSPHERE)
 	$(CC) main.o $(LIBNOOSPHERE) -lm -o main.out
 
-.PHONY: main run clean
+.PHONY: build run clean
 
-main: main.out
+build: main.out
 
 run: main.out
 	./main.out
