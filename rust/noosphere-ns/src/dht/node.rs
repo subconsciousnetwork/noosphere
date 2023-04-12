@@ -1,13 +1,12 @@
 use crate::dht::{
     channel::message_channel,
     errors::DhtError,
-    keys::DhtKeyMaterial,
     processor::DhtProcessor,
     rpc::{DhtMessageClient, DhtRequest, DhtResponse},
     types::{DhtRecord, NetworkInfo, Peer},
-    DhtConfig, RecordValidator,
+    DhtConfig, Validator,
 };
-use libp2p::{Multiaddr, PeerId};
+use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use std::time::Duration;
 use tokio;
 
@@ -25,35 +24,19 @@ macro_rules! ensure_response {
 /// # Example
 ///
 /// ```
-/// use noosphere_ns::dht::{RecordValidator, DhtConfig, DhtNode};
-/// use noosphere_core::authority::generate_ed25519_key;
-/// use libp2p::{self, Multiaddr};
+/// use noosphere_ns::dht::{DhtConfig, DhtNode, Validator, AllowAllValidator};
+/// use libp2p::{identity::Keypair, core::identity::ed25519, Multiaddr};
 /// use std::str::FromStr;
 /// use async_trait::async_trait;
 /// use tokio;
 ///
-/// #[derive(Clone)]
-/// struct NoopValidator {}
-///
-/// #[async_trait]
-/// impl RecordValidator for NoopValidator {
-///     async fn validate(&mut self, data: &[u8]) -> bool {
-///         true
-///     }
-/// }
-///
-///
-///
 /// #[tokio::main]
 /// async fn main() {
-///     // Note: not a real bootstrap node
-///     let bootstrap_peers: Vec<Multiaddr> = vec!["/ip4/127.0.0.50/tcp/33333/p2p/12D3KooWH8WgH9mgbMXrKX4veokUznvEn6Ycwg4qaGNi83nLkoUK".parse().unwrap()];
-///     let key = generate_ed25519_key();
-///     let config = DhtConfig::default();
-///     let validator = NoopValidator {};
-///
-///     let mut node = DhtNode::new(&key, DhtConfig::default(), Some(validator)).unwrap();
-///     node.add_peers(bootstrap_peers).await.unwrap();
+///     let node = DhtNode::new(
+///         Keypair::Ed25519(ed25519::Keypair::generate()),
+///         Default::default(),
+///         Some(AllowAllValidator{}),
+///     ).unwrap();
 ///     node.listen("/ip4/127.0.0.1/tcp/0".parse().unwrap()).await.unwrap();
 ///     node.bootstrap().await.unwrap();
 /// }
@@ -66,14 +49,12 @@ pub struct DhtNode {
 }
 
 impl DhtNode {
-    pub fn new<K: DhtKeyMaterial, V: RecordValidator + 'static>(
-        key_material: &K,
+    pub fn new<V: Validator + 'static>(
+        keypair: Keypair,
         config: DhtConfig,
         validator: Option<V>,
     ) -> Result<Self, DhtError> {
-        let keypair = key_material.to_dht_keypair()?;
         let peer_id = PeerId::from(keypair.public());
-
         let channels = message_channel::<DhtRequest, DhtResponse, DhtError>();
         let thread_handle =
             DhtProcessor::spawn(&keypair, peer_id, validator, config.clone(), channels.1)?;
@@ -231,5 +212,238 @@ impl DhtNode {
 impl Drop for DhtNode {
     fn drop(&mut self) {
         self.thread_handle.abort();
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::fmt::Display;
+
+    use crate::dht::{AllowAllValidator, DhtError, DhtNode, NetworkInfo, Validator};
+    use async_trait::async_trait;
+
+    use crate::utils::make_p2p_address;
+    use futures::future::try_join_all;
+    use libp2p::{self, Multiaddr};
+    use std::future::Future;
+    use std::time::Duration;
+
+    pub async fn wait_ms(ms: u64) {
+        tokio::time::sleep(Duration::from_millis(ms)).await;
+    }
+
+    async fn await_or_timeout<T>(
+        timeout_ms: u64,
+        future: impl Future<Output = T>,
+        message: String,
+    ) -> T {
+        tokio::select! {
+            _ = wait_ms(timeout_ms) => { panic!("timed out: {}", message); }
+            result = future => { result }
+        }
+    }
+
+    pub async fn swarm_command<'a, TFuture, F, T, E>(
+        nodes: &'a mut [DhtNode],
+        func: F,
+    ) -> Result<Vec<T>, E>
+    where
+        F: FnMut(&'a mut DhtNode) -> TFuture,
+        TFuture: Future<Output = Result<T, E>>,
+    {
+        let futures: Vec<_> = nodes.iter_mut().map(func).collect();
+        try_join_all(futures).await
+    }
+
+    async fn create_network<V: Validator + Clone + 'static>(
+        node_count: usize,
+        validator: Option<V>,
+    ) -> Result<Vec<DhtNode>, anyhow::Error> {
+        let mut bootstrap_addresses: Option<Vec<Multiaddr>> = None;
+        let mut nodes = vec![];
+        for _ in 0..node_count {
+            let node = DhtNode::new(
+                Keypair::Ed25519(libp2p::core::identity::ed25519::Keypair::generate()),
+                Default::default(),
+                validator.clone(),
+            )?;
+
+            let address = node.listen("/ip4/127.0.0.1/tcp/0".parse().unwrap()).await?;
+            if let Some(addresses) = bootstrap_addresses.as_ref() {
+                node.add_peers(addresses.to_owned()).await?;
+            } else {
+                bootstrap_addresses = Some(vec![address]);
+            }
+            nodes.push(node);
+        }
+        Ok(nodes)
+    }
+
+    async fn initialize_network(nodes: &mut Vec<DhtNode>) -> Result<(), anyhow::Error> {
+        let expected_peers = nodes.len() - 1;
+        // Wait a few, since nodes need to announce each other via Identify,
+        // which adds their address to the routing table. Kick off
+        // another bootstrap process after that.
+        // @TODO Figure out if bootstrapping is needed after identify-exchange,
+        // as that typically happens on a ~5 minute timer.
+        wait_ms(700).await;
+        swarm_command(nodes, |c| c.bootstrap()).await?;
+
+        // Wait for the peers to establish connections.
+        await_or_timeout(
+            2000,
+            swarm_command(nodes, |c| c.wait_for_peers(expected_peers)),
+            format!("waiting for {} peers", expected_peers),
+        )
+        .await?;
+        Ok(())
+    }
+
+    fn create_unfiltered_dht_node() -> Result<DhtNode, DhtError> {
+        DhtNode::new::<AllowAllValidator>(
+            Keypair::Ed25519(libp2p::core::identity::ed25519::Keypair::generate()),
+            Default::default(),
+            Some(AllowAllValidator {}),
+        )
+    }
+
+    /// Testing a detached DHTNode as a server with no peers.
+    #[tokio::test]
+    async fn test_dhtnode_base_case() -> Result<(), DhtError> {
+        let node = create_unfiltered_dht_node()?;
+        node.listen("/ip4/127.0.0.1/tcp/0".parse().unwrap()).await?;
+        let info = node.network_info().await?;
+        assert_eq!(
+            info,
+            NetworkInfo {
+                num_connections: 0,
+                num_established: 0,
+                num_peers: 0,
+                num_pending: 0,
+            }
+        );
+
+        if node.bootstrap().await.is_err() {
+            panic!("bootstrap() should succeed, even without peers to bootstrap.");
+        }
+        Ok(())
+    }
+
+    /// Tests many nodes connecting to a single bootstrap node,
+    /// and ensuring the nodes become peers.
+    #[tokio::test]
+    async fn test_dhtnode_bootstrap() -> Result<(), DhtError> {
+        let num_nodes = 5;
+        let mut nodes = create_network(num_nodes, Some(AllowAllValidator {})).await?;
+        initialize_network(&mut nodes).await?;
+
+        for info in swarm_command(&mut nodes, |c| c.network_info()).await? {
+            assert_eq!(info.num_peers, num_nodes - 1);
+            // TODO(#100) the number of connections seem inconsistent??
+            //assert_eq!(info.num_connections, num_clients as u32);
+            //assert_eq!(info.num_established, num_clients as u32);
+            assert_eq!(info.num_pending, 0);
+        }
+
+        let info = nodes.first().unwrap().network_info().await?;
+        assert_eq!(info.num_peers, num_nodes - 1);
+        // TODO(#100) the number of connections seem inconsistent??
+        //assert_eq!(info.num_connections, num_clients as u32);
+        //assert_eq!(info.num_established, num_clients as u32);
+        assert_eq!(info.num_pending, 0);
+
+        Ok(())
+    }
+
+    /// Testing primitive set_record/get_record.
+    #[tokio::test]
+    async fn test_dhtnode_simple() -> Result<(), DhtError> {
+        let mut nodes = create_network(2, Some(AllowAllValidator {})).await?;
+        initialize_network(&mut nodes).await?;
+        let (node_a, node_b) = (nodes.pop().unwrap(), nodes.pop().unwrap());
+
+        node_a.put_record(b"foo", b"bar").await?;
+        let result = node_b.get_record(b"foo").await?;
+        assert_eq!(result.key, b"foo");
+        assert_eq!(result.value.expect("has value"), b"bar");
+        Ok(())
+    }
+
+    /// Testing primitive start_providing/get_providers.
+    #[tokio::test]
+    async fn test_dhtnode_providers() -> Result<(), DhtError> {
+        let mut nodes = create_network(2, Some(AllowAllValidator {})).await?;
+        initialize_network(&mut nodes).await?;
+        let (node_a, node_b) = (nodes.pop().unwrap(), nodes.pop().unwrap());
+
+        node_a.start_providing(b"foo").await?;
+
+        let providers = node_b.get_providers(b"foo").await?;
+        assert_eq!(providers.len(), 1);
+        assert_eq!(&providers[0], node_a.peer_id());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_dhtnode_validator() -> Result<(), DhtError> {
+        #[derive(Clone)]
+        struct MyValidator {}
+
+        #[async_trait]
+        impl Validator for MyValidator {
+            async fn validate(&mut self, data: &[u8]) -> bool {
+                data == b"VALID"
+            }
+        }
+
+        impl Display for MyValidator {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "MyValidator")
+            }
+        }
+
+        let mut nodes = create_network(2, Some(MyValidator {})).await?;
+        initialize_network(&mut nodes).await?;
+        let (node_a, node_b) = (nodes.pop().unwrap(), nodes.pop().unwrap());
+        let unfiltered_client = create_unfiltered_dht_node()?;
+        unfiltered_client
+            .add_peers(vec![make_p2p_address(
+                node_a.addresses().await?.pop().unwrap(),
+                node_a.peer_id().to_owned(),
+            )])
+            .await?;
+
+        node_a.put_record(b"foo_1", b"VALID").await?;
+        let result = node_b.get_record(b"foo_1").await?;
+        assert_eq!(
+            result.value.expect("has value"),
+            b"VALID",
+            "validation allows valid records through"
+        );
+
+        assert!(
+            node_a.put_record(b"foo_2", b"INVALID").await.is_err(),
+            "setting a record validates locally"
+        );
+
+        // set a valid and an invalid record from the unfiltered client
+        unfiltered_client.put_record(b"foo_3", b"VALID").await?;
+        unfiltered_client.put_record(b"foo_4", b"INVALID").await?;
+
+        let result = node_b.get_record(b"foo_3").await?;
+        assert_eq!(
+            result.value.expect("has value"),
+            b"VALID",
+            "validation allows valid records through"
+        );
+
+        assert!(
+            node_b.get_record(b"foo_4").await?.value.is_none(),
+            "invalid records are not retrieved from the network"
+        );
+
+        Ok(())
     }
 }

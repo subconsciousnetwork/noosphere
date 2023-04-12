@@ -1,21 +1,21 @@
 use crate::{
-    client::NameSystemClient,
-    dht::{
-        DhtConfig, DhtError, DhtKeyMaterial, DhtNode, DhtRecord, NetworkInfo, Peer, RecordValidator,
-    },
-    records::NsRecord,
+    dht::{DhtConfig, DhtError, DhtNode, DhtRecord, NetworkInfo, Peer},
+    records::{NsRecord, RecordValidator},
     utils::make_p2p_address,
-    PeerId,
+    NameSystemClient, PeerId,
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-#[cfg(doc)]
-use cid::Cid;
 use futures::future::try_join_all;
-use libp2p::Multiaddr;
-use noosphere_core::data::Did;
+use libp2p::{identity::Keypair, Multiaddr};
+use noosphere_core::{authority::ed25519_key_to_bytes, data::Did};
 use std::collections::HashMap;
 use tokio::sync::{Mutex, MutexGuard};
+use ucan::{crypto::KeyMaterial, store::UcanJwtStore};
+use ucan_key_support::ed25519::Ed25519KeyMaterial;
+
+#[cfg(doc)]
+use cid::Cid;
 
 pub static BOOTSTRAP_PEERS_ADDRESSES: [&str; 1] =
     ["/ip4/134.122.20.28/tcp/6666/p2p/12D3KooWPyjAB3XWUboGmLLPkR53fTyj4GaNi65RvQ61BVwqV4HG"];
@@ -24,6 +24,19 @@ lazy_static! {
     /// Noosphere Name System's maintained list of peers to
     /// bootstrap nodes joining the network.
     pub static ref BOOTSTRAP_PEERS: [Multiaddr; 1] = BOOTSTRAP_PEERS_ADDRESSES.map(|addr| addr.parse().expect("parseable"));
+}
+
+pub trait NameSystemKeyMaterial: KeyMaterial + Clone {
+    fn to_dht_keypair(&self) -> anyhow::Result<Keypair>;
+}
+
+impl NameSystemKeyMaterial for Ed25519KeyMaterial {
+    fn to_dht_keypair(&self) -> anyhow::Result<Keypair> {
+        let mut bytes = ed25519_key_to_bytes(self)?;
+        let kp = libp2p::identity::ed25519::Keypair::decode(&mut bytes)
+            .map_err(|_| anyhow::anyhow!("Could not decode ED25519 key."))?;
+        Ok(Keypair::Ed25519(kp))
+    }
 }
 
 /// The [NameSystem] is responsible for both propagating and resolving Sphere DIDs
@@ -44,19 +57,19 @@ pub struct NameSystem {
     hosted_records: Mutex<HashMap<Did, NsRecord>>,
     /// Map of resolved sphere DIDs to resolved [NsRecord].
     resolved_records: Mutex<HashMap<Did, NsRecord>>,
-
-    #[cfg(feature = "api_server")]
-    api_server: Option<APIServer>,
 }
 
 impl NameSystem {
-    pub fn new<K: DhtKeyMaterial, V: RecordValidator + 'static>(
+    pub fn new<K: NameSystemKeyMaterial, S: UcanJwtStore + 'static>(
         key_material: &K,
         dht_config: DhtConfig,
-        validator: Option<V>,
+        store: Option<S>,
     ) -> Result<Self> {
+        let keypair = key_material.to_dht_keypair()?;
+        let validator = store.map(|s| RecordValidator::new(s));
+
         Ok(NameSystem {
-            dht: DhtNode::new(key_material, dht_config, validator)?,
+            dht: DhtNode::new(keypair, dht_config, validator)?,
             hosted_records: Mutex::new(HashMap::new()),
             resolved_records: Mutex::new(HashMap::new()),
         })
@@ -241,9 +254,28 @@ mod test {
         assert_eq!(BOOTSTRAP_PEERS.len(), 1);
     }
 
-    use crate::{ns_client_tests, Validator};
-    use crate::{utils::wait_for_peers, NameSystemBuilder, NameSystemClient};
+    use libp2p;
     use noosphere_core::authority::generate_ed25519_key;
+
+    #[test]
+    fn it_converts_to_libp2p_keypair() -> anyhow::Result<()> {
+        let zebra_keys = generate_ed25519_key();
+        let libp2p::identity::Keypair::Ed25519(keypair) = zebra_keys.to_dht_keypair()?;
+        let zebra_private_key = zebra_keys.1.expect("Has private key");
+        let dalek_public_key = keypair.public().encode();
+        let dalek_private_key = keypair.secret();
+
+        let in_public_key = zebra_keys.0.as_ref();
+        let in_private_key = zebra_private_key.as_ref();
+        let out_public_key = dalek_public_key.as_ref();
+        let out_private_key = dalek_private_key.as_ref();
+        assert_eq!(in_public_key, out_public_key);
+        assert_eq!(in_private_key, out_private_key);
+        Ok(())
+    }
+
+    use crate::ns_client_tests;
+    use crate::{utils::wait_for_peers, NameSystemBuilder};
     use noosphere_storage::{MemoryStorage, SphereDb};
     use std::sync::Arc;
     use tokio::sync::Mutex;
@@ -261,7 +293,7 @@ mod test {
             let key_material = generate_ed25519_key();
             let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
-                .validator(Validator::new(store.clone()))
+                .ucan_store(store)
                 .key_material(&key_material)
                 .listening_port(0)
                 .use_test_config()
@@ -277,7 +309,7 @@ mod test {
             let key_material = generate_ed25519_key();
             let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
-                .validator(Validator::new(store.clone()))
+                .ucan_store(store)
                 .key_material(&key_material)
                 .bootstrap_peers(&[bootstrap_address.clone()])
                 .use_test_config()

@@ -1,10 +1,11 @@
-#![cfg(not(target_arch = "wasm32"))]
+#![cfg(all(feature = "test_kubo", not(target_arch = "wasm32")))]
 
 #[macro_use]
 extern crate tracing;
 
 use anyhow::Result;
-use noosphere_storage::{MemoryStorage, SphereDb};
+use noosphere_ipfs::{IpfsStore, KuboClient};
+use noosphere_storage::{BlockStoreRetry, MemoryStore, UcanStore};
 use std::{net::TcpListener, sync::Arc, time::Duration};
 
 use noosphere_cli::native::{
@@ -13,15 +14,13 @@ use noosphere_cli::native::{
 };
 use noosphere_core::{data::Did, tracing::initialize_tracing};
 use noosphere_gateway::{start_gateway, GatewayScope};
-use noosphere_ns::{
-    dht::AllowAllValidator, helpers::generate_name_systems_network,
-    server::start_name_system_api_server,
-};
+use noosphere_ns::{helpers::NameSystemNetwork, server::start_name_system_api_server};
 use noosphere_sphere::{
     HasMutableSphereContext, HasSphereContext, SphereContentWrite, SpherePetnameRead,
     SpherePetnameWrite, SphereSync,
 };
 use tokio::{sync::Mutex, task::JoinHandle};
+use ucan::store::UcanJwtStore;
 use url::Url;
 
 async fn start_gateway_for_workspace(
@@ -63,6 +62,21 @@ async fn start_gateway_for_workspace(
     Ok((gateway_url, join_handle))
 }
 
+async fn start_name_system_server<S: UcanJwtStore + Clone + 'static>(
+    _store: S,
+    listener: TcpListener,
+) -> Result<JoinHandle<()>> {
+    Ok(tokio::spawn(async move {
+        // TODO(#267) pass in IpfsStore rather than `None` here once validating
+        let mut network = NameSystemNetwork::generate::<S>(2, None).await.unwrap();
+        let node = network.nodes_mut().pop().unwrap();
+        start_name_system_api_server(Arc::new(Mutex::new(node)), listener)
+            .await
+            .unwrap();
+    }))
+}
+
+#[cfg(feature = "test_kubo")]
 #[tokio::test]
 async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() {
     initialize_tracing();
@@ -73,16 +87,15 @@ async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() {
     let ns_address = ns_listener.local_addr().unwrap();
     let ns_url =
         Url::parse(format!("http://{}:{}", ns_address.ip(), ns_address.port()).as_str()).unwrap();
-    let ns_task = tokio::spawn(async move {
-        let db = SphereDb::new(&MemoryStorage::default()).await.unwrap();
-        let (ns_node, _, _ns_data) = generate_name_systems_network(2, db, AllowAllValidator {})
-            .await
-            .unwrap();
+    let ns_db = {
+        let inner = MemoryStore::default();
+        let inner = IpfsStore::new(inner, Some(KuboClient::new(&ipfs_url).unwrap()));
+        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(1, 0));
+        let inner = UcanStore(inner);
+        inner
+    };
 
-        start_name_system_api_server(Arc::new(Mutex::new(ns_node)), ns_listener)
-            .await
-            .unwrap();
-    });
+    let ns_task = start_name_system_server(ns_db, ns_listener).await.unwrap();
 
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
@@ -204,12 +217,10 @@ async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() {
             resolved_third_party_sphere_version,
             Some(expected_third_party_sphere_version)
         );
-
         ns_task.abort();
         gateway_task.abort();
         third_party_gateway_task.abort();
     });
-
     client_task.await.unwrap();
 }
 
@@ -220,6 +231,7 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() {
     use noosphere_cli::native::ConfigSetCommand;
     use noosphere_sphere::SphereContentRead;
     use tokio::io::AsyncReadExt;
+    initialize_tracing();
 
     let ipfs_url = Url::parse("http://127.0.0.1:5001").unwrap();
 
@@ -227,16 +239,14 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() {
     let ns_address = ns_listener.local_addr().unwrap();
     let ns_url =
         Url::parse(format!("http://{}:{}", ns_address.ip(), ns_address.port()).as_str()).unwrap();
-    let ns_task = tokio::spawn(async move {
-        let db = SphereDb::new(&MemoryStorage::default()).await.unwrap();
-        let (ns_node, _, _ns_data) = generate_name_systems_network(2, db, AllowAllValidator {})
-            .await
-            .unwrap();
-
-        start_name_system_api_server(Arc::new(Mutex::new(ns_node)), ns_listener)
-            .await
-            .unwrap();
-    });
+    let ns_db = {
+        let inner = MemoryStore::default();
+        let inner = IpfsStore::new(inner, Some(KuboClient::new(&ipfs_url).unwrap()));
+        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(1, 0));
+        let inner = UcanStore(inner);
+        inner
+    };
+    let ns_task = start_name_system_server(ns_db, ns_listener).await.unwrap();
 
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();

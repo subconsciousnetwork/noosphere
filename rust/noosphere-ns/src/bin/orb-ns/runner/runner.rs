@@ -1,7 +1,7 @@
 use crate::runner::config::RunnerNodeConfig;
 use anyhow::Result;
 use noosphere_ipfs::{IpfsStorage, KuboClient};
-use noosphere_ns::{Multiaddr, NameSystem, NameSystemClient, PeerId, Validator};
+use noosphere_ns::{Multiaddr, NameSystem, NameSystemClient, PeerId};
 use noosphere_storage::{MemoryStorage, SphereDb};
 use serde::Serialize;
 use std::{
@@ -52,14 +52,14 @@ impl NameSystemRunner {
             NameSystem::new(
                 &config.key_material,
                 config.dht_config.to_owned(),
-                Some(Validator::new(store)),
+                Some(store),
             )?
         } else {
             let store = SphereDb::new(&MemoryStorage::default()).await?;
             NameSystem::new(
                 &config.key_material,
                 config.dht_config.to_owned(),
-                Some(Validator::new(store)),
+                Some(store),
             )?
         };
         let peer_id = node.peer_id().to_owned();

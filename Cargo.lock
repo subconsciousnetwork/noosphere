@@ -4080,6 +4080,7 @@ dependencies = [
  "serde_json",
  "tempdir",
  "test-log",
+ "thiserror",
  "tokio",
  "toml",
  "tower-http",

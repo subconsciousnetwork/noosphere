@@ -20,7 +20,7 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "^1"
-thiserror = "1.0.38"
+thiserror = { workspace = true }
 cid = "~0.9"
 url = "^2"
 serde = "^1"

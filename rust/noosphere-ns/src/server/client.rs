@@ -1,5 +1,5 @@
 use crate::server::routes::Route;
-use crate::{Multiaddr, NameSystemClient, NetworkInfo, NsRecord, Peer, PeerId};
+use crate::{client::NameSystemClient, Multiaddr, NetworkInfo, NsRecord, Peer, PeerId};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use noosphere_core::data::Did;
@@ -125,9 +125,9 @@ impl NameSystemClient for HttpClient {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{ns_client_tests, Validator};
+    use crate::ns_client_tests;
     use crate::{server::ApiServer, utils::wait_for_peers};
-    use crate::{NameSystem, NameSystemBuilder, NameSystemClient};
+    use crate::{NameSystem, NameSystemBuilder};
     use noosphere_core::authority::generate_ed25519_key;
     use noosphere_storage::{MemoryStorage, SphereDb};
     use std::net::TcpListener;
@@ -147,7 +147,7 @@ mod test {
             let key_material = generate_ed25519_key();
             let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
-                .validator(Validator::new(store.clone()))
+                .ucan_store(store)
                 .key_material(&key_material)
                 .listening_port(0)
                 .use_test_config()
@@ -166,7 +166,7 @@ mod test {
         let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
         let ns = NameSystemBuilder::default()
-            .validator(Validator::new(store.clone()))
+            .ucan_store(store)
             .key_material(&key_material)
             .bootstrap_peers(&bootstrap_address)
             .use_test_config()
