@@ -257,6 +257,8 @@ mod test {
         try_join_all(futures).await
     }
 
+    /// Creates a network of `node_count` nodes, with all nodes
+    /// initially peering to the first created node, the "bootstrap".
     async fn create_network<V: Validator + Clone + 'static>(
         node_count: usize,
         validator: Option<V>,
@@ -270,10 +272,14 @@ mod test {
                 validator.clone(),
             )?;
 
-            let address = node.listen("/ip4/127.0.0.1/tcp/0".parse().unwrap()).await?;
             if let Some(addresses) = bootstrap_addresses.as_ref() {
+                // Calling `add_peers()` before `listen()` is necessary, otherwise
+                // the initial peering takes longer, triggering intermittent
+                // timeouts in our tests (#311).
                 node.add_peers(addresses.to_owned()).await?;
+                node.listen("/ip4/127.0.0.1/tcp/0".parse().unwrap()).await?;
             } else {
+                let address = node.listen("/ip4/127.0.0.1/tcp/0".parse().unwrap()).await?;
                 bootstrap_addresses = Some(vec![address]);
             }
             nodes.push(node);
