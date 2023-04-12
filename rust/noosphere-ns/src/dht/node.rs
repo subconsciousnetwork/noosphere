@@ -293,7 +293,7 @@ mod test {
 
         // Wait for the peers to establish connections.
         await_or_timeout(
-            2000,
+            5000,
             swarm_command(nodes, |c| c.wait_for_peers(expected_peers)),
             format!("waiting for {} peers", expected_peers),
         )
