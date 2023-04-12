@@ -82,7 +82,26 @@ jobs:
         with:
           command: test
           args: --features test_kubo,headers
-
+  run-test-suite-linux-c:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: stable
+      - name: 'Install environment packages'
+        run: |
+          sudo apt-get update -qqy
+          sudo apt-get install jq protobuf-compiler cmake make
+      - name: 'Link Noosphere from C'
+        run: |
+          make build -C ./c/example
+      - name: 'Run C integration tests'
+        run: |
+          make run -C ./c/example
   run-test-suite-web-wasm:
     runs-on: ubuntu-latest
     steps:
@@ -130,7 +149,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: Swatinem/rust-cache@v2
-      - uses: google/wireit@setup-github-actions-caching/v1
+      # Disable wireit cache for now, seeing some errors pop up:
+      # https://github.com/subconsciousnetwork/noosphere/actions/runs/4682179827/jobs/8295693844
+      # - uses: google/wireit@setup-github-actions-caching/v1
       - uses: actions-rs/toolchain@v1
         with:
           override: true
