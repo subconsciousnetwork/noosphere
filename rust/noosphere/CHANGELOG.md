@@ -12,6 +12,20 @@
   * dependencies
     * noosphere-into bumped from 0.6.0 to 0.7.0
 
+## [0.8.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.8.2...noosphere-v0.8.3) (2023-04-13)
+
+
+### Bug Fixes
+
+* Unreachable petname sequence is not an error ([#310](https://github.com/subconsciousnetwork/noosphere/issues/310)) ([96f2938](https://github.com/subconsciousnetwork/noosphere/commit/96f2938d76f41fe240466bc7cfe397f886aa7e04))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-into bumped from 0.7.1 to 0.7.2
+
 ## [0.8.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.8.1...noosphere-v0.8.2) (2023-04-10)
 
 

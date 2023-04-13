@@ -28,6 +28,21 @@
     * noosphere bumped from 0.8.0 to 0.8.1
     * noosphere-ipfs bumped from 0.3.0 to 0.3.1
 
+## [0.5.4](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.5.3...noosphere-ns-v0.5.4) (2023-04-13)
+
+
+### Bug Fixes
+
+* Increase timeout in DHT network tests to satisfy CI, fixes [#311](https://github.com/subconsciousnetwork/noosphere/issues/311) ([#312](https://github.com/subconsciousnetwork/noosphere/issues/312)) ([2f9f1a6](https://github.com/subconsciousnetwork/noosphere/commit/2f9f1a6bbcc394672dfd2b93e4b1255f0fa9529b))
+* Intermittent timeouts in DhtNode tests introduced in [#308](https://github.com/subconsciousnetwork/noosphere/issues/308) ([#316](https://github.com/subconsciousnetwork/noosphere/issues/316)) ([704652b](https://github.com/subconsciousnetwork/noosphere/commit/704652bba2a2d9b241799b97808c7a249f0c38a9))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere bumped from 0.8.2 to 0.8.3
+
 ## [0.5.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.5.2...noosphere-ns-v0.5.3) (2023-04-10)
 
 
