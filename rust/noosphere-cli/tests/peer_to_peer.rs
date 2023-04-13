@@ -63,12 +63,13 @@ async fn start_gateway_for_workspace(
 }
 
 async fn start_name_system_server<S: UcanJwtStore + Clone + 'static>(
-    _store: S,
+    store: S,
     listener: TcpListener,
 ) -> Result<JoinHandle<()>> {
     Ok(tokio::spawn(async move {
-        // TODO(#267) pass in IpfsStore rather than `None` here once validating
-        let mut network = NameSystemNetwork::generate::<S>(2, None).await.unwrap();
+        let mut network = NameSystemNetwork::generate::<S>(2, Some(store))
+            .await
+            .unwrap();
         let node = network.nodes_mut().pop().unwrap();
         start_name_system_api_server(Arc::new(Mutex::new(node)), listener)
             .await
@@ -90,7 +91,7 @@ async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() {
     let ns_db = {
         let inner = MemoryStore::default();
         let inner = IpfsStore::new(inner, Some(KuboClient::new(&ipfs_url).unwrap()));
-        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(1, 0));
+        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(5, 0));
         let inner = UcanStore(inner);
         inner
     };
@@ -242,7 +243,7 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() {
     let ns_db = {
         let inner = MemoryStore::default();
         let inner = IpfsStore::new(inner, Some(KuboClient::new(&ipfs_url).unwrap()));
-        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(1, 0));
+        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(5, 0));
         let inner = UcanStore(inner);
         inner
     };

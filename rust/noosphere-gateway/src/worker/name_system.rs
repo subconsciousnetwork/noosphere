@@ -274,12 +274,10 @@ where
     let kubo_client = KuboClient::new(&ipfs_url)?;
     let db = context.sphere_context().await?.db().clone();
 
-    // TODO(#267)
-    let use_ipfs_validation = false;
     let ipfs_store = {
         let inner = db.clone();
         let inner = IpfsStore::new(inner, Some(kubo_client));
-        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(1, 0));
+        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(5, 0));
         UcanStore(inner)
     };
 
@@ -289,16 +287,12 @@ where
         let next_record =
             match fetch_record(client.clone(), name.clone(), identity.did.clone()).await? {
                 Some(record) => {
-                    // TODO(#267)
-                    if use_ipfs_validation {
-                        if let Err(error) = record.validate(&ipfs_store, None).await {
-                            error!("Failed record validation: {}", error);
-                            continue;
-                        }
+                    if let Err(error) = record.validate(&ipfs_store, None).await {
+                        error!("Failed record validation: {}", error);
+                        continue;
                     }
 
                     // TODO(#258): Verify that the new value is the most recent value
-                    // TODO(#257): Verify the proof chain of the new value
                     Some(LinkRecord::from(Jwt(record.try_to_string()?)))
                 }
                 None => {

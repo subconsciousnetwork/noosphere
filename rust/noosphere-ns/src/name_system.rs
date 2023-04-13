@@ -223,11 +223,7 @@ impl NameSystemClient for NameSystem {
         {
             let mut resolved_records = self.resolved_records.lock().await;
             if let Some(record) = resolved_records.get(identity) {
-                if !record.is_expired() {
-                    return Ok(Some(record.clone()));
-                } else {
-                    resolved_records.remove(identity);
-                }
+                return Ok(Some(record.clone()));
             }
         };
 

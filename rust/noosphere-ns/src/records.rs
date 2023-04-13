@@ -147,10 +147,6 @@ impl NsRecord {
         store: &S,
         opt_did_parser: Option<&mut DidParser>,
     ) -> Result<(), NsRecordError> {
-        if self.is_expired() {
-            return Err(NsRecordError::Expired);
-        }
-
         if self.link.is_none() {
             return Err(NsRecordError::MissingLink);
         }
@@ -194,6 +190,11 @@ impl NsRecord {
         Ok(())
     }
 
+    /// Returns true if the [Ucan] token is past its expiration.
+    pub fn has_publishable_timeframe(&self) -> bool {
+        self.token.is_expired() == false && self.token.is_too_early() == false
+    }
+
     /// The DID key of the sphere that this record maps.
     pub fn identity(&self) -> &str {
         self.token.audience()
@@ -202,11 +203,6 @@ impl NsRecord {
     /// The sphere revision address ([Cid]) that the sphere's identity maps to.
     pub fn link(&self) -> Option<&Cid> {
         self.link.as_ref()
-    }
-
-    /// Returns true if the [Ucan] token is past its expiration.
-    pub fn is_expired(&self) -> bool {
-        self.token.is_expired()
     }
 
     /// Encodes the underlying Ucan token back into a JWT string.
