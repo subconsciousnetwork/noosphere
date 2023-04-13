@@ -27,6 +27,12 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-fs bumped from 0.5.2 to 0.5.3
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-sphere bumped from 0.3.1 to 0.3.2
+  * dev-dependencies
+    * noosphere-sphere bumped from 0.3.1 to 0.3.2
+
 ## [0.7.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.7.0...noosphere-into-v0.7.1) (2023-04-10)
 
 

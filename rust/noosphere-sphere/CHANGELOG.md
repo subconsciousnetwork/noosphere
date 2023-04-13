@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.3.1...noosphere-sphere-v0.3.2) (2023-04-13)
+
+
+### Bug Fixes
+
+* Unreachable petname sequence is not an error ([#310](https://github.com/subconsciousnetwork/noosphere/issues/310)) ([96f2938](https://github.com/subconsciousnetwork/noosphere/commit/96f2938d76f41fe240466bc7cfe397f886aa7e04))
+
 ## [0.3.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.3.0...noosphere-sphere-v0.3.1) (2023-04-10)
 
 
