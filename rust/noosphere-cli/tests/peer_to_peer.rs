@@ -389,6 +389,7 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() {
                 .unwrap()
                 .traverse_by_petname("thirdparty")
                 .await
+                .unwrap()
                 .unwrap(),
         ));
 

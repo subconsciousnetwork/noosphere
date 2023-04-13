@@ -18,7 +18,7 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-subtext = { version = "0.3.3" }
+subtext = { version = "0.3.4" }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "~0.3", features = ["env-filter", "tracing-log"] }
 thiserror = { version = "^1.0.38" }

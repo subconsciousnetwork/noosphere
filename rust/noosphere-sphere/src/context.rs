@@ -80,19 +80,22 @@ where
     pub async fn traverse_by_petnames(
         &mut self,
         petname_path: &[String],
-    ) -> Result<SphereContext<K, S>> {
+    ) -> Result<Option<SphereContext<K, S>>> {
         let mut sphere_context: Option<Self> = None;
         let mut path = Vec::from(petname_path);
 
         while let Some(petname) = path.pop() {
-            sphere_context = Some(match sphere_context {
+            let next_sphere_context = match sphere_context {
                 None => self.traverse_by_petname(&petname).await?,
                 Some(mut sphere_context) => sphere_context.traverse_by_petname(&petname).await?,
-            })
+            };
+            sphere_context = match next_sphere_context {
+                any @ Some(_) => any,
+                None => return Ok(None),
+            };
         }
 
-        Ok(sphere_context
-            .ok_or_else(|| anyhow!("Unable to traverse to {}", petname_path.join(".")))?)
+        Ok(sphere_context)
     }
 
     /// Given a petname that has been assigned to a sphere identity within this
@@ -102,7 +105,10 @@ where
     /// sphere being traversed to is not available, an attempt will be made to
     /// replicate the data from a Noosphere Gateway.
     #[instrument(level = "debug", skip(self))]
-    pub async fn traverse_by_petname(&mut self, petname: &str) -> Result<SphereContext<K, S>> {
+    pub async fn traverse_by_petname(
+        &mut self,
+        petname: &str,
+    ) -> Result<Option<SphereContext<K, S>>> {
         // Resolve petname to sphere version via address book entry
 
         let identity = match self
@@ -116,7 +122,10 @@ where
             .await?
         {
             Some(address) => address.clone(),
-            None => return Err(anyhow!("\"{petname}\" is not assigned to an identity")),
+            None => {
+                warn!("\"{petname}\" is not assigned to an identity");
+                return Ok(None);
+            }
         };
 
         debug!("{:?}", identity);
@@ -209,13 +218,15 @@ where
         // Initialize a `SphereContext` with the same author and sphere DB as
         // this one, but referring to the resolved sphere DID, and return it
 
-        SphereContext::new(
-            identity.did.clone(),
-            self.author.clone(),
-            self.db.clone(),
-            Some(self.sphere_identity.clone()),
-        )
-        .await
+        Ok(Some(
+            SphereContext::new(
+                identity.did.clone(),
+                self.author.clone(),
+                self.db.clone(),
+                Some(self.sphere_identity.clone()),
+            )
+            .await?,
+        ))
     }
 
     /// Given a [Did] of a sphere, produce a [SphereContext] backed by the same credentials and
@@ -348,6 +359,7 @@ where
 
 #[cfg(test)]
 pub mod tests {
+    use anyhow::Result;
     use std::sync::Arc;
 
     use noosphere_core::{
@@ -372,19 +384,12 @@ pub mod tests {
         SphereContext, SpherePetnameWrite,
     };
 
-    #[cfg(target_arch = "wasm32")]
-    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
-
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
-    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    async fn it_can_traverse_a_sequence_of_petnames() {
-        initialize_tracing();
-
+    async fn make_sphere_context_with_peer_chain(
+        peer_chain: &[String],
+    ) -> Result<Arc<Mutex<SphereContext<Ed25519KeyMaterial, TrackingStorage<MemoryStorage>>>>> {
         let origin_sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
-
-        let name_seqeuence: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
 
         let mut db = origin_sphere_context
             .sphere_context()
@@ -395,7 +400,7 @@ pub mod tests {
 
         let mut contexts = vec![origin_sphere_context.clone()];
 
-        for name in name_seqeuence.iter() {
+        for name in peer_chain.iter() {
             let mut sphere_context =
                 simulated_sphere_context(SimulationAccess::ReadWrite, Some(db.clone()))
                     .await
@@ -485,6 +490,22 @@ pub mod tests {
             next_sphere_context = Some(sphere_context);
         }
 
+        Ok(origin_sphere_context)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_traverse_a_sequence_of_petnames() {
+        initialize_tracing();
+
+        let name_seqeuence: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+        let origin_sphere_context = make_sphere_context_with_peer_chain(&name_seqeuence)
+            .await
+            .unwrap();
+
         let target_sphere_context = Arc::new(
             origin_sphere_context
                 .sphere_context()
@@ -492,6 +513,7 @@ pub mod tests {
                 .unwrap()
                 .traverse_by_petnames(&name_seqeuence.into_iter().rev().collect::<Vec<String>>())
                 .await
+                .unwrap()
                 .unwrap(),
         );
 
@@ -504,5 +526,33 @@ pub mod tests {
         file.contents.read_to_string(&mut name).await.unwrap();
 
         assert_eq!(name.as_str(), "c");
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_resolves_none_when_a_petname_is_missing_from_the_sequence() {
+        initialize_tracing();
+
+        let name_seqeuence: Vec<String> = vec!["b".into(), "c".into()];
+        let origin_sphere_context = make_sphere_context_with_peer_chain(&name_seqeuence)
+            .await
+            .unwrap();
+
+        let traversed_sequence: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+
+        let target_sphere_context = origin_sphere_context
+            .sphere_context()
+            .await
+            .unwrap()
+            .traverse_by_petnames(
+                &traversed_sequence
+                    .into_iter()
+                    .rev()
+                    .collect::<Vec<String>>(),
+            )
+            .await
+            .unwrap();
+
+        assert!(target_sphere_context.is_none());
     }
 }
