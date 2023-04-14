@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-cli"
-version = "0.9.2"
+version = "0.9.3"
 edition = "2021"
 description = "Reference client and pedagogical tool to demonstrate the principles of the Noosphere protocol"
 keywords = ["cli", "sync", "noosphere", "p2p", "ucan"]
@@ -23,7 +23,7 @@ test_kubo = []
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls", "stream"] }
-noosphere-ns = { version = "0.5.4", path = "../noosphere-ns" }
+noosphere-ns = { version = "0.5.5", path = "../noosphere-ns" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tempfile = "^3"
@@ -55,8 +55,8 @@ noosphere-core = { version = "0.9.1", path = "../noosphere-core" }
 noosphere-sphere = { version = "0.3.2", path = "../noosphere-sphere" }
 noosphere-storage = { version = "0.6.1", path = "../noosphere-storage" }
 noosphere-api = { version = "0.7.2", path = "../noosphere-api" }
-noosphere-gateway = { version = "0.3.2", path = "../noosphere-gateway" }
-noosphere = { version = "0.8.3", path = "../noosphere" }
+noosphere-gateway = { version = "0.3.3", path = "../noosphere-gateway" }
+noosphere = { version = "0.8.4", path = "../noosphere" }
 ucan = { version = "0.1.0" }
 ucan-key-support = { version = "0.1.0" }
 cid = "~0.9"
