@@ -530,7 +530,7 @@ pub fn ns_sphere_file_version_get(
 }
 
 #[ffi_export]
-/// @memberof ns_sphere_file_t
+/// @memberof ns_sphere_t
 /// Get the identity (a DID encoded as a UTF-8 string)
 /// for this ns_sphere_t.
 pub fn ns_sphere_identity(
