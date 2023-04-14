@@ -532,17 +532,24 @@ pub fn ns_sphere_file_version_get(
 #[ffi_export]
 /// @memberof ns_sphere_file_t
 /// Get the identity (a DID encoded as a UTF-8 string)
-/// for this ns_sphere_file_t.
-pub fn ns_sphere_file_identity_get(
-    sphere_file: &NsSphereFile,
+/// for this ns_sphere_t.
+pub fn ns_sphere_identity_get(
+    noosphere: &NsNoosphere,
+    sphere: &NsSphere,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<char_p::Box> {
     error_out.try_or_initialize(|| {
-        sphere_file
-            .inner
-            .sphere_identity
-            .to_string()
-            .try_into()
-            .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into())
+        match noosphere
+            .async_runtime()
+            .block_on(async { sphere.inner().identity().await })
+            {
+                Ok(identity) => {
+                    identity
+                        .to_string()
+                        .try_into()
+                        .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into())
+                }
+                Err(error) => Err(anyhow!(error).into()),
+            }
     })
 }
