@@ -407,6 +407,28 @@ final class NoosphereTests: XCTestCase {
         ns_sphere_free(sphere)
         ns_free(noosphere)
     }
+
+    func testGettingIdentityFromSphere() throws {
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
+
+        ns_key_create(noosphere, "bob", nil)
+
+        let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
+
+        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
+        let sphere = ns_sphere_open(noosphere, sphere_identity_ptr, nil)
+
+        let reported_identity_str = ns_sphere_identity_get(noosphere, sphere, nil)
+
+        assert(String.init(cString: reported_identity_str!) == String.init(cString: sphere_identity_ptr!))
+        
+        ns_string_free(sphere_identity_ptr)
+        ns_sphere_receipt_free(sphere_receipt)
+        ns_string_free(reported_identity_str)
+        
+        ns_sphere_free(sphere)
+        ns_free(noosphere)
+    }
     
     func testSettingAndGettingAPetname() throws {
         let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
