@@ -528,3 +528,21 @@ pub fn ns_sphere_file_version_get(
             .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into())
     })
 }
+
+#[ffi_export]
+/// @memberof ns_sphere_file_t
+/// Get the identity (a DID encoded as a UTF-8 string)
+/// for this ns_sphere_file_t.
+pub fn ns_sphere_file_identity_get(
+    sphere_file: &NsSphereFile,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<char_p::Box> {
+    error_out.try_or_initialize(|| {
+        sphere_file
+            .inner
+            .sphere_identity
+            .to_string()
+            .try_into()
+            .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into())
+    })
+}
