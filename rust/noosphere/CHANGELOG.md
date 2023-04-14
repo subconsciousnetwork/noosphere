@@ -12,6 +12,13 @@
   * dependencies
     * noosphere-into bumped from 0.6.0 to 0.7.0
 
+## [0.8.4](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.8.3...noosphere-v0.8.4) (2023-04-14)
+
+
+### Features
+
+* Introduce `ns_sphere_identity` FFI call ([#317](https://github.com/subconsciousnetwork/noosphere/issues/317)) ([81f9c3b](https://github.com/subconsciousnetwork/noosphere/commit/81f9c3bb5e861d601d86326c80ffc48c0d875c7e))
+
 ## [0.8.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.8.2...noosphere-v0.8.3) (2023-04-13)
 
 
