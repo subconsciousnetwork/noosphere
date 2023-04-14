@@ -533,7 +533,7 @@ pub fn ns_sphere_file_version_get(
 /// @memberof ns_sphere_file_t
 /// Get the identity (a DID encoded as a UTF-8 string)
 /// for this ns_sphere_t.
-pub fn ns_sphere_identity_get(
+pub fn ns_sphere_identity(
     noosphere: &NsNoosphere,
     sphere: &NsSphere,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,

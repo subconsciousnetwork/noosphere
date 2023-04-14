@@ -418,7 +418,7 @@ final class NoosphereTests: XCTestCase {
         let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
         let sphere = ns_sphere_open(noosphere, sphere_identity_ptr, nil)
 
-        let reported_identity_str = ns_sphere_identity_get(noosphere, sphere, nil)
+        let reported_identity_str = ns_sphere_identity(noosphere, sphere, nil)
 
         assert(String.init(cString: reported_identity_str!) == String.init(cString: sphere_identity_ptr!))
         
