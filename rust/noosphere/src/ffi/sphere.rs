@@ -1,3 +1,5 @@
+use std::ffi::c_void;
+
 use anyhow::anyhow;
 use cid::Cid;
 use noosphere_core::{authority::Authorization, data::Did};
@@ -5,7 +7,8 @@ use noosphere_sphere::{HasSphereContext, SphereSync};
 use safer_ffi::char_p::InvalidNulTerminator;
 use safer_ffi::prelude::*;
 
-use crate::ffi::{NsError, NsNoosphere, TryOrInitialize};
+use crate::error::NoosphereError;
+use crate::ffi::{NsError, NsNoosphere, NsSphere, TryOrInitialize};
 use crate::sphere::SphereReceipt;
 
 #[derive_ReprC(rename = "ns_sphere_receipt")]
@@ -161,7 +164,53 @@ pub fn ns_sphere_version_get(
 /// base64-encoded CID v1 of the latest locally-available sphere revision after
 /// the synchronization process has successfully completed.
 pub fn ns_sphere_sync(
-    noosphere: &mut NsNoosphere,
+    noosphere: &NsNoosphere,
+    sphere: &NsSphere,
+    context: Option<repr_c::Box<c_void>>,
+    callback: extern "C" fn(
+        Option<repr_c::Box<c_void>>,
+        Option<repr_c::Box<NsError>>,
+        Option<char_p::Box>,
+    ),
+) {
+    let async_runtime = noosphere.async_runtime().clone();
+    let mut sphere_channel = sphere.to_channel();
+
+    noosphere.async_runtime().spawn(async move {
+        let result: Result<char_p::Box, anyhow::Error> = async {
+            sphere_channel.mutable().sync().await?;
+
+            Ok(sphere_channel
+                .immutable()
+                .to_sphere()
+                .await?
+                .cid()
+                .to_string()
+                .try_into()
+                .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?)
+        }
+        .await;
+
+        match result {
+            Ok(cid_string) => {
+                async_runtime.spawn_blocking(move || callback(context, None, Some(cid_string)))
+            }
+            Err(error) => async_runtime.spawn_blocking(move || {
+                callback(context, Some(NoosphereError::from(error).into()), None)
+            }),
+        };
+    });
+}
+
+#[ffi_export]
+/// @memberof ns_sphere_t
+///
+/// @deprecated Blocking FFI is deprecated, use ns_sphere_sync_ instead
+///
+/// Same as ns_sphere_sync, but blocks the current thread while performing its
+/// work.
+pub fn ns_sphere_sync_blocking(
+    noosphere: &NsNoosphere,
     sphere_identity: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<char_p::Box> {

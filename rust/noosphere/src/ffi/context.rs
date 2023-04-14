@@ -6,21 +6,19 @@ use cid::Cid;
 use itertools::Itertools;
 use noosphere_core::data::Did;
 use safer_ffi::{char_p::InvalidNulTerminator, prelude::*};
-use std::{pin::Pin, str::FromStr, sync::Arc};
+use std::{os::raw::c_void, pin::Pin, str::FromStr, sync::Arc};
 use subtext::{Peer, Slashlink};
-use tokio::{
-    io::{AsyncRead, AsyncReadExt},
-    sync::Mutex,
-};
+use tokio::{io::AsyncReadExt, sync::Mutex};
 
 use crate::{
+    error::NoosphereError,
     ffi::{NsError, NsHeaders, NsNoosphere, TryOrInitialize},
     platform::{PlatformKeyMaterial, PlatformSphereChannel, PlatformStorage},
 };
 
 use noosphere_sphere::{
-    HasMutableSphereContext, HasSphereContext, SphereContentRead, SphereContentWrite,
-    SphereContext, SphereCursor, SphereFile, SphereWalker,
+    AsyncFileBody, HasMutableSphereContext, HasSphereContext, SphereContentRead,
+    SphereContentWrite, SphereContext, SphereCursor, SphereFile, SphereWalker,
 };
 
 #[derive_ReprC(rename = "ns_sphere")]
@@ -42,6 +40,10 @@ impl NsSphere {
     ) -> &mut Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>> {
         self.inner.mutable()
     }
+
+    pub fn to_channel(&self) -> PlatformSphereChannel {
+        self.inner.clone()
+    }
 }
 
 #[derive_ReprC(rename = "ns_sphere_file")]
@@ -52,15 +54,15 @@ impl NsSphere {
 /// ns_sphere_file_t is a lazy, stateful view into a single memo.
 /// No bytes are read from disk until ns_sphere_file_contents_read() is invoked.
 pub struct NsSphereFile {
-    inner: SphereFile<Pin<Box<dyn AsyncRead>>>,
+    inner: SphereFile<Pin<Box<dyn AsyncFileBody>>>,
 }
 
 impl NsSphereFile {
-    pub fn inner(&self) -> &SphereFile<Pin<Box<dyn AsyncRead>>> {
+    pub fn inner(&self) -> &SphereFile<Pin<Box<dyn AsyncFileBody>>> {
         &self.inner
     }
 
-    pub fn inner_mut(&mut self) -> &mut SphereFile<Pin<Box<dyn AsyncRead>>> {
+    pub fn inner_mut(&mut self) -> &mut SphereFile<Pin<Box<dyn AsyncFileBody>>> {
         &mut self.inner
     }
 }
@@ -95,7 +97,17 @@ pub fn ns_sphere_open(
 }
 
 #[ffi_export]
-/// @memberof ns_sphere_t Access another sphere by a petname.
+/// @memberof ns_sphere_t
+///
+/// Deallocate an ns_sphere_t instance.
+pub fn ns_sphere_free(sphere: repr_c::Box<NsSphere>) {
+    drop(sphere)
+}
+
+#[ffi_export]
+/// @memberof ns_sphere_t
+///
+/// Access another sphere by a petname.
 ///
 /// The petname should be one that has been assigned to the sphere's identity
 /// using ns_sphere_petname_set(). If any of the data required to access the
@@ -112,10 +124,67 @@ pub fn ns_sphere_open(
 /// traverse to the name "bob.alice.carol" it will first traverse to "carol",
 /// then to carol's "alice", then to carol's alice's "bob."
 ///
-/// Note that since this function has a reasonable likelihood to call out to the
-/// network, it is possible that it may block for a significant amount of time
-/// when network conditions are poor.
+/// Note that this function has a reasonable likelihood to call out to the
+/// network, notably in cases where a petname is assigned to an identity but the
+/// sphere data is not available to local storage.
 pub fn ns_sphere_traverse_by_petname(
+    noosphere: &NsNoosphere,
+    sphere: &mut NsSphere,
+    petname: char_p::Ref<'_>,
+    context: Option<repr_c::Box<c_void>>,
+    callback: extern "C" fn(
+        Option<repr_c::Box<c_void>>,
+        Option<repr_c::Box<NsError>>,
+        Option<repr_c::Box<NsSphere>>,
+    ),
+) {
+    let mut sphere = sphere.inner_mut().clone();
+    let async_runtime = noosphere.async_runtime().clone();
+    let raw_petnames = format!("@{}", petname.to_str());
+
+    noosphere.async_runtime().spawn(async move {
+        let result = async {
+            let link = Slashlink::from_str(&raw_petnames)?;
+            let petnames = match link.peer {
+                Peer::Name(petnames) => petnames,
+                _ => Err(anyhow!("No petnames found in {}", raw_petnames))?,
+            };
+
+            let next_sphere_context = sphere
+                .sphere_context_mut()
+                .await?
+                .traverse_by_petnames(&petnames)
+                .await?;
+
+            Ok(next_sphere_context.map(|next_sphere_context| {
+                Box::new(NsSphere {
+                    inner: next_sphere_context.into(),
+                })
+                .into()
+            })) as Result<Option<_>, anyhow::Error>
+        }
+        .await;
+
+        match result {
+            Ok(maybe_sphere) => {
+                async_runtime.spawn_blocking(move || callback(context, None, maybe_sphere))
+            }
+            Err(error) => async_runtime.spawn_blocking(move || {
+                callback(context, Some(NoosphereError::from(error).into()), None)
+            }),
+        };
+    });
+}
+
+#[ffi_export]
+/// @memberof ns_sphere_t
+///
+/// @deprecated Blocking FFI is deprecated, use ns_sphere_traverse_by_petname
+/// instead
+///
+/// Same as ns_sphere_traverse_by_petname, but blocks the current thread while
+/// performing its work.
+pub fn ns_sphere_traverse_by_petname_blocking(
     noosphere: &NsNoosphere,
     sphere: &mut NsSphere,
     petname: char_p::Ref<'_>,
@@ -154,26 +223,95 @@ pub fn ns_sphere_traverse_by_petname(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
-/// Deallocate an ns_sphere_t instance.
-pub fn ns_sphere_free(sphere: repr_c::Box<NsSphere>) {
-    drop(sphere)
-}
-
-#[ffi_export]
-/// @memberof ns_sphere_t
+///
 /// Read a memo as a ns_sphere_file_t from a ns_sphere_t by slashlink.
 ///
-/// This function supports slashlinks that contain only a slug component or
-/// with both a slug and a peer component.
+/// This function supports slashlinks that contain only a slug component or with
+/// both a slug and a peer component.
 ///
-/// Note that although this function will eventually support slashlinks
-/// that use a raw DID as the peer, it is not supported at this time and trying
-/// to read from such a link will fail with an error.
+/// Note that although this function will eventually support slashlinks that use
+/// a raw DID as the peer, it is not supported at this time and trying to read
+/// from such a link will fail with an error.
 ///
 /// This function will return a null pointer if the slug does not have a file
 /// associated with it at the revision of the sphere that is referred to by the
 /// ns_sphere_t being read from.
 pub fn ns_sphere_content_read(
+    noosphere: &NsNoosphere,
+    sphere: &NsSphere,
+    slashlink: char_p::Ref<'_>,
+    context: Option<repr_c::Box<c_void>>,
+    callback: extern "C" fn(
+        Option<repr_c::Box<c_void>>,
+        Option<repr_c::Box<NsError>>,
+        Option<repr_c::Box<NsSphereFile>>,
+    ),
+) {
+    let sphere = sphere.inner().clone();
+    let slashlink = slashlink.to_string();
+    let async_runtime = noosphere.async_runtime().clone();
+
+    noosphere.async_runtime().spawn(async move {
+        let result = async {
+            let slashlink = Slashlink::from_str(&slashlink)?;
+
+            let slug = match slashlink.slug {
+                Some(slug) => slug,
+                None => return Err(anyhow!("No slug specified in slashlink!")),
+            };
+
+            let cursor = match slashlink.peer {
+                Peer::Name(petnames) => {
+                    match sphere
+                        .sphere_context()
+                        .await?
+                        .traverse_by_petnames(&petnames)
+                        .await?
+                    {
+                        Some(sphere_context) => SphereCursor::latest(Arc::new(sphere_context)),
+                        None => return Ok(None),
+                    }
+                }
+                Peer::None => SphereCursor::latest(sphere.clone()),
+                Peer::Did(_) => return Err(anyhow!("DID peer in slashlink not yet supported")),
+            };
+
+            println!(
+                "Reading sphere {} slug {}...",
+                cursor.identity().await?,
+                slug
+            );
+
+            let file = cursor.read(&slug).await?;
+
+            Ok(file.map(|sphere_file| {
+                Box::new(NsSphereFile {
+                    inner: sphere_file.boxed(),
+                })
+                .into()
+            }))
+        }
+        .await;
+
+        match result {
+            Ok(maybe_file) => {
+                async_runtime.spawn_blocking(move || callback(context, None, maybe_file))
+            }
+            Err(error) => async_runtime.spawn_blocking(move || {
+                callback(context, Some(NoosphereError::from(error).into()), None)
+            }),
+        };
+    });
+}
+
+#[ffi_export]
+/// @memberof ns_sphere_t
+///
+/// @deprecated Blocking FFI is deprecated, use ns_sphere_content_read instead
+///
+/// Same as ns_sphere_content_read, but blocks the current thread while
+/// performing its work.
+pub fn ns_sphere_content_read_blocking(
     noosphere: &NsNoosphere,
     sphere: &NsSphere,
     slashlink: char_p::Ref<'_>,
@@ -419,10 +557,58 @@ pub fn ns_sphere_file_free(sphere_file: repr_c::Box<NsSphereFile>) {
 
 #[ffi_export]
 /// @memberof ns_sphere_file_t
-/// Read the contents of an ns_sphere_file_t as a byte array.
 ///
-/// Bytes can be read from a ns_sphere_file_t instance only once.
+/// Trade in an ns_sphere_file_t for the bytes of the file contents it refers
+/// to. Note that the implication here is that bytes can only be read from a
+/// ns_sphere_file_t one time; if you need to read them multiple times, you
+/// should call ns_sphere_content_read each time.
 pub fn ns_sphere_file_contents_read(
+    noosphere: &NsNoosphere,
+    mut sphere_file: repr_c::Box<NsSphereFile>,
+    context: Option<repr_c::Box<c_void>>,
+    callback: extern "C" fn(
+        Option<repr_c::Box<c_void>>,
+        Option<repr_c::Box<NsError>>,
+        Option<c_slice::Box<u8>>,
+    ),
+) {
+    let async_runtime = noosphere.async_runtime().clone();
+
+    noosphere.async_runtime().spawn(async move {
+        let result = async {
+            let mut buffer = Vec::new();
+
+            sphere_file
+                .inner_mut()
+                .contents
+                .read_to_end(&mut buffer)
+                .await
+                .map_err(|error| anyhow!(error))?;
+
+            Ok(buffer.into_boxed_slice().into()) as Result<_, anyhow::Error>
+        }
+        .await;
+
+        match result {
+            Ok(maybe_bytes) => {
+                async_runtime.spawn_blocking(move || callback(context, None, Some(maybe_bytes)))
+            }
+            Err(error) => async_runtime.spawn_blocking(move || {
+                callback(context, Some(NoosphereError::from(error).into()), None)
+            }),
+        };
+    });
+}
+
+#[ffi_export]
+/// @memberof ns_sphere_file_t
+///
+/// @deprecated Blocking FFI is deprecated, use ns_sphere_file_contents_read
+/// instead
+///
+/// Same as ns_sphere_file_contents_read, but blocks the current thread while
+/// performing its work.
+pub fn ns_sphere_file_contents_read_blocking(
     noosphere: &NsNoosphere,
     sphere_file: &mut NsSphereFile,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
