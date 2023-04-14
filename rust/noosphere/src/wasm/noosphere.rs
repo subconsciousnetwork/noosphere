@@ -163,7 +163,7 @@ impl NoosphereContext {
         Ok(SphereContext {
             inner: self
                 .inner
-                .get_sphere_context(&identity.into())
+                .get_sphere_channel(&identity.into())
                 .await
                 .map_err(|error| format!("{:?}", error))?,
         })

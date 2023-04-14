@@ -3763,6 +3763,8 @@ dependencies = [
  "async-trait",
  "bytes",
  "cid 0.9.0",
+ "gloo-timers",
+ "instant",
  "itertools",
  "js-sys",
  "lazy_static",
