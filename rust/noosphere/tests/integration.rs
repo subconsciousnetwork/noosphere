@@ -223,7 +223,7 @@ async fn writes_do_not_block_reads() {
 
     assert!(pending_file.is_none());
 
-    write_task.await.unwrap();
+    write_task.await.unwrap().unwrap();
 
     let pending_file = sphere_channel.immutable().read("foo").await.unwrap();
 

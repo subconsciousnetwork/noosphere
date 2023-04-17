@@ -199,11 +199,11 @@ impl NoosphereContext {
         Ok(())
     }
 
-    /// Access a [SphereContext] associated with the given sphere DID identity.
-    /// The sphere must already have been initialized locally (either by
+    /// Access a [SphereChannel] associated with the given sphere DID identity.
+    /// The related sphere must already have been initialized locally (either by
     /// creating it or joining one that was created elsewhere). The act of
-    /// creating or joining will initialize a [SphereContext], but if such a
-    /// context has not already been initialized, accessing it with this method
+    /// creating or joining will initialize a [SphereChannel], but if such a
+    /// channel has not already been initialized, accessing it with this method
     /// will cause it to be initialized and a reference kept by this
     /// [NoosphereContext].
     pub async fn get_sphere_channel(&self, sphere_identity: &Did) -> Result<PlatformSphereChannel> {
