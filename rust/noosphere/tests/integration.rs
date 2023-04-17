@@ -76,11 +76,11 @@ use tokio::time::sleep;
 use tokio::task::spawn;
 
 #[cfg(target_arch = "wasm32")]
-async fn spawn<F, O>(future: F) -> O
+async fn spawn<F, O>(future: F) -> Result<O>
 where
     F: std::future::Future<Output = O> + 'static,
 {
-    future.await
+    Ok(future.await)
 }
 
 #[cfg(target_arch = "wasm32")]
