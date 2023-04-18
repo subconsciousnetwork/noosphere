@@ -20,8 +20,10 @@ resolver = "2"
 [workspace.dependencies]
 subtext = { version = "0.3.4" }
 tracing = { version = "0.1" }
-tracing-subscriber = { version = "~0.3", features = ["env-filter", "tracing-log"] }
-thiserror = { version = "^1.0.38" }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "tracing-log"] }
+thiserror = { version = "1" }
+instant = { version = "0.1" }
+gloo-timers = { version = "0.2", features = ["futures"] }
 
 [profile.release]
 opt-level = 'z'

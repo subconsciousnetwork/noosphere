@@ -15,7 +15,7 @@ use tokio::{
 
 use crate::{
     ffi::{NsError, NsHeaders, NsNoosphere, TryOrInitialize},
-    platform::{PlatformKeyMaterial, PlatformStorage},
+    platform::{PlatformKeyMaterial, PlatformSphereChannel, PlatformStorage},
 };
 
 use noosphere_sphere::{
@@ -29,32 +29,18 @@ use noosphere_sphere::{
 ///
 /// An opaque struct representing a sphere.
 pub struct NsSphere {
-    inner: SphereCursor<
-        Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>,
-        PlatformKeyMaterial,
-        PlatformStorage,
-    >,
+    inner: PlatformSphereChannel,
 }
 
 impl NsSphere {
-    pub fn inner(
-        &self,
-    ) -> &SphereCursor<
-        Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>,
-        PlatformKeyMaterial,
-        PlatformStorage,
-    > {
-        &self.inner
+    pub fn inner(&self) -> &Arc<SphereContext<PlatformKeyMaterial, PlatformStorage>> {
+        self.inner.immutable()
     }
 
     pub fn inner_mut(
         &mut self,
-    ) -> &mut SphereCursor<
-        Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>,
-        PlatformKeyMaterial,
-        PlatformStorage,
-    > {
-        &mut self.inner
+    ) -> &mut Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>> {
+        self.inner.mutable()
     }
 }
 
@@ -93,14 +79,15 @@ pub fn ns_sphere_open(
 ) -> Option<repr_c::Box<NsSphere>> {
     error_out.try_or_initialize(|| {
         let fs = noosphere.async_runtime().block_on(async {
-            let sphere_context = noosphere
+            let sphere_channel = noosphere
                 .inner()
-                .get_sphere_context(&Did(sphere_identity.to_str().into()))
+                .get_sphere_channel(&Did(sphere_identity.to_str().into()))
                 .await?;
 
-            let cursor = SphereCursor::latest(sphere_context);
-
-            Ok(Box::new(NsSphere { inner: cursor }).into()) as Result<_, anyhow::Error>
+            Ok(Box::new(NsSphere {
+                inner: sphere_channel,
+            })
+            .into()) as Result<_, anyhow::Error>
         })?;
 
         Ok(fs)
@@ -152,7 +139,7 @@ pub fn ns_sphere_traverse_by_petname(
 
             Ok(next_sphere_context.map(|next_sphere_context| {
                 Box::new(NsSphere {
-                    inner: SphereCursor::latest(Arc::new(Mutex::new(next_sphere_context))),
+                    inner: next_sphere_context.into(),
                 })
                 .into()
             })) as Result<Option<_>, anyhow::Error>
@@ -212,13 +199,11 @@ pub fn ns_sphere_content_read(
                             .traverse_by_petnames(&petnames)
                             .await?
                         {
-                            Some(sphere_context) => {
-                                SphereCursor::latest(Arc::new(Mutex::new(sphere_context)))
-                            }
+                            Some(sphere_context) => SphereCursor::latest(Arc::new(sphere_context)),
                             None => return Ok(None),
                         }
                     }
-                    Peer::None => sphere.inner().clone(),
+                    Peer::None => SphereCursor::latest(sphere.inner().clone()),
                     Peer::Did(_) => return Err(anyhow!("DID peer in slashlink not yet supported")),
                 };
 
@@ -268,7 +253,7 @@ pub fn ns_sphere_content_write(
     error_out.try_or_initialize(|| {
         noosphere.async_runtime().block_on(async {
             let slug = slug.to_str();
-            let cursor = sphere.inner_mut();
+            let mut cursor = SphereCursor::latest(sphere.inner_mut().clone());
 
             println!(
                 "Writing sphere {} slug {}...",
@@ -350,7 +335,9 @@ pub fn ns_sphere_content_list(
 ) -> c_slice::Box<char_p::Box> {
     let possible_output = error_out.try_or_initialize(|| {
         noosphere.async_runtime().block_on(async {
-            let slug_set = SphereWalker::from(sphere.inner()).list_slugs().await?;
+            let slug_set = SphereWalker::from(sphere.inner().clone())
+                .list_slugs()
+                .await?;
             let mut all_slugs: Vec<char_p::Box> = Vec::new();
 
             for slug in slug_set.into_iter() {
@@ -399,7 +386,7 @@ pub fn ns_sphere_content_changes(
                 None => None,
             };
 
-            let changed_slug_set = SphereWalker::from(sphere.inner())
+            let changed_slug_set = SphereWalker::from(sphere.inner().clone())
                 .content_changes(since.as_ref())
                 .await?;
             let mut changed_slugs: Vec<char_p::Box> = Vec::new();
@@ -542,14 +529,12 @@ pub fn ns_sphere_identity(
         match noosphere
             .async_runtime()
             .block_on(async { sphere.inner().identity().await })
-            {
-                Ok(identity) => {
-                    identity
-                        .to_string()
-                        .try_into()
-                        .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into())
-                }
-                Err(error) => Err(anyhow!(error).into()),
-            }
+        {
+            Ok(identity) => identity
+                .to_string()
+                .try_into()
+                .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into()),
+            Err(error) => Err(anyhow!(error).into()),
+        }
     })
 }

@@ -133,12 +133,12 @@ pub fn ns_sphere_version_get(
 ) -> Option<char_p::Box> {
     error_out.try_or_initialize(|| {
         noosphere.async_runtime().block_on(async {
-            let sphere_context = noosphere
+            let sphere_channel = noosphere
                 .inner()
-                .get_sphere_context(&Did(sphere_identity.to_str().into()))
+                .get_sphere_channel(&Did(sphere_identity.to_str().into()))
                 .await?;
 
-            let sphere_context = sphere_context.lock().await;
+            let sphere_context = sphere_channel.immutable();
             sphere_context
                 .sphere()
                 .await?
@@ -167,14 +167,19 @@ pub fn ns_sphere_sync(
 ) -> Option<char_p::Box> {
     error_out.try_or_initialize(|| {
         let cid = noosphere.async_runtime().block_on(async {
-            let mut sphere_context = noosphere
+            let mut sphere_channel = noosphere
                 .inner()
-                .get_sphere_context(&Did(sphere_identity.to_str().into()))
+                .get_sphere_channel(&Did(sphere_identity.to_str().into()))
                 .await?;
 
-            sphere_context.sync().await?;
+            sphere_channel.mutable().sync().await?;
 
-            Ok(sphere_context.to_sphere().await?.cid().to_string()) as Result<String, anyhow::Error>
+            Ok(sphere_channel
+                .immutable()
+                .to_sphere()
+                .await?
+                .cid()
+                .to_string()) as Result<String, anyhow::Error>
         })?;
 
         Ok(cid

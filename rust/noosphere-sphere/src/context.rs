@@ -45,6 +45,25 @@ where
     mutation: SphereMutation,
 }
 
+impl<K, S> Clone for SphereContext<K, S>
+where
+    K: KeyMaterial + Clone + 'static,
+    S: Storage,
+{
+    fn clone(&self) -> Self {
+        Self {
+            sphere_identity: self.sphere_identity.clone(),
+            origin_sphere_identity: self.origin_sphere_identity.clone(),
+            author: self.author.clone(),
+            access: OnceCell::new(),
+            db: self.db.clone(),
+            did_parser: DidParser::new(SUPPORTED_KEYS),
+            client: self.client.clone(),
+            mutation: SphereMutation::new(self.mutation.author()),
+        }
+    }
+}
+
 impl<K, S> SphereContext<K, S>
 where
     K: KeyMaterial + Clone + 'static,
@@ -78,7 +97,7 @@ where
     /// front. So, if the sequence is "gold", "cat", "bob", it will traverse to
     /// bob, then to bob's cat, then to bob's cat's gold.
     pub async fn traverse_by_petnames(
-        &mut self,
+        &self,
         petname_path: &[String],
     ) -> Result<Option<SphereContext<K, S>>> {
         let mut sphere_context: Option<Self> = None;
@@ -87,7 +106,7 @@ where
         while let Some(petname) = path.pop() {
             let next_sphere_context = match sphere_context {
                 None => self.traverse_by_petname(&petname).await?,
-                Some(mut sphere_context) => sphere_context.traverse_by_petname(&petname).await?,
+                Some(sphere_context) => sphere_context.traverse_by_petname(&petname).await?,
             };
             sphere_context = match next_sphere_context {
                 any @ Some(_) => any,
@@ -105,10 +124,7 @@ where
     /// sphere being traversed to is not available, an attempt will be made to
     /// replicate the data from a Noosphere Gateway.
     #[instrument(level = "debug", skip(self))]
-    pub async fn traverse_by_petname(
-        &mut self,
-        petname: &str,
-    ) -> Result<Option<SphereContext<K, S>>> {
+    pub async fn traverse_by_petname(&self, petname: &str) -> Result<Option<SphereContext<K, S>>> {
         // Resolve petname to sphere version via address book entry
 
         let identity = match self
@@ -151,13 +167,13 @@ where
 
         let maybe_has_resolved_version = match self.db().get_version(&identity.did).await? {
             Some(local_version) => {
-                debug!(
-                    "Local version: {}, resolved version: {}",
-                    local_version, resolved_version
-                );
+                debug!("Local version: {}", local_version);
                 local_version == resolved_version
             }
-            None => false,
+            None => {
+                debug!("No local version");
+                false
+            }
         };
 
         // If version available, check for memo and body blocks
@@ -196,6 +212,7 @@ where
         };
 
         // If no version available or memo/body missing, replicate from gateway
+        let mut db = self.db.clone();
 
         if should_replicate_from_gateway {
             debug!("Attempting to replicate from gateway...");
@@ -205,15 +222,13 @@ where
             tokio::pin!(stream);
 
             while let Some((cid, block)) = stream.try_next().await? {
-                self.db_mut().put_block(&cid, &block).await?;
+                db.put_block(&cid, &block).await?;
             }
+
+            debug!("Setting local version to resolved version");
+
+            db.set_version(&identity.did, &resolved_version).await?;
         }
-
-        // Update the version in local sphere DB
-
-        self.db_mut()
-            .set_version(&identity.did, &resolved_version)
-            .await?;
 
         // Initialize a `SphereContext` with the same author and sphere DB as
         // this one, but referring to the resolved sphere DID, and return it

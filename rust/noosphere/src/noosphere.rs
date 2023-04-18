@@ -8,8 +8,8 @@ use url::Url;
 
 use crate::{
     key::KeyStorage,
-    platform::{PlatformKeyMaterial, PlatformKeyStorage, PlatformStorage},
-    sphere::{SphereContextBuilder, SphereReceipt},
+    platform::{PlatformKeyStorage, PlatformSphereChannel},
+    sphere::{SphereChannel, SphereContextBuilder, SphereReceipt},
 };
 
 /// An enum describing different storage stragies that may be interesting
@@ -71,8 +71,7 @@ pub struct NoosphereContextConfiguration {
 /// a handle to backing storage for spheres that are being accessed regularly.
 pub struct NoosphereContext {
     configuration: NoosphereContextConfiguration,
-    sphere_contexts:
-        Arc<Mutex<BTreeMap<Did, Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>>>>,
+    sphere_channels: Arc<Mutex<BTreeMap<Did, PlatformSphereChannel>>>,
 }
 
 impl NoosphereContext {
@@ -80,7 +79,7 @@ impl NoosphereContext {
     pub fn new(configuration: NoosphereContextConfiguration) -> Result<Self> {
         Ok(NoosphereContext {
             configuration,
-            sphere_contexts: Default::default(),
+            sphere_channels: Default::default(),
         })
     }
 
@@ -153,8 +152,11 @@ impl NoosphereContext {
         let context = SphereContext::from(artifacts);
 
         let sphere_identity = context.identity().to_owned();
-        let mut sphere_contexts = self.sphere_contexts.lock().await;
-        sphere_contexts.insert(sphere_identity.clone(), Arc::new(Mutex::new(context)));
+        let mut sphere_contexts = self.sphere_channels.lock().await;
+        sphere_contexts.insert(
+            sphere_identity.clone(),
+            SphereChannel::new(Arc::new(context.clone()), Arc::new(Mutex::new(context))),
+        );
 
         Ok(SphereReceipt {
             identity: sphere_identity,
@@ -188,24 +190,24 @@ impl NoosphereContext {
         let context = SphereContext::from(artifacts);
 
         let sphere_identity = context.identity().to_owned();
-        let mut sphere_contexts = self.sphere_contexts.lock().await;
-        sphere_contexts.insert(sphere_identity, Arc::new(Mutex::new(context)));
+        let mut sphere_contexts = self.sphere_channels.lock().await;
+        sphere_contexts.insert(
+            sphere_identity,
+            SphereChannel::new(Arc::new(context.clone()), Arc::new(Mutex::new(context))),
+        );
 
         Ok(())
     }
 
-    /// Access a [SphereContext] associated with the given sphere DID identity.
-    /// The sphere must already have been initialized locally (either by
+    /// Access a [SphereChannel] associated with the given sphere DID identity.
+    /// The related sphere must already have been initialized locally (either by
     /// creating it or joining one that was created elsewhere). The act of
-    /// creating or joining will initialize a [SphereContext], but if such a
-    /// context has not already been initialized, accessing it with this method
+    /// creating or joining will initialize a [SphereChannel], but if such a
+    /// channel has not already been initialized, accessing it with this method
     /// will cause it to be initialized and a reference kept by this
     /// [NoosphereContext].
-    pub async fn get_sphere_context(
-        &self,
-        sphere_identity: &Did,
-    ) -> Result<Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>> {
-        let mut contexts = self.sphere_contexts.lock().await;
+    pub async fn get_sphere_channel(&self, sphere_identity: &Did) -> Result<PlatformSphereChannel> {
+        let mut contexts = self.sphere_channels.lock().await;
 
         if !contexts.contains_key(sphere_identity) {
             let artifacts = SphereContextBuilder::default()
@@ -219,8 +221,10 @@ impl NoosphereContext {
                 .await?;
 
             let context = SphereContext::from(artifacts);
-
-            contexts.insert(sphere_identity.to_owned(), Arc::new(Mutex::new(context)));
+            contexts.insert(
+                sphere_identity.to_owned(),
+                SphereChannel::new(Arc::new(context.clone()), Arc::new(Mutex::new(context))),
+            );
         }
 
         Ok(contexts

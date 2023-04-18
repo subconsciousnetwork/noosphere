@@ -6,7 +6,7 @@ use ucan::crypto::KeyMaterial;
 use crate::{
     authority::Authorization,
     data::{
-        ChangelogIpld, DelegationIpld, IdentityIpld, Jwt, Link, MapOperation, MemoIpld,
+        ChangelogIpld, DelegationIpld, Did, IdentityIpld, Jwt, Link, MapOperation, MemoIpld,
         RevocationIpld, VersionedMapKey, VersionedMapValue,
     },
 };
@@ -49,7 +49,7 @@ impl<S: BlockStore> SphereRevision<S> {
 /// [SphereRevision], which may then be signed.
 #[derive(Debug)]
 pub struct SphereMutation {
-    did: String,
+    did: Did,
     content: ContentMutation,
     identities: IdentitiesMutation,
     delegations: DelegationsMutation,
@@ -65,6 +65,11 @@ impl<'a> SphereMutation {
             delegations: DelegationsMutation::new(did),
             revocations: RevocationsMutation::new(did),
         }
+    }
+
+    /// Get the identity of the author of this mutation
+    pub fn author(&self) -> &Did {
+        &self.did
     }
 
     /// Reset the state of the [SphereMutation], so that it may be re-used
