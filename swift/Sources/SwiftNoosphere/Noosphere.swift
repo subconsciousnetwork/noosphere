@@ -11,10 +11,10 @@ class Box<Contents> {
 }
 
 
-typealias NsSphereContentReadHandler = (OpaquePointer?, OpaquePointer?) -> ()
+public typealias NsSphereContentReadHandler = (OpaquePointer?, OpaquePointer?) -> ()
 
 /// See: ns_sphere_content_read
-func nsSphereContentRead(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, _ slashlink: UnsafePointer<CChar>!, handler: @escaping NsSphereContentReadHandler) {
+public func nsSphereContentRead(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, _ slashlink: UnsafePointer<CChar>!, handler: @escaping NsSphereContentReadHandler) {
     let context = Unmanaged.passRetained(Box(contents: handler)).toOpaque()
 
     ns_sphere_content_read(noosphere, sphere, slashlink, context) {
@@ -31,10 +31,10 @@ func nsSphereContentRead(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, 
 }
 
 
-typealias NsSphereFileContentsReadHandler = (OpaquePointer?, slice_boxed_uint8_t) -> ()
+public typealias NsSphereFileContentsReadHandler = (OpaquePointer?, slice_boxed_uint8_t) -> ()
 
 /// See: ns_sphere_file_contents_read
-func nsSphereFileContentsRead(_ noosphere: OpaquePointer!, _ sphere_file: OpaquePointer!, handler: @escaping NsSphereFileContentsReadHandler) {
+public func nsSphereFileContentsRead(_ noosphere: OpaquePointer!, _ sphere_file: OpaquePointer!, handler: @escaping NsSphereFileContentsReadHandler) {
     let context = Unmanaged.passRetained(Box(contents: handler)).toOpaque()
 
     ns_sphere_file_contents_read(noosphere, sphere_file, context) {
@@ -51,10 +51,10 @@ func nsSphereFileContentsRead(_ noosphere: OpaquePointer!, _ sphere_file: Opaque
 }
 
 
-typealias NsSphereTraverseByPetnameHandler = (OpaquePointer?, OpaquePointer?) -> ()
+public typealias NsSphereTraverseByPetnameHandler = (OpaquePointer?, OpaquePointer?) -> ()
 
 /// See: ns_sphere_traverse_by_petname
-func nsSphereTraverseByPetname(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, _ petname: UnsafePointer<CChar>!, handler: @escaping NsSphereTraverseByPetnameHandler) {
+public func nsSphereTraverseByPetname(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, _ petname: UnsafePointer<CChar>!, handler: @escaping NsSphereTraverseByPetnameHandler) {
     let context = Unmanaged.passRetained(Box(contents: handler)).toOpaque()
 
     ns_sphere_traverse_by_petname(noosphere, sphere, petname, context) {
@@ -71,10 +71,10 @@ func nsSphereTraverseByPetname(_ noosphere: OpaquePointer!, _ sphere: OpaquePoin
 }
 
 
-typealias NsSphereSyncHandler = (OpaquePointer?, UnsafeMutablePointer<CChar>?) -> ()
+public typealias NsSphereSyncHandler = (OpaquePointer?, UnsafeMutablePointer<CChar>?) -> ()
 
 /// See: ns_sphere_sync
-func nsSphereSync(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, handler: @escaping NsSphereSyncHandler) {
+public func nsSphereSync(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, handler: @escaping NsSphereSyncHandler) {
     let context = Unmanaged.passRetained(Box(contents: handler)).toOpaque()
 
     ns_sphere_sync(noosphere, sphere, context) {
