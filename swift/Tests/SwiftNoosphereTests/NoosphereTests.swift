@@ -36,14 +36,14 @@ final class NoosphereTests: XCTestCase {
 
         ns_sphere_save(noosphere, sphere, nil, nil)
 
-        let file = ns_sphere_content_read(noosphere, sphere, "/hello", nil)
+        let file = ns_sphere_content_read_blocking(noosphere, sphere, "/hello", nil)
 
         let content_type_values = ns_sphere_file_header_values_read(file, "Content-Type")
         let content_type = String.init(cString: content_type_values.ptr.pointee!)
 
         print("Content-Type:", content_type)
 
-        let contents = ns_sphere_file_contents_read(noosphere, file, nil)
+        let contents = ns_sphere_file_contents_read_blocking(noosphere, file, nil)
         let data: Data = .init(bytes: contents.ptr, count: contents.len)
         let subtext = String.init(decoding: data, as: UTF8.self)
 
@@ -60,6 +60,89 @@ final class NoosphereTests: XCTestCase {
 
         print("fin!")
     }
+
+
+    func testInitializeNoosphereThenWriteAFileThenSaveThenReadItBackWithACallback() throws {
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
+
+        ns_key_create(noosphere, "bob", nil)
+
+        let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
+
+        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
+        let sphere_mnemonic_ptr = ns_sphere_receipt_mnemonic(sphere_receipt, nil)
+
+        let sphere_identity = String.init(cString: sphere_identity_ptr!)
+        let sphere_mnemonic = String.init(cString: sphere_mnemonic_ptr!)
+
+        print("Sphere identity:", sphere_identity)
+        print("Recovery code:", sphere_mnemonic)
+
+        let sphere = ns_sphere_open(noosphere, sphere_identity_ptr, nil)
+
+        let file_bytes = "Hello, Subconscious".data(using: .utf8)!
+
+        let expectation = self.expectation(description: "File contents are read")
+
+        file_bytes.withUnsafeBytes({ rawBufferPointer in
+            let bufferPointer = rawBufferPointer.bindMemory(to: UInt8.self)
+            let pointer = bufferPointer.baseAddress!
+            let bodyRaw = slice_ref_uint8(
+                ptr: pointer, len: file_bytes.count
+            )
+            ns_sphere_content_write(noosphere, sphere, "hello", "text/subtext", bodyRaw, nil, nil)
+        })
+
+        ns_sphere_save(noosphere, sphere, nil, nil)
+
+        nsSphereContentRead(noosphere, sphere, "/hello") {
+            (error, file) in
+
+            if error != nil {
+                let error_message_ptr = ns_error_string(error)
+                let error_message = String.init(cString: error_message_ptr!)
+
+                print(error_message)
+
+                ns_string_free(error_message_ptr)
+                ns_error_free(error)
+                return
+            }
+
+            nsSphereFileContentsRead(noosphere, file) {
+                (error, contents) in
+
+                if error != nil {
+                    let error_message_ptr = ns_error_string(error)
+                    let error_message = String.init(cString: error_message_ptr!)
+
+                    print(error_message)
+
+                    ns_string_free(error_message_ptr)
+                    ns_error_free(error)
+                    return
+                }
+
+                let data: Data = .init(bytes: contents.ptr, count: contents.len)
+                let subtext_from_callback = String.init(decoding: data, as: UTF8.self)
+
+                assert("Hello, Subconscious" == subtext_from_callback)
+
+                ns_bytes_free(contents)
+
+                expectation.fulfill()
+            }
+        }
+
+        self.waitForExpectations(timeout: 5)
+
+        ns_sphere_free(sphere)
+        ns_string_free(sphere_identity_ptr)
+        ns_string_free(sphere_mnemonic_ptr)
+        ns_sphere_receipt_free(sphere_receipt)
+        ns_free(noosphere)
+    }
+
     
     func testIterateOverAllHeadersForAFile() throws {
         let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
@@ -91,7 +174,7 @@ final class NoosphereTests: XCTestCase {
 
         ns_sphere_save(noosphere, sphere, nil, nil)
 
-        let file = ns_sphere_content_read(noosphere, sphere, "/hello", nil)
+        let file = ns_sphere_content_read_blocking(noosphere, sphere, "/hello", nil)
 
         let file_header_names = ns_sphere_file_header_names_read(file)
         
@@ -376,7 +459,7 @@ final class NoosphereTests: XCTestCase {
 
         ns_sphere_save(noosphere, sphere, nil, nil)
 
-        var file = ns_sphere_content_read(noosphere, sphere, "/hello", nil)
+        var file = ns_sphere_content_read_blocking(noosphere, sphere, "/hello", nil)
         var version_ptr = ns_sphere_file_version_get(file, nil)
         let version_one = String.init(cString: version_ptr!)
         
@@ -396,7 +479,7 @@ final class NoosphereTests: XCTestCase {
 
         ns_sphere_save(noosphere, sphere, nil, nil)
 
-        file = ns_sphere_content_read(noosphere, sphere, "/hello", nil)
+        file = ns_sphere_content_read_blocking(noosphere, sphere, "/hello", nil)
         version_ptr = ns_sphere_file_version_get(file, nil)
         let version_two = String.init(cString: version_ptr!)
         
@@ -642,7 +725,7 @@ final class NoosphereTests: XCTestCase {
         var maybe_error = UnsafeMutablePointer<OpaquePointer?>.allocate(capacity: 1)
 
         // Invalid slashlink
-        var result = ns_sphere_content_read(noosphere, sphere, "cdata.dev/does-not-exist", maybe_error)
+        var result = ns_sphere_content_read_blocking(noosphere, sphere, "cdata.dev/does-not-exist", maybe_error)
         
         assert(result == nil)
         assert(maybe_error.pointee != nil)
@@ -655,7 +738,7 @@ final class NoosphereTests: XCTestCase {
         maybe_error = UnsafeMutablePointer<OpaquePointer?>.allocate(capacity: 1)
 
         // Valid slashlink, unresolvable peer
-        result = ns_sphere_content_read(noosphere, sphere, "@ben/does-not-exist", maybe_error)
+        result = ns_sphere_content_read_blocking(noosphere, sphere, "@ben/does-not-exist", maybe_error)
 
         if maybe_error.pointee != nil {
             let error_message_ptr = ns_error_string(maybe_error.pointee)

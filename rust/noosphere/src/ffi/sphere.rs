@@ -1,3 +1,5 @@
+use std::ffi::c_void;
+
 use anyhow::anyhow;
 use cid::Cid;
 use noosphere_core::{authority::Authorization, data::Did};
@@ -5,7 +7,8 @@ use noosphere_sphere::{HasSphereContext, SphereSync};
 use safer_ffi::char_p::InvalidNulTerminator;
 use safer_ffi::prelude::*;
 
-use crate::ffi::{NsError, NsNoosphere, TryOrInitialize};
+use crate::error::NoosphereError;
+use crate::ffi::{NsError, NsNoosphere, NsSphere, TryOrInitialize};
 use crate::sphere::SphereReceipt;
 
 #[derive_ReprC(rename = "ns_sphere_receipt")]
@@ -93,11 +96,12 @@ pub fn ns_sphere_create(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
-/// Join a sphere by initializing it and configuring it to use the specified
-/// key and authorization.
 ///
-/// The authorization should be provided in the form of
-/// a base64-encoded CID v1 string.
+/// Join a sphere by initializing it and configuring it to use the specified key
+/// and authorization.
+///
+/// The authorization should be provided in the form of a base64-encoded CID v1
+/// string.
 pub fn ns_sphere_join(
     noosphere: &mut NsNoosphere,
     sphere_identity: char_p::Ref<'_>,
@@ -122,6 +126,7 @@ pub fn ns_sphere_join(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Get the version of a given sphere that is considered the most recent version
 /// in local history.
 ///
@@ -152,16 +157,72 @@ pub fn ns_sphere_version_get(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Sync a sphere with a gateway.
 ///
-/// A gateway URL must have been configured when
-/// the ns_noosphere_t was initialized. And, the sphere must have already
-/// been created or joined by the caller so that it is locally initialized (it's
-/// okay if this was done in an earlier session). The returned string is the
-/// base64-encoded CID v1 of the latest locally-available sphere revision after
-/// the synchronization process has successfully completed.
+/// A gateway URL must have been configured when the ns_noosphere_t was
+/// initialized. And, the sphere must have already been created or joined by the
+/// caller so that it is locally initialized (it's okay if this was done in an
+/// earlier session). The returned string is the base64-encoded CID v1 of the
+/// latest locally-available sphere revision after the synchronization process
+/// has successfully completed.
+///
+/// The callback arguments are (in order):
+///
+///  1. The context argument provided in the original call to
+///     ns_sphere_file_contents_read
+///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
+///  3. An owned pointer to a null terminated UTF-8 string if the call was
+///     successful, otherwise NULL
+///
 pub fn ns_sphere_sync(
-    noosphere: &mut NsNoosphere,
+    noosphere: &NsNoosphere,
+    sphere: &NsSphere,
+    context: Option<repr_c::Box<c_void>>,
+    callback: extern "C" fn(
+        Option<repr_c::Box<c_void>>,
+        Option<repr_c::Box<NsError>>,
+        Option<char_p::Box>,
+    ),
+) {
+    let async_runtime = noosphere.async_runtime().clone();
+    let mut sphere_channel = sphere.to_channel();
+
+    noosphere.async_runtime().spawn(async move {
+        let result: Result<char_p::Box, anyhow::Error> = async {
+            sphere_channel.mutable().sync().await?;
+
+            Ok(sphere_channel
+                .immutable()
+                .to_sphere()
+                .await?
+                .cid()
+                .to_string()
+                .try_into()
+                .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?)
+        }
+        .await;
+
+        match result {
+            Ok(cid_string) => {
+                async_runtime.spawn_blocking(move || callback(context, None, Some(cid_string)))
+            }
+            Err(error) => async_runtime.spawn_blocking(move || {
+                callback(context, Some(NoosphereError::from(error).into()), None)
+            }),
+        };
+    });
+}
+
+#[ffi_export]
+/// @memberof ns_sphere_t
+///
+/// @deprecated Blocking FFI is deprecated, use ns_sphere_sync_ instead
+///
+/// Same as ns_sphere_sync, but blocks the current thread while performing its
+/// work.
+pub fn ns_sphere_sync_blocking(
+    noosphere: &NsNoosphere,
     sphere_identity: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<char_p::Box> {

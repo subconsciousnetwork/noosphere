@@ -54,7 +54,7 @@ void test_noosphere()
   ns_sphere_save(noosphere, sphere, NULL, NULL);
 
   ns_sphere_file_t *file =
-      ns_sphere_content_read(noosphere, sphere, "/hello", NULL);
+      ns_sphere_content_read_blocking(noosphere, sphere, "/hello", NULL);
 
   slice_boxed_char_ptr_t headers =
       ns_sphere_file_header_values_read(file, "Content-Type");
@@ -69,7 +69,7 @@ void test_noosphere()
   }
 
   slice_boxed_uint8_t contents =
-      ns_sphere_file_contents_read(noosphere, file, NULL);
+      ns_sphere_file_contents_read_blocking(noosphere, file, NULL);
   char *contents_str = str_from_buffer(contents);
   assert_streq(contents_str, hello_message);
 

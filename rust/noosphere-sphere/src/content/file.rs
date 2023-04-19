@@ -27,9 +27,9 @@ pub struct SphereFile<C> {
 
 impl<C> SphereFile<C>
 where
-    C: AsyncRead + 'static,
+    C: AsyncFileBody + 'static,
 {
-    pub fn boxed(self) -> SphereFile<Pin<Box<dyn AsyncRead + 'static>>> {
+    pub fn boxed(self) -> SphereFile<Pin<Box<dyn AsyncFileBody + 'static>>> {
         SphereFile {
             sphere_identity: self.sphere_identity,
             sphere_version: self.sphere_version,

@@ -10,7 +10,7 @@ use tokio_stream::StreamExt;
 use anyhow::{anyhow, Result};
 use js_sys::{Function, Promise, Uint8Array};
 use noosphere_sphere::{
-    HasSphereContext, SphereContext, SphereCursor, SphereFile as SphereFileImpl,
+    AsyncFileBody, HasSphereContext, SphereContext, SphereCursor, SphereFile as SphereFileImpl,
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt},
@@ -27,7 +27,7 @@ use crate::platform::{PlatformKeyMaterial, PlatformStorage};
 #[wasm_bindgen]
 pub struct SphereFile {
     #[wasm_bindgen(skip)]
-    pub inner: SphereFileImpl<Pin<Box<dyn AsyncRead>>>,
+    pub inner: SphereFileImpl<Pin<Box<dyn AsyncFileBody>>>,
 
     #[wasm_bindgen(skip)]
     pub cursor: SphereCursor<
