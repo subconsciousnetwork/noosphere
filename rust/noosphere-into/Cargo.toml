@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-into"
-version = "0.7.2"
+version = "0.7.3"
 edition = "2021"
 description = "Transformations of Noosphere content into various target formats"
 keywords = ["html", "ipld", "noosphere", "subtext", "transcode"]
@@ -17,9 +17,9 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [dependencies]
-noosphere-core = { version = "0.9.1", path = "../noosphere-core" }
+noosphere-core = { version = "0.9.2", path = "../noosphere-core" }
 noosphere-storage = { version = "0.6.1", path = "../noosphere-storage" }
-noosphere-sphere = { version = "0.3.2", path = "../noosphere-sphere" }
+noosphere-sphere = { version = "0.4.0", path = "../noosphere-sphere" }
 subtext = { version = "0.3.2", features = ["stream"] }
 async-trait = "~0.1"
 url = "2"
@@ -45,7 +45,7 @@ ucan = { version = "0.1.0" }
 ucan-key-support = { version = "0.1.0" }
 
 [dev-dependencies]
-noosphere-sphere = { version = "0.3.2", path = "../noosphere-sphere", features = ["helpers"] }
+noosphere-sphere = { version = "0.4.0", path = "../noosphere-sphere", features = ["helpers"] }
 wasm-bindgen-test = "~0.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

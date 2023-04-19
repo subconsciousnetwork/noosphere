@@ -12,6 +12,25 @@
   * dependencies
     * noosphere-into bumped from 0.6.0 to 0.7.0
 
+## [0.9.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.8.4...noosphere-v0.9.0) (2023-04-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* Some non-blocking, callback-based C FFI (#322)
+
+### Features
+
+* Some non-blocking, callback-based C FFI ([#322](https://github.com/subconsciousnetwork/noosphere/issues/322)) ([693ce40](https://github.com/subconsciousnetwork/noosphere/commit/693ce40143acf99f758a12df2627e265ef105e03))
+* Sphere writes do not block immutable reads ([#321](https://github.com/subconsciousnetwork/noosphere/issues/321)) ([14373c5](https://github.com/subconsciousnetwork/noosphere/commit/14373c5281c091bb41623677571566a2788a7e3f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-into bumped from 0.7.2 to 0.7.3
+
 ## [0.8.4](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.8.3...noosphere-v0.8.4) (2023-04-14)
 
 
