@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import SwiftNoosphere
+import SwiftNoosphere
 
 final class NoosphereTests: XCTestCase {
     func testInitializeNoosphereThenWriteAFileThenSaveThenReadItBack() throws {
