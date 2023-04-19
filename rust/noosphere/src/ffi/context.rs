@@ -49,6 +49,7 @@ impl NsSphere {
 #[derive_ReprC(rename = "ns_sphere_file")]
 #[repr(opaque)]
 /// @class ns_sphere_file_t
+///
 /// A read/write view into a sphere's memo.
 ///
 /// ns_sphere_file_t is a lazy, stateful view into a single memo.
@@ -69,6 +70,7 @@ impl NsSphereFile {
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Initialize an ns_sphere_t instance.
 ///
 /// This will fail if it is not possible to initialize a sphere with the given
@@ -118,6 +120,14 @@ pub fn ns_sphere_free(sphere: repr_c::Box<NsSphere>) {
 /// revision history and other features of the target sphere with the same APIs
 /// used to access the local user's sphere, except that any operations that
 /// attempt to modify the sphere will be rejected.
+///
+/// The callback arguments are (in order):
+///
+///  1. The context argument provided in the original call to
+///     ns_sphere_traverse_by_petname
+///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
+///  3. An owned pointer to an ns_sphere_t if the call was successful, otherwise
+///     NULL
 ///
 /// The traversal can be made recursive by chaining together petnames with a '.'
 /// as a delimiter. The name traversal will be from back to front, so if you
@@ -228,6 +238,14 @@ pub fn ns_sphere_traverse_by_petname_blocking(
 ///
 /// This function supports slashlinks that contain only a slug component or with
 /// both a slug and a peer component.
+///
+/// The callback arguments are (in order):
+///
+///  1. The context argument provided in the original call to
+///     ns_sphere_content_read
+///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
+///  3. An owned pointer to an ns_sphere_file_t if the call was successful,
+///     otherwise NULL
 ///
 /// Note that although this function will eventually support slashlinks that use
 /// a raw DID as the peer, it is not supported at this time and trying to read
@@ -369,6 +387,7 @@ pub fn ns_sphere_content_read_blocking(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Write content to a ns_sphere_t instance, keyed by `slug`, assigning its
 /// content-type header to the specified value.
 ///
@@ -417,6 +436,7 @@ pub fn ns_sphere_content_write(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Unlinks a slug from the content space.
 ///
 /// Note that this does not remove the blocks that were previously associated
@@ -440,6 +460,7 @@ pub fn ns_sphere_content_remove(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Save any writes performed on the ns_sphere_t instance.
 ///
 /// If additional headers are specified, they will be appended to
@@ -465,6 +486,7 @@ pub fn ns_sphere_save(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Get an array of all of the slugs in a sphere at the current version.
 pub fn ns_sphere_content_list(
     noosphere: &NsNoosphere,
@@ -550,6 +572,7 @@ pub fn ns_sphere_content_changes(
 
 #[ffi_export]
 /// @memberof ns_sphere_file_t
+///
 /// Deallocate a ns_sphere_file_t instance.
 pub fn ns_sphere_file_free(sphere_file: repr_c::Box<NsSphereFile>) {
     drop(sphere_file)
@@ -562,6 +585,15 @@ pub fn ns_sphere_file_free(sphere_file: repr_c::Box<NsSphereFile>) {
 /// to. Note that the implication here is that bytes can only be read from a
 /// ns_sphere_file_t one time; if you need to read them multiple times, you
 /// should call ns_sphere_content_read each time.
+///
+/// The callback arguments are (in order):
+///
+///  1. The context argument provided in the original call to
+///     ns_sphere_file_contents_read
+///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
+///  3. An owned pointer to a sized byte array (slice_boxed_uint8_t) if the call
+///     was successful, otherwise NULL
+///
 pub fn ns_sphere_file_contents_read(
     noosphere: &NsNoosphere,
     mut sphere_file: repr_c::Box<NsSphereFile>,
@@ -631,6 +663,7 @@ pub fn ns_sphere_file_contents_read_blocking(
 
 #[ffi_export]
 /// @memberof ns_sphere_file_t
+///
 /// Read all header values for a file that correspond to a given name, returning
 /// them as an array of strings
 pub fn ns_sphere_file_header_values_read(
@@ -650,6 +683,7 @@ pub fn ns_sphere_file_header_values_read(
 
 #[ffi_export]
 /// @memberof ns_sphere_file_t
+///
 /// Get the first header value for a given name in the file, if any.
 pub fn ns_sphere_file_header_value_first(
     sphere_file: &NsSphereFile,
@@ -666,6 +700,7 @@ pub fn ns_sphere_file_header_value_first(
 
 #[ffi_export]
 /// @memberof ns_sphere_file_t
+///
 /// Read all the headers associated with a file as an array of strings.
 ///
 /// The headers will be reduced to a single entry in cases where multiple
@@ -686,6 +721,7 @@ pub fn ns_sphere_file_header_names_read(sphere_file: &NsSphereFile) -> c_slice::
 
 #[ffi_export]
 /// @memberof ns_sphere_file_t
+///
 /// Get the base64-encoded CID v1 string for the memo that refers to the content
 /// of this ns_sphere_file_t.
 pub fn ns_sphere_file_version_get(
@@ -704,6 +740,7 @@ pub fn ns_sphere_file_version_get(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Get the identity (a DID encoded as a UTF-8 string)
 /// for this ns_sphere_t.
 pub fn ns_sphere_identity(

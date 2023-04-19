@@ -96,11 +96,12 @@ pub fn ns_sphere_create(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
-/// Join a sphere by initializing it and configuring it to use the specified
-/// key and authorization.
 ///
-/// The authorization should be provided in the form of
-/// a base64-encoded CID v1 string.
+/// Join a sphere by initializing it and configuring it to use the specified key
+/// and authorization.
+///
+/// The authorization should be provided in the form of a base64-encoded CID v1
+/// string.
 pub fn ns_sphere_join(
     noosphere: &mut NsNoosphere,
     sphere_identity: char_p::Ref<'_>,
@@ -125,6 +126,7 @@ pub fn ns_sphere_join(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Get the version of a given sphere that is considered the most recent version
 /// in local history.
 ///
@@ -155,14 +157,24 @@ pub fn ns_sphere_version_get(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Sync a sphere with a gateway.
 ///
-/// A gateway URL must have been configured when
-/// the ns_noosphere_t was initialized. And, the sphere must have already
-/// been created or joined by the caller so that it is locally initialized (it's
-/// okay if this was done in an earlier session). The returned string is the
-/// base64-encoded CID v1 of the latest locally-available sphere revision after
-/// the synchronization process has successfully completed.
+/// A gateway URL must have been configured when the ns_noosphere_t was
+/// initialized. And, the sphere must have already been created or joined by the
+/// caller so that it is locally initialized (it's okay if this was done in an
+/// earlier session). The returned string is the base64-encoded CID v1 of the
+/// latest locally-available sphere revision after the synchronization process
+/// has successfully completed.
+///
+/// The callback arguments are (in order):
+///
+///  1. The context argument provided in the original call to
+///     ns_sphere_file_contents_read
+///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
+///  3. An owned pointer to a null terminated UTF-8 string if the call was
+///     successful, otherwise NULL
+///
 pub fn ns_sphere_sync(
     noosphere: &NsNoosphere,
     sphere: &NsSphere,
