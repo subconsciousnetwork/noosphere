@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-sphere"
-version = "0.3.2"
+version = "0.4.0"
 edition = "2021"
 description = "High-level access to content, address books and other features of spheres"
 keywords = []
@@ -22,10 +22,10 @@ cid = "~0.9"
 url = { version = "^2", features = ["serde"] }
 tracing = { workspace = true }
 
-noosphere-core = { version = "0.9.1", path = "../noosphere-core" }
+noosphere-core = { version = "0.9.2", path = "../noosphere-core" }
 noosphere-storage = { version = "0.6.1", path = "../noosphere-storage" }
-noosphere-api = { version = "0.7.2", path = "../noosphere-api" }
-noosphere-ipfs = { version = "0.3.2", path = "../noosphere-ipfs" }
+noosphere-api = { version = "0.7.3", path = "../noosphere-api" }
+noosphere-ipfs = { version = "0.3.3", path = "../noosphere-ipfs" }
 noosphere-car = { version = "0.1.0", path = "../noosphere-car" }
 
 ucan = { version = "0.1.0" }

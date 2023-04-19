@@ -5,6 +5,13 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-collections bumped from 0.3.1 to 0.3.2
 
+## [0.9.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.9.1...noosphere-core-v0.9.2) (2023-04-19)
+
+
+### Features
+
+* Sphere writes do not block immutable reads ([#321](https://github.com/subconsciousnetwork/noosphere/issues/321)) ([14373c5](https://github.com/subconsciousnetwork/noosphere/commit/14373c5281c091bb41623677571566a2788a7e3f))
+
 ## [0.9.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.9.0...noosphere-core-v0.9.1) (2023-04-10)
 
 
