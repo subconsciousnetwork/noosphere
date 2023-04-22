@@ -12,6 +12,20 @@
   * dependencies
     * noosphere-into bumped from 0.6.0 to 0.7.0
 
+## [0.9.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.9.0...noosphere-v0.9.1) (2023-04-22)
+
+
+### Features
+
+* Update IPLD-related dependencies ([#327](https://github.com/subconsciousnetwork/noosphere/issues/327)) ([5fdfadb](https://github.com/subconsciousnetwork/noosphere/commit/5fdfadb1656f9d6eef2dbbb8b00a598106bccf00))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-into bumped from 0.7.3 to 0.7.4
+
 ## [0.9.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.8.4...noosphere-v0.9.0) (2023-04-19)
 
 

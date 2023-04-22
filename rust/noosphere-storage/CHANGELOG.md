@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.6.1...noosphere-storage-v0.6.2) (2023-04-22)
+
+
+### Features
+
+* Update IPLD-related dependencies ([#327](https://github.com/subconsciousnetwork/noosphere/issues/327)) ([5fdfadb](https://github.com/subconsciousnetwork/noosphere/commit/5fdfadb1656f9d6eef2dbbb8b00a598106bccf00))
+
 ## [0.6.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.6.0...noosphere-storage-v0.6.1) (2023-04-10)
 
 
