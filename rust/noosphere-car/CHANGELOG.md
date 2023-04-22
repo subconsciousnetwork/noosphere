@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-car-v0.1.0...noosphere-car-v0.1.1) (2023-04-22)
+
+
+### Features
+
+* Update IPLD-related dependencies ([#327](https://github.com/subconsciousnetwork/noosphere/issues/327)) ([5fdfadb](https://github.com/subconsciousnetwork/noosphere/commit/5fdfadb1656f9d6eef2dbbb8b00a598106bccf00))
+
 ## 0.1.0 (2023-03-29)
 
 

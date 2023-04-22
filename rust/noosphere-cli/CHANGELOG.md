@@ -73,6 +73,29 @@
   * dev-dependencies
     * noosphere-ns bumped from 0.5.5 to 0.5.6
 
+## [0.9.5](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.9.4...noosphere-cli-v0.9.5) (2023-04-22)
+
+
+### Features
+
+* Update IPLD-related dependencies ([#327](https://github.com/subconsciousnetwork/noosphere/issues/327)) ([5fdfadb](https://github.com/subconsciousnetwork/noosphere/commit/5fdfadb1656f9d6eef2dbbb8b00a598106bccf00))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-car bumped from 0.1.0 to 0.1.1
+    * noosphere-ipfs bumped from 0.3.3 to 0.3.4
+    * noosphere-core bumped from 0.9.2 to 0.9.3
+    * noosphere-sphere bumped from 0.4.0 to 0.4.1
+    * noosphere-storage bumped from 0.6.1 to 0.6.2
+    * noosphere-api bumped from 0.7.3 to 0.7.4
+    * noosphere-gateway bumped from 0.3.4 to 0.3.5
+    * noosphere bumped from 0.9.0 to 0.9.1
+  * dev-dependencies
+    * noosphere-ns bumped from 0.5.6 to 0.5.7
+
 ## [0.9.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.9.1...noosphere-cli-v0.9.2) (2023-04-13)
 
 
