@@ -18,7 +18,7 @@ helpers = []
 
 [dependencies]
 anyhow = "^1"
-cid = "~0.9"
+cid = { workspace = true }
 url = { version = "^2", features = ["serde"] }
 tracing = { workspace = true }
 
@@ -28,16 +28,16 @@ noosphere-api = { version = "0.7.3", path = "../noosphere-api" }
 noosphere-ipfs = { version = "0.3.3", path = "../noosphere-ipfs" }
 noosphere-car = { version = "0.1.0", path = "../noosphere-car" }
 
-ucan = { version = "0.1.0" }
-ucan-key-support = { version = "0.1.0" }
+ucan = { workspace = true }
+ucan-key-support = { workspace = true }
 
 async-trait = "~0.1"
 tokio-stream = "~0.1"
 async-stream = "~0.3"
 tokio-util = { version = "0.7.7", features = ["io"] }
 futures-util = "0.3.27"
-libipld-core = "~0.15"
-libipld-cbor = "~0.15"
+libipld-core = { workspace = true }
+libipld-cbor = { workspace = true }
 bytes = "^1"
 serde_json = "^1"
 serde = "1"

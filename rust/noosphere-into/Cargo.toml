@@ -28,8 +28,8 @@ tracing = { workspace = true }
 anyhow = "^1"
 
 horrorshow = "~0.8"
-cid = "~0.9"
-libipld-cbor = "~0.15"
+cid = { workspace = true }
+libipld-cbor = { workspace = true }
 
 bytes = "^1"
 tokio-stream = "~0.1"
@@ -41,8 +41,8 @@ futures = { version = "~0.3" }
 async-compat = { version = "~0.2" }
 async-utf8-decoder = { version = "~0.3" }
 
-ucan = { version = "0.1.0" }
-ucan-key-support = { version = "0.1.0" }
+ucan = { workspace = true }
+ucan-key-support = { workspace = true }
 
 [dev-dependencies]
 noosphere-sphere = { version = "0.4.0", path = "../noosphere-sphere", features = ["helpers"] }

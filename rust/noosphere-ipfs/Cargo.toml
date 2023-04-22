@@ -30,9 +30,9 @@ async-compat = { version = "~0.2" }
 async-trait = "~0.1"
 tokio-stream = "~0.1"
 async-stream = "~0.3"
-libipld-core = "~0.15"
-libipld-cbor = "~0.15"
-cid = "~0.9"
+libipld-core = { workspace = true }
+libipld-cbor = { workspace = true }
+cid = { workspace = true }
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls", "stream"] }
 serde = "^1"
 serde_json = "^1"
@@ -40,7 +40,7 @@ tokio = { version = "^1", features = ["io-util"] }
 tracing = { workspace = true }
 url = { version = "^2", features = [ "serde" ] }
 noosphere-storage = { version = "0.6.1", path = "../noosphere-storage" }
-ucan = { version = "0.1.0", optional = true }
+ucan = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 noosphere-car = { version = "0.1.0", path = "../noosphere-car" }
@@ -52,6 +52,6 @@ ipfs-api-prelude = "~0.5"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 rand = "~0.8"
-libipld-cbor = "~0.15"
+libipld-cbor = { workspace = true }
 noosphere-storage = { version = "0.6.1", path = "../noosphere-storage" }
 noosphere-core = { version = "0.9.2", path = "../noosphere-core" }

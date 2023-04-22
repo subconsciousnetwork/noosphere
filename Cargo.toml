@@ -24,6 +24,14 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "tracing-log"]
 thiserror = { version = "1" }
 instant = { version = "0.1" }
 gloo-timers = { version = "0.2", features = ["futures"] }
+ucan = { version = "0.1.2" }
+ucan-key-support = { version = "0.1.2" }
+libipld = { version = "0.16" }
+libipld-core = { version = "0.16" }
+libipld-cbor = { version = "0.16" }
+cid = { version = "0.10" }
+multihash = { version = "0.18" }
+wnfs-namefilter = { version = "0.1.20" }
 
 [profile.release]
 opt-level = 'z'

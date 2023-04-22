@@ -37,7 +37,6 @@ tower-http = { version = "~0.3", features = ["cors", "trace"] }
 async-trait = "~0.1"
 tracing = { workspace = true }
 multipart = "~0.18"
-wnfs = { version = "0.1.9" }
 noosphere-car = { version = "0.1.0", path = "../noosphere-car" }
 
 url = { version = "^2", features = [ "serde" ] }
@@ -57,15 +56,15 @@ noosphere-storage = { version = "0.6.1", path = "../noosphere-storage" }
 noosphere-api = { version = "0.7.3", path = "../noosphere-api" }
 noosphere-gateway = { version = "0.3.4", path = "../noosphere-gateway" }
 noosphere = { version = "0.9.0", path = "../noosphere" }
-ucan = { version = "0.1.0" }
-ucan-key-support = { version = "0.1.0" }
-cid = "~0.9"
+ucan = { workspace = true }
+ucan-key-support = { workspace = true }
+cid = { workspace = true }
 subtext = "0.3.2"
 
 serde = "^1"
 serde_json = "^1"
-libipld-core = "~0.15"
-libipld-cbor = "~0.15"
+libipld-core = { workspace = true }
+libipld-cbor = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "~0.2"

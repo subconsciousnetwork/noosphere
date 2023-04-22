@@ -25,11 +25,11 @@ async-std = "^1"
 async-trait = "~0.1"
 async-stream = "~0.3"
 tokio-stream = "~0.1"
-cid = "~0.9"
+cid = { workspace = true }
 tracing = "~0.1"
-ucan = { version = "0.1.0" }
-libipld-core = "~0.15"
-libipld-cbor = "~0.15"
+ucan = { workspace = true }
+libipld-core = { workspace = true }
+libipld-cbor = { workspace = true }
 serde = "^1"
 base64 = "=0.13.0"
 url = { version = "^2" }
