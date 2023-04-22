@@ -28,13 +28,13 @@ anyhow = "^1"
 tracing = { workspace = true }
 thiserror = { workspace = true }
 lazy_static = "^1"
-cid = "~0.10"
+cid = { workspace = true }
 serde = "^1"
 serde_json = "^1"
 futures = "^0.3.26"
 async-trait = "~0.1"
-ucan = { version = "0.1.0", git = "https://github.com/ucan-wg/rs-ucan.git", branch = "matheus23/upgrade-dependencies" }
-ucan-key-support = { version = "0.1.0", git = "https://github.com/ucan-wg/rs-ucan.git", branch = "matheus23/upgrade-dependencies" }
+ucan = { workspace = true }
+ucan-key-support = { workspace = true }
 tokio = { version = "1.15", features = ["io-util", "io-std", "sync", "macros", "rt", "rt-multi-thread"] }
 noosphere-storage = { version = "0.6.1", path = "../noosphere-storage" }
 noosphere-core = { version = "0.9.2", path = "../noosphere-core" }
@@ -59,7 +59,7 @@ url = { version = "^2", features = [ "serde" ], optional = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 rand = { version = "0.8.5" }
 test-log = { version = "0.2.11", default-features = false, features = ["trace"] }
-libipld-cbor = "~0.16"
+libipld-cbor = { workspace = true }
 tempdir = { version = "~0.3" }
 
 [features]

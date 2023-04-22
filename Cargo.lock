@@ -984,20 +984,6 @@ dependencies = [
 
 [[package]]
 name = "cid"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9b68e3193982cd54187d71afdb2a271ad4cf8af157858e9cb911b91321de143"
-dependencies = [
- "core2",
- "multibase",
- "multihash 0.17.0",
- "serde",
- "serde_bytes",
- "unsigned-varint 0.7.1",
-]
-
-[[package]]
-name = "cid"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd94671561e36e4e7de75f753f577edafb0e7c05d6e4547229fdf7938fbcd2c3"
@@ -2783,8 +2769,8 @@ dependencies = [
  "fnv",
  "libipld-cbor",
  "libipld-cbor-derive",
- "libipld-core 0.16.0",
- "libipld-json 0.16.0",
+ "libipld-core",
+ "libipld-json",
  "libipld-macro",
  "libipld-pb",
  "log 0.4.17",
@@ -2799,7 +2785,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77d98c9d1747aa5eef1cf099cd648c3fd2d235249f5fed07522aaebc348e423b"
 dependencies = [
  "byteorder",
- "libipld-core 0.16.0",
+ "libipld-core",
  "thiserror",
 ]
 
@@ -2814,21 +2800,6 @@ dependencies = [
  "quote",
  "syn 1.0.109",
  "synstructure",
-]
-
-[[package]]
-name = "libipld-core"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7a704ba3b25dee9e7a2361fae2c7c19defae2a92e69ae96ffb203996705cd7c"
-dependencies = [
- "anyhow",
- "cid 0.9.0",
- "core2",
- "multibase",
- "multihash 0.17.0",
- "serde",
- "thiserror",
 ]
 
 [[package]]
@@ -2848,23 +2819,11 @@ dependencies = [
 
 [[package]]
 name = "libipld-json"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc549d7c70f9a401031fcb6d3bf7eccfe91bcad938f7485f71ee8ba9f79c1e79"
-dependencies = [
- "libipld-core 0.15.0",
- "multihash 0.17.0",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "libipld-json"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25856def940047b07b25c33d4e66d248597049ab0202085215dc4dca0487731c"
 dependencies = [
- "libipld-core 0.16.0",
+ "libipld-core",
  "multihash 0.18.1",
  "serde",
  "serde_json",
@@ -2876,7 +2835,7 @@ version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71171c54214f866ae6722f3027f81dff0931e600e5a61e6b1b6a49ca0b5ed4ae"
 dependencies = [
- "libipld-core 0.16.0",
+ "libipld-core",
 ]
 
 [[package]]
@@ -2886,7 +2845,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3f2d0f866c4cd5dc9aa8068c429ba478d2882a3a4b70ab56f7e9a0eddf5d16f"
 dependencies = [
  "bytes",
- "libipld-core 0.16.0",
+ "libipld-core",
  "quick-protobuf",
  "thiserror",
 ]
@@ -3590,16 +3549,12 @@ version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "835d6ff01d610179fbce3de1694d007e500bf33a7f29689838941d6bf783ae40"
 dependencies = [
- "blake2b_simd",
- "blake2s_simd",
- "blake3",
  "core2",
  "digest 0.10.6",
  "multihash-derive 0.8.1",
  "serde",
  "serde-big-array",
  "sha2 0.10.6",
- "sha3",
  "unsigned-varint 0.7.1",
 ]
 
@@ -3832,7 +3787,7 @@ dependencies = [
  "js-sys",
  "lazy_static",
  "libipld-cbor",
- "libipld-core 0.16.0",
+ "libipld-core",
  "noosphere-api",
  "noosphere-core",
  "noosphere-into",
@@ -3848,7 +3803,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util 0.7.7",
  "tracing",
- "ucan 0.1.1 (git+https://github.com/ucan-wg/rs-ucan.git?branch=matheus23/upgrade-dependencies)",
+ "ucan",
  "ucan-key-support",
  "url 2.3.1",
  "wasm-bindgen",
@@ -3865,7 +3820,7 @@ dependencies = [
  "anyhow",
  "cid 0.10.1",
  "libipld-cbor",
- "libipld-core 0.16.0",
+ "libipld-core",
  "noosphere-car",
  "noosphere-core",
  "noosphere-storage",
@@ -3877,7 +3832,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util 0.7.7",
  "tracing",
- "ucan 0.1.1 (git+https://github.com/ucan-wg/rs-ucan.git?branch=matheus23/upgrade-dependencies)",
+ "ucan",
  "ucan-key-support",
  "url 2.3.1",
  "wasm-bindgen",
@@ -3911,7 +3866,7 @@ dependencies = [
  "globset",
  "home",
  "libipld-cbor",
- "libipld-core 0.16.0",
+ "libipld-core",
  "mime_guess 2.0.4",
  "multipart",
  "noosphere",
@@ -3936,7 +3891,7 @@ dependencies = [
  "tower",
  "tower-http",
  "tracing",
- "ucan 0.1.1 (git+https://github.com/ucan-wg/rs-ucan.git?branch=matheus23/upgrade-dependencies)",
+ "ucan",
  "ucan-key-support",
  "url 2.3.1",
  "wasm-bindgen",
@@ -3958,7 +3913,7 @@ dependencies = [
  "cid 0.10.1",
  "forest_hash_utils",
  "libipld-cbor",
- "libipld-core 0.16.0",
+ "libipld-core",
  "multihash 0.18.1",
  "noosphere-storage",
  "serde",
@@ -3991,7 +3946,7 @@ dependencies = [
  "fvm_ipld_amt",
  "getrandom 0.2.9",
  "libipld-cbor",
- "libipld-core 0.16.0",
+ "libipld-core",
  "noosphere-collections",
  "noosphere-storage",
  "once_cell",
@@ -4005,7 +3960,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tracing-wasm",
- "ucan 0.1.1 (git+https://github.com/ucan-wg/rs-ucan.git?branch=matheus23/upgrade-dependencies)",
+ "ucan",
  "ucan-key-support",
  "url 2.3.1",
  "wasm-bindgen-test",
@@ -4025,7 +3980,7 @@ dependencies = [
  "globset",
  "home",
  "libipld-cbor",
- "libipld-core 0.16.0",
+ "libipld-core",
  "mime_guess 2.0.4",
  "multipart",
  "noosphere",
@@ -4052,7 +4007,7 @@ dependencies = [
  "tower",
  "tower-http",
  "tracing",
- "ucan 0.1.1 (git+https://github.com/ucan-wg/rs-ucan.git?branch=matheus23/upgrade-dependencies)",
+ "ucan",
  "ucan-key-support",
  "url 2.3.1",
  "wasm-bindgen",
@@ -4087,7 +4042,7 @@ dependencies = [
  "tokio-util 0.7.7",
  "tower-http",
  "tracing",
- "ucan 0.1.1 (git+https://github.com/ucan-wg/rs-ucan.git?branch=matheus23/upgrade-dependencies)",
+ "ucan",
  "ucan-key-support",
  "url 2.3.1",
  "wasm-bindgen-test",
@@ -4106,7 +4061,7 @@ dependencies = [
  "hyper-multipart-rfc7578",
  "ipfs-api-prelude",
  "libipld-cbor",
- "libipld-core 0.16.0",
+ "libipld-core",
  "noosphere-car",
  "noosphere-core",
  "noosphere-storage",
@@ -4117,7 +4072,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
- "ucan 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ucan",
  "url 2.3.1",
 ]
 
@@ -4151,7 +4106,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
- "ucan 0.1.1 (git+https://github.com/ucan-wg/rs-ucan.git?branch=matheus23/upgrade-dependencies)",
+ "ucan",
  "ucan-key-support",
  "url 2.3.1",
 ]
@@ -4167,7 +4122,7 @@ dependencies = [
  "cid 0.10.1",
  "futures-util",
  "libipld-cbor",
- "libipld-core 0.16.0",
+ "libipld-core",
  "noosphere-api",
  "noosphere-car",
  "noosphere-core",
@@ -4179,7 +4134,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util 0.7.7",
  "tracing",
- "ucan 0.1.1 (git+https://github.com/ucan-wg/rs-ucan.git?branch=matheus23/upgrade-dependencies)",
+ "ucan",
  "ucan-key-support",
  "url 2.3.1",
  "wasm-bindgen",
@@ -4199,14 +4154,14 @@ dependencies = [
  "cid 0.10.1",
  "js-sys",
  "libipld-cbor",
- "libipld-core 0.16.0",
+ "libipld-core",
  "rexie",
  "serde",
  "sled",
  "tokio",
  "tokio-stream",
  "tracing",
- "ucan 0.1.1 (git+https://github.com/ucan-wg/rs-ucan.git?branch=matheus23/upgrade-dependencies)",
+ "ucan",
  "url 2.3.1",
  "wasm-bindgen",
  "wasm-bindgen-test",
@@ -6626,36 +6581,9 @@ checksum = "497961ef93d974e23eb6f433eb5fe1b7930b659f06d12dec6fc44a8f554c0bba"
 
 [[package]]
 name = "ucan"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cd5d89f3eb6d7e91ebcb733ceb95d186fa3479d264b4bacd971a25b3d5d336a"
-dependencies = [
- "anyhow",
- "async-recursion",
- "async-std",
- "async-trait",
- "base64 0.13.0",
- "bs58",
- "cid 0.9.0",
- "futures",
- "getrandom 0.2.9",
- "instant",
- "libipld-core 0.15.0",
- "libipld-json 0.15.0",
- "log 0.4.17",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "strum",
- "strum_macros",
- "unsigned-varint 0.7.1",
- "url 2.3.1",
-]
-
-[[package]]
-name = "ucan"
-version = "0.1.1"
-source = "git+https://github.com/ucan-wg/rs-ucan.git?branch=matheus23/upgrade-dependencies#79ce34fabb73e9129c5454bb38b8ffbaa988d368"
+checksum = "f45b08aa0818ab9be5d922d3931ea893a6c2e84d1a3bd6433ff2ca3e04a23425"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -6667,8 +6595,8 @@ dependencies = [
  "futures",
  "getrandom 0.2.9",
  "instant",
- "libipld-core 0.16.0",
- "libipld-json 0.16.0",
+ "libipld-core",
+ "libipld-json",
  "log 0.4.17",
  "rand 0.8.5",
  "serde",
@@ -6681,8 +6609,9 @@ dependencies = [
 
 [[package]]
 name = "ucan-key-support"
-version = "0.1.1"
-source = "git+https://github.com/ucan-wg/rs-ucan.git?branch=matheus23/upgrade-dependencies#79ce34fabb73e9129c5454bb38b8ffbaa988d368"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1bac0239e6369aa844b2b153cd3cf0cbbc13fa6ff5ccc277408c36c44568e8e3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6694,7 +6623,7 @@ dependencies = [
  "p256 0.13.2",
  "rsa",
  "sha2 0.10.6",
- "ucan 0.1.1 (git+https://github.com/ucan-wg/rs-ucan.git?branch=matheus23/upgrade-dependencies)",
+ "ucan",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

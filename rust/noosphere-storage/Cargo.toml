@@ -25,11 +25,11 @@ async-std = "^1"
 async-trait = "~0.1"
 async-stream = "~0.3"
 tokio-stream = "~0.1"
-cid = "~0.10"
+cid = { workspace = true }
 tracing = "~0.1"
-ucan = { version = "0.1.0", git = "https://github.com/ucan-wg/rs-ucan.git", branch = "matheus23/upgrade-dependencies" }
-libipld-core = "~0.16"
-libipld-cbor = "~0.16"
+ucan = { workspace = true }
+libipld-core = { workspace = true }
+libipld-cbor = { workspace = true }
 serde = "^1"
 base64 = "=0.13.0"
 url = { version = "^2" }

@@ -18,11 +18,11 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "1"
-cid = "0.10"
+cid = { workspace = true }
 futures = "0.3"
 integer-encoding = { version = "3", features = ["tokio_async"] }
-libipld = { version = "0.16", features = ["dag-cbor", "derive"] }
-libipld-cbor = { version = "0.16" }
+libipld = { workspace = true, features = ["dag-cbor", "derive"] }
+libipld-cbor = { workspace = true }
 thiserror = { workspace = true }
 tokio = { version = "^1", features = ["io-util"] }
 
