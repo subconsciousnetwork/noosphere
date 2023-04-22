@@ -27,7 +27,7 @@ thiserror = { workspace = true }
 tokio = { version = "^1", features = ["io-util"] }
 
 [dev-dependencies]
-multihash = "0.18"
+multihash = { workspace = true }
 tokio = { version = "^1", features = ["macros", "sync", "rt", "io-util"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]

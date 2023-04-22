@@ -29,7 +29,7 @@ anyhow = "^1"
 
 horrorshow = "~0.8"
 cid = { workspace = true }
-libipld-cbor = "~0.16"
+libipld-cbor = { workspace = true }
 
 bytes = "^1"
 tokio-stream = "~0.1"

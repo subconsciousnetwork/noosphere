@@ -19,18 +19,18 @@ readme = "README.md"
 [dependencies]
 anyhow = "^1"
 sha2 = "0.10"
-cid = "0.10"
+cid = { workspace = true }
 forest_hash_utils = "0.1.0"
 serde = "^1"
 serde_bytes = "0.11"
 serde_ipld_dagcbor = "0.2"
 byteorder = "^1.4"
-multihash = "0.18"
+multihash = { workspace = true }
 # NOTE: async-once-cell 0.4.0 shipped unstable feature usage
 async-once-cell = "0.3"
 async-recursion = "^1"
-libipld-core = "~0.16"
-libipld-cbor = "~0.16"
+libipld-core = { workspace = true }
+libipld-cbor = { workspace = true }
 noosphere-storage = { version = "0.6.1", path = "../noosphere-storage" }
 
 tokio = { version = "^1", features = ["sync", "io-util"] }

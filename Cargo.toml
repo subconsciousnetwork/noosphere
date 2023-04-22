@@ -30,6 +30,7 @@ libipld = { version = "0.16" }
 libipld-core = { version = "0.16" }
 libipld-cbor = { version = "0.16" }
 cid = { version = "0.10" }
+multihash = { version = "0.18" }
 wnfs-namefilter = { version = "0.1.20" }
 
 [profile.release]
