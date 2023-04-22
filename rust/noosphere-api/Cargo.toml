@@ -33,8 +33,8 @@ reqwest = { version = "0.11.15", default-features = false, features = ["json", "
 tokio-stream = "~0.1"
 tokio-util = "0.7.7"
 
-ucan = { version = "0.1.0" }
-ucan-key-support = { version = "0.1.0" }
+ucan = { version = "0.1.0", git = "https://github.com/ucan-wg/rs-ucan.git", branch = "matheus23/upgrade-dependencies" }
+ucan-key-support = { version = "0.1.0", git = "https://github.com/ucan-wg/rs-ucan.git", branch = "matheus23/upgrade-dependencies" }
 
 libipld-core = "~0.16"
 libipld-cbor = "~0.16"

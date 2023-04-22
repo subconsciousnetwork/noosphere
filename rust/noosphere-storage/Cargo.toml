@@ -27,7 +27,7 @@ async-stream = "~0.3"
 tokio-stream = "~0.1"
 cid = "~0.10"
 tracing = "~0.1"
-ucan = { version = "0.1.0" }
+ucan = { version = "0.1.0", git = "https://github.com/ucan-wg/rs-ucan.git", branch = "matheus23/upgrade-dependencies" }
 libipld-core = "~0.16"
 libipld-cbor = "~0.16"
 serde = "^1"

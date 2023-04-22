@@ -28,8 +28,8 @@ noosphere-api = { version = "0.7.3", path = "../noosphere-api" }
 noosphere-ipfs = { version = "0.3.3", path = "../noosphere-ipfs" }
 noosphere-car = { version = "0.1.0", path = "../noosphere-car" }
 
-ucan = { version = "0.1.0" }
-ucan-key-support = { version = "0.1.0" }
+ucan = { version = "0.1.0", git = "https://github.com/ucan-wg/rs-ucan.git", branch = "matheus23/upgrade-dependencies" }
+ucan-key-support = { version = "0.1.0", git = "https://github.com/ucan-wg/rs-ucan.git", branch = "matheus23/upgrade-dependencies" }
 
 async-trait = "~0.1"
 tokio-stream = "~0.1"

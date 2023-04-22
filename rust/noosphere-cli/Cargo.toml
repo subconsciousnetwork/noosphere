@@ -57,8 +57,8 @@ noosphere-storage = { version = "0.6.1", path = "../noosphere-storage" }
 noosphere-api = { version = "0.7.3", path = "../noosphere-api" }
 noosphere-gateway = { version = "0.3.4", path = "../noosphere-gateway" }
 noosphere = { version = "0.9.0", path = "../noosphere" }
-ucan = { version = "0.1.0" }
-ucan-key-support = { version = "0.1.0" }
+ucan = { version = "0.1.0", git = "https://github.com/ucan-wg/rs-ucan.git", branch = "matheus23/upgrade-dependencies" }
+ucan-key-support = { version = "0.1.0", git = "https://github.com/ucan-wg/rs-ucan.git", branch = "matheus23/upgrade-dependencies" }
 cid = "~0.10"
 subtext = "0.3.2"
 

@@ -41,8 +41,8 @@ futures = { version = "~0.3" }
 async-compat = { version = "~0.2" }
 async-utf8-decoder = { version = "~0.3" }
 
-ucan = { version = "0.1.0" }
-ucan-key-support = { version = "0.1.0" }
+ucan = { version = "0.1.0", git = "https://github.com/ucan-wg/rs-ucan.git", branch = "matheus23/upgrade-dependencies" }
+ucan-key-support = { version = "0.1.0", git = "https://github.com/ucan-wg/rs-ucan.git", branch = "matheus23/upgrade-dependencies" }
 
 [dev-dependencies]
 noosphere-sphere = { version = "0.4.0", path = "../noosphere-sphere", features = ["helpers"] }
