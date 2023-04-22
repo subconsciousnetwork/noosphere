@@ -20,7 +20,7 @@ readme = "README.md"
 
 [dependencies]
 tracing = { workspace = true }
-cid = "~0.9"
+cid = "~0.10"
 url = "^2"
 async-trait = "~0.1"
 async-recursion = "^1"
@@ -42,8 +42,8 @@ once_cell = "^1"
 serde_ipld_dagcbor = "~0.2"
 tiny-bip39 = "^1"
 tokio-stream = "~0.1"
-libipld-core = "~0.15"
-libipld-cbor = "~0.15"
+libipld-core = "~0.16"
+libipld-cbor = "~0.16"
 
 noosphere-storage = { version = "0.6.1", path = "../noosphere-storage" }
 noosphere-collections = { version = "0.5.1", path = "../noosphere-collections" }

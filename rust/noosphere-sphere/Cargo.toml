@@ -18,7 +18,7 @@ helpers = []
 
 [dependencies]
 anyhow = "^1"
-cid = "~0.9"
+cid = "~0.10"
 url = { version = "^2", features = ["serde"] }
 tracing = { workspace = true }
 
@@ -36,8 +36,8 @@ tokio-stream = "~0.1"
 async-stream = "~0.3"
 tokio-util = { version = "0.7.7", features = ["io"] }
 futures-util = "0.3.27"
-libipld-core = "~0.15"
-libipld-cbor = "~0.15"
+libipld-core = "~0.16"
+libipld-cbor = "~0.16"
 bytes = "^1"
 serde_json = "^1"
 serde = "1"

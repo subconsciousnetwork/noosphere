@@ -21,7 +21,7 @@ readme = "README.md"
 [dependencies]
 anyhow = "^1"
 thiserror = { workspace = true }
-cid = "~0.9"
+cid = "~0.10"
 url = "^2"
 serde = "^1"
 serde_urlencoded = "~0.7"
@@ -36,8 +36,8 @@ tokio-util = "0.7.7"
 ucan = { version = "0.1.0" }
 ucan-key-support = { version = "0.1.0" }
 
-libipld-core = "~0.15"
-libipld-cbor = "~0.15"
+libipld-core = "~0.16"
+libipld-cbor = "~0.16"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "^1", features = ["full"] }

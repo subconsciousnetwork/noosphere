@@ -58,13 +58,13 @@ noosphere-api = { version = "0.7.3", path = "../noosphere-api" }
 noosphere = { version = "0.9.0", path = "../noosphere" }
 ucan = { version = "0.1.0" }
 ucan-key-support = { version = "0.1.0" }
-cid = "~0.9"
+cid = "~0.10"
 subtext = "0.3.2"
 
 serde = "^1"
 serde_json = "^1"
-libipld-core = "~0.15"
-libipld-cbor = "~0.15"
+libipld-core = "~0.16"
+libipld-cbor = "~0.16"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "~0.2"
