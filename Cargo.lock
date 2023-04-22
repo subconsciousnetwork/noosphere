@@ -94,15 +94,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aes-kw"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69fa2b352dcefb5f7f3a5fb840e02665d311d878955380515e4fd50095dd3d8c"
-dependencies = [
- "aes 0.8.2",
-]
-
-[[package]]
 name = "aes-soft"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3897,7 +3888,6 @@ dependencies = [
  "wasm-bindgen",
  "whoami",
  "witty-phrase-generator",
- "wnfs",
 ]
 
 [[package]]
@@ -5516,9 +5506,6 @@ name = "semver"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bebd363326d05ec3e2f532ab7660680f3b02130d780c299bca73469d521bc0ed"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "semver-parser"
@@ -5756,19 +5743,6 @@ name = "siphasher"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b8de496cf83d4ed58b6be86c3a275b8602f6ffe98d3024a869e124147a9a3ac"
-
-[[package]]
-name = "skip_ratchet"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16ee41f8a86f13fe0618c3cc9c5d9f7a6173f3449de900595753973c97a25579"
-dependencies = [
- "base64 0.13.0",
- "hex",
- "rand 0.6.3",
- "serde",
- "sha3",
-]
 
 [[package]]
 name = "slab"
@@ -7529,36 +7503,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wnfs"
-version = "0.1.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b531786a5c5b1b535b948dccc78f6e70e4d72e717b4dbe719c76aadfbd57a46"
-dependencies = [
- "aes-gcm 0.10.1",
- "aes-kw",
- "anyhow",
- "async-once-cell 0.4.4",
- "async-recursion",
- "async-stream",
- "async-trait",
- "chrono",
- "futures",
- "libipld",
- "multihash 0.18.1",
- "once_cell",
- "rand_core 0.6.4",
- "semver 1.0.17",
- "serde",
- "sha3",
- "skip_ratchet",
- "thiserror",
- "wnfs-common",
- "wnfs-hamt",
- "wnfs-namefilter",
- "xxhash-rust",
-]
-
-[[package]]
 name = "wnfs-common"
 version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7575,31 +7519,6 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "thiserror",
-]
-
-[[package]]
-name = "wnfs-hamt"
-version = "0.1.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94ddf5eb6bf1ba319c924f5ada60fd1241e0d34d76420c5a25a89899a65e287d"
-dependencies = [
- "anyhow",
- "async-once-cell 0.4.4",
- "async-recursion",
- "async-trait",
- "bitvec",
- "chrono",
- "either",
- "futures",
- "libipld",
- "multihash 0.18.1",
- "once_cell",
- "rand_core 0.6.4",
- "semver 1.0.17",
- "serde",
- "sha3",
- "thiserror",
- "wnfs-common",
 ]
 
 [[package]]

@@ -37,7 +37,6 @@ tower-http = { version = "~0.3", features = ["cors", "trace"] }
 async-trait = "~0.1"
 tracing = { workspace = true }
 multipart = "~0.18"
-wnfs = { version = "0.1.9" }
 noosphere-car = { version = "0.1.0", path = "../noosphere-car" }
 
 url = { version = "^2", features = [ "serde" ] }

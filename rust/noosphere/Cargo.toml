@@ -46,7 +46,7 @@ ucan = { workspace = true }
 ucan-key-support = { workspace = true }
 
 [dev-dependencies]
-libipld-core = "~0.16"
+libipld-core = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # TODO: We should eventually support gateway storage as a specialty target only,
