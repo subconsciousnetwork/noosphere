@@ -8,8 +8,8 @@ use libp2p::{
     identify::{Behaviour as Identify, Config as IdentifyConfig, Event as IdentifyEvent},
     identity::Keypair,
     kad::{self, Kademlia, KademliaConfig, KademliaEvent, KademliaStoreInserts},
-    mplex, noise,
-    swarm::{self, NetworkBehaviour, SwarmEvent, THandlerErr},
+    noise,
+    swarm::{self, NetworkBehaviour, SwarmBuilder, SwarmEvent, THandlerErr},
     tcp, yamux, PeerId, Swarm, Transport,
 };
 use std::time::Duration;
@@ -84,8 +84,6 @@ impl DhtBehavior {
     }
 }
 
-pub type DhtSwarm = libp2p::swarm::Swarm<DhtBehavior>;
-
 /// Creates the Transport mechanism that describes how peers communicate.
 /// Currently, mostly an inlined form of `libp2p::tokio_development_transport`.
 fn build_transport(keypair: &Keypair) -> Result<Boxed<(PeerId, StreamMuxerBox)>, io::Error> {
@@ -99,10 +97,7 @@ fn build_transport(keypair: &Keypair) -> Result<Boxed<(PeerId, StreamMuxerBox)>,
     Ok(transport
         .upgrade(upgrade::Version::V1)
         .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
-        .multiplex(upgrade::SelectUpgrade::new(
-            yamux::YamuxConfig::default(),
-            mplex::MplexConfig::default(),
-        ))
+        .multiplex(yamux::YamuxConfig::default())
         .timeout(std::time::Duration::from_secs(20))
         .boxed())
 }
@@ -112,9 +107,10 @@ pub fn build_swarm(
     keypair: &Keypair,
     local_peer_id: &PeerId,
     config: &DhtConfig,
-) -> Result<DhtSwarm, DhtError> {
+) -> Result<Swarm<DhtBehavior>, DhtError> {
     let transport = build_transport(keypair).map_err(DhtError::from)?;
     let behaviour = DhtBehavior::new(keypair, local_peer_id, config);
-    let swarm = Swarm::with_tokio_executor(transport, behaviour, local_peer_id.to_owned());
+    let swarm =
+        SwarmBuilder::with_tokio_executor(transport, behaviour, local_peer_id.to_owned()).build();
     Ok(swarm)
 }

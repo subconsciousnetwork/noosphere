@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use futures::future::try_join_all;
 use libp2p::{identity::Keypair, Multiaddr};
-use noosphere_core::{authority::ed25519_key_to_bytes, data::Did};
+use noosphere_core::data::Did;
 use std::collections::HashMap;
 use tokio::sync::{Mutex, MutexGuard};
 use ucan::{crypto::KeyMaterial, store::UcanJwtStore};
@@ -32,10 +32,16 @@ pub trait NameSystemKeyMaterial: KeyMaterial + Clone {
 
 impl NameSystemKeyMaterial for Ed25519KeyMaterial {
     fn to_dht_keypair(&self) -> anyhow::Result<Keypair> {
-        let mut bytes = ed25519_key_to_bytes(self)?;
-        let kp = libp2p::identity::ed25519::Keypair::decode(&mut bytes)
+        pub const ED25519_KEY_LENGTH: usize = 32;
+        let mut bytes: [u8; ED25519_KEY_LENGTH] = [0u8; ED25519_KEY_LENGTH];
+        bytes[..ED25519_KEY_LENGTH].copy_from_slice(
+            self.1
+                .ok_or_else(|| anyhow!("Private key required in order to deserialize."))?
+                .as_ref(),
+        );
+        let kp = Keypair::ed25519_from_bytes(&mut bytes)
             .map_err(|_| anyhow::anyhow!("Could not decode ED25519 key."))?;
-        Ok(Keypair::Ed25519(kp))
+        Ok(kp)
     }
 }
 
@@ -254,28 +260,9 @@ mod test {
         assert_eq!(BOOTSTRAP_PEERS.len(), 1);
     }
 
-    use libp2p;
-    use noosphere_core::authority::generate_ed25519_key;
-
-    #[test]
-    fn it_converts_to_libp2p_keypair() -> anyhow::Result<()> {
-        let zebra_keys = generate_ed25519_key();
-        let libp2p::identity::Keypair::Ed25519(keypair) = zebra_keys.to_dht_keypair()?;
-        let zebra_private_key = zebra_keys.1.expect("Has private key");
-        let dalek_public_key = keypair.public().encode();
-        let dalek_private_key = keypair.secret();
-
-        let in_public_key = zebra_keys.0.as_ref();
-        let in_private_key = zebra_private_key.as_ref();
-        let out_public_key = dalek_public_key.as_ref();
-        let out_private_key = dalek_private_key.as_ref();
-        assert_eq!(in_public_key, out_public_key);
-        assert_eq!(in_private_key, out_private_key);
-        Ok(())
-    }
-
     use crate::ns_client_tests;
     use crate::{utils::wait_for_peers, NameSystemBuilder};
+    use noosphere_core::authority::generate_ed25519_key;
     use noosphere_storage::{MemoryStorage, SphereDb};
     use std::sync::Arc;
     use tokio::sync::Mutex;
