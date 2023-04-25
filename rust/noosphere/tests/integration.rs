@@ -149,10 +149,7 @@ async fn single_player_single_device_end_to_end_workflow() {
             .unwrap()
             .unwrap();
 
-        assert_eq!(
-            file.memo.content_type(),
-            Some(ContentType::Unknown("text/plain".into()))
-        );
+        assert_eq!(file.memo.content_type(), Some(ContentType::Text));
 
         let mut contents = String::new();
         file.contents.read_to_string(&mut contents).await.unwrap();

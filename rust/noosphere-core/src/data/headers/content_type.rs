@@ -2,6 +2,7 @@ use std::{convert::Infallible, fmt::Display, str::FromStr};
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Debug)]
 pub enum ContentType {
+    Text,
     Subtext,
     Sphere,
     Bytes,
@@ -13,6 +14,7 @@ pub enum ContentType {
 impl Display for ContentType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let value = match self {
+            ContentType::Text => "text/plain",
             ContentType::Subtext => "text/subtext",
             ContentType::Sphere => "noo/sphere",
             ContentType::Bytes => "raw/bytes",
@@ -30,6 +32,7 @@ impl FromStr for ContentType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
+            "text/plain" => ContentType::Text,
             "text/subtext" => ContentType::Subtext,
             "noo/sphere" => ContentType::Sphere,
             "raw/bytes" => ContentType::Bytes,
