@@ -1,7 +1,7 @@
 use super::{
     errors::DhtError,
     rpc::{DhtMessage, DhtMessageProcessor, DhtRequest, DhtResponse},
-    swarm::{build_swarm, DHTEvent, DHTSwarmEvent, DhtSwarm},
+    swarm::{build_swarm, DHTEvent, DHTSwarmEvent, DhtBehavior},
     types::{DhtRecord, Peer},
     DhtConfig, Validator,
 };
@@ -9,6 +9,7 @@ use libp2p::{
     core::transport::ListenerId,
     futures::StreamExt,
     identify::Event as IdentifyEvent,
+    identity::Keypair,
     kad::{
         self,
         kbucket::{Distance, NodeStatus},
@@ -18,7 +19,7 @@ use libp2p::{
     multiaddr::Protocol,
     swarm::{
         dial_opts::{DialOpts, PeerCondition},
-        SwarmEvent,
+        Swarm, SwarmEvent,
     },
     Multiaddr, PeerId,
 };
@@ -32,7 +33,7 @@ pub struct DhtProcessor<V: Validator + 'static> {
     config: DhtConfig,
     peer_id: PeerId,
     processor: DhtMessageProcessor,
-    swarm: DhtSwarm,
+    swarm: Swarm<DhtBehavior>,
     requests: HashMap<kad::QueryId, DhtMessage>,
     kad_last_range: Option<(Distance, Distance)>,
     validator: Option<V>,
@@ -65,7 +66,7 @@ where
     /// The processor can only be accessed through channels via the corresponding
     /// [DHTNode].
     pub(crate) fn spawn(
-        keypair: &libp2p::identity::Keypair,
+        keypair: &Keypair,
         peer_id: PeerId,
         validator: Option<V>,
         config: DhtConfig,
@@ -286,7 +287,6 @@ where
                 peer_id: _,
                 error: _,
             } => {}
-            SwarmEvent::BannedPeer { peer_id: _, .. } => {}
             SwarmEvent::ExpiredListenAddr {
                 listener_id: _,
                 address: _,
@@ -301,6 +301,7 @@ where
                 error: _,
             } => {}
             SwarmEvent::Dialing(_) => {}
+            SwarmEvent::BannedPeer { peer_id: _, .. } => {}
         }
     }
 

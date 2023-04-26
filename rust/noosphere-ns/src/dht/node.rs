@@ -33,7 +33,7 @@ macro_rules! ensure_response {
 /// #[tokio::main]
 /// async fn main() {
 ///     let node = DhtNode::new(
-///         Keypair::Ed25519(ed25519::Keypair::generate()),
+///         Keypair::generate_ed25519(),
 ///         Default::default(),
 ///         Some(AllowAllValidator{}),
 ///     ).unwrap();
@@ -267,7 +267,7 @@ mod test {
         let mut nodes = vec![];
         for _ in 0..node_count {
             let node = DhtNode::new(
-                Keypair::Ed25519(libp2p::core::identity::ed25519::Keypair::generate()),
+                Keypair::generate_ed25519(),
                 Default::default(),
                 validator.clone(),
             )?;
@@ -309,7 +309,7 @@ mod test {
 
     fn create_unfiltered_dht_node() -> Result<DhtNode, DhtError> {
         DhtNode::new::<AllowAllValidator>(
-            Keypair::Ed25519(libp2p::core::identity::ed25519::Keypair::generate()),
+            Keypair::generate_ed25519(),
             Default::default(),
             Some(AllowAllValidator {}),
         )
