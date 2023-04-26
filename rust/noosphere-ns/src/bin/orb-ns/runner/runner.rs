@@ -1,8 +1,8 @@
 use crate::runner::config::RunnerNodeConfig;
 use anyhow::Result;
-use noosphere_ipfs::{IpfsStorage, KuboClient};
+use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_ns::{Multiaddr, NameSystem, NameSystemClient, PeerId};
-use noosphere_storage::{MemoryStorage, SphereDb};
+use noosphere_storage::{BlockStoreRetry, MemoryStore, UcanStore};
 use serde::Serialize;
 use std::{
     future::Future,
@@ -10,6 +10,7 @@ use std::{
     pin::Pin,
     sync::Arc,
     task,
+    time::Duration,
 };
 use tokio::sync::Mutex;
 use url::Url;
@@ -46,16 +47,20 @@ pub struct NameSystemRunner {
 impl NameSystemRunner {
     pub(crate) async fn try_from_config(mut config: RunnerNodeConfig) -> Result<Self> {
         let node = if let Some(ipfs_api_url) = config.ipfs_api_url {
-            let kubo = KuboClient::new(&ipfs_api_url)?;
-            let store =
-                SphereDb::new(&IpfsStorage::new(MemoryStorage::default(), Some(kubo))).await?;
+            let store = {
+                let inner = MemoryStore::default();
+                let inner = IpfsStore::new(inner, Some(KuboClient::new(&ipfs_api_url)?));
+                let inner = BlockStoreRetry::new(inner, 3u32, Duration::new(1, 0));
+                let inner = UcanStore(inner);
+                inner
+            };
             NameSystem::new(
                 &config.key_material,
                 config.dht_config.to_owned(),
                 Some(store),
             )?
         } else {
-            let store = SphereDb::new(&MemoryStorage::default()).await?;
+            let store = UcanStore(MemoryStore::default());
             NameSystem::new(
                 &config.key_material,
                 config.dht_config.to_owned(),
