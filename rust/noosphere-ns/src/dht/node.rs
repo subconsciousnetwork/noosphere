@@ -164,10 +164,16 @@ impl DhtNode {
     /// to peers.
     /// Fails if node is not in an active state or cannot set the record
     /// on any peers.
-    pub async fn put_record(&self, key: &[u8], value: &[u8]) -> Result<Vec<u8>, DhtError> {
+    pub async fn put_record(
+        &self,
+        key: &[u8],
+        value: &[u8],
+        quorum: usize,
+    ) -> Result<Vec<u8>, DhtError> {
         let request = DhtRequest::PutRecord {
             key: key.to_vec(),
             value: value.to_vec(),
+            quorum,
         };
         let response = self.send_request(request).await?;
         ensure_response!(response, DhtResponse::PutRecord { key } => Ok(key))
@@ -370,7 +376,7 @@ mod test {
         initialize_network(&mut nodes).await?;
         let (node_a, node_b) = (nodes.pop().unwrap(), nodes.pop().unwrap());
 
-        node_a.put_record(b"foo", b"bar").await?;
+        node_a.put_record(b"foo", b"bar", 1).await?;
         let result = node_b.get_record(b"foo").await?;
         assert_eq!(result.key, b"foo");
         assert_eq!(result.value.expect("has value"), b"bar");
@@ -421,7 +427,7 @@ mod test {
             )])
             .await?;
 
-        node_a.put_record(b"foo_1", b"VALID").await?;
+        node_a.put_record(b"foo_1", b"VALID", 1).await?;
         let result = node_b.get_record(b"foo_1").await?;
         assert_eq!(
             result.value.expect("has value"),
@@ -430,13 +436,15 @@ mod test {
         );
 
         assert!(
-            node_a.put_record(b"foo_2", b"INVALID").await.is_err(),
+            node_a.put_record(b"foo_2", b"INVALID", 1).await.is_err(),
             "setting a record validates locally"
         );
 
         // set a valid and an invalid record from the unfiltered client
-        unfiltered_client.put_record(b"foo_3", b"VALID").await?;
-        unfiltered_client.put_record(b"foo_4", b"INVALID").await?;
+        unfiltered_client.put_record(b"foo_3", b"VALID", 1).await?;
+        unfiltered_client
+            .put_record(b"foo_4", b"INVALID", 1)
+            .await?;
 
         let result = node_b.get_record(b"foo_3").await?;
         assert_eq!(

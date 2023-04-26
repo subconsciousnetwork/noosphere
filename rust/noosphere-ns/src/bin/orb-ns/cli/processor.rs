@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use clap::Parser;
 use noosphere::key::{InsecureKeyStorage, KeyStorage};
 use noosphere_ns::server::HttpClient;
-use noosphere_ns::NameSystemClient;
+use noosphere_ns::DhtClient;
 use serde::Serialize;
 use tracing::*;
 
@@ -125,7 +125,7 @@ pub async fn process_command(
             }
             CLICommand::Records(CLIRecords::Put { record, api_url }) => {
                 let client = HttpClient::new(api_url).await?;
-                client.put_record(record).await?;
+                client.put_record(record, 1).await?;
                 Ok(CommandResponse::empty())
             }
             CLICommand::Peers(CLIPeers::Ls { api_url }) => {

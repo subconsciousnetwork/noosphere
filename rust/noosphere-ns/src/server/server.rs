@@ -1,5 +1,5 @@
 use crate::server::{handlers, routes::Route};
-use crate::{NameSystem, NameSystemClient};
+use crate::{DhtClient, NameSystem};
 use anyhow::Result;
 use axum::routing::{delete, get, post};
 use axum::{Extension, Router, Server};

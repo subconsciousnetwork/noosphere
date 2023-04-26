@@ -1,4 +1,4 @@
-use crate::NameSystemClient;
+use crate::DhtClient;
 use anyhow;
 use libp2p::{
     multiaddr::{Multiaddr, Protocol},
@@ -61,7 +61,7 @@ pub fn generate_fact(address: &str) -> serde_json::Value {
 /// A utility for [NameSystemClient] in tests.
 /// Async function returns once there are at least
 /// `requested_peers` peers in the network.
-pub async fn wait_for_peers<T: NameSystemClient>(
+pub async fn wait_for_peers<T: DhtClient>(
     client: &T,
     requested_peers: usize,
 ) -> anyhow::Result<()> {

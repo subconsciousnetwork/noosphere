@@ -1,4 +1,4 @@
-use crate::{dht::DhtConfig, name_system::NameSystem, NameSystemClient, NameSystemKeyMaterial};
+use crate::{dht::DhtConfig, name_system::NameSystem, DhtClient, NameSystemKeyMaterial};
 use anyhow::{anyhow, Result};
 use libp2p::{self, Multiaddr};
 use std::net::Ipv4Addr;
@@ -16,7 +16,7 @@ use libp2p::kad::KademliaConfig;
 /// ```
 /// use noosphere_core::authority::generate_ed25519_key;
 /// use noosphere_storage::{SphereDb, MemoryStorage};
-/// use noosphere_ns::{BOOTSTRAP_PEERS, NameSystem, NameSystemClient, NameSystemBuilder};
+/// use noosphere_ns::{BOOTSTRAP_PEERS, NameSystem, DhtClient, NameSystemBuilder};
 /// use ucan_key_support::ed25519::Ed25519KeyMaterial;
 /// use tokio;
 ///
