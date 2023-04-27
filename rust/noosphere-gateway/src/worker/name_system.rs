@@ -5,7 +5,7 @@ use cid::Cid;
 use noosphere_core::data::{Did, IdentityIpld, Jwt, LinkRecord, MapOperation};
 use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_ns::NsRecord;
-use noosphere_ns::{server::HttpClient as NameSystemHttpClient, NameSystemClient};
+use noosphere_ns::{server::HttpClient as NameSystemHttpClient, NameResolver};
 use noosphere_sphere::{
     HasMutableSphereContext, SphereCursor, SpherePetnameRead, SpherePetnameWrite,
 };
@@ -150,7 +150,7 @@ where
             debug!("Running {}", job);
             match job {
                 NameSystemJob::Publish { record, .. } => {
-                    client.put_record(NsRecord::from_str(&record)?).await?;
+                    client.publish(NsRecord::from_str(&record)?).await?;
                 }
                 NameSystemJob::ResolveAll { context } => {
                     let name_stream = {
@@ -258,7 +258,7 @@ where
 /// Consumes a stream of name / address tuples, resolving them one at a time
 /// and updating the provided [SphereContext] with the latest resolved values
 async fn resolve_all<C, K, S, N>(
-    client: Arc<dyn NameSystemClient>,
+    client: Arc<dyn NameResolver>,
     mut context: C,
     stream: N,
     ipfs_url: Url,
@@ -330,12 +330,12 @@ where
 
 /// Attempts to fetch a single name record from the name system.
 async fn fetch_record(
-    client: Arc<dyn NameSystemClient>,
+    client: Arc<dyn NameResolver>,
     name: String,
     identity: Did,
 ) -> Result<Option<NsRecord>> {
     debug!("Resolving record '{}' ({})...", name, identity);
-    Ok(match client.get_record(&identity).await {
+    Ok(match client.resolve(&identity).await {
         Ok(Some(record)) => {
             debug!(
                 "Resolved record for '{}' ({}): {}",

@@ -1,7 +1,7 @@
 use crate::runner::config::RunnerNodeConfig;
 use anyhow::Result;
 use noosphere_ipfs::{IpfsStore, KuboClient};
-use noosphere_ns::{Multiaddr, NameSystem, NameSystemClient, PeerId};
+use noosphere_ns::{DhtClient, Multiaddr, NameSystem, PeerId};
 use noosphere_storage::{BlockStoreRetry, MemoryStore, UcanStore};
 use serde::Serialize;
 use std::{

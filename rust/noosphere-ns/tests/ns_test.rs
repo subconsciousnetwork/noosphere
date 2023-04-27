@@ -6,15 +6,12 @@ use cid::Cid;
 use noosphere_core::{authority::generate_ed25519_key, data::Did, view::SPHERE_LIFETIME};
 use noosphere_ns::{
     helpers::NameSystemNetwork,
-    utils::{generate_capability, generate_fact, wait_for_peers},
-    NameSystemClient, NsRecord,
+    utils::{generate_capability, generate_fact},
+    DhtClient,
 };
 use noosphere_storage::{derive_cid, MemoryStorage, SphereDb};
 
-use futures::future::try_join_all;
 use libipld_cbor::DagCborCodec;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore, time::now, Ucan};
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
@@ -22,6 +19,7 @@ use ucan_key_support::ed25519::Ed25519KeyMaterial;
 /// and the publishing tokens it can issue.
 struct PseudoSphere {
     pub owner_key: Ed25519KeyMaterial,
+    #[allow(unused)]
     pub owner_id: Did,
     pub sphere_id: Did,
     pub delegation: Ucan,
@@ -77,7 +75,6 @@ async fn test_name_system_peer_propagation() -> Result<()> {
     let sphere_1_cid_1 = derive_cid::<DagCborCodec>(b"00000000");
     let sphere_1_cid_2 = derive_cid::<DagCborCodec>(b"11111111");
     let sphere_2_cid_1 = derive_cid::<DagCborCodec>(b"99999999");
-    let sphere_2_cid_2 = derive_cid::<DagCborCodec>(b"88888888");
 
     let ns_1 = network.get(1).unwrap();
     let ns_2 = network.get(2).unwrap();
@@ -95,6 +92,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
             .sign()
             .await?
             .into(),
+        1,
     )
     .await?;
 
@@ -124,12 +122,10 @@ async fn test_name_system_peer_propagation() -> Result<()> {
             .sign()
             .await?
             .into(),
+        1,
     )
     .await?;
 
-    let temp_identity = Did(generate_ed25519_key().get_did().await?);
-    assert!(!ns_2.flush_records_for_identity(&temp_identity).await);
-    assert!(ns_2.flush_records_for_identity(&sphere_1.sphere_id).await);
     assert_eq!(
         ns_2.get_record(&sphere_1.sphere_id)
             .await?
@@ -137,30 +133,19 @@ async fn test_name_system_peer_propagation() -> Result<()> {
             .link()
             .unwrap(),
         &sphere_1_cid_2,
-        "latest record is found from network after flushing record"
-    );
-
-    // Store an expired record in ns_1's cache
-    ns_1.get_cache().await.insert(
-        sphere_2.owner_id.clone(),
-        sphere_2
-            .generate_record(sphere_2_cid_1)
-            .with_expiration(now() - 1000) // already expired
-            .build()?
-            .sign()
-            .await?
-            .into(),
+        "latest record is found from network"
     );
 
     // Publish an updated record for sphere_2
     ns_2.put_record(
         sphere_2
-            .generate_record(sphere_2_cid_2)
+            .generate_record(sphere_2_cid_1)
             .with_expiration(*sphere_2.delegation.expires_at())
             .build()?
             .sign()
             .await?
             .into(),
+        1,
     )
     .await?;
 
@@ -172,7 +157,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
             .expect("to be some")
             .link()
             .unwrap(),
-        &sphere_2_cid_2,
+        &sphere_2_cid_1,
         "non-cached record found for sphere_2"
     );
 
@@ -199,58 +184,11 @@ async fn test_name_system_validation() -> Result<()> {
                 .sign()
                 .await?
                 .into(),
+            1
         )
         .await
         .is_err(),
         "invalid (expired) records cannot be propagated"
     );
-    Ok(())
-}
-
-#[test_log::test(tokio::test)]
-async fn it_is_thread_safe() -> Result<()> {
-    let mut db = SphereDb::new(&MemoryStorage::default()).await?;
-    let mut network = NameSystemNetwork::generate(2, Some(db.clone())).await?;
-    let ns_1 = network.nodes_mut().pop().unwrap();
-    let sphere_1 = PseudoSphere::new().await?;
-    sphere_1.write_proofs_to_store(&mut db).await?;
-    let address = derive_cid::<DagCborCodec>(b"00000000");
-
-    let ucan_record: NsRecord = sphere_1
-        .generate_record(address)
-        .with_expiration(*sphere_1.delegation.expires_at())
-        .build()?
-        .sign()
-        .await?
-        .into();
-
-    // Store a dummy record for this name system's own owner sphere
-    ns_1.get_cache()
-        .await
-        .insert(sphere_1.owner_id.clone(), ucan_record.clone());
-
-    wait_for_peers(&ns_1, 1).await?;
-    let network_info = ns_1.network_info().await?;
-    assert_eq!(network_info.num_peers, 1, "expected number of peers");
-
-    let arc_ns = Arc::new(Mutex::new(ns_1));
-    let mut join_handles = vec![];
-    for _ in 0..10 {
-        let name_system = arc_ns.clone();
-        let identity = sphere_1.owner_id.clone();
-        let record = ucan_record.clone();
-        join_handles.push(tokio::spawn(async move {
-            let ns = name_system.lock().await;
-            ns.put_record(record).await.unwrap();
-            let record = ns.get_record(&identity).await.unwrap();
-            let network_info = ns.network_info().await.unwrap();
-            (record, network_info)
-        }));
-    }
-    for (record, n_info) in try_join_all(join_handles).await? {
-        assert_eq!(record.unwrap().link().unwrap(), &address);
-        assert_eq!(n_info, network_info);
-    }
-
     Ok(())
 }

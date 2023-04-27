@@ -1,8 +1,13 @@
-use crate::{Multiaddr, NameSystem, NameSystemClient, NetworkInfo, NsRecord, Peer, PeerId};
+use crate::{DhtClient, Multiaddr, NameSystem, NetworkInfo, NsRecord, Peer, PeerId};
 use anyhow::Result;
 use axum::response::{IntoResponse, Response};
-use axum::{extract::Path, http::StatusCode, Extension, Json};
+use axum::{
+    extract::{Path, Query},
+    http::StatusCode,
+    Extension, Json,
+};
 use noosphere_core::data::Did;
+use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -101,12 +106,18 @@ pub async fn get_record(
     Ok(Json(record))
 }
 
+#[derive(Deserialize)]
+pub struct PostRecordQuery {
+    quorum: usize,
+}
+
 pub async fn post_record(
     Extension(name_system): Extension<Arc<Mutex<NameSystem>>>,
     Json(record): Json<NsRecord>,
+    Query(query): Query<PostRecordQuery>,
 ) -> JsonResponse<()> {
     let ns = name_system.lock().await;
-    ns.put_record(record)
+    ns.put_record(record, query.quorum)
         .await
         .map_err(move |error| JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     Ok(Json(()))

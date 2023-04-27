@@ -23,8 +23,8 @@ use libp2p::{
     },
     Multiaddr, PeerId,
 };
-use std::fmt;
 use std::{collections::HashMap, time::Duration};
+use std::{fmt, num::NonZeroUsize};
 use tokio;
 
 /// The processing component of a [DHTNode]/[DHTProcessor] pair. Consumers
@@ -216,7 +216,11 @@ where
                     )
                 );
             }
-            DhtRequest::PutRecord { ref key, ref value } => {
+            DhtRequest::PutRecord {
+                ref key,
+                ref value,
+                quorum,
+            } => {
                 let value_owned = value.to_owned();
                 if self.validate(value).await {
                     let record = Record {
@@ -225,14 +229,35 @@ where
                         publisher: None,
                         expires: None,
                     };
-                    store_request!(
-                        self,
-                        message,
-                        self.swarm
-                            .behaviour_mut()
-                            .kad
-                            .put_record(record, Quorum::One)
-                    );
+                    // Support a quorum of 0 when this is the only node in the
+                    // network, in which case store it locally.
+                    // Hopefully a temporary configuration in early bootstrapping.
+                    if quorum == 0 {
+                        let result = if let Err(_) =
+                            self.swarm.behaviour_mut().kad.store_mut().put(record)
+                        {
+                            Err(DhtError::Error(String::from("Could not store record.")))
+                        } else {
+                            Ok(DhtResponse::PutRecord {
+                                key: key.to_owned(),
+                            })
+                        };
+                        message.respond(result);
+                    } else {
+                        let p2p_quorum = if quorum == 1 {
+                            Quorum::One
+                        } else {
+                            Quorum::N(NonZeroUsize::new(quorum).unwrap())
+                        };
+                        store_request!(
+                            self,
+                            message,
+                            self.swarm
+                                .behaviour_mut()
+                                .kad
+                                .put_record(record, p2p_quorum)
+                        );
+                    }
                 } else {
                     message.respond(Err(DhtError::ValidationError(value_owned)));
                 }

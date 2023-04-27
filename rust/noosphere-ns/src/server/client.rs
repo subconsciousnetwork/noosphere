@@ -1,5 +1,5 @@
 use crate::server::routes::Route;
-use crate::{client::NameSystemClient, Multiaddr, NetworkInfo, NsRecord, Peer, PeerId};
+use crate::{dht_client::DhtClient, Multiaddr, NetworkInfo, NsRecord, Peer, PeerId};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use noosphere_core::data::Did;
@@ -28,7 +28,7 @@ impl HttpClient {
 }
 
 #[async_trait]
-impl NameSystemClient for HttpClient {
+impl DhtClient for HttpClient {
     /// Returns current network information for this node.
     async fn network_info(&self) -> Result<NetworkInfo> {
         let mut url = self.api_base.clone();
@@ -95,7 +95,6 @@ impl NameSystemClient for HttpClient {
         Ok(self.client.get(url).send().await?.json().await?)
     }
 
-    /// Returns an [NsRecord] for the provided identity if found.
     async fn get_record(&self, identity: &Did) -> Result<Option<NsRecord>> {
         let mut url = self.api_base.clone();
         let path = Route::GetRecord
@@ -105,27 +104,29 @@ impl NameSystemClient for HttpClient {
         Ok(self.client.get(url).send().await?.json().await?)
     }
 
-    /// Propagates the corresponding managed sphere's [NsRecord] on nearby peers
-    /// in the DHT network.
-    async fn put_record(&self, record: NsRecord) -> Result<()> {
+    async fn put_record(&self, record: NsRecord, quorum: usize) -> Result<()> {
         let mut url = self.api_base.clone();
         url.set_path(&Route::PostRecord.to_string());
+        url.set_query(Some(&format!("quorum={}", quorum)));
         let json_data = serde_json::to_string(&record)?;
-        // TODO(#264): Do something with this response?
-        self.client
+
+        let res = self
+            .client
             .post(url)
             .header("Content-Type", "application/json")
             .body(Body::from(json_data))
             .send()
+            .await?
+            .json()
             .await?;
-        Ok(())
+        Ok(res)
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::ns_client_tests;
+    use crate::dht_client_tests;
     use crate::{server::ApiServer, utils::wait_for_peers};
     use crate::{NameSystem, NameSystemBuilder};
     use noosphere_core::authority::generate_ed25519_key;
@@ -192,5 +193,5 @@ mod test {
         Ok((data, client))
     }
 
-    ns_client_tests!(HttpClient, before_each, DataPlaceholder);
+    dht_client_tests!(HttpClient, before_each, DataPlaceholder);
 }

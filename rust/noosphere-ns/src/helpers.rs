@@ -1,4 +1,4 @@
-use crate::{DhtConfig, NameSystem, NameSystemClient};
+use crate::{DhtClient, DhtConfig, NameSystem};
 use anyhow::Result;
 use libp2p::Multiaddr;
 use noosphere_core::authority::generate_ed25519_key;

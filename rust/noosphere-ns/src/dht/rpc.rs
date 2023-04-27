@@ -7,18 +7,34 @@ use std::{fmt, str};
 
 #[derive(Debug)]
 pub enum DhtRequest {
-    AddPeers { peers: Vec<Multiaddr> },
-    StartListening { address: Multiaddr },
+    AddPeers {
+        peers: Vec<Multiaddr>,
+    },
+    StartListening {
+        address: Multiaddr,
+    },
     StopListening,
     Bootstrap,
     //WaitForPeers(usize),
-    GetAddresses { external: bool },
+    GetAddresses {
+        external: bool,
+    },
     GetPeers,
     GetNetworkInfo,
-    GetRecord { key: Vec<u8> },
-    PutRecord { key: Vec<u8>, value: Vec<u8> },
-    StartProviding { key: Vec<u8> },
-    GetProviders { key: Vec<u8> },
+    GetRecord {
+        key: Vec<u8>,
+    },
+    PutRecord {
+        key: Vec<u8>,
+        value: Vec<u8>,
+        quorum: usize,
+    },
+    StartProviding {
+        key: Vec<u8>,
+    },
+    GetProviders {
+        key: Vec<u8>,
+    },
 }
 
 impl fmt::Display for DhtRequest {
@@ -51,11 +67,12 @@ impl fmt::Display for DhtRequest {
                 "DHTRequest::GetRecord {{ key={:?} }}",
                 str::from_utf8(key)
             ),
-            DhtRequest::PutRecord { key, value } => write!(
+            DhtRequest::PutRecord { key, value, quorum } => write!(
                 fmt,
-                "DHTRequest::PutRecord {{ key={:?}, value={:?} }}",
+                "DHTRequest::PutRecord {{ key={:?}, value={:?}, quorum={:?} }}",
                 str::from_utf8(key),
-                str::from_utf8(value)
+                str::from_utf8(value),
+                quorum,
             ),
             DhtRequest::StartProviding { key } => write!(
                 fmt,

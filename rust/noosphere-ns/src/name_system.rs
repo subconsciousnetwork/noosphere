@@ -2,15 +2,12 @@ use crate::{
     dht::{DhtConfig, DhtError, DhtNode, DhtRecord, NetworkInfo, Peer},
     records::{NsRecord, RecordValidator},
     utils::make_p2p_address,
-    NameSystemClient, PeerId,
+    DhtClient, PeerId,
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use futures::future::try_join_all;
 use libp2p::{identity::Keypair, Multiaddr};
 use noosphere_core::data::Did;
-use std::collections::HashMap;
-use tokio::sync::{Mutex, MutexGuard};
 use ucan::{crypto::KeyMaterial, store::UcanJwtStore};
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
@@ -59,10 +56,6 @@ impl NameSystemKeyMaterial for Ed25519KeyMaterial {
 /// the full Noosphere Name System spec.
 pub struct NameSystem {
     pub(crate) dht: DhtNode,
-    /// Map of sphere DIDs to [NsRecord] hosted/propagated by this name system.
-    hosted_records: Mutex<HashMap<Did, NsRecord>>,
-    /// Map of resolved sphere DIDs to resolved [NsRecord].
-    resolved_records: Mutex<HashMap<Did, NsRecord>>,
 }
 
 impl NameSystem {
@@ -76,83 +69,12 @@ impl NameSystem {
 
         Ok(NameSystem {
             dht: DhtNode::new(keypair, dht_config, validator)?,
-            hosted_records: Mutex::new(HashMap::new()),
-            resolved_records: Mutex::new(HashMap::new()),
         })
-    }
-
-    /// Propagates all hosted records on nearby peers in the DHT network.
-    /// Automatically propagated by the intervals configured in provided [DHTConfig].
-    ///
-    /// Can fail if NameSystem is not connected or if no peers can be found.
-    pub async fn propagate_records(&self) -> Result<()> {
-        let hosted_records = self.hosted_records.lock().await;
-
-        if hosted_records.is_empty() {
-            return Ok(());
-        }
-
-        let pending_tasks: Vec<_> = hosted_records
-            .iter()
-            .map(|(identity, record)| self.dht_put_record(identity, record))
-            .collect();
-        try_join_all(pending_tasks).await?;
-        Ok(())
-    }
-
-    /// Clears out the internal cache of resolved records.
-    pub async fn flush_records(&self) {
-        let mut resolved_records = self.resolved_records.lock().await;
-        resolved_records.drain();
-    }
-
-    /// Clears out the internal cache of resolved records
-    /// for the matched identity. Returned value indicates whether
-    /// a record was successfully removed.
-    pub async fn flush_records_for_identity(&self, identity: &Did) -> bool {
-        let mut resolved_records = self.resolved_records.lock().await;
-        resolved_records.remove(identity).is_some()
-    }
-
-    /// Access the record cache of the name system.
-    pub async fn get_cache(&self) -> MutexGuard<HashMap<Did, NsRecord>> {
-        self.resolved_records.lock().await
-    }
-
-    /// Queries the DHT for a record for the given sphere identity.
-    /// If no record is found, no error is returned.
-    ///
-    /// Returns an error if not connected to the DHT network.
-    async fn dht_get_record(&self, identity: &Did) -> Result<(Did, Option<NsRecord>)> {
-        match self.dht.get_record(identity.as_bytes()).await {
-            Ok(DhtRecord { key: _, value }) => match value {
-                Some(value) => {
-                    // Validation/correctness and filtering through
-                    // the most recent values can be performed here
-                    let record = NsRecord::try_from(value)?;
-                    Ok((identity.to_owned(), Some(record)))
-                }
-                None => Ok((identity.to_owned(), None)),
-            },
-            Err(e) => Err(anyhow!(e.to_string())),
-        }
-    }
-
-    /// Propagates and serializes the record on peers in the DHT network.
-    ///
-    /// Can fail if record is invalid, NameSystem is not connected or
-    /// if no peers can be found.
-    async fn dht_put_record(&self, identity: &Did, record: &NsRecord) -> Result<()> {
-        let record: Vec<u8> = record.try_into()?;
-        match self.dht.put_record(identity.as_bytes(), &record).await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(anyhow!(e.to_string())),
-        }
     }
 }
 
 #[async_trait]
-impl NameSystemClient for NameSystem {
+impl DhtClient for NameSystem {
     /// Returns current network information for this node.
     async fn network_info(&self) -> Result<NetworkInfo> {
         self.dht.network_info().await.map_err(|e| e.into())
@@ -208,43 +130,26 @@ impl NameSystemClient for NameSystem {
         }
     }
 
-    /// Propagates the corresponding managed sphere's [NsRecord] on nearby peers
-    /// in the DHT network.
-    ///
-    /// Can fail if NameSystem is not connected or if no peers can be found.
-    async fn put_record(&self, record: NsRecord) -> Result<()> {
+    async fn put_record(&self, record: NsRecord, quorum: usize) -> Result<()> {
         let identity = Did::from(record.identity());
-        self.dht_put_record(&identity, &record).await?;
-        self.hosted_records.lock().await.insert(identity, record);
-        Ok(())
+        let record_bytes: Vec<u8> = record.try_into()?;
+        match self
+            .dht
+            .put_record(identity.as_bytes(), &record_bytes, quorum)
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(e) => Err(anyhow!(e.to_string())),
+        }
     }
 
-    /// Returns an [NsRecord] for the provided identity if found.
-    ///
-    /// Reads from local cache if a valid token is found; otherwise,
-    /// queries the network for a valid record.
-    ///
-    /// Can fail if network errors occur.
     async fn get_record(&self, identity: &Did) -> Result<Option<NsRecord>> {
-        {
-            let mut resolved_records = self.resolved_records.lock().await;
-            if let Some(record) = resolved_records.get(identity) {
-                if !record.is_expired() {
-                    return Ok(Some(record.clone()));
-                } else {
-                    resolved_records.remove(identity);
-                }
-            }
-        };
-
-        // No non-expired record found locally, query the network.
-        match self.dht_get_record(identity).await? {
-            (_, Some(record)) => {
-                let mut resolved_records = self.resolved_records.lock().await;
-                resolved_records.insert(identity.to_owned(), record.clone());
-                Ok(Some(record))
-            }
-            (_, None) => Ok(None),
+        match self.dht.get_record(identity.as_bytes()).await {
+            Ok(DhtRecord { key: _, value }) => match value {
+                Some(value) => Ok(Some(NsRecord::try_from(value)?)),
+                None => Ok(None),
+            },
+            Err(e) => Err(anyhow!(e.to_string())),
         }
     }
 }
@@ -252,6 +157,7 @@ impl NameSystemClient for NameSystem {
 #[cfg(test)]
 mod test {
     use super::*;
+    use noosphere_core::authority::generate_ed25519_key;
 
     #[test]
     fn bootstrap_peers_parseable() {
@@ -260,9 +166,28 @@ mod test {
         assert_eq!(BOOTSTRAP_PEERS.len(), 1);
     }
 
-    use crate::ns_client_tests;
+    use crate::name_resolver_tests;
+    async fn before_name_resolver_tests() -> Result<NameSystem> {
+        let ns = {
+            let key_material = generate_ed25519_key();
+            let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+            let ns = NameSystemBuilder::default()
+                .ucan_store(store)
+                .key_material(&key_material)
+                .listening_port(0)
+                .use_test_config()
+                .build()
+                .await
+                .unwrap();
+            ns.bootstrap().await.unwrap();
+            ns
+        };
+        Ok(ns)
+    }
+    name_resolver_tests!(NameSystem, before_name_resolver_tests);
+
+    use crate::dht_client_tests;
     use crate::{utils::wait_for_peers, NameSystemBuilder};
-    use noosphere_core::authority::generate_ed25519_key;
     use noosphere_storage::{MemoryStorage, SphereDb};
     use std::sync::Arc;
     use tokio::sync::Mutex;
@@ -320,5 +245,5 @@ mod test {
         Ok((data, client))
     }
 
-    ns_client_tests!(NameSystem, before_each, DataPlaceholder);
+    dht_client_tests!(NameSystem, before_each, DataPlaceholder);
 }

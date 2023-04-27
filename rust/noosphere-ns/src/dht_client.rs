@@ -14,7 +14,7 @@ use crate::server::HttpClient;
 use crate::NameSystem;
 
 #[async_trait]
-pub trait NameSystemClient: Send + Sync {
+pub trait DhtClient: Send + Sync {
     /* Diagnostic APIs */
 
     /// Returns current network information for this node.
@@ -47,7 +47,7 @@ pub trait NameSystemClient: Send + Sync {
 
     /// Propagates the corresponding managed sphere's [NsRecord] on nearby peers
     /// in the DHT network.
-    async fn put_record(&self, record: NsRecord) -> Result<()>;
+    async fn put_record(&self, record: NsRecord, quorum: usize) -> Result<()>;
 
     /// Returns an [NsRecord] for the provided identity if found.
     async fn get_record(&self, identity: &Did) -> Result<Option<NsRecord>>;
@@ -64,26 +64,24 @@ pub trait NameSystemClient: Send + Sync {
 /// in its `before_each()` function.
 #[cfg(test)]
 #[macro_export]
-macro_rules! ns_client_tests {
+macro_rules! dht_client_tests {
     ($type:ty, $before_each:ident, $data:ty) => {
-        use tokio;
-
         #[tokio::test]
         async fn name_system_client_network_info() -> Result<()> {
             let (_data, client) = $before_each().await?;
-            $crate::client::test::test_network_info::<$type>(client).await
+            $crate::dht_client::test::test_network_info::<$type>(client).await
         }
 
         #[tokio::test]
         async fn name_system_client_listeners() -> Result<()> {
             let (_data, client) = $before_each().await?;
-            $crate::client::test::test_listeners::<$type>(client).await
+            $crate::dht_client::test::test_listeners::<$type>(client).await
         }
 
         #[tokio::test]
         async fn name_system_client_records() -> Result<()> {
             let (_data, client) = $before_each().await?;
-            $crate::client::test::test_records::<$type>(client).await
+            $crate::dht_client::test::test_records::<$type>(client).await
         }
     };
 }
@@ -99,20 +97,22 @@ pub mod test {
     use crate::{utils::wait_for_peers, NameSystemBuilder};
     use cid::Cid;
     use libp2p::multiaddr::Protocol;
-    use noosphere_core::{authority::generate_ed25519_key, data::Did};
+    use noosphere_core::{authority::generate_ed25519_key, data::Did, tracing::initialize_tracing};
     use noosphere_storage::{MemoryStorage, SphereDb};
     use std::sync::Arc;
     use tokio::sync::Mutex;
     use ucan::crypto::KeyMaterial;
 
-    pub async fn test_network_info<C: NameSystemClient>(client: Arc<Mutex<C>>) -> Result<()> {
+    pub async fn test_network_info<C: DhtClient>(client: Arc<Mutex<C>>) -> Result<()> {
+        initialize_tracing();
         let client = client.lock().await;
         let network_info = client.network_info().await?;
         assert!(network_info.num_connections >= 1);
         Ok(())
     }
 
-    pub async fn test_listeners<C: NameSystemClient>(client: Arc<Mutex<C>>) -> Result<()> {
+    pub async fn test_listeners<C: DhtClient>(client: Arc<Mutex<C>>) -> Result<()> {
+        initialize_tracing();
         let client = client.lock().await;
 
         assert!(client.address().await?.is_none());
@@ -159,7 +159,8 @@ pub mod test {
         Ok(())
     }
 
-    pub async fn test_records<C: NameSystemClient>(client: Arc<Mutex<C>>) -> Result<()> {
+    pub async fn test_records<C: DhtClient>(client: Arc<Mutex<C>>) -> Result<()> {
+        initialize_tracing();
         let client = client.lock().await;
         client.listen("/ip4/127.0.0.1/tcp/0".parse()?).await?;
 
@@ -169,7 +170,7 @@ pub mod test {
             .parse()
             .unwrap();
         let record = NsRecord::from_issuer(&sphere_key, &sphere_id, &link, None).await?;
-        client.put_record(record).await?;
+        client.put_record(record, 1).await?;
 
         let retrieved = client
             .get_record(&sphere_id)
