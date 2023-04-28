@@ -3,6 +3,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum NoosphereError {
+    #[error("{0}")]
+    Other(anyhow::Error),
+
     #[error("Network access required but network is currently offline")]
     NetworkOffline,
 
@@ -11,9 +14,6 @@ pub enum NoosphereError {
 
     #[error("Missing configuration: {0}")]
     MissingConfiguration(&'static str),
-
-    #[error("{0}")]
-    Other(anyhow::Error),
 }
 
 impl From<anyhow::Error> for NoosphereError {
