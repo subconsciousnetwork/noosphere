@@ -39,6 +39,7 @@ tokio = { version = "1.15", features = ["io-util", "io-std", "sync", "macros", "
 noosphere-storage = { version = "0.6.2", path = "../noosphere-storage" }
 noosphere-core = { version = "0.9.3", path = "../noosphere-core" }
 libp2p = { version = "0.51.3", default-features = false, features = [ "ed25519", "identify", "dns", "kad", "macros", "noise", "serde", "tcp", "tokio", "yamux" ] }
+void = { workspace = true }
 
 # noosphere_ns::bin
 noosphere = { version = "0.9.1", path = "../noosphere", optional = true }

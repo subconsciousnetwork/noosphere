@@ -1,6 +1,7 @@
 use crate::dht::errors::DhtError;
 use crate::dht::DhtConfig;
 use libp2p::{
+    allow_block_list,
     core::muxing::StreamMuxerBox,
     core::transport::Boxed,
     core::upgrade,
@@ -14,11 +15,13 @@ use libp2p::{
 };
 use std::time::Duration;
 use std::{io, result::Result};
+use void::Void;
 
 #[derive(Debug)]
 pub enum DHTEvent {
     Kademlia(KademliaEvent),
     Identify(IdentifyEvent),
+    Void,
 }
 
 impl From<KademliaEvent> for DHTEvent {
@@ -33,11 +36,18 @@ impl From<IdentifyEvent> for DHTEvent {
     }
 }
 
+impl From<Void> for DHTEvent {
+    fn from(_: Void) -> Self {
+        DHTEvent::Void
+    }
+}
+
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "DHTEvent", event_process = false)]
 pub struct DhtBehavior {
     pub identify: Identify,
     pub kad: Kademlia<kad::record::store::MemoryStore>,
+    blocked_peers: allow_block_list::Behaviour<allow_block_list::BlockedPeers>,
 }
 
 pub type DHTSwarmEvent =
@@ -80,7 +90,11 @@ impl DhtBehavior {
             Identify::new(config)
         };
 
-        DhtBehavior { kad, identify }
+        DhtBehavior {
+            kad,
+            identify,
+            blocked_peers: allow_block_list::Behaviour::default(),
+        }
     }
 }
 
