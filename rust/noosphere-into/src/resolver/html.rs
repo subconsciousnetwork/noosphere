@@ -19,7 +19,7 @@ impl Resolver for StaticHtmlResolver {
                 peer: Peer::None,
             } => Ok(ResolvedLink::Slashlink {
                 link: link.clone(),
-                href: format!("/{}", slug),
+                href: format!("/{slug}"),
             }),
             _ => Err(anyhow!("Only local slashlinks with slugs are supported")),
         }

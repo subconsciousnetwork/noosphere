@@ -233,8 +233,13 @@ where
                     // network, in which case store it locally.
                     // Hopefully a temporary configuration in early bootstrapping.
                     if quorum == 0 {
-                        let result = if let Err(_) =
-                            self.swarm.behaviour_mut().kad.store_mut().put(record)
+                        let result = if self
+                            .swarm
+                            .behaviour_mut()
+                            .kad
+                            .store_mut()
+                            .put(record)
+                            .is_err()
                         {
                             Err(DhtError::Error(String::from("Could not store record.")))
                         } else {

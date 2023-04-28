@@ -42,24 +42,18 @@ impl fmt::Display for DhtRequest {
         match self {
             //DHTRequest::WaitForPeers(peers) => write!(fmt, "DHTRequest::WaitForPeers({})", peers),
             DhtRequest::AddPeers { peers } => {
-                write!(fmt, "DHTRequest::AddPeers {{ peers={:?} }}", peers)
+                write!(fmt, "DHTRequest::AddPeers {{ peers={peers:?} }}")
             }
             DhtRequest::StartListening { address } => {
-                write!(
-                    fmt,
-                    "DHTRequest::StartListening {{ address={:?} }}",
-                    address
-                )
+                write!(fmt, "DHTRequest::StartListening {{ address={address:?} }}")
             }
             DhtRequest::StopListening => {
                 write!(fmt, "DHTRequest::StopListening")
             }
             DhtRequest::Bootstrap => write!(fmt, "DHTRequest::Bootstrap"),
-            DhtRequest::GetAddresses { external } => write!(
-                fmt,
-                "DHTRequest::GetAddresses {{ external={:?} }}",
-                external
-            ),
+            DhtRequest::GetAddresses { external } => {
+                write!(fmt, "DHTRequest::GetAddresses {{ external={external:?} }}")
+            }
             DhtRequest::GetPeers => write!(fmt, "DHTRequest::GetPeers"),
             DhtRequest::GetNetworkInfo => write!(fmt, "DHTRequest::GetNetworkInfo"),
             DhtRequest::GetRecord { key } => write!(
@@ -105,19 +99,19 @@ impl fmt::Display for DhtResponse {
         match self {
             DhtResponse::Success => write!(fmt, "DHTResponse::Success"),
             DhtResponse::Address(address) => {
-                write!(fmt, "DHTResponse::Address {{ {:?} }}", address)
+                write!(fmt, "DHTResponse::Address {{ {address:?} }}")
             }
             DhtResponse::GetAddresses(addresses) => {
-                write!(fmt, "DHTResponse::GetAddresses {{ {:?} }}", addresses)
+                write!(fmt, "DHTResponse::GetAddresses {{ {addresses:?} }}")
             }
             DhtResponse::GetPeers(peers) => {
-                write!(fmt, "DHTResponse::GetPeers{:?}", peers)
+                write!(fmt, "DHTResponse::GetPeers {peers:?}")
             }
             DhtResponse::GetNetworkInfo(info) => {
-                write!(fmt, "DHTResponse::GetNetworkInfo {:?}", info)
+                write!(fmt, "DHTResponse::GetNetworkInfo {info:?}")
             }
             DhtResponse::GetRecord(record) => {
-                write!(fmt, "DHTResponse::GetRecord {{ {:?} }}", record)
+                write!(fmt, "DHTResponse::GetRecord {{ {record:?} }}")
             }
             DhtResponse::PutRecord { key } => write!(
                 fmt,
@@ -126,8 +120,7 @@ impl fmt::Display for DhtResponse {
             ),
             DhtResponse::GetProviders { providers } => write!(
                 fmt,
-                "DHTResponse::GetProviders {{ providers={:?} }}",
-                providers
+                "DHTResponse::GetProviders {{ providers={providers:?} }}"
             ),
         }
     }

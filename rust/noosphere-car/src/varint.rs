@@ -64,7 +64,7 @@ where
     V: VarInt,
     R: AsyncRead + CarReaderSend + Unpin,
 {
-    let mut read_buffer = [0 as u8; 1];
+    let mut read_buffer = [0_u8; 1];
     let mut p = VarIntProcessor::new::<V>();
 
     while !p.finished() {

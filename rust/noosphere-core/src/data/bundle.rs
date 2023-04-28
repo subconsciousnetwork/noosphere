@@ -31,6 +31,10 @@ impl Bundle {
         self.0.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn contains(&self, cid: &Cid) -> bool {
         self.0.contains_key(&cid.to_string())
     }
@@ -190,10 +194,9 @@ where
         bundle.add(*cid, bytes);
 
         for op in changelog.changes {
-            match op {
-                MapOperation::Add { value, .. } => value.extend_bundle(bundle, store).await?,
-                _ => (),
-            };
+            if let MapOperation::Add { value, .. } = op {
+                value.extend_bundle(bundle, store).await?;
+            }
         }
 
         Ok(())
@@ -340,11 +343,8 @@ impl TryBundle for SphereIpld {
         AuthorityIpld::extend_bundle_with_cid(&sphere.authority, bundle, store).await?;
         AddressBookIpld::extend_bundle_with_cid(&sphere.address_book, bundle, store).await?;
 
-        match sphere.private {
-            Some(_cid) => {
-                todo!();
-            }
-            _ => (),
+        if let Some(_cid) = sphere.private {
+            todo!();
         }
 
         Ok(())
@@ -355,11 +355,8 @@ impl TryBundle for SphereIpld {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl TryBundle for IdentityIpld {
     async fn extend_bundle<S: BlockStore>(&self, bundle: &mut Bundle, store: &S) -> Result<()> {
-        match &self.link_record {
-            Some(cid) => {
-                bundle.add(cid.clone().into(), store.require_block(&cid).await?);
-            }
-            _ => (),
+        if let Some(cid) = &self.link_record {
+            bundle.add(cid.clone().into(), store.require_block(cid).await?);
         };
         Ok(())
     }
@@ -371,7 +368,7 @@ impl TryBundle for DelegationIpld {
     async fn extend_bundle<S: BlockStore>(&self, bundle: &mut Bundle, store: &S) -> Result<()> {
         let (self_cid, self_bytes) = block_serialize::<DagCborCodec, _>(self)?;
         bundle.add(self_cid, self_bytes);
-        bundle.add(self.jwt.clone(), store.require_block(&self.jwt).await?);
+        bundle.add(self.jwt, store.require_block(&self.jwt).await?);
         Ok(())
     }
 }

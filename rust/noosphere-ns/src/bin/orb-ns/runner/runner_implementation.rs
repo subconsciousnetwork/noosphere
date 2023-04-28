@@ -51,8 +51,7 @@ impl NameSystemRunner {
                 let inner = MemoryStore::default();
                 let inner = IpfsStore::new(inner, Some(KuboClient::new(&ipfs_api_url)?));
                 let inner = BlockStoreRetry::new(inner, 3u32, Duration::new(1, 0));
-                let inner = UcanStore(inner);
-                inner
+                UcanStore(inner)
             };
             NameSystem::new(
                 &config.key_material,

@@ -1,8 +1,8 @@
 mod address;
-mod cli;
+mod cli_implementation;
 mod processor;
 
-pub use cli::*;
+pub use cli_implementation::*;
 
 pub use processor::{process_args, process_command};
 

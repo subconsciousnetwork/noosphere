@@ -123,7 +123,7 @@ where
             );
 
             bundle.merge(
-                Sphere::at(&latest_counterpart_sphere_cid, db)
+                Sphere::at(latest_counterpart_sphere_cid, db)
                     .bundle_until_ancestor(since.as_ref())
                     .await?,
             )

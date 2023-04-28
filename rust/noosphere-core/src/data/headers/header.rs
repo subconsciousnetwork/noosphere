@@ -24,7 +24,7 @@ impl Display for Header {
             Header::Unknown(name) => name,
         };
 
-        write!(f, "{}", value)
+        write!(f, "{value}")
     }
 }
 

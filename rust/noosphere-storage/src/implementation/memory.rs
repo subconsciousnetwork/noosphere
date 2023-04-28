@@ -93,7 +93,7 @@ impl MemoryStore {
                 "Expected replica, but the following CIDs are missing: {:#?}",
                 missing
                     .into_iter()
-                    .map(|cid| format!("{}", cid))
+                    .map(|cid| format!("{cid}"))
                     .collect::<Vec<String>>()
             ));
         }

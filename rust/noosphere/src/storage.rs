@@ -1,4 +1,7 @@
-use std::{fmt::Display, path::PathBuf};
+use std::{
+    fmt::Display,
+    path::{Path, PathBuf},
+};
 
 use anyhow::Result;
 use noosphere_core::data::Did;
@@ -58,7 +61,7 @@ impl StorageLayout {
     }
 }
 
-fn get_scoped_path(path: &PathBuf, scope: &Did) -> PathBuf {
+fn get_scoped_path(path: &Path, scope: &Did) -> PathBuf {
     #[cfg(not(windows))]
     let path_buf = path.join(scope.as_str());
 

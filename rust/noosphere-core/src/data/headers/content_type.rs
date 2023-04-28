@@ -21,7 +21,7 @@ impl Display for ContentType {
             ContentType::Unknown(header) => header.as_str(),
         };
 
-        write!(f, "{}", value)
+        write!(f, "{value}")
     }
 }
 

@@ -55,7 +55,7 @@ where
     /// corresponding [AddressIpld]. This is useful for iterating over sphere
     /// petnames incrementally without having to load the entire index into
     /// memory at once.
-    pub fn petname_stream<'a>(&'a self) -> impl Stream<Item = Result<(String, IdentityIpld)>> + 'a {
+    pub fn petname_stream(&self) -> impl Stream<Item = Result<(String, IdentityIpld)>> + '_ {
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
             let petnames = sphere.get_address_book().await?.get_identities().await?;
@@ -195,9 +195,9 @@ where
     /// corresponding [SphereFile]. This is useful for iterating over sphere
     /// content incrementally without having to load the entire index into
     /// memory at once.
-    pub fn content_stream<'a>(
-        &'a self,
-    ) -> impl Stream<Item = Result<(String, SphereFile<impl AsyncRead + 'a>)>> {
+    pub fn content_stream(
+        &self,
+    ) -> impl Stream<Item = Result<(String, SphereFile<impl AsyncRead>)>> + '_ {
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
             let links = sphere.get_content().await?;

@@ -1,4 +1,8 @@
-use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use super::WriteTargetConditionalSend;
 use anyhow::Result;
@@ -18,12 +22,12 @@ pub struct MemoryWriteTarget {
 }
 
 impl MemoryWriteTarget {
-    pub async fn resolve_symlink(&self, path: &PathBuf) -> Option<PathBuf> {
+    pub async fn resolve_symlink(&self, path: &Path) -> Option<PathBuf> {
         let aliases = self.aliases.lock().await;
         aliases.get(path).cloned()
     }
 
-    pub async fn read(&self, path: &PathBuf) -> Option<Vec<u8>> {
+    pub async fn read(&self, path: &Path) -> Option<Vec<u8>> {
         let aliases = self.aliases.lock().await;
 
         let path = if let Some(alias) = aliases.get(path) {
@@ -39,23 +43,23 @@ impl MemoryWriteTarget {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl WriteTarget for MemoryWriteTarget {
-    async fn exists(&self, path: &PathBuf) -> Result<bool> {
+    async fn exists(&self, path: &Path) -> Result<bool> {
         Ok(self.vfs.lock().await.contains_key(path))
     }
 
-    async fn write<R>(&self, path: &PathBuf, mut contents: R) -> Result<()>
+    async fn write<R>(&self, path: &Path, mut contents: R) -> Result<()>
     where
         R: AsyncRead + Unpin + WriteTargetConditionalSend,
     {
         let mut buffer = Vec::new();
         contents.read_to_end(&mut buffer).await?;
-        self.vfs.lock().await.insert(path.clone(), buffer);
+        self.vfs.lock().await.insert(path.to_path_buf(), buffer);
         Ok(())
     }
 
-    async fn symlink(&self, src: &PathBuf, dst: &PathBuf) -> Result<()> {
+    async fn symlink(&self, src: &Path, dst: &Path) -> Result<()> {
         let mut aliases = self.aliases.lock().await;
-        aliases.insert(dst.clone(), src.clone());
+        aliases.insert(dst.to_path_buf(), src.to_path_buf());
         Ok(())
     }
 

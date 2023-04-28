@@ -48,7 +48,7 @@ where
     async fn get_block(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
         Ok(match self.store.get_block(cid).await? {
             Some(block) => {
-                self.tx.send((cid.clone(), block.clone())).await?;
+                self.tx.send((*cid, block.clone())).await?;
                 Some(block)
             }
             None => None,

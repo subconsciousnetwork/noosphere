@@ -126,8 +126,8 @@ impl From<Jwt> for LinkRecord {
     }
 }
 
-impl Into<Jwt> for LinkRecord {
-    fn into(self) -> Jwt {
-        self.0
+impl From<LinkRecord> for Jwt {
+    fn from(value: LinkRecord) -> Self {
+        value.0
     }
 }

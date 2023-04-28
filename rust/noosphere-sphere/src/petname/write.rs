@@ -110,14 +110,11 @@ where
             .identities_mut()
             .set(&name.into(), &new_address);
 
-        match previous_identity {
-            Some(previous_identity) => {
-                if identity != previous_identity.did {
-                    return Ok(Some(previous_identity.did.to_owned()));
-                }
+        if let Some(previous_identity) = previous_identity {
+            if identity != previous_identity.did {
+                return Ok(Some(previous_identity.did.to_owned()));
             }
-            _ => (),
-        };
+        }
 
         Ok(None)
     }

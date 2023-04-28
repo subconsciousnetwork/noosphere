@@ -33,8 +33,8 @@ impl From<SphereReceipt> for NsSphereReceipt {
 /// @memberof ns_sphere_receipt_t
 /// Read the sphere identity (a DID encoded as a UTF-8 string) from a
 /// ns_sphere_receipt_t
-pub fn ns_sphere_receipt_identity<'a>(
-    sphere_receipt: &'a NsSphereReceipt,
+pub fn ns_sphere_receipt_identity(
+    sphere_receipt: &NsSphereReceipt,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<char_p::Box> {
     error_out.try_or_initialize(|| {
@@ -50,8 +50,8 @@ pub fn ns_sphere_receipt_identity<'a>(
 #[ffi_export]
 /// @memberof ns_sphere_receipt_t
 /// Read the mnemonic from a ns_sphere_receipt_t.
-pub fn ns_sphere_receipt_mnemonic<'a>(
-    sphere_receipt: &'a NsSphereReceipt,
+pub fn ns_sphere_receipt_mnemonic(
+    sphere_receipt: &NsSphereReceipt,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<char_p::Box> {
     error_out.try_or_initialize(|| {
@@ -185,21 +185,21 @@ pub fn ns_sphere_sync(
         Option<char_p::Box>,
     ),
 ) {
-    let async_runtime = noosphere.async_runtime().clone();
+    let async_runtime = noosphere.async_runtime();
     let mut sphere_channel = sphere.to_channel();
 
     noosphere.async_runtime().spawn(async move {
         let result: Result<char_p::Box, anyhow::Error> = async {
             sphere_channel.mutable().sync().await?;
 
-            Ok(sphere_channel
+            sphere_channel
                 .immutable()
                 .to_sphere()
                 .await?
                 .cid()
                 .to_string()
                 .try_into()
-                .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?)
+                .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))
         }
         .await;
 

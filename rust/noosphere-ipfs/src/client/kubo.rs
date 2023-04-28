@@ -21,7 +21,7 @@ fn get_codec(cid: &Cid) -> Result<String> {
     match cid.codec() {
         codec if codec == u64::from(RawCodec) => Ok(String::from("raw")),
         codec if codec == u64::from(DagCborCodec) => Ok(String::from("dag-cbor")),
-        codec @ _ => Err(anyhow!("Codec not supported {}", codec)),
+        codec => Err(anyhow!("Codec not supported {}", codec)),
     }
 }
 
@@ -53,7 +53,7 @@ impl IpfsClient for KuboClient {
         let cid_base64 = cid.to_string();
 
         api_url.set_path("/api/v0/pin/ls");
-        api_url.set_query(Some(&format!("arg={}", cid_base64)));
+        api_url.set_query(Some(&format!("arg={cid_base64}")));
 
         let request = Request::builder()
             .method("POST")
@@ -82,9 +82,8 @@ impl IpfsClient for KuboClient {
 
         let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
 
-        match serde_json::from_slice(body_bytes.as_ref())? {
-            IdResponse { public_key, .. } => Ok(public_key),
-        }
+        let IdResponse { public_key, .. } = serde_json::from_slice(body_bytes.as_ref())?;
+        Ok(public_key)
     }
 
     #[instrument(skip(self, car), level = "trace")]

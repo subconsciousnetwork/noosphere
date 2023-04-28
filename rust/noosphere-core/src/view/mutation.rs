@@ -56,7 +56,7 @@ pub struct SphereMutation {
     revocations: RevocationsMutation,
 }
 
-impl<'a> SphereMutation {
+impl SphereMutation {
     pub fn new(did: &str) -> Self {
         SphereMutation {
             did: did.into(),

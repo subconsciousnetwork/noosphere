@@ -107,7 +107,7 @@ impl DhtClient for HttpClient {
     async fn put_record(&self, record: NsRecord, quorum: usize) -> Result<()> {
         let mut url = self.api_base.clone();
         url.set_path(&Route::PostRecord.to_string());
-        url.set_query(Some(&format!("quorum={}", quorum)));
+        url.set_query(Some(&format!("quorum={quorum}")));
         let json_data = serde_json::to_string(&record)?;
 
         let res = self

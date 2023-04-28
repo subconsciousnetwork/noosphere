@@ -18,6 +18,7 @@ use std::{io, result::Result};
 use void::Void;
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum DHTEvent {
     Kademlia(KademliaEvent),
     Identify(IdentifyEvent),

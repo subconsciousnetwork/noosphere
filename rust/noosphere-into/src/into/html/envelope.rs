@@ -46,18 +46,16 @@ pub fn html_document_envelope(memo: &MemoIpld) -> (String, String) {
         format!(
             r#"<!doctype html>
 <html>
-{}
+{head_section}
 <body>
-<article role="main" class="noosphere-content" data-content-type="{}">
-{}
-"#,
-            head_section, content_type_attribute_value, body_open
+<article role="main" class="noosphere-content" data-content-type="{content_type_attribute_value}">
+{body_open}
+"#
         ),
         format!(
-            r#"{}
+            r#"{body_close}
 </body>
-</html>"#,
-            body_close
+</html>"#
         ),
     )
 }

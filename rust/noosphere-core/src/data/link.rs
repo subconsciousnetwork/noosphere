@@ -34,7 +34,7 @@ impl<T> LinkSend for T {}
 /// typing. A [Link] transparently represents its inner [Cid], so a data
 /// structure that uses [Link]s can safely be interpretted in terms of [Cid]s,
 /// and vice-versa.
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Clone)]
+#[derive(Debug, Ord, PartialOrd, Serialize, Deserialize, Clone)]
 // NOTE: Required because libipld special-cases unit structs and errors
 // SEE: https://github.com/ipld/libipld/blob/65e0b38520f62cfb2b67ebe658846d86dac2f73e/core/src/serde/ser.rs#L192
 #[serde(from = "Cid", into = "Cid")]
@@ -66,6 +66,17 @@ where
         Hash::hash(&self.cid, hasher)
     }
 }
+
+impl<T> PartialEq for Link<T>
+where
+    T: Clone,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.cid == other.cid
+    }
+}
+
+impl<T> Eq for Link<T> where T: Clone {}
 
 impl<T> HamtHash for Link<T>
 where

@@ -136,7 +136,7 @@ impl<'de> Deserialize<'de> for CLIAddress {
                 if value >= i64::from(u16::MIN) && value <= i64::from(u16::MAX) {
                     Ok(CLIAddress::Port(value as u16))
                 } else {
-                    Err(E::custom(format!("u16 out of range: {}", value)))
+                    Err(E::custom(format!("u16 out of range: {value}")))
                 }
             }
             // serde_json parses numbers as i64 or u64.
@@ -147,7 +147,7 @@ impl<'de> Deserialize<'de> for CLIAddress {
                 if value >= u64::from(u16::MIN) && value <= u64::from(u16::MAX) {
                     Ok(CLIAddress::Port(value as u16))
                 } else {
-                    Err(E::custom(format!("u16 out of range: {}", value)))
+                    Err(E::custom(format!("u16 out of range: {value}")))
                 }
             }
         }

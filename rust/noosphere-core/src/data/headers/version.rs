@@ -13,7 +13,7 @@ impl Display for Version {
             Version::Unknown(header) => header.as_str(),
         };
 
-        write!(f, "{}", value)
+        write!(f, "{value}")
     }
 }
 

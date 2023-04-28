@@ -92,6 +92,14 @@ macro_rules! string_coherent {
             }
         }
 
+        impl PartialEq for $wrapper {
+            fn eq(&self, other: &Self) -> bool {
+                self.0 == other.0
+            }
+        }
+
+        impl Eq for $wrapper {}
+
         impl Display for $wrapper {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 Display::fmt(&self.0, f)
@@ -113,7 +121,7 @@ macro_rules! string_coherent {
 /// See: <https://en.wikipedia.org/wiki/Decentralized_identifier>
 /// See: <https://www.w3.org/TR/did-core/>
 #[repr(transparent)]
-#[derive(Default, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct Did(pub String);
 
 string_coherent!(Did);
@@ -125,7 +133,7 @@ string_coherent!(Did);
 /// See: <https://jwt.io/>
 /// See: <https://ucan.xyz/>
 #[repr(transparent)]
-#[derive(Default, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct Jwt(pub String);
 
 string_coherent!(Jwt);

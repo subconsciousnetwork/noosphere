@@ -68,7 +68,7 @@ where
                         },
                     };
                 },
-                _ = tokio::time::sleep(self.timeout.clone()) => {
+                _ = tokio::time::sleep(self.timeout) => {
                     warn!("Timed out trying to get {} after {} seconds...", cid, self.timeout.as_secs());
                 }
             }

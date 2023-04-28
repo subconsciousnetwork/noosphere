@@ -26,10 +26,11 @@ pub fn ns_sphere_petname_is_set(
 ) -> u8 {
     if let Some(result) = error_out.try_or_initialize(|| {
         noosphere.async_runtime().block_on(async {
-            Ok(match sphere.inner().get_petname(petname.to_str()).await? {
-                Some(_) => true,
-                None => false,
-            })
+            Ok(sphere
+                .inner()
+                .get_petname(petname.to_str())
+                .await?
+                .is_some())
         })
     }) {
         if result {

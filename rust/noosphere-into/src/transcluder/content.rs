@@ -58,7 +58,6 @@ where
                     Peer::None => {
                         // TODO(#49): Perhaps this should be sensitive to external content
                         // e.g., from other spheres
-                        
                     }
                     _ => return Ok(None),
                 };
@@ -95,7 +94,7 @@ where
                         Some(Transclude::Text(TextTransclude {
                             title,
                             excerpt,
-                            link_text: format!("/{}", slug),
+                            link_text: format!("/{slug}"),
                             href: href.to_owned(),
                         }))
                     }
@@ -106,7 +105,7 @@ where
                         Some(Transclude::Text(TextTransclude {
                             title: None,
                             excerpt: None,
-                            link_text: format!("/{}", slug),
+                            link_text: format!("/{slug}"),
                             href: href.to_owned(),
                         }))
                     }

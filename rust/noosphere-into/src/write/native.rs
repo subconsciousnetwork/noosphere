@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::fs::{create_dir_all, File};
 use tokio::io::{copy, AsyncRead, AsyncWriteExt};
 
@@ -16,7 +16,7 @@ pub struct NativeFs {
 }
 
 impl NativeFs {
-    fn assert_relative(path: &PathBuf) -> Result<()> {
+    fn assert_relative(path: &Path) -> Result<()> {
         if path.is_absolute() || path.starts_with("..") {
             Err(anyhow!(
                 "Only relative sub-paths allowed, but received: {:?}",
@@ -30,11 +30,11 @@ impl NativeFs {
 
 #[async_trait]
 impl WriteTarget for NativeFs {
-    async fn exists(&self, path: &PathBuf) -> Result<bool> {
+    async fn exists(&self, path: &Path) -> Result<bool> {
         Ok(self.root.join(path).exists())
     }
 
-    async fn write<R>(&self, path: &PathBuf, mut contents: R) -> Result<()>
+    async fn write<R>(&self, path: &Path, mut contents: R) -> Result<()>
     where
         R: AsyncRead + Unpin + WriteTargetConditionalSend,
     {
@@ -54,7 +54,7 @@ impl WriteTarget for NativeFs {
         Ok(())
     }
 
-    async fn symlink(&self, src: &PathBuf, dst: &PathBuf) -> Result<()> {
+    async fn symlink(&self, src: &Path, dst: &Path) -> Result<()> {
         NativeFs::assert_relative(src)?;
         NativeFs::assert_relative(dst)?;
 

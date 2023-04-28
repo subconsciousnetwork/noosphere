@@ -137,6 +137,7 @@ pub fn ns_sphere_free(sphere: repr_c::Box<NsSphere>) {
 /// Note that this function has a reasonable likelihood to call out to the
 /// network, notably in cases where a petname is assigned to an identity but the
 /// sphere data is not available to local storage.
+#[allow(clippy::type_complexity)]
 pub fn ns_sphere_traverse_by_petname(
     noosphere: &NsNoosphere,
     sphere: &mut NsSphere,
@@ -149,7 +150,7 @@ pub fn ns_sphere_traverse_by_petname(
     ),
 ) {
     let mut sphere = sphere.inner_mut().clone();
-    let async_runtime = noosphere.async_runtime().clone();
+    let async_runtime = noosphere.async_runtime();
     let raw_petnames = format!("@{}", petname.to_str());
 
     noosphere.async_runtime().spawn(async move {
@@ -203,7 +204,7 @@ pub fn ns_sphere_traverse_by_petname_blocking(
     match error_out.try_or_initialize(|| {
         let sphere = noosphere.async_runtime().block_on(async {
             let raw_petnames = petname.to_str();
-            let link = Slashlink::from_str(&format!("@{}", raw_petnames))?;
+            let link = Slashlink::from_str(&format!("@{raw_petnames}"))?;
             let petnames = match link.peer {
                 Peer::Name(petnames) => petnames,
                 _ => return Err(anyhow!("No petnames found in {}", raw_petnames)),
@@ -254,6 +255,7 @@ pub fn ns_sphere_traverse_by_petname_blocking(
 /// This function will return a null pointer if the slug does not have a file
 /// associated with it at the revision of the sphere that is referred to by the
 /// ns_sphere_t being read from.
+#[allow(clippy::type_complexity)]
 pub fn ns_sphere_content_read(
     noosphere: &NsNoosphere,
     sphere: &NsSphere,
@@ -267,7 +269,7 @@ pub fn ns_sphere_content_read(
 ) {
     let sphere = sphere.inner().clone();
     let slashlink = slashlink.to_string();
-    let async_runtime = noosphere.async_runtime().clone();
+    let async_runtime = noosphere.async_runtime();
 
     noosphere.async_runtime().spawn(async move {
         let result = async {
@@ -427,7 +429,7 @@ pub fn ns_sphere_content_write(
                 )
                 .await?;
 
-            println!("Updated {:?}...", slug);
+            println!("Updated {slug:?}...");
 
             Ok(())
         })
@@ -478,7 +480,7 @@ pub fn ns_sphere_save(
                 .save(additional_headers.map(|headers| headers.inner().clone())),
         )?;
 
-        println!("Saved sphere; new revision is {}", cid);
+        println!("Saved sphere; new revision is {cid}");
 
         Ok(())
     });
@@ -594,6 +596,7 @@ pub fn ns_sphere_file_free(sphere_file: repr_c::Box<NsSphereFile>) {
 ///  3. An owned pointer to a sized byte array (slice_boxed_uint8_t) if the call
 ///     was successful, otherwise NULL
 ///
+#[allow(clippy::type_complexity)]
 pub fn ns_sphere_file_contents_read(
     noosphere: &NsNoosphere,
     mut sphere_file: repr_c::Box<NsSphereFile>,
@@ -604,7 +607,7 @@ pub fn ns_sphere_file_contents_read(
         Option<c_slice::Box<u8>>,
     ),
 ) {
-    let async_runtime = noosphere.async_runtime().clone();
+    let async_runtime = noosphere.async_runtime();
 
     noosphere.async_runtime().spawn(async move {
         let result = async {

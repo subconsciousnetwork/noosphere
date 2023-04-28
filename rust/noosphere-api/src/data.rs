@@ -56,7 +56,7 @@ pub struct FetchParameters {
 
 impl AsQuery for FetchParameters {
     fn as_query(&self) -> Result<Option<String>> {
-        Ok(self.since.as_ref().map(|since| format!("since={}", since)))
+        Ok(self.since.as_ref().map(|since| format!("since={since}")))
     }
 }
 

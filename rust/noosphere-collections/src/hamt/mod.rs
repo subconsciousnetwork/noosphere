@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 mod bitfield;
-mod hamt;
+mod hamt_implementation;
 mod hash_algorithm;
 mod hash_bits;
 mod key_value_pair;
@@ -12,7 +12,7 @@ mod node;
 mod pointer;
 
 pub use bitfield::*;
-pub use hamt::*;
+pub use hamt_implementation::*;
 pub use hash_algorithm::*;
 pub use hash_bits::*;
 pub use key_value_pair::*;

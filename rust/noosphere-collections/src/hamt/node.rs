@@ -2,6 +2,7 @@
 // Source copyright and license:
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
+#![allow(clippy::only_used_in_recursion)]
 
 use anyhow::Result;
 use async_recursion::async_recursion;
@@ -12,7 +13,6 @@ use noosphere_storage::BlockStore;
 use std::borrow::Borrow;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::pin::Pin;
 use tokio_stream::Stream;
 
 use async_once_cell::OnceCell;
@@ -24,7 +24,7 @@ use forest_hash_utils::Hash;
 use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
-use super::{HashAlgorithm, KeyValuePair, TargetConditionalSendSync, MAX_ARRAY_WIDTH};
+use super::{HamtStream, HashAlgorithm, KeyValuePair, TargetConditionalSendSync, MAX_ARRAY_WIDTH};
 
 /// Node in Hamt tree which contains bitfield of set indexes and pointers to nodes
 #[derive(Debug, Clone)]
@@ -150,10 +150,7 @@ where
         self.pointers.is_empty()
     }
 
-    pub(crate) fn stream<'a, S>(
-        &'a self,
-        store: &'a S,
-    ) -> Pin<Box<dyn Stream<Item = Result<(&'a K, &'a V)>> + 'a>>
+    pub(crate) fn stream<'a, S>(&'a self, store: &'a S) -> HamtStream<K, V>
     where
         S: BlockStore,
     {

@@ -132,7 +132,7 @@ impl<S: BlockStore> Sphere<S> {
     pub async fn get_content(&self) -> Result<Content<S>> {
         let sphere = self.to_body().await?;
 
-        Ok(Content::at(&sphere.content, &mut self.store.clone()))
+        Ok(Content::at(&sphere.content, &self.store.clone()))
     }
 
     /// Attempt to load the [Authority] of this sphere. If no authorizations or
@@ -141,16 +141,13 @@ impl<S: BlockStore> Sphere<S> {
     pub async fn get_authority(&self) -> Result<Authority<S>> {
         let sphere = self.to_body().await?;
 
-        Ok(Authority::at(&sphere.authority, &mut self.store.clone()))
+        Ok(Authority::at(&sphere.authority, &self.store.clone()))
     }
 
     pub async fn get_address_book(&self) -> Result<AddressBook<S>> {
         let sphere = self.to_body().await?;
 
-        Ok(AddressBook::at(
-            &sphere.address_book,
-            &mut self.store.clone(),
-        ))
+        Ok(AddressBook::at(&sphere.address_book, &self.store.clone()))
     }
 
     /// Get the [Did] identity of the sphere
