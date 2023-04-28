@@ -134,7 +134,10 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    debug!("Resolving from and publishing to NNS at {}", configuration);
+    info!(
+        "Resolving from and publishing to Noosphere Name System at {}",
+        configuration
+    );
 
     let mut with_client = TryOrReset::new(|| async {
         match &configuration.connection_type {
@@ -247,8 +250,8 @@ where
         });
 
         match run_job.await {
-            Err(error) => error!("NNS job failed: {}", error),
-            _ => debug!("NNS job completed successfully"),
+            Err(error) => warn!("Noosphere Name System job failed: {}", error),
+            _ => debug!("Noosphere Name System job completed successfully"),
         }
     }
 

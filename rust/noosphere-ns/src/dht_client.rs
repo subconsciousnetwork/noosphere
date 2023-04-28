@@ -104,7 +104,7 @@ pub mod test {
     use ucan::crypto::KeyMaterial;
 
     pub async fn test_network_info<C: DhtClient>(client: Arc<Mutex<C>>) -> Result<()> {
-        initialize_tracing();
+        initialize_tracing(None);
         let client = client.lock().await;
         let network_info = client.network_info().await?;
         assert!(network_info.num_connections >= 1);
@@ -112,7 +112,7 @@ pub mod test {
     }
 
     pub async fn test_listeners<C: DhtClient>(client: Arc<Mutex<C>>) -> Result<()> {
-        initialize_tracing();
+        initialize_tracing(None);
         let client = client.lock().await;
 
         assert!(client.address().await?.is_none());
@@ -160,7 +160,7 @@ pub mod test {
     }
 
     pub async fn test_records<C: DhtClient>(client: Arc<Mutex<C>>) -> Result<()> {
-        initialize_tracing();
+        initialize_tracing(None);
         let client = client.lock().await;
         client.listen("/ip4/127.0.0.1/tcp/0".parse()?).await?;
 

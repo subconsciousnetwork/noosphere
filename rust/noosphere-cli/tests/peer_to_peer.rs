@@ -79,7 +79,7 @@ async fn start_name_system_server<S: UcanJwtStore + Clone + 'static>(
 #[cfg(feature = "test_kubo")]
 #[tokio::test]
 async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() {
-    initialize_tracing();
+    initialize_tracing(None);
 
     let ipfs_url = Url::parse("http://127.0.0.1:5001").unwrap();
 
@@ -231,7 +231,7 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() {
     use noosphere_cli::native::ConfigSetCommand;
     use noosphere_sphere::SphereContentRead;
     use tokio::io::AsyncReadExt;
-    initialize_tracing();
+    initialize_tracing(None);
 
     let ipfs_url = Url::parse("http://127.0.0.1:5001").unwrap();
 

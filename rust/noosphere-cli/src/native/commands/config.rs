@@ -92,7 +92,7 @@ pub async fn config_get(command: ConfigGetCommand, workspace: &Workspace) -> Res
     };
 
     if let Some(value) = value {
-        println!("{value}");
+        info!("{value}");
     }
 
     Ok(())

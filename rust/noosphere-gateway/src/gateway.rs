@@ -43,7 +43,7 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    initialize_tracing();
+    initialize_tracing(None);
 
     let gateway_key_did = {
         let sphere_context = sphere_context.sphere_context().await?;
@@ -105,7 +105,7 @@ where
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 
-    println!(
+    info!(
         r#"A geist is summoned to manage local sphere {}
 
 It has bound a gateway to {:?}

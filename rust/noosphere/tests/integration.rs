@@ -101,7 +101,7 @@ fn slow_content() -> Pin<Box<StreamReader<impl Stream<Item = Result<Bytes, std::
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
 async fn single_player_single_device_end_to_end_workflow() {
-    initialize_tracing();
+    initialize_tracing(None);
 
     let (configuration, _temporary_directories) = platform_configuration();
     let key_name = "foobarbaz";

@@ -296,7 +296,7 @@ pub fn ns_sphere_content_read(
                 Peer::Did(_) => return Err(anyhow!("DID peer in slashlink not yet supported")),
             };
 
-            println!(
+            info!(
                 "Reading sphere {} slug {}...",
                 cursor.identity().await?,
                 slug
@@ -365,7 +365,7 @@ pub fn ns_sphere_content_read_blocking(
                     Peer::Did(_) => return Err(anyhow!("DID peer in slashlink not yet supported")),
                 };
 
-                println!(
+                info!(
                     "Reading sphere {} slug {}...",
                     cursor.identity().await?,
                     slug
@@ -414,7 +414,7 @@ pub fn ns_sphere_content_write(
             let slug = slug.to_str();
             let mut cursor = SphereCursor::latest(sphere.inner_mut().clone());
 
-            println!(
+            info!(
                 "Writing sphere {} slug {}...",
                 cursor.identity().await?,
                 slug

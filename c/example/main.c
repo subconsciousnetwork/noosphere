@@ -37,6 +37,8 @@ void test_noosphere()
 
   ns_noosphere_t *noosphere = ns_initialize("/tmp/foo", "/tmp/bar", NULL, NULL);
 
+  ns_tracing_initialize(NS_NOOSPHERE_LOG_ACADEMIC);
+
   ns_key_create(noosphere, "bob", NULL);
   ns_sphere_receipt_t *sphere_receipt =
       ns_sphere_create(noosphere, "bob", NULL);

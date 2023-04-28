@@ -63,7 +63,7 @@ impl NoosphereContext {
         gateway_api: Option<String>,
         ipfs_gateway_url: Option<String>,
     ) -> Self {
-        initialize_tracing();
+        initialize_tracing(None);
         info!("Hello, Noosphere!");
 
         let gateway_api = if let Some(gateway_api) = gateway_api {

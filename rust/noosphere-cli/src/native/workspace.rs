@@ -359,7 +359,7 @@ impl Workspace {
             let mut sphere_file = match context.read(slug).await? {
                 Some(file) => file,
                 None => {
-                    println!("Warning: could not resolve content for {slug}");
+                    warn!("Could not resolve content for {slug}");
                     continue;
                 }
             };
@@ -372,7 +372,7 @@ impl Workspace {
                 None => match sphere_file.memo.content_type() {
                     Some(content_type) => self.infer_file_extension(content_type).await,
                     None => {
-                        println!("Warning: no content type specified for {slug}; it will be rendered without a file extension");
+                        warn!("No content type specified for {slug}; it will be rendered without a file extension");
                         None
                     }
                 },

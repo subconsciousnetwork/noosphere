@@ -24,7 +24,7 @@ pub async fn sphere_create(owner_key: &str, workspace: &Workspace) -> Result<()>
     let sphere_context: SphereContext<_, _> = sphere_context_artifacts.into();
     let sphere_identity = sphere_context.identity();
 
-    println!(
+    info!(
         r#"A new sphere has been created in {:?}
 Its identity is {}
 Your key {:?} is considered its owner
@@ -52,7 +52,7 @@ pub async fn sphere_join(
     workspace: &Workspace,
 ) -> Result<()> {
     workspace.ensure_sphere_uninitialized()?;
-    println!("Joining sphere {sphere_identity}...");
+    info!("Joining sphere {sphere_identity}...");
 
     let did = {
         let local_key = workspace.key_storage().require_key(local_key).await?;
@@ -61,7 +61,7 @@ pub async fn sphere_join(
 
     let cid_string = match authorization {
         None => {
-            println!(
+            info!(
                 r#"In order to join the sphere, another client must authorize your local key
 This is the local key's ID; share it with an authorized client:
 
@@ -98,7 +98,7 @@ Type or paste the code here and press enter:"#
 
     // TODO(#103): Recovery path if the auth needs to change for some reason
 
-    println!(
+    info!(
         r#"The authorization has been saved.
 Make sure that you have configured the gateway's URL:
 

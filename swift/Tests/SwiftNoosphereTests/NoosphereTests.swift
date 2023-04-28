@@ -8,6 +8,8 @@ final class NoosphereTests: XCTestCase {
         // reading from swift works as intended
         let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
 
+        ns_tracing_initialize(NS_NOOSPHERE_LOG_CHATTY.rawValue)
+
         ns_key_create(noosphere, "bob", nil)
 
         let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)

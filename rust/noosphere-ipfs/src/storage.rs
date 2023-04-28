@@ -162,7 +162,7 @@ mod tests {
     /// [IpfsStore] successfully, producing an error.
     #[tokio::test]
     pub async fn it_fails_gracefully_if_block_not_found() {
-        initialize_tracing();
+        initialize_tracing(None);
 
         let mut rng = thread_rng();
         let foo = TestData {
