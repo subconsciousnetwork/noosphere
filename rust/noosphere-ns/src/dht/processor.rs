@@ -273,6 +273,7 @@ where
         match event {
             SwarmEvent::Behaviour(DHTEvent::Kademlia(e)) => self.process_kad_event(e).await,
             SwarmEvent::Behaviour(DHTEvent::Identify(e)) => self.process_identify_event(e),
+            SwarmEvent::Behaviour(DHTEvent::Void) => {}
             // The following events are currently handled only for debug logging.
             SwarmEvent::NewListenAddr {
                 address: new_address,
@@ -326,7 +327,7 @@ where
                 error: _,
             } => {}
             SwarmEvent::Dialing(_) => {}
-            SwarmEvent::BannedPeer { peer_id: _, .. } => {}
+            _ => {}
         }
     }
 

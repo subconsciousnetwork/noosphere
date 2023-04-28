@@ -4080,6 +4080,7 @@ dependencies = [
  "ucan",
  "ucan-key-support",
  "url 2.3.1",
+ "void",
 ]
 
 [[package]]
