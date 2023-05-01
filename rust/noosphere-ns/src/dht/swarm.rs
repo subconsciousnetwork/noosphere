@@ -17,6 +17,8 @@ use std::time::Duration;
 use std::{io, result::Result};
 use void::Void;
 
+const CONNECTION_TIMEOUT_SECONDS: u64 = 20;
+
 #[derive(Debug)]
 pub enum DHTEvent {
     Kademlia(KademliaEvent),
@@ -103,16 +105,13 @@ impl DhtBehavior {
 fn build_transport(keypair: &Keypair) -> Result<Boxed<(PeerId, StreamMuxerBox)>, io::Error> {
     let transport =
         dns::TokioDnsConfig::system(tcp::tokio::Transport::new(tcp::Config::new().nodelay(true)))?;
-
-    let noise_keys = noise::Keypair::<noise::X25519Spec>::new()
-        .into_authentic(keypair)
-        .expect("Noise key generation failed.");
+    let noise_keys = noise::Config::new(keypair).expect("Noise key generation failed.");
 
     Ok(transport
         .upgrade(upgrade::Version::V1)
-        .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
-        .multiplex(yamux::YamuxConfig::default())
-        .timeout(std::time::Duration::from_secs(20))
+        .authenticate(noise_keys)
+        .multiplex(yamux::Config::default())
+        .timeout(std::time::Duration::from_secs(CONNECTION_TIMEOUT_SECONDS))
         .boxed())
 }
 
