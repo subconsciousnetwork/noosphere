@@ -44,6 +44,8 @@ tiny-bip39 = "^1"
 tokio-stream = "~0.1"
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
 
 noosphere-storage = { version = "0.6.2", path = "../noosphere-storage" }
 noosphere-collections = { version = "0.5.2", path = "../noosphere-collections" }
@@ -58,6 +60,7 @@ serde_bytes = "~0.11"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "^1", features = ["full"] }
 tracing-subscriber = { workspace = true }
+tracing-core = { worksapce = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # NOTE: This is needed so that rand can be included in WASM builds

@@ -37,7 +37,7 @@ use noosphere_gateway::{start_gateway, GatewayScope};
 
 #[tokio::test]
 async fn gateway_tells_you_its_identity() {
-    initialize_tracing();
+    initialize_tracing(None);
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
 
@@ -112,7 +112,7 @@ async fn gateway_tells_you_its_identity() {
 
 #[tokio::test]
 async fn gateway_identity_can_be_verified_by_the_client_of_its_owner() {
-    initialize_tracing();
+    initialize_tracing(None);
 
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
@@ -195,7 +195,7 @@ async fn gateway_identity_can_be_verified_by_the_client_of_its_owner() {
 
 #[tokio::test]
 async fn gateway_receives_a_newly_initialized_sphere_from_the_client() {
-    initialize_tracing();
+    initialize_tracing(None);
 
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
@@ -309,7 +309,7 @@ async fn gateway_receives_a_newly_initialized_sphere_from_the_client() {
 
 #[tokio::test]
 async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() {
-    initialize_tracing();
+    initialize_tracing(None);
 
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
@@ -478,7 +478,7 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() {
 
 #[tokio::test]
 async fn gateway_serves_sphere_revisions_to_a_client() {
-    initialize_tracing();
+    initialize_tracing(None);
 
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
@@ -625,7 +625,7 @@ async fn gateway_serves_sphere_revisions_to_a_client() {
 
 #[tokio::test]
 async fn gateway_can_sync_an_authorized_sphere_across_multiple_replicas() {
-    initialize_tracing();
+    initialize_tracing(None);
 
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();

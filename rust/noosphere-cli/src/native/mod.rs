@@ -269,7 +269,7 @@ pub enum AuthCommand {
 }
 
 pub async fn main() -> Result<()> {
-    initialize_tracing();
+    initialize_tracing(None);
     let args = Cli::parse();
 
     let current_working_directory = std::env::current_dir()?;

@@ -46,7 +46,7 @@ pub mod test {
     use ucan::crypto::KeyMaterial;
 
     pub async fn test_name_resolver_simple<N: NameResolver>(resolver: N) -> Result<()> {
-        initialize_tracing();
+        initialize_tracing(None);
         let sphere_key = generate_ed25519_key();
         let sphere_id = Did::from(sphere_key.get_did().await?);
         let link: Cid = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72"

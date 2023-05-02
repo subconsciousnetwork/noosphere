@@ -28,7 +28,7 @@ use inner::*;
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> Result<()> {
-    initialize_tracing();
+    initialize_tracing(None);
 
     let key_storage = InsecureKeyStorage::new(&utils::get_keys_dir()?)?;
     cli::process_args(&key_storage)

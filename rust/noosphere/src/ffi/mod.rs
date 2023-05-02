@@ -5,8 +5,10 @@ mod key;
 mod noosphere;
 mod petname;
 mod sphere;
+mod tracing;
 
 pub use crate::ffi::noosphere::*;
+pub use crate::ffi::tracing::*;
 pub use context::*;
 pub use error::*;
 pub use headers::*;

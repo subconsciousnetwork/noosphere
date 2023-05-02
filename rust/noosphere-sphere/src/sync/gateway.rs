@@ -157,7 +157,7 @@ where
         let (counterpart_sphere_tip, new_blocks) = match fetch_response {
             FetchResponse::NewChanges { tip, blocks } => (tip, blocks),
             FetchResponse::UpToDate => {
-                println!("Local history is already up to date...");
+                info!("Local history is already up to date...");
                 let local_sphere_tip = context.db().require_version(&local_sphere_identity).await?;
                 return Ok((
                     local_sphere_tip,
@@ -213,7 +213,7 @@ where
         ) {
             // History diverged, so rebase our local changes on the newly received branch
             (Some(current_tip), Some(old_base), Some(new_base)) => {
-                println!("Syncing received local sphere revisions...");
+                info!("Syncing received local sphere revisions...");
                 Sphere::at(current_tip, context.db())
                     .sync(
                         &old_base,
@@ -225,14 +225,14 @@ where
             }
             // No diverged history, just new linear history based on our local tip
             (None, old_base, Some(new_base)) => {
-                println!("Hydrating received local sphere revisions...");
+                info!("Hydrating received local sphere revisions...");
                 Sphere::hydrate_range(old_base.as_ref(), &new_base, context.db_mut()).await?;
 
                 new_base
             }
             // No new history at all
             (Some(current_tip), _, _) => {
-                println!("Nothing to sync!");
+                info!("Nothing to sync!");
                 *current_tip
             }
             // We should have local history but we don't!
@@ -302,11 +302,11 @@ where
             .map(|link| link.cid);
 
         if local_sphere_base.as_ref() == Some(local_sphere_tip) {
-            println!("Gateway is already up to date!");
+            info!("Gateway is already up to date!");
             return Ok(());
         }
 
-        println!("Collecting blocks from new local history...");
+        info!("Collecting blocks from new local history...");
 
         let bundle = Sphere::at(local_sphere_tip, context.db())
             .bundle_until_ancestor(local_sphere_base.as_ref())
@@ -342,7 +342,7 @@ where
             .await?
             .encode()?);
 
-        println!(
+        info!(
             "Pushing new local history to gateway {}...",
             client.session.gateway_identity
         );
@@ -364,7 +364,7 @@ where
             }
         };
 
-        println!("Saving updated counterpart sphere history...");
+        info!("Saving updated counterpart sphere history...");
 
         new_blocks.load_into(context.db_mut()).await?;
 

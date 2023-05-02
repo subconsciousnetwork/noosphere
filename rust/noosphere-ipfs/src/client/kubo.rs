@@ -172,7 +172,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn it_can_interact_with_a_kubo_server() {
-        initialize_tracing();
+        initialize_tracing(None);
         let mut rng = rand::thread_rng();
 
         let bar = TestData {
@@ -225,7 +225,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn it_gives_a_useful_result_when_a_block_is_not_pinned() {
-        initialize_tracing();
+        initialize_tracing(None);
 
         let (cid, _) = block_serialize::<DagCborCodec, _>(vec![1, 2, 3]).unwrap();
 

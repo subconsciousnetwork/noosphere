@@ -26,6 +26,17 @@ use crate::{
 };
 
 // #[debug_handler]
+#[instrument(
+    level = "debug",
+    skip(
+        authority,
+        gateway_scope,
+        sphere_context,
+        syndication_tx,
+        name_system_tx,
+        request_body
+    )
+)]
 pub async fn push_route<C, K, S>(
     authority: GatewayAuthority<K>,
     Extension(sphere_context): Extension<C>,

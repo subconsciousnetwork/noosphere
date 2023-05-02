@@ -65,7 +65,7 @@ You will be able to add a new one after the old one is revoked"#,
                 .map(String::from)
                 .collect::<Vec<String>>()
                 .join("-");
-            println!(
+            info!(
                 "Note: since no name was specified, the authorization will be saved with the generated name \"{random_name}\""
             );
             random_name
@@ -119,7 +119,7 @@ You will be able to add a new one after the old one is revoked"#,
 
     db.set_version(&sphere_did, &version_cid).await?;
 
-    println!(
+    info!(
         r#"Successfully authorized {did} to access your sphere.
 
 IMPORTANT: You MUST sync to enable your gateway to recognize the authorization:
@@ -180,11 +180,11 @@ pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {
                 })
             })
             .collect();
-        println!("{}", serde_json::to_string_pretty(&json!(authorizations))?);
+        info!("{}", serde_json::to_string_pretty(&json!(authorizations))?);
     } else {
-        println!("{:1$}  AUTHORIZED KEY", "NAME", max_name_length);
+        info!("{:1$}  AUTHORIZED KEY", "NAME", max_name_length);
         for (name, did, _) in authorizations {
-            println!("{name:max_name_length$}  {did}");
+            info!("{name:max_name_length$}  {did}");
         }
     }
 
@@ -230,7 +230,7 @@ pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
 
             db.set_version(&sphere_did, &sphere_cid).await?;
 
-            println!("The authorization named {name:?} has been revoked");
+            info!("The authorization named {name:?} has been revoked");
 
             return Ok(());
         }

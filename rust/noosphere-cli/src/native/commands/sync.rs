@@ -25,11 +25,11 @@ pub async fn sync(workspace: &Workspace) -> Result<()> {
         context.sync().await?;
     }
 
-    println!("Sync complete, rendering updated workspace...");
+    info!("Sync complete, rendering updated workspace...");
 
     workspace.render().await?;
 
-    println!("Done!");
+    info!("Done!");
 
     Ok(())
 }

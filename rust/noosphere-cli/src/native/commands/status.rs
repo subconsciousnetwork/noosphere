@@ -30,8 +30,8 @@ pub async fn status(workspace: &Workspace) -> Result<()> {
 
     let identity = workspace.sphere_identity().await?;
 
-    println!("This sphere's identity is {identity}");
-    println!("Here is a summary of the current changes to sphere content:\n");
+    info!("This sphere's identity is {identity}");
+    info!("Here is a summary of the current changes to sphere content:\n");
 
     let mut memory_store = MemoryStore::default();
 
@@ -43,7 +43,7 @@ pub async fn status(workspace: &Workspace) -> Result<()> {
             (content, content_changes)
         }
         _ => {
-            println!("No new changes to sphere content!");
+            info!("No new changes to sphere content!");
             return Ok(());
         }
     };
@@ -77,13 +77,13 @@ pub async fn status(workspace: &Workspace) -> Result<()> {
         &mut max_content_type_length,
     );
 
-    println!(
+    info!(
         "{:max_name_length$}  {:max_content_type_length$}  STATUS",
         "NAME", "CONTENT-TYPE"
     );
 
     for (slug, content_type, status) in content {
-        println!("{slug:max_name_length$}  {content_type:max_content_type_length$}  {status}");
+        info!("{slug:max_name_length$}  {content_type:max_content_type_length$}  {status}");
     }
 
     Ok(())

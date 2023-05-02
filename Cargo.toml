@@ -20,6 +20,7 @@ resolver = "2"
 [workspace.dependencies]
 subtext = { version = "0.3.4" }
 tracing = { version = "0.1" }
+tracing-core = { version = "0.1.30" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "tracing-log"] }
 thiserror = { version = "1" }
 instant = { version = "0.1" }
@@ -33,6 +34,9 @@ cid = { version = "0.10" }
 multihash = { version = "0.18" }
 void = { version = "1.0.2" }
 wnfs-namefilter = { version = "0.1.20" }
+strum = { version = "0.24" }
+strum_macros = { version = "0.24" }
+
 
 [profile.release]
 opt-level = 'z'

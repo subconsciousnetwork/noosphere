@@ -123,7 +123,7 @@ where
     /// sphere referred to by the provided [Did]. If the local data for the
     /// sphere being traversed to is not available, an attempt will be made to
     /// replicate the data from a Noosphere Gateway.
-    #[instrument(level = "debug", skip(self))]
+    #[instrument(level = "debug", fields(origin = self.sphere_identity.as_str()), skip(self))]
     pub async fn traverse_by_petname(&self, petname: &str) -> Result<Option<SphereContext<K, S>>> {
         // Resolve petname to sphere version via address book entry
 
@@ -144,7 +144,7 @@ where
             }
         };
 
-        debug!("{:?}", identity);
+        debug!("Petname assigned to {:?}", identity);
 
         let resolved_version = match identity.link_record(self.db()).await {
             Some(link_record) => link_record.dereference().await,
@@ -487,7 +487,7 @@ pub mod tests {
                 let mut file = next_sphere_context.read("my-name").await.unwrap().unwrap();
                 file.contents.read_to_string(&mut name).await.unwrap();
 
-                println!("Adopting {name}");
+                debug!("Adopting {name}");
 
                 sphere_context
                     .adopt_petname(&name, &link_record)
@@ -514,7 +514,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_traverse_a_sequence_of_petnames() {
-        initialize_tracing();
+        initialize_tracing(None);
 
         let name_seqeuence: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
         let origin_sphere_context = make_sphere_context_with_peer_chain(&name_seqeuence)
@@ -545,8 +545,44 @@ pub mod tests {
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_traverse_a_sequence_of_petnames_one_at_a_time() {
+        initialize_tracing(None);
+
+        let name_seqeuence: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+        let origin_sphere_context = make_sphere_context_with_peer_chain(&name_seqeuence)
+            .await
+            .unwrap();
+
+        let mut target_sphere_context = origin_sphere_context;
+
+        for name in name_seqeuence.iter() {
+            target_sphere_context = Arc::new(Mutex::new(
+                target_sphere_context
+                    .sphere_context()
+                    .await
+                    .unwrap()
+                    .traverse_by_petnames(&[name.clone()])
+                    .await
+                    .unwrap()
+                    .unwrap(),
+            ));
+        }
+
+        let mut name = String::new();
+        let mut file = target_sphere_context
+            .read("my-name")
+            .await
+            .unwrap()
+            .unwrap();
+        file.contents.read_to_string(&mut name).await.unwrap();
+
+        assert_eq!(name.as_str(), "c");
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_resolves_none_when_a_petname_is_missing_from_the_sequence() {
-        initialize_tracing();
+        initialize_tracing(None);
 
         let name_seqeuence: Vec<String> = vec!["b".into(), "c".into()];
         let origin_sphere_context = make_sphere_context_with_peer_chain(&name_seqeuence)

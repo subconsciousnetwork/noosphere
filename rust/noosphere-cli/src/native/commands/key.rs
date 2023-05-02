@@ -11,12 +11,12 @@ pub async fn key_create(name: &str, workspace: &Workspace) -> Result<()> {
     let key = workspace.key_storage().create_key(name).await?;
     let did = key.get_did().await?;
 
-    println!(
+    info!(
         "Created key {:?} in {:?}",
         name,
         workspace.key_storage().storage_path()
     );
-    println!("Public identity {did}");
+    info!("Public identity {did}");
 
     Ok(())
 }
@@ -28,11 +28,11 @@ pub async fn key_list(as_json: bool, workspace: &Workspace) -> Result<()> {
         .fold(7, |length, (key_name, _)| key_name.len().max(length));
 
     if as_json {
-        println!("{}", serde_json::to_string_pretty(&json!(keys))?);
+        info!("{}", serde_json::to_string_pretty(&json!(keys))?);
     } else {
-        println!("{:1$}  IDENTITY", "NAME", max_name_length);
+        info!("{:1$}  IDENTITY", "NAME", max_name_length);
         for (name, did) in keys {
-            println!("{name:max_name_length$}  {did}");
+            info!("{name:max_name_length$}  {did}");
         }
     }
 
