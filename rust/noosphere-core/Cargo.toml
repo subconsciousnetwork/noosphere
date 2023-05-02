@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-core"
-version = "0.10.0"
+version = "0.10.1"
 edition = "2021"
 description = "Core data types of the Rust Noosphere implementation"
 keywords = ["hamt", "ipld", "noosphere", "p2p", "async"]
