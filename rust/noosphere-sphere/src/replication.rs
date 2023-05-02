@@ -33,7 +33,7 @@ where
     versioned_map.get_changelog().await?;
     let stream = versioned_map.into_stream().await?;
     tokio::pin!(stream);
-    while let Some(_) = stream.try_next().await? {}
+    while (stream.try_next().await?).is_some() {}
     Ok(())
 }
 
@@ -114,7 +114,7 @@ where
 
                 tokio::pin!(stream);
 
-                'decode: while let Some(_) = stream.try_next().await? {
+                'decode: while (stream.try_next().await?).is_some() {
                     'flush: loop {
                         match rx.try_recv() {
                             Ok(block) => {
@@ -152,7 +152,7 @@ where
 
         let block_stream = block_stream(
             store,
-            memo_version.clone(),
+            memo_version,
         );
 
         for await item in block_stream {
@@ -171,11 +171,8 @@ where
                 IoError::from(IoErrorKind::BrokenPipe)
             })?;
 
-            loop {
-                match rx.try_recv() {
-                    Ok(block) => yield block,
-                    _ => break,
-                };
+            while let Ok(block) = rx.try_recv() {
+                yield block;
             }
        }
     }

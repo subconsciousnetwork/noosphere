@@ -1,7 +1,7 @@
 mod content;
 mod transclude;
-mod transcluder;
+mod transcluder_implementation;
 
 pub use content::*;
 pub use transclude::*;
-pub use transcluder::*;
+pub use transcluder_implementation::*;

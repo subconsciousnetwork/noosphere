@@ -301,7 +301,7 @@ impl Workspace {
                 };
 
                 let name = match &slug_prefix {
-                    Some(prefix) => format!("{}/{}", prefix, name),
+                    Some(prefix) => format!("{prefix}/{name}"),
                     None => name.to_string(),
                 };
 
@@ -359,7 +359,7 @@ impl Workspace {
             let mut sphere_file = match context.read(slug).await? {
                 Some(file) => file,
                 None => {
-                    println!("Warning: could not resolve content for {}", slug);
+                    println!("Warning: could not resolve content for {slug}");
                     continue;
                 }
             };
@@ -372,7 +372,7 @@ impl Workspace {
                 None => match sphere_file.memo.content_type() {
                     Some(content_type) => self.infer_file_extension(content_type).await,
                     None => {
-                        println!("Warning: no content type specified for {}; it will be rendered without a file extension", slug);
+                        println!("Warning: no content type specified for {slug}; it will be rendered without a file extension");
                         None
                     }
                 },

@@ -37,6 +37,8 @@ pub trait TargetConditionalSendSync {}
 #[cfg(target_arch = "wasm32")]
 impl<S> TargetConditionalSendSync for S {}
 
+pub type HamtStream<'a, K, V> = Pin<Box<dyn Stream<Item = Result<(&'a K, &'a V)>> + 'a>>;
+
 /// Implementation of the HAMT data structure for IPLD.
 ///
 /// # Examples
@@ -368,7 +370,7 @@ where
         Ok(())
     }
 
-    pub fn stream<'a>(&'a self) -> Pin<Box<dyn Stream<Item = Result<(&'a K, &'a V)>> + 'a>> {
+    pub fn stream(&self) -> HamtStream<K, V> {
         self.root.stream(&self.store)
     }
 

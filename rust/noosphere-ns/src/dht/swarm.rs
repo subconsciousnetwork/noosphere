@@ -20,6 +20,7 @@ use void::Void;
 const CONNECTION_TIMEOUT_SECONDS: u64 = 20;
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum DHTEvent {
     Kademlia(KademliaEvent),
     Identify(IdentifyEvent),

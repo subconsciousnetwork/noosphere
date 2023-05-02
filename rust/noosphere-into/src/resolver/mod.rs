@@ -1,7 +1,7 @@
 mod html;
 mod link;
-mod resolver;
+mod resolver_implementation;
 
 pub use html::*;
 pub use link::*;
-pub use resolver::*;
+pub use resolver_implementation::*;

@@ -24,7 +24,7 @@ where
             Ok(sphere) => sphere,
             Err(error) => {
                 error!("Could not get sphere: {:?}", error);
-                return ();
+                return;
             }
         };
 
@@ -32,7 +32,7 @@ where
             Ok(did) => did,
             Err(error) => {
                 error!("Could not get sphere identity: {:?}", error);
-                return ();
+                return;
             }
         };
 
@@ -40,7 +40,7 @@ where
             Ok(memo) => memo,
             Err(error) => {
                 error!("Could not get sphere memo: {:?}", error);
-                return ();
+                return;
             }
         };
 
@@ -50,8 +50,8 @@ where
 
         let sphere_file = SphereFile {
             sphere_identity,
-            sphere_version: sphere.cid().clone(),
-            memo_version: sphere.cid().clone(),
+            sphere_version: *sphere.cid(),
+            memo_version: *sphere.cid(),
             memo,
             contents: TransformStream(sphere_to_subtext_stream(sphere)).into_reader(),
         };

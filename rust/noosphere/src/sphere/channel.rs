@@ -53,15 +53,13 @@ where
     }
 }
 
-impl<K, S> Into<SphereChannel<K, S, Arc<SphereContext<K, S>>, Arc<Mutex<SphereContext<K, S>>>>>
-    for SphereContext<K, S>
+impl<K, S> From<SphereContext<K, S>>
+    for SphereChannel<K, S, Arc<SphereContext<K, S>>, Arc<Mutex<SphereContext<K, S>>>>
 where
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    fn into(
-        self,
-    ) -> SphereChannel<K, S, Arc<SphereContext<K, S>>, Arc<Mutex<SphereContext<K, S>>>> {
-        SphereChannel::new(Arc::new(self.clone()), Arc::new(Mutex::new(self)))
+    fn from(value: SphereContext<K, S>) -> Self {
+        SphereChannel::new(Arc::new(value.clone()), Arc::new(Mutex::new(value)))
     }
 }

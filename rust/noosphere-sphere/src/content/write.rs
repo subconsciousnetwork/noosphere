@@ -78,7 +78,7 @@ where
             .await?
             .mutation_mut()
             .content_mut()
-            .set(&slug.into(), &cid.clone().into());
+            .set(&slug.into(), &(*cid).into());
 
         Ok(())
     }

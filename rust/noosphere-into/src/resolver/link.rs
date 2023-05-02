@@ -20,6 +20,6 @@ impl Display for ResolvedLink {
             ResolvedLink::Hyperlink { href } => href,
             ResolvedLink::Slashlink { href, .. } => href,
         };
-        write!(f, "{}", href)
+        write!(f, "{href}")
     }
 }

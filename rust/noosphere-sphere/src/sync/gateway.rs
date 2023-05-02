@@ -214,16 +214,14 @@ where
             // History diverged, so rebase our local changes on the newly received branch
             (Some(current_tip), Some(old_base), Some(new_base)) => {
                 println!("Syncing received local sphere revisions...");
-                let new_tip = Sphere::at(current_tip, context.db())
+                Sphere::at(current_tip, context.db())
                     .sync(
                         &old_base,
                         &new_base,
                         &context.author().key,
                         context.author().authorization.as_ref(),
                     )
-                    .await?;
-
-                new_tip
+                    .await?
             }
             // No diverged history, just new linear history based on our local tip
             (None, old_base, Some(new_base)) => {

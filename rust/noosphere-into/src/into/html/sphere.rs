@@ -33,7 +33,7 @@ where
     let mut latest_revision = true;
 
     while let Some(sphere_cid) = next_sphere_cid {
-        let sphere_index: PathBuf = format!("permalink/{}/index.html", sphere_cid).into();
+        let sphere_index: PathBuf = format!("permalink/{sphere_cid}/index.html").into();
 
         // We write the sphere index last, so if we already have it we can
         // assume this revision has been written in the past
@@ -52,7 +52,7 @@ where
 
         while let Some(Ok((slug, link))) = link_stream.next().await {
             let cid = link.cid;
-            let file_name: PathBuf = format!("permalink/{}/index.html", cid).into();
+            let file_name: PathBuf = format!("permalink/{cid}/index.html").into();
 
             // Skip this write entirely if the content has been written
             // TODO(#55): This may not hold in a world where there are multiple
@@ -101,7 +101,10 @@ where
 
                     if latest_revision {
                         write_target
-                            .symlink(&format!("permalink/{}", cid).into(), &PathBuf::from(slug))
+                            .symlink(
+                                &PathBuf::from(format!("permalink/{cid}")),
+                                &PathBuf::from(slug),
+                            )
                             .await?;
                     }
 

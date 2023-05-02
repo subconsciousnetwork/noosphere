@@ -2,7 +2,6 @@ use crate::{
     dht::Validator,
     utils::{generate_capability, generate_fact},
 };
-use anyhow;
 use async_trait::async_trait;
 use cid::Cid;
 use noosphere_core::{
@@ -192,7 +191,7 @@ impl NsRecord {
 
     /// Returns true if the [Ucan] token is past its expiration.
     pub fn has_publishable_timeframe(&self) -> bool {
-        self.token.is_expired() == false && self.token.is_too_early() == false
+        !self.token.is_expired() && !self.token.is_too_early()
     }
 
     /// The DID key of the sphere that this record maps.
@@ -213,13 +212,10 @@ impl NsRecord {
 
 impl Display for NsRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let link = self
-            .link
-            .and_then(|cid| Some(cid.to_string()))
-            .unwrap_or_else(|| String::from("None"));
+        let link = self.link.map(|cid| cid.to_string());
         write!(
             f,
-            "NsRecord {{\n  \"sphere\": \"{}\",\n  \"link\": \"{}\"\n}}",
+            "NsRecord {{\n  \"sphere\": \"{}\",\n  \"link\": \"{:?}\"\n}}",
             self.token.audience(),
             link
         )

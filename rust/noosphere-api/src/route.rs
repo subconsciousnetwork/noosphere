@@ -25,12 +25,12 @@ impl Display for Route {
             Route::Did => "did".into(),
             Route::Identify => "identify".into(),
             Route::Replicate(cid) => match cid {
-                Some(cid) => format!("replicate/{}", cid),
+                Some(cid) => format!("replicate/{cid}"),
                 None => "replicate/:memo".into(),
             },
         };
 
-        write!(f, "/api/{}/{}", API_VERSION, fragment)
+        write!(f, "/api/{API_VERSION}/{fragment}")
     }
 }
 

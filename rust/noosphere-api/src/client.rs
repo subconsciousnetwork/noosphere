@@ -148,7 +148,7 @@ where
                     debug!("Adding UCAN header for {}", cid);
 
                     proofs_to_search.extend(ucan.proofs().clone().into_iter());
-                    ucan_headers.append("ucan", format!("{} {}", cid, jwt).parse()?);
+                    ucan_headers.append("ucan", format!("{cid} {jwt}").parse()?);
                 }
 
                 ucan_headers.append(
@@ -188,7 +188,7 @@ where
     ) -> Result<impl Stream<Item = Result<(Cid, Vec<u8>)>>> {
         let url = Url::try_from(RouteUrl::<()>(
             &self.api_base,
-            Route::Replicate(Some(memo_version.clone())),
+            Route::Replicate(Some(*memo_version)),
             None,
         ))?;
 

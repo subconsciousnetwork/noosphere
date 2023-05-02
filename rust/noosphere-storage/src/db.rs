@@ -158,7 +158,7 @@ where
     {
         try_stream! {
             let mut visited_links = BTreeSet::new();
-            let mut remaining_links = vec![cid.clone()];
+            let mut remaining_links = vec![*cid];
 
             while let Some(cid) = remaining_links.pop() {
                 if visited_links.contains(&cid) {
@@ -173,7 +173,7 @@ where
                     yield cid;
                 }
 
-                visited_links.insert(cid.clone());
+                visited_links.insert(cid);
             }
         }
     }

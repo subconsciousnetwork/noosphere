@@ -79,6 +79,6 @@ where
     pub async fn get_identities(&self) -> Result<Identities<S>> {
         let ipld = self.to_body().await?;
 
-        Ok(Identities::at(&ipld.identities, &mut self.store.clone()))
+        Ok(Identities::at(&ipld.identities, &self.store.clone()))
     }
 }

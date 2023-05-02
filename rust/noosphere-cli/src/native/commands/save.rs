@@ -48,7 +48,7 @@ pub async fn save(workspace: &Workspace) -> Result<()> {
             extension,
         }) = content.matched.get(slug)
         {
-            println!("Saving {}...", slug);
+            println!("Saving {slug}...");
             let headers = extension
                 .as_ref()
                 .map(|extension| vec![(Header::FileExtension.to_string(), extension.clone())]);
@@ -59,13 +59,13 @@ pub async fn save(workspace: &Workspace) -> Result<()> {
         }
     }
 
-    for (slug, _) in &content_changes.removed {
-        println!("Removing {}...", slug);
+    for slug in content_changes.removed.keys() {
+        println!("Removing {slug}...");
         sphere_context.remove(slug).await?;
     }
 
     let cid = SphereCursor::latest(sphere_context).save(None).await?;
 
-    println!("Save complete!\nThe latest sphere revision is {}", cid);
+    println!("Save complete!\nThe latest sphere revision is {cid}");
     Ok(())
 }

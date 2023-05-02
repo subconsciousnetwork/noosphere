@@ -53,7 +53,7 @@ where
     /// mounted to will be overwritten. A mounted [SphereCursor] will remain at
     /// the version it is mounted to even when the latest version of the sphere
     /// changes.
-    pub async fn mount<'a>(&'a mut self) -> Result<&'a Self> {
+    pub async fn mount(&mut self) -> Result<&Self> {
         let sphere_version = self
             .has_sphere_context
             .sphere_context()

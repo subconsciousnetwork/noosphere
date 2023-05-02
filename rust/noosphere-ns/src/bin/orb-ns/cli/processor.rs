@@ -62,15 +62,12 @@ pub async fn process_args(key_storage: &InsecureKeyStorage) -> Result<(), String
     match result {
         Ok(command_res) => {
             if let Some(json_str) = command_res.value() {
-                println!("{}", json_str);
+                println!("{json_str}");
             } else {
                 println!("{{}}");
             }
-            match command_res {
-                mut cmd @ CommandResponse::LongRunning { .. } => {
-                    let _ = cmd.wait_until_completion().await;
-                }
-                _ => {}
+            if let mut cmd @ CommandResponse::LongRunning { .. } = command_res {
+                let _ = cmd.wait_until_completion().await;
             }
 
             Ok(())

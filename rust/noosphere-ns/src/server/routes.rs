@@ -38,6 +38,6 @@ impl Display for Route {
             Route::Bootstrap => "bootstrap",
         };
 
-        write!(f, "/api/{}/{}", API_VERSION, fragment)
+        write!(f, "/api/{API_VERSION}/{fragment}")
     }
 }

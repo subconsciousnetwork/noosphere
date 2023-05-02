@@ -52,7 +52,7 @@ pub async fn sphere_join(
     workspace: &Workspace,
 ) -> Result<()> {
     workspace.ensure_sphere_uninitialized()?;
-    println!("Joining sphere {}...", sphere_identity);
+    println!("Joining sphere {sphere_identity}...");
 
     let did = {
         let local_key = workspace.key_storage().require_key(local_key).await?;
@@ -65,15 +65,14 @@ pub async fn sphere_join(
                 r#"In order to join the sphere, another client must authorize your local key
 This is the local key's ID; share it with an authorized client:
 
-  {0}
+  {did}
 
 Hint: if the authorized client is also using the "orb" CLI, you can use this command from the existing workspace to authorize the new key:
 
-  orb auth add {0}
+  orb auth add {did}
   
 Once authorized, you will get a code.
-Type or paste the code here and press enter:"#,
-                did
+Type or paste the code here and press enter:"#
             );
 
             let mut cid_string = String::new();

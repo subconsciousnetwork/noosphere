@@ -66,8 +66,7 @@ You will be able to add a new one after the old one is revoked"#,
                 .collect::<Vec<String>>()
                 .join("-");
             println!(
-                "Note: since no name was specified, the authorization will be saved with the generated name \"{}\"",
-                random_name
+                "Note: since no name was specified, the authorization will be saved with the generated name \"{random_name}\""
             );
             random_name
         }
@@ -105,7 +104,7 @@ You will be able to add a new one after the old one is revoked"#,
 
     let jwt = signable.sign().await?.encode()?;
 
-    let delegation = DelegationIpld::register(&name, &jwt, &mut db).await?;
+    let delegation = DelegationIpld::register(&name, &jwt, &db).await?;
 
     let sphere = Sphere::at(&latest_sphere_cid, &db);
 
@@ -185,7 +184,7 @@ pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {
     } else {
         println!("{:1$}  AUTHORIZED KEY", "NAME", max_name_length);
         for (name, did, _) in authorizations {
-            println!("{:1$}  {did}", name, max_name_length);
+            println!("{name:max_name_length$}  {did}");
         }
     }
 
@@ -231,7 +230,7 @@ pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
 
             db.set_version(&sphere_did, &sphere_cid).await?;
 
-            println!("The authorization named {:?} has been revoked", name);
+            println!("The authorization named {name:?} has been revoked");
 
             return Ok(());
         }

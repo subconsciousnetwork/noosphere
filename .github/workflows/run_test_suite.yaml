@@ -58,6 +58,34 @@ jobs:
           command: test
           args: --features test_kubo
 
+  run-linting-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          components: rustfmt, clippy
+          toolchain: stable
+      - name: 'Install environment packages'
+        run: |
+          sudo apt-get update -qqy
+          sudo apt-get install jq protobuf-compiler cmake
+      - name: 'Check Format'
+        uses: actions-rs/cargo@v1
+        with:
+          args: --all -- --check
+          command: fmt
+          toolchain: stable
+      - name: 'Run Linter'
+        uses: actions-rs/cargo@v1
+        with:
+          args: --all -- -D warnings
+          command: clippy 
+          toolchain: stable
+
   run-test-suite-linux:
     runs-on: ubuntu-latest
     steps:

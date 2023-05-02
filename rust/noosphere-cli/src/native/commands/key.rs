@@ -16,7 +16,7 @@ pub async fn key_create(name: &str, workspace: &Workspace) -> Result<()> {
         name,
         workspace.key_storage().storage_path()
     );
-    println!("Public identity {}", did);
+    println!("Public identity {did}");
 
     Ok(())
 }
@@ -32,7 +32,7 @@ pub async fn key_list(as_json: bool, workspace: &Workspace) -> Result<()> {
     } else {
         println!("{:1$}  IDENTITY", "NAME", max_name_length);
         for (name, did) in keys {
-            println!("{:1$}  {did}", name, max_name_length);
+            println!("{name:max_name_length$}  {did}");
         }
     }
 

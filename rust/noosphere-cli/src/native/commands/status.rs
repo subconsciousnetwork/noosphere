@@ -35,7 +35,7 @@ pub async fn status(workspace: &Workspace) -> Result<()> {
 
     let mut memory_store = MemoryStore::default();
 
-    let (_, mut changes) = match workspace
+    let (_, changes) = match workspace
         .get_file_content_changes(&mut memory_store)
         .await?
     {
@@ -55,7 +55,7 @@ pub async fn status(workspace: &Workspace) -> Result<()> {
 
     status_section(
         "Updated",
-        &mut changes.updated,
+        &changes.updated,
         &mut content,
         &mut max_name_length,
         &mut max_content_type_length,
@@ -63,7 +63,7 @@ pub async fn status(workspace: &Workspace) -> Result<()> {
 
     status_section(
         "New",
-        &mut changes.new,
+        &changes.new,
         &mut content,
         &mut max_name_length,
         &mut max_content_type_length,
@@ -71,7 +71,7 @@ pub async fn status(workspace: &Workspace) -> Result<()> {
 
     status_section(
         "Removed",
-        &mut changes.removed,
+        &changes.removed,
         &mut content,
         &mut max_name_length,
         &mut max_content_type_length,
@@ -83,10 +83,7 @@ pub async fn status(workspace: &Workspace) -> Result<()> {
     );
 
     for (slug, content_type, status) in content {
-        println!(
-            "{:max_name_length$}  {:max_content_type_length$}  {}",
-            slug, content_type, status
-        );
+        println!("{slug:max_name_length$}  {content_type:max_content_type_length$}  {status}");
     }
 
     Ok(())

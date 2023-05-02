@@ -35,10 +35,10 @@ impl GatewayClient {
                         .collect::<Vec<String>>()
                         .join(".");
 
-                    let mut host = format!("{}.{}", cid, upper_domain);
+                    let mut host = format!("{cid}.{upper_domain}");
 
                     if let Some(port) = url.port() {
-                        host = format!("{}:{}", host, port);
+                        host = format!("{host}:{port}");
                     }
 
                     if let Ok(()) = url.set_host(Some(&host)) {
@@ -48,7 +48,7 @@ impl GatewayClient {
             }
         }
 
-        url.set_path(&format!("/ipfs/{}", cid));
+        url.set_path(&format!("/ipfs/{cid}"));
         url
     }
 }
