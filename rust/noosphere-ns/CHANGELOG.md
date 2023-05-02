@@ -38,6 +38,28 @@
     * noosphere bumped from 0.8.4 to 0.9.0
     * noosphere-ipfs bumped from 0.3.2 to 0.3.3
 
+## [0.6.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.5.7...noosphere-ns-v0.6.0) (2023-05-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* Revised tracing configuration (#342)
+
+### Features
+
+* Enable support of quorum=0 for DHT during infra bootstrapping ([#335](https://github.com/subconsciousnetwork/noosphere/issues/335)) ([9d3619e](https://github.com/subconsciousnetwork/noosphere/commit/9d3619e0630a9fe3de867e08770df9d30682a91f))
+* Revised tracing configuration ([#342](https://github.com/subconsciousnetwork/noosphere/issues/342)) ([c4a4084](https://github.com/subconsciousnetwork/noosphere/commit/c4a4084771680c8e49b3db498a5da422db2adda8))
+* Wrap validation storage with BlockRetryStore in orb-ns. ([#333](https://github.com/subconsciousnetwork/noosphere/issues/333)) ([8e7f287](https://github.com/subconsciousnetwork/noosphere/commit/8e7f287fe5cb6fe8842b9236ead57cccbdb8c90b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.9.3 to 0.10.0
+    * noosphere bumped from 0.9.1 to 0.10.0
+    * noosphere-ipfs bumped from 0.3.4 to 0.4.0
+
 ## [0.5.7](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.5.6...noosphere-ns-v0.5.7) (2023-04-22)
 
 

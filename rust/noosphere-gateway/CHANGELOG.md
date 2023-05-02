@@ -20,6 +20,30 @@
     * noosphere-api bumped from 0.7.2 to 0.7.3
     * noosphere bumped from 0.8.4 to 0.9.0
 
+## [0.4.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.3.5...noosphere-gateway-v0.4.0) (2023-05-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* Revised tracing configuration (#342)
+
+### Features
+
+* Enable support of quorum=0 for DHT during infra bootstrapping ([#335](https://github.com/subconsciousnetwork/noosphere/issues/335)) ([9d3619e](https://github.com/subconsciousnetwork/noosphere/commit/9d3619e0630a9fe3de867e08770df9d30682a91f))
+* Revised tracing configuration ([#342](https://github.com/subconsciousnetwork/noosphere/issues/342)) ([c4a4084](https://github.com/subconsciousnetwork/noosphere/commit/c4a4084771680c8e49b3db498a5da422db2adda8))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.3.4 to 0.4.0
+    * noosphere-core bumped from 0.9.3 to 0.10.0
+    * noosphere-ns bumped from 0.5.7 to 0.6.0
+    * noosphere-sphere bumped from 0.4.1 to 0.5.0
+    * noosphere-api bumped from 0.7.4 to 0.7.5
+    * noosphere bumped from 0.9.1 to 0.10.0
+
 ## [0.3.5](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.3.4...noosphere-gateway-v0.3.5) (2023-04-22)
 
 
