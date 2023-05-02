@@ -5,6 +5,17 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-collections bumped from 0.3.1 to 0.3.2
 
+## [0.10.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.9.3...noosphere-core-v0.10.0) (2023-05-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* Revised tracing configuration (#342)
+
+### Features
+
+* Revised tracing configuration ([#342](https://github.com/subconsciousnetwork/noosphere/issues/342)) ([c4a4084](https://github.com/subconsciousnetwork/noosphere/commit/c4a4084771680c8e49b3db498a5da422db2adda8))
+
 ## [0.9.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.9.2...noosphere-core-v0.9.3) (2023-04-22)
 
 

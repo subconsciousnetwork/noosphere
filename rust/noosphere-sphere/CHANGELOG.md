@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.5.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.4.1...noosphere-sphere-v0.5.0) (2023-05-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* Revised tracing configuration (#342)
+
+### Features
+
+* Revised tracing configuration ([#342](https://github.com/subconsciousnetwork/noosphere/issues/342)) ([c4a4084](https://github.com/subconsciousnetwork/noosphere/commit/c4a4084771680c8e49b3db498a5da422db2adda8))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.9.3 to 0.10.0
+    * noosphere-api bumped from 0.7.4 to 0.7.5
+    * noosphere-ipfs bumped from 0.3.4 to 0.4.0
+
 ## [0.4.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.4.0...noosphere-sphere-v0.4.1) (2023-04-22)
 
 

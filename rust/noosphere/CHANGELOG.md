@@ -12,6 +12,25 @@
   * dependencies
     * noosphere-into bumped from 0.6.0 to 0.7.0
 
+## [0.10.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.9.1...noosphere-v0.10.0) (2023-05-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* Revised tracing configuration (#342)
+
+### Features
+
+* Add `ns_error_code_get()` to FFI. Fixes [#332](https://github.com/subconsciousnetwork/noosphere/issues/332) ([#340](https://github.com/subconsciousnetwork/noosphere/issues/340)) ([4156328](https://github.com/subconsciousnetwork/noosphere/commit/41563288150725e87f3891abce15966220d92177))
+* Revised tracing configuration ([#342](https://github.com/subconsciousnetwork/noosphere/issues/342)) ([c4a4084](https://github.com/subconsciousnetwork/noosphere/commit/c4a4084771680c8e49b3db498a5da422db2adda8))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-into bumped from 0.7.4 to 0.8.0
+
 ## [0.9.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.9.0...noosphere-v0.9.1) (2023-04-22)
 
 

@@ -40,6 +40,27 @@
   * dev-dependencies
     * noosphere-sphere bumped from 0.3.2 to 0.4.0
 
+## [0.8.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.7.4...noosphere-into-v0.8.0) (2023-05-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* Revised tracing configuration (#342)
+
+### Features
+
+* Revised tracing configuration ([#342](https://github.com/subconsciousnetwork/noosphere/issues/342)) ([c4a4084](https://github.com/subconsciousnetwork/noosphere/commit/c4a4084771680c8e49b3db498a5da422db2adda8))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.9.3 to 0.10.0
+    * noosphere-sphere bumped from 0.4.1 to 0.5.0
+  * dev-dependencies
+    * noosphere-sphere bumped from 0.4.1 to 0.5.0
+
 ## [0.7.4](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.7.3...noosphere-into-v0.7.4) (2023-04-22)
 
 

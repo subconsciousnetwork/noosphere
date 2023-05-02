@@ -40,6 +40,10 @@
   * dependencies
     * noosphere-core bumped from 0.9.1 to 0.9.2
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.9.3 to 0.10.0
+
 ## [0.7.4](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.7.3...noosphere-api-v0.7.4) (2023-04-22)
 
 
