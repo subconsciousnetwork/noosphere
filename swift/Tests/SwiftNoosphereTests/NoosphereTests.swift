@@ -99,7 +99,7 @@ final class NoosphereTests: XCTestCase {
             (error, file) in
 
             if error != nil {
-                let error_message_ptr = ns_error_string(error)
+                let error_message_ptr = ns_error_message_get(error)
                 let error_message = String.init(cString: error_message_ptr!)
 
                 print(error_message)
@@ -113,7 +113,7 @@ final class NoosphereTests: XCTestCase {
                 (error, contents) in
 
                 if error != nil {
-                    let error_message_ptr = ns_error_string(error)
+                    let error_message_ptr = ns_error_message_get(error)
                     let error_message = String.init(cString: error_message_ptr!)
 
                     print(error_message)
@@ -229,9 +229,11 @@ final class NoosphereTests: XCTestCase {
         assert(sphere == nil)
         assert(maybe_error.pointee != nil)
         
-        let error_message_ptr = ns_error_string(maybe_error.pointee)
+        let error_code = ns_error_code_get(maybe_error.pointee)
+        let error_message_ptr = ns_error_message_get(maybe_error.pointee)
         let error_message = String.init(cString: error_message_ptr!)
-        
+
+        assert(error_code == NS_ERROR_CODE_OTHER.rawValue)
         print(error_message)
         assert(!error_message.isEmpty)
         
@@ -730,7 +732,7 @@ final class NoosphereTests: XCTestCase {
         assert(result == nil)
         assert(maybe_error.pointee != nil)
 
-        let error_message_ptr = ns_error_string(maybe_error.pointee)
+        let error_message_ptr = ns_error_message_get(maybe_error.pointee)
         let error_message = String.init(cString: error_message_ptr!)
         print(error_message)
 
@@ -741,7 +743,7 @@ final class NoosphereTests: XCTestCase {
         result = ns_sphere_content_read_blocking(noosphere, sphere, "@ben/does-not-exist", maybe_error)
 
         if maybe_error.pointee != nil {
-            let error_message_ptr = ns_error_string(maybe_error.pointee)
+            let error_message_ptr = ns_error_message_get(maybe_error.pointee)
             let error_message = String.init(cString: error_message_ptr!)
             print(error_message)
         }
