@@ -3932,7 +3932,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
- "tracing-core",
  "tracing-subscriber",
  "tracing-wasm",
  "ucan",
