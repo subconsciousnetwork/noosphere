@@ -86,7 +86,7 @@ async fn start_name_system_server(ipfs_url: &Url) -> Result<(JoinHandle<()>, Url
         tokio::spawn(async move {
             let mut network = NameSystemNetwork::generate(2, store).await.unwrap();
             let node = network.nodes_mut().pop().unwrap();
-            start_name_system_api_server(Arc::new(Mutex::new(node)), listener)
+            start_name_system_api_server(Arc::new(node), listener)
                 .await
                 .unwrap();
         }),

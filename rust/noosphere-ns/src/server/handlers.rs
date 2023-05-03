@@ -9,7 +9,6 @@ use axum::{
 use noosphere_core::data::Did;
 use serde::Deserialize;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 pub struct JsonErr(StatusCode, String);
 impl IntoResponse for JsonErr {
@@ -23,10 +22,9 @@ impl IntoResponse for JsonErr {
 type JsonResponse<T> = Result<Json<T>, JsonErr>;
 
 pub async fn get_network_info(
-    Extension(name_system): Extension<Arc<Mutex<NameSystem>>>,
+    Extension(name_system): Extension<Arc<NameSystem>>,
 ) -> JsonResponse<NetworkInfo> {
-    let ns = name_system.lock().await;
-    let network_info = ns
+    let network_info = name_system
         .network_info()
         .await
         .map_err(move |error| JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
@@ -38,10 +36,9 @@ pub async fn get_peer_id(Extension(peer_id): Extension<PeerId>) -> JsonResponse<
 }
 
 pub async fn get_peers(
-    Extension(name_system): Extension<Arc<Mutex<NameSystem>>>,
+    Extension(name_system): Extension<Arc<NameSystem>>,
 ) -> JsonResponse<Vec<Peer>> {
-    let ns = name_system.lock().await;
-    let peers = ns
+    let peers = name_system
         .peers()
         .await
         .map_err(move |error| JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
@@ -49,24 +46,23 @@ pub async fn get_peers(
 }
 
 pub async fn post_peers(
-    Extension(name_system): Extension<Arc<Mutex<NameSystem>>>,
+    Extension(name_system): Extension<Arc<NameSystem>>,
     Path(addr): Path<String>,
 ) -> JsonResponse<()> {
-    let ns = name_system.lock().await;
     let peer_addr = parse_multiaddr(&addr)?;
-    ns.add_peers(vec![peer_addr])
+    name_system
+        .add_peers(vec![peer_addr])
         .await
         .map_err(move |error| JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     Ok(Json(()))
 }
 
 pub async fn post_listener(
-    Extension(name_system): Extension<Arc<Mutex<NameSystem>>>,
+    Extension(name_system): Extension<Arc<NameSystem>>,
     Path(addr): Path<String>,
 ) -> JsonResponse<Multiaddr> {
-    let ns = name_system.lock().await;
     let listener = parse_multiaddr(&addr)?;
-    let address = ns
+    let address = name_system
         .listen(listener)
         .await
         .map_err(move |error| JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
@@ -74,20 +70,19 @@ pub async fn post_listener(
 }
 
 pub async fn delete_listener(
-    Extension(name_system): Extension<Arc<Mutex<NameSystem>>>,
+    Extension(name_system): Extension<Arc<NameSystem>>,
 ) -> JsonResponse<()> {
-    let ns = name_system.lock().await;
-    ns.stop_listening()
+    name_system
+        .stop_listening()
         .await
         .map_err(move |error| JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     Ok(Json(()))
 }
 
 pub async fn get_address(
-    Extension(name_system): Extension<Arc<Mutex<NameSystem>>>,
+    Extension(name_system): Extension<Arc<NameSystem>>,
 ) -> JsonResponse<Option<Multiaddr>> {
-    let ns = name_system.lock().await;
-    let address = ns
+    let address = name_system
         .address()
         .await
         .map_err(move |error| JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
@@ -95,11 +90,10 @@ pub async fn get_address(
 }
 
 pub async fn get_record(
-    Extension(name_system): Extension<Arc<Mutex<NameSystem>>>,
+    Extension(name_system): Extension<Arc<NameSystem>>,
     Path(did): Path<Did>,
 ) -> JsonResponse<Option<NsRecord>> {
-    let ns = name_system.lock().await;
-    let record = ns
+    let record = name_system
         .get_record(&did)
         .await
         .map_err(move |error| JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
@@ -112,22 +106,20 @@ pub struct PostRecordQuery {
 }
 
 pub async fn post_record(
-    Extension(name_system): Extension<Arc<Mutex<NameSystem>>>,
+    Extension(name_system): Extension<Arc<NameSystem>>,
     Json(record): Json<NsRecord>,
     Query(query): Query<PostRecordQuery>,
 ) -> JsonResponse<()> {
-    let ns = name_system.lock().await;
-    ns.put_record(record, query.quorum)
+    name_system
+        .put_record(record, query.quorum)
         .await
         .map_err(move |error| JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     Ok(Json(()))
 }
 
-pub async fn bootstrap(
-    Extension(name_system): Extension<Arc<Mutex<NameSystem>>>,
-) -> JsonResponse<()> {
-    let ns = name_system.lock().await;
-    ns.bootstrap()
+pub async fn bootstrap(Extension(name_system): Extension<Arc<NameSystem>>) -> JsonResponse<()> {
+    name_system
+        .bootstrap()
         .await
         .map_err(move |error| JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     Ok(Json(()))

@@ -175,7 +175,7 @@ mod test {
             .await
             .unwrap();
 
-        let ns = Arc::new(Mutex::new(ns));
+        let ns = Arc::new(ns);
         let server = ApiServer::serve(ns, api_listener);
         let data = DataPlaceholder {
             _server: server,

@@ -14,7 +14,12 @@ use serde::{
     ser::{self, Serialize, Serializer},
 };
 use serde_json::Value;
-use std::{convert::TryFrom, fmt::Display, str, str::FromStr};
+use std::{
+    convert::TryFrom,
+    fmt::{Debug, Display},
+    str,
+    str::FromStr,
+};
 use ucan::{
     builder::UcanBuilder,
     crypto::KeyMaterial,
@@ -59,7 +64,7 @@ use ucan::{chain::ProofChain, crypto::did::DidParser, Ucan};
 ///   }]
 /// }
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct NsRecord {
     /// The wrapped UCAN token describing this record.
     pub(crate) token: Ucan,
@@ -218,6 +223,18 @@ impl NsRecord {
     /// Encodes the underlying Ucan token back into a JWT string.
     pub fn try_to_string(&self) -> Result<String, anyhow::Error> {
         self.token.encode()
+    }
+}
+
+impl Debug for NsRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let link = self.link.map(|cid| cid.to_string());
+        write!(
+            f,
+            "NsRecord {{ \"sphere\": \"{}\", \"link\": \"{:?}\" }}",
+            self.token.audience(),
+            link
+        )
     }
 }
 

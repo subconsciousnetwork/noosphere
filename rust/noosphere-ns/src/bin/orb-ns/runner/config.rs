@@ -187,6 +187,9 @@ listening_address = 10000
 peers = [
     "/ip4/127.0.0.1/tcp/10001"
 ]
+
+[dht_config]
+query_timeout = 55
 "#,
         )
         .await?;
@@ -207,6 +210,14 @@ peers = [
         )
         .await?;
 
+        assert!(
+            config.dht_config.query_timeout == 55,
+            "expected explicit DhtConfig properties to apply"
+        );
+        assert!(
+            config.dht_config.bootstrap_interval == 5 * 60,
+            "expected default DhtConfig properties to apply"
+        );
         assert!(
             keys_equal(&config.key_material, &key_1).await?,
             "expected key material"
