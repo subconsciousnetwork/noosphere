@@ -75,7 +75,7 @@ where
             "No changes since {}",
             since
                 .map(|cid| cid.to_string())
-                .unwrap_or("the beginning...".into())
+                .unwrap_or_else(|| "the beginning...".into())
         );
         return Ok(None);
     }
@@ -86,7 +86,7 @@ where
         "Bundling local sphere revisions since {:?}...",
         since
             .map(|cid| cid.to_string())
-            .unwrap_or("the beginning".into())
+            .unwrap_or_else(|| "the beginning".into())
     );
 
     let mut bundle = latest_local_sphere.bundle_until_ancestor(since).await?;
@@ -119,7 +119,7 @@ where
                 latest_counterpart_sphere_cid,
                 since
                     .map(|cid| cid.to_string())
-                    .unwrap_or("the beginning".into())
+                    .unwrap_or_else(|| "the beginning".into())
             );
 
             bundle.merge(

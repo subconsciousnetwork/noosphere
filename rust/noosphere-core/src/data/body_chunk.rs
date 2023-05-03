@@ -52,7 +52,7 @@ impl BodyChunkIpld {
             );
         }
 
-        next_chunk_cid.ok_or(anyhow!("No CID; did you try to store zero bytes?"))
+        next_chunk_cid.ok_or_else(|| anyhow!("No CID; did you try to store zero bytes?"))
     }
 
     pub async fn load_all_bytes<S: BlockStore>(&self, store: &S) -> Result<Vec<u8>> {
