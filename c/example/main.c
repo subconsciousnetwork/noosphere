@@ -10,28 +10,23 @@
 #error Asserting asserts are asserted.
 #endif
 
-char *str_from_buffer(slice_boxed_uint8_t buffer)
-{
+char *str_from_buffer(slice_boxed_uint8_t buffer) {
   char *message = (char *)malloc(buffer.len + 1);
-  if (message)
-  {
+  if (message) {
     strncpy(message, (char *)buffer.ptr, buffer.len);
     message[buffer.len] = '\0';
   }
   return message;
 }
 
-void assert_streq(const char *s1, const char *s2)
-{
-  if (strcmp(s1, s2) != 0)
-  {
+void assert_streq(const char *s1, const char *s2) {
+  if (strcmp(s1, s2) != 0) {
     fprintf(stderr, "Expected \"%s\" to equal \"%s\".\n", s1, s2);
     abort();
   }
 }
 
-void test_noosphere()
-{
+void test_noosphere() {
   printf("test_noosphere...\n");
   const char *hello_message = "Hello, Subconscious";
 
@@ -65,8 +60,7 @@ void test_noosphere()
 
   assert(headers.len ==
          (sizeof(expected_headers) / sizeof(expected_headers[0])));
-  for (int i = 0; i < headers.len; i++)
-  {
+  for (int i = 0; i < headers.len; i++) {
     assert(strcmp(headers.ptr[i], expected_headers[i]) == 0);
   }
 
@@ -86,8 +80,7 @@ void test_noosphere()
   ns_free(noosphere);
 }
 
-void test_errors()
-{
+void test_errors() {
   printf("test_errors...\n");
   ns_noosphere_t *noosphere = ns_initialize("/tmp/foo", "/tmp/bar", NULL, NULL);
 
@@ -106,8 +99,7 @@ void test_errors()
   ns_free(noosphere);
 }
 
-int main()
-{
+int main() {
   setbuf(stdout, NULL);
   test_noosphere();
   test_errors();
