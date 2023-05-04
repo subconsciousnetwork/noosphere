@@ -111,7 +111,7 @@ jobs:
       - name: 'Set up Google Cloud Docker auth helper'
         run: gcloud auth configure-docker us-central1-docker.pkg.dev
       - name: 'Log Docker in to Google Artifact Registry'
-        uses: 'docker/login-action@v1'
+        uses: 'docker/login-action@v2.1.0'
         with:
           registry: 'us-central1-docker.pkg.dev'
           username: 'oauth2accesstoken'
