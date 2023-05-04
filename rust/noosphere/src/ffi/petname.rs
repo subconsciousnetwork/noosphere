@@ -33,11 +33,7 @@ pub fn ns_sphere_petname_is_set(
                 .is_some())
         })
     }) {
-        if result {
-            1
-        } else {
-            0
-        }
+        u8::from(result)
     } else {
         0
     }
