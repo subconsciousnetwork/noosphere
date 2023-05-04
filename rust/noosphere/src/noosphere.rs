@@ -123,6 +123,9 @@ impl NoosphereContext {
     /// Create a key in the locally available platform key storage, associating
     /// it with the given human-readable key name
     pub async fn create_key(&self, key_name: &str) -> Result<()> {
+        if key_name.is_empty() {
+            return Err(anyhow!("Key name must not be empty."));
+        }
         let key_storage = self.key_storage().await?;
         key_storage.create_key(key_name).await?;
         Ok(())

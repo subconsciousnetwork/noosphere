@@ -229,3 +229,14 @@ async fn writes_do_not_block_reads() {
 
     assert!(pending_file.is_some());
 }
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+async fn key_names_must_not_be_empty() {
+    let (configuration, _temporary_directories) = platform_configuration();
+
+    let noosphere = NoosphereContext::new(configuration.clone()).unwrap();
+
+    assert!(noosphere.create_key("foo").await.is_ok());
+    assert!(noosphere.create_key("").await.is_err());
+}
