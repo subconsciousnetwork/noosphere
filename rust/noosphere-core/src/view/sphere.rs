@@ -509,11 +509,12 @@ impl<S: BlockStore> Sphere<S> {
 
         let proof_chain = match current_authorization {
             Authorization::Ucan(ucan) => {
-                ProofChain::from_ucan(ucan.clone(), did_parser, &ucan_store).await?
+                ProofChain::from_ucan(ucan.clone(), None, did_parser, &ucan_store).await?
             }
             Authorization::Cid(cid) => {
                 ProofChain::try_from_token_string(
                     &ucan_store.require_token(cid).await?,
+                    None,
                     did_parser,
                     &ucan_store,
                 )

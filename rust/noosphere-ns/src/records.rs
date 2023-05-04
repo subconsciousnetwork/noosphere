@@ -163,7 +163,17 @@ impl NsRecord {
         };
 
         let identity = self.identity();
-        let proof = ProofChain::from_ucan(self.token.clone(), did_parser, store).await?;
+
+        // We're interested in the validity of the proof at the time
+        // of publishing.
+        let now_time = if let Some(nbf) = self.token.not_before() {
+            nbf.to_owned()
+        } else {
+            self.token.expires_at() - 1
+        };
+
+        let proof =
+            ProofChain::from_ucan(self.token.clone(), Some(now_time), did_parser, store).await?;
 
         {
             let desired_capability = generate_capability(identity);
@@ -189,9 +199,10 @@ impl NsRecord {
         Ok(())
     }
 
-    /// Returns true if the [Ucan] token is past its expiration.
+    /// Returns true if the [Ucan] token is currently publishable
+    /// within the bounds of its expiry/not before time.
     pub fn has_publishable_timeframe(&self) -> bool {
-        !self.token.is_expired() && !self.token.is_too_early()
+        !self.token.is_expired(None) && !self.token.is_too_early()
     }
 
     /// The DID key of the sphere that this record maps.
@@ -459,15 +470,33 @@ mod test {
             .await?;
         let _ = store.write_token(&delegate_ucan.encode()?).await?;
 
-        // Attempt `owner` publishing `sphere` with the proper authorization
-        let proofs = vec![delegate_ucan];
+        // Attempt `owner` publishing `sphere` with the proper authorization.
+        let proofs = vec![delegate_ucan.clone()];
         let record =
             NsRecord::from_issuer(&owner_key, &sphere_identity, &cid_link, Some(&proofs)).await?;
 
         assert_eq!(record.identity(), &sphere_identity);
         assert_eq!(record.link(), Some(&cid_link));
+        assert!(record.has_publishable_timeframe());
         record.validate(&store, Some(&mut did_parser)).await?;
 
+        // Now test a similar record that has an expired capability.
+        // It must still be valid.
+        let expired: NsRecord = UcanBuilder::default()
+            .issued_by(&owner_key)
+            .for_audience(&sphere_identity)
+            .claiming_capability(&generate_capability(&sphere_identity))
+            .with_fact(generate_fact(&cid_link.to_string()))
+            .witnessed_by(&delegate_ucan)
+            .with_expiration(ucan::time::now() - 1234)
+            .build()?
+            .sign()
+            .await?
+            .into();
+        assert_eq!(expired.identity(), &sphere_identity);
+        assert_eq!(expired.link(), Some(&cid_link));
+        assert!(expired.has_publishable_timeframe() == false);
+        expired.validate(&store, Some(&mut did_parser)).await?;
         Ok(())
     }
 

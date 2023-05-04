@@ -187,8 +187,8 @@ async fn test_name_system_validation() -> Result<()> {
             1
         )
         .await
-        .is_err(),
-        "invalid (expired) records cannot be propagated"
+        .is_ok(),
+        "expired records can be propagated"
     );
     Ok(())
 }

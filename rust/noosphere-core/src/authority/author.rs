@@ -88,7 +88,7 @@ where
                 can: SphereAction::Push,
             };
             let mut did_parser = DidParser::new(SUPPORTED_KEYS);
-            let proof_chain = ProofChain::from_ucan(ucan, &mut did_parser, db).await?;
+            let proof_chain = ProofChain::from_ucan(ucan, None, &mut did_parser, db).await?;
 
             let capability_infos = proof_chain.reduce_capabilities(&SPHERE_SEMANTICS);
 
