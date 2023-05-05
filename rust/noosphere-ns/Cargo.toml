@@ -51,7 +51,6 @@ toml = { version = "~0.5", optional = true }
 # noosphere_ns::server
 axum = { version = "~0.5", features = ["json", "headers", "macros"], optional = true }
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls"], optional = true }
-tracing-subscriber = { workspace = true, optional = true }
 tower-http = { version = "~0.3", features = ["trace"], optional = true }
 url = { version = "^2", features = [ "serde" ], optional = true }
 
@@ -65,7 +64,7 @@ tempdir = { version = "~0.3" }
 
 [features]
 default = ["orb-ns", "api-server"]
-api-server = ["axum", "reqwest", "url", "tracing-subscriber", "tower-http"]
+api-server = ["axum", "reqwest", "url", "tower-http"]
 orb-ns = ["clap", "noosphere", "home", "toml", "noosphere-ipfs"]
 
 [[bin]]

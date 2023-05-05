@@ -12,7 +12,6 @@ use std::{
     task,
     time::Duration,
 };
-use tokio::sync::Mutex;
 use url::Url;
 
 #[cfg(feature = "api-server")]
@@ -22,7 +21,7 @@ use noosphere_ns::server::ApiServer;
 struct ApiServer;
 #[cfg(not(feature = "api-server"))]
 impl ApiServer {
-    pub fn serve(_ns: Arc<Mutex<NameSystem>>, _listener: TcpListener) -> Self {
+    pub fn serve(_ns: Arc<NameSystem>, _listener: TcpListener) -> Self {
         ApiServer {}
     }
 }
@@ -35,7 +34,7 @@ impl ApiServer {
 pub struct NameSystemRunner {
     #[serde(skip_serializing)]
     #[allow(dead_code)]
-    name_system: Arc<Mutex<NameSystem>>,
+    name_system: Arc<NameSystem>,
     #[serde(skip_serializing)]
     #[allow(dead_code)]
     api_thread: Option<ApiServer>,
@@ -80,7 +79,7 @@ impl NameSystemRunner {
         node.add_peers(config.peers.to_owned()).await?;
         node.bootstrap().await?;
 
-        let wrapped_node = Arc::new(Mutex::new(node));
+        let wrapped_node = Arc::new(node);
 
         let (api_address, api_thread) = if cfg!(feature = "api-server") {
             if let Some(requested_addr) = config.api_address.take() {

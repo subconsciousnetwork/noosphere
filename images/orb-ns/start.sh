@@ -26,4 +26,7 @@ if [[ -z "$2" ]]; then
 	exit 1
 fi
 
+echo "RUST_LOG=${RUST_LOG}"
+echo "NOOSPHERE_LOG=${NOOSPHERE_LOG}"
+
 orb-ns run --config $CONFIG_FILE

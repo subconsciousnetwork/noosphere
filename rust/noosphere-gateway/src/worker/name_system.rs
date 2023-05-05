@@ -37,6 +37,8 @@ use ucan::crypto::KeyMaterial;
 use url::Url;
 
 const PERIODIC_PUBLISH_INTERVAL_SECONDS: u64 = 5 * 60;
+/// How many seconds between queueing up an address
+/// to resolve from the name system.
 const PERIODIC_RESOLVER_INTERVAL_SECONDS: u64 = 60;
 
 pub struct NameSystemConfiguration {

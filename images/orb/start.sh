@@ -23,4 +23,7 @@ if ! [ -z "$NS_API" ]; then
 	ARGS="${ARGS} --name-resolver-api ${NS_API}"
 fi
 
+echo "RUST_LOG=${RUST_LOG}"
+echo "NOOSPHERE_LOG=${NOOSPHERE_LOG}"
+
 orb serve $ARGS

@@ -5,17 +5,13 @@ use axum::routing::{delete, get, post};
 use axum::{Extension, Router, Server};
 use std::net::TcpListener;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
 
 pub async fn start_name_system_api_server(
-    ns: Arc<Mutex<NameSystem>>,
+    ns: Arc<NameSystem>,
     listener: TcpListener,
 ) -> Result<()> {
-    let peer_id = {
-        let resolver = ns.lock().await;
-        resolver.peer_id().to_owned()
-    };
+    let peer_id = ns.peer_id().to_owned();
 
     let app = Router::new()
         .route(
@@ -51,7 +47,7 @@ pub struct ApiServer {
 }
 
 impl ApiServer {
-    pub fn serve(ns: Arc<Mutex<NameSystem>>, listener: TcpListener) -> Self {
+    pub fn serve(ns: Arc<NameSystem>, listener: TcpListener) -> Self {
         let handle = tokio::spawn(async move {
             start_name_system_api_server(ns, listener).await?;
             Ok(())

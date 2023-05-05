@@ -17,6 +17,8 @@ pub static NOOSPHERE_LOG_LEVEL_CRATES: &[&str] = &[
     "noosphere_car",
     "noosphere_api",
     "noosphere_ns",
+    "orb",
+    "orb_ns",
     "tower_http",
 ];
 

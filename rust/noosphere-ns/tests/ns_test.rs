@@ -3,7 +3,9 @@
 
 use anyhow::Result;
 use cid::Cid;
-use noosphere_core::{authority::generate_ed25519_key, data::Did, view::SPHERE_LIFETIME};
+use noosphere_core::{
+    authority::generate_ed25519_key, data::Did, tracing::initialize_tracing, view::SPHERE_LIFETIME,
+};
 use noosphere_ns::{
     helpers::NameSystemNetwork,
     utils::{generate_capability, generate_fact},
@@ -68,6 +70,7 @@ impl PseudoSphere {
 
 #[tokio::test]
 async fn test_name_system_peer_propagation() -> Result<()> {
+    initialize_tracing(None);
     // Create two NameSystems, where `ns_1` is publishing for `sphere_1`
     // and `ns_2` is publishing for `sphere_2`.
     let mut db = SphereDb::new(&MemoryStorage::default()).await?;
@@ -164,8 +167,9 @@ async fn test_name_system_peer_propagation() -> Result<()> {
     Ok(())
 }
 
-#[test_log::test(tokio::test)]
+#[tokio::test]
 async fn test_name_system_validation() -> Result<()> {
+    initialize_tracing(None);
     let mut db = SphereDb::new(&MemoryStorage::default()).await?;
     let network = NameSystemNetwork::generate(2, Some(db.clone())).await?;
 
