@@ -208,7 +208,7 @@ impl IdentifyResponse {
         // Verify that the signature is valid
         gateway_key.verify(&payload_bytes, &signature_bytes).await?;
 
-        let proof = ProofChain::try_from_token_string(&self.proof, did_parser, store).await?;
+        let proof = ProofChain::try_from_token_string(&self.proof, None, did_parser, store).await?;
 
         if proof.ucan().audience() != self.gateway_identity.as_str() {
             return Err(anyhow!("Wrong audience!"));

@@ -60,7 +60,7 @@ pub async fn verify_sphere_cid<S: Storage>(
         credential.verify(&memo.body.to_bytes(), &signature).await?;
 
         // Check the proof's provenance and that it enables the signer to sign
-        let proof = ProofChain::from_ucan(ucan, did_parser, &ucan_store).await?;
+        let proof = ProofChain::from_ucan(ucan, None, did_parser, &ucan_store).await?;
 
         let desired_capability = Capability {
             with: With::Resource {

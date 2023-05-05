@@ -126,16 +126,17 @@ where
         let proof_chain = {
             let mut sphere_context = sphere_context.lock().await;
             let did_parser = sphere_context.did_parser_mut();
-            let proof_chain = ProofChain::try_from_token_string(bearer.token(), did_parser, &db)
-                .await
-                .map_err(|error| {
-                    error!("{:?}", error);
-                    StatusCode::BAD_REQUEST
-                })?;
+            let proof_chain =
+                ProofChain::try_from_token_string(bearer.token(), None, did_parser, &db)
+                    .await
+                    .map_err(|error| {
+                        error!("{:?}", error);
+                        StatusCode::BAD_REQUEST
+                    })?;
 
             proof_chain
                 .ucan()
-                .validate(did_parser)
+                .validate(None, did_parser)
                 .await
                 .map_err(|error| {
                     error!("{:?}", error);
