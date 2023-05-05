@@ -48,6 +48,20 @@
   * dependencies
     * noosphere-core bumped from 0.10.0 to 0.10.1
 
+## [0.7.7](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.7.6...noosphere-api-v0.7.7) (2023-05-05)
+
+
+### Features
+
+* Enable expired yet valid records in the name system. Update to ucan 0.2.0. ([#360](https://github.com/subconsciousnetwork/noosphere/issues/360)) ([3b0663a](https://github.com/subconsciousnetwork/noosphere/commit/3b0663abc7783a6d33dd47d20caae7597ab93ed0))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.10.1 to 0.10.2
+
 ## [0.7.4](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.7.3...noosphere-api-v0.7.4) (2023-04-22)
 
 

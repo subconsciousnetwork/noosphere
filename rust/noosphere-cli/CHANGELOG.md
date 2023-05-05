@@ -84,6 +84,28 @@
   * dev-dependencies
     * noosphere-ns bumped from 0.6.0 to 0.6.1
 
+## [0.10.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.10.1...noosphere-cli-v0.10.2) (2023-05-05)
+
+
+### Features
+
+* Publish name record from gateway periodically. ([#334](https://github.com/subconsciousnetwork/noosphere/issues/334)) ([fc5e42f](https://github.com/subconsciousnetwork/noosphere/commit/fc5e42f2bd918fc1b3c448e55c611a99d49b00db))
+* Remove `Mutex` from NNS `ApiServer` for concurrency ([#357](https://github.com/subconsciousnetwork/noosphere/issues/357)) ([2347d10](https://github.com/subconsciousnetwork/noosphere/commit/2347d10490fbb7ecc219a3a09c1de21e11f66fa2))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.4.1 to 0.4.2
+    * noosphere-core bumped from 0.10.1 to 0.10.2
+    * noosphere-sphere bumped from 0.5.1 to 0.5.2
+    * noosphere-api bumped from 0.7.6 to 0.7.7
+    * noosphere-gateway bumped from 0.4.1 to 0.4.2
+    * noosphere bumped from 0.10.1 to 0.10.2
+  * dev-dependencies
+    * noosphere-ns bumped from 0.6.1 to 0.6.2
+
 ## [0.10.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.9.5...noosphere-cli-v0.10.0) (2023-05-02)
 
 
