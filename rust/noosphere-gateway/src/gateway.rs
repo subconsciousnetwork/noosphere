@@ -26,7 +26,9 @@ use noosphere_core::tracing::initialize_tracing;
 
 #[derive(Clone, Debug)]
 pub struct GatewayScope {
+    /// Identity of gateway sphere.
     pub identity: Did,
+    /// Identity of a managed sphere that is being reflected by gateway sphere.
     pub counterpart: Did,
 }
 

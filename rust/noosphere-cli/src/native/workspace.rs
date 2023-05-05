@@ -431,6 +431,7 @@ impl Workspace {
     /// Given a mime, infer its file extension
     pub async fn infer_file_extension(&self, content_type: ContentType) -> Option<String> {
         match content_type {
+            ContentType::Text => Some("txt".into()),
             ContentType::Subtext => Some("subtext".into()),
             ContentType::Sphere => Some("sphere".into()),
             ContentType::Bytes => None,

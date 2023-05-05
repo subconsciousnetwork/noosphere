@@ -2,13 +2,18 @@ use crate::try_or_reset::TryOrReset;
 use anyhow::anyhow;
 use anyhow::Result;
 use cid::Cid;
+use noosphere_core::data::ContentType;
 use noosphere_core::data::{Did, IdentityIpld, Jwt, LinkRecord, MapOperation};
 use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_ns::NsRecord;
 use noosphere_ns::{server::HttpClient as NameSystemHttpClient, NameResolver};
+use noosphere_sphere::SphereContentRead;
+use noosphere_sphere::SphereContentWrite;
+use noosphere_sphere::COUNTERPART;
 use noosphere_sphere::{
     HasMutableSphereContext, SphereCursor, SpherePetnameRead, SpherePetnameWrite,
 };
+use noosphere_storage::KeyValueStore;
 use noosphere_storage::{BlockStoreRetry, Storage, UcanStore};
 use std::fmt::Display;
 use std::{
@@ -19,6 +24,7 @@ use std::{
     time::Duration,
 };
 use strum_macros::Display;
+use tokio::io::AsyncReadExt;
 use tokio::{
     sync::{
         mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
@@ -29,6 +35,9 @@ use tokio::{
 use tokio_stream::{Stream, StreamExt};
 use ucan::crypto::KeyMaterial;
 use url::Url;
+
+const PERIODIC_PUBLISH_INTERVAL_SECONDS: u64 = 5 * 60;
+const PERIODIC_RESOLVER_INTERVAL_SECONDS: u64 = 60;
 
 pub struct NameSystemConfiguration {
     pub connection_type: NameSystemConnectionType,
@@ -93,6 +102,7 @@ where
         let tx = tx.clone();
         tokio::task::spawn(async move {
             let _ = tokio::join!(
+                periodic_publisher_task(tx.clone(), local_spheres.clone()),
                 name_system_task(configuration, rx),
                 periodic_resolver_task(tx, local_spheres)
             );
@@ -101,6 +111,53 @@ where
     };
 
     (tx, task)
+}
+
+/// Run once on gateway start and every PERIODIC_PUBLISH_INTERVAL_SECONDS,
+/// republish all stored link records in gateway spheres that map to
+/// counterpart managed spheres.
+async fn periodic_publisher_task<C, K, S>(
+    tx: UnboundedSender<NameSystemJob<C>>,
+    local_spheres: Vec<C>,
+) where
+    C: HasMutableSphereContext<K, S>,
+    K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
+{
+    loop {
+        for local_sphere in local_spheres.iter() {
+            if let Err(error) = periodic_publish_record(&tx, local_sphere).await {
+                error!("Could not publish record: {}", error);
+            };
+        }
+        tokio::time::sleep(Duration::from_secs(PERIODIC_PUBLISH_INTERVAL_SECONDS)).await;
+    }
+}
+
+async fn periodic_publish_record<C, K, S>(
+    tx: &UnboundedSender<NameSystemJob<C>>,
+    local_sphere: &C,
+) -> Result<()>
+where
+    C: HasMutableSphereContext<K, S>,
+    K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
+{
+    match get_counterpart_record(local_sphere).await {
+        Ok(Some(record)) => {
+            debug!("Got counterpart record.");
+            if let Err(error) = tx.send(NameSystemJob::Publish {
+                context: local_sphere.to_owned(),
+                record,
+            }) {
+                warn!("Failed to request name record publish: {}", error);
+            }
+        }
+        _ => {
+            warn!("Could not find most recent record for counterpart sphere to publish.");
+        }
+    }
+    Ok(())
 }
 
 async fn periodic_resolver_task<C, K, S>(
@@ -121,7 +178,7 @@ async fn periodic_resolver_task<C, K, S>(
             }
         }
 
-        tokio::time::sleep(Duration::from_secs(60)).await;
+        tokio::time::sleep(Duration::from_secs(PERIODIC_RESOLVER_INTERVAL_SECONDS)).await;
     }
 }
 
@@ -152,7 +209,10 @@ where
         let run_job = with_client.invoke(|client| async move {
             debug!("Running {}", job);
             match job {
-                NameSystemJob::Publish { record, .. } => {
+                NameSystemJob::Publish { record, context } => {
+                    if let Err(error) = set_counterpart_record(context, &record).await {
+                        warn!("Could not set counterpart record on sphere: {error}");
+                    }
                     client.publish(NsRecord::from_str(&record)?).await?;
                 }
                 NameSystemJob::ResolveAll { context } => {
@@ -374,5 +434,55 @@ impl<H> OnDemandNameResolver<H> {
             })
             .map_err(|error| anyhow!(error.to_string()))?;
         Ok(rx.await?)
+    }
+}
+
+async fn set_counterpart_record<C, K, S>(context: C, record: &Jwt) -> Result<()>
+where
+    C: HasMutableSphereContext<K, S>,
+    K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
+{
+    debug!("Setting counterpart record...");
+    let counterpart_identity = {
+        let sphere_context = context.sphere_context().await?;
+        let db = sphere_context.db();
+        db.require_key::<_, Did>(COUNTERPART).await?
+    };
+    let counterpart_link_record_key = format!("link_record/{counterpart_identity}");
+    let mut cursor = SphereCursor::latest(context.clone());
+    cursor
+        .write(
+            &counterpart_link_record_key,
+            &ContentType::Text.to_string(),
+            record.as_bytes(),
+            None,
+        )
+        .await?;
+
+    cursor.save(None).await?;
+    Ok(())
+}
+
+async fn get_counterpart_record<C, K, S>(context: &C) -> Result<Option<Jwt>>
+where
+    C: HasMutableSphereContext<K, S>,
+    K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
+{
+    debug!("Getting counterpart record...");
+    let counterpart_identity = {
+        let sphere_context = context.sphere_context().await?;
+        let db = sphere_context.db();
+        db.require_key::<_, Did>(COUNTERPART).await?
+    };
+    let counterpart_link_record_key = format!("link_record/{counterpart_identity}");
+
+    let mut buffer = String::new();
+    if let Some(mut file) = context.read(&counterpart_link_record_key).await? {
+        file.contents.read_to_string(&mut buffer).await?;
+        Ok(Some(Jwt(buffer)))
+    } else {
+        Ok(None)
     }
 }

@@ -9,18 +9,22 @@ use noosphere_storage::{BlockStoreRetry, MemoryStore, UcanStore};
 use std::{net::TcpListener, sync::Arc, time::Duration};
 
 use noosphere_cli::native::{
-    commands::{key::key_create, sphere::sphere_create},
+    commands::{config::config_set, key::key_create, sphere::sphere_create},
     workspace::Workspace,
+    ConfigSetCommand,
 };
 use noosphere_core::{data::Did, tracing::initialize_tracing};
 use noosphere_gateway::{start_gateway, GatewayScope};
-use noosphere_ns::{helpers::NameSystemNetwork, server::start_name_system_api_server};
+use noosphere_ns::{
+    helpers::NameSystemNetwork,
+    server::{start_name_system_api_server, HttpClient},
+    NameResolver,
+};
 use noosphere_sphere::{
     HasMutableSphereContext, HasSphereContext, SphereContentWrite, SpherePetnameRead,
     SpherePetnameWrite, SphereSync,
 };
 use tokio::{sync::Mutex, task::JoinHandle};
-use ucan::store::UcanJwtStore;
 use url::Url;
 
 async fn start_gateway_for_workspace(
@@ -62,18 +66,32 @@ async fn start_gateway_for_workspace(
     Ok((gateway_url, join_handle))
 }
 
-async fn start_name_system_server<S: UcanJwtStore + Clone + 'static>(
-    _store: S,
-    listener: TcpListener,
-) -> Result<JoinHandle<()>> {
-    Ok(tokio::spawn(async move {
-        // TODO(#267) pass in IpfsStore rather than `None` here once validating
-        let mut network = NameSystemNetwork::generate::<S>(2, None).await.unwrap();
-        let node = network.nodes_mut().pop().unwrap();
-        start_name_system_api_server(Arc::new(Mutex::new(node)), listener)
-            .await
-            .unwrap();
-    }))
+async fn start_name_system_server(ipfs_url: &Url) -> Result<(JoinHandle<()>, Url)> {
+    // TODO(#267)
+    let use_validation = false;
+    let store = if use_validation {
+        let inner = MemoryStore::default();
+        let inner = IpfsStore::new(inner, Some(KuboClient::new(ipfs_url).unwrap()));
+        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(1, 0));
+        let inner = UcanStore(inner);
+        Some(inner)
+    } else {
+        None
+    };
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let url = Url::parse(format!("http://{}:{}", address.ip(), address.port()).as_str()).unwrap();
+
+    Ok((
+        tokio::spawn(async move {
+            let mut network = NameSystemNetwork::generate(2, store).await.unwrap();
+            let node = network.nodes_mut().pop().unwrap();
+            start_name_system_api_server(Arc::new(Mutex::new(node)), listener)
+                .await
+                .unwrap();
+        }),
+        url,
+    ))
 }
 
 #[cfg(feature = "test_kubo")]
@@ -82,20 +100,7 @@ async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() {
     initialize_tracing(None);
 
     let ipfs_url = Url::parse("http://127.0.0.1:5001").unwrap();
-
-    let ns_listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let ns_address = ns_listener.local_addr().unwrap();
-    let ns_url =
-        Url::parse(format!("http://{}:{}", ns_address.ip(), ns_address.port()).as_str()).unwrap();
-    let ns_db = {
-        let inner = MemoryStore::default();
-        let inner = IpfsStore::new(inner, Some(KuboClient::new(&ipfs_url).unwrap()));
-        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(1, 0));
-        let inner = UcanStore(inner);
-        inner
-    };
-
-    let ns_task = start_name_system_server(ns_db, ns_listener).await.unwrap();
+    let (ns_task, ns_url) = start_name_system_server(&ipfs_url).await.unwrap();
 
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
@@ -135,6 +140,29 @@ async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() {
     sphere_create(third_party_gateway_key_name, &third_party_gateway_workspace)
         .await
         .unwrap();
+    let client_identity = client_workspace.sphere_identity().await.unwrap();
+
+    config_set(
+        ConfigSetCommand::Counterpart {
+            did: client_identity.clone().into(),
+        },
+        &gateway_workspace,
+    )
+    .await
+    .unwrap();
+
+    config_set(
+        ConfigSetCommand::Counterpart {
+            did: third_party_client_workspace
+                .sphere_identity()
+                .await
+                .unwrap()
+                .into(),
+        },
+        &third_party_gateway_workspace,
+    )
+    .await
+    .unwrap();
 
     let (gateway_url, gateway_task) = start_gateway_for_workspace(
         &gateway_workspace,
@@ -222,31 +250,42 @@ async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() {
         third_party_gateway_task.abort();
     });
     client_task.await.unwrap();
+
+    // Restart gateway and name system, ensuring republishing occurs
+    let (ns_task, ns_url) = start_name_system_server(&ipfs_url).await.unwrap();
+    let ns_client = HttpClient::new(ns_url.clone()).await.unwrap();
+    assert!(
+        ns_client.resolve(&client_identity).await.unwrap().is_none(),
+        "new name system does not contain client identity"
+    );
+
+    let (_gateway_url, gateway_task) = start_gateway_for_workspace(
+        &gateway_workspace,
+        &client_workspace.sphere_identity().await.unwrap(),
+        &ipfs_url,
+        &ns_url,
+    )
+    .await
+    .unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    assert!(
+        ns_client.resolve(&client_identity).await.unwrap().is_some(),
+        "the gateway republishes records on start."
+    );
+    gateway_task.abort();
+    ns_task.abort();
 }
 
 #[cfg(feature = "test_kubo")]
 #[tokio::test]
 async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() {
-    use noosphere_cli::native::commands::config::config_set;
-    use noosphere_cli::native::ConfigSetCommand;
     use noosphere_sphere::SphereContentRead;
     use tokio::io::AsyncReadExt;
     initialize_tracing(None);
 
     let ipfs_url = Url::parse("http://127.0.0.1:5001").unwrap();
-
-    let ns_listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let ns_address = ns_listener.local_addr().unwrap();
-    let ns_url =
-        Url::parse(format!("http://{}:{}", ns_address.ip(), ns_address.port()).as_str()).unwrap();
-    let ns_db = {
-        let inner = MemoryStore::default();
-        let inner = IpfsStore::new(inner, Some(KuboClient::new(&ipfs_url).unwrap()));
-        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(1, 0));
-        let inner = UcanStore(inner);
-        inner
-    };
-    let ns_task = start_name_system_server(ns_db, ns_listener).await.unwrap();
+    let (ns_task, ns_url) = start_name_system_server(&ipfs_url).await.unwrap();
 
     let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
     let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
