@@ -16,6 +16,21 @@
   * dependencies
     * noosphere-into bumped from 0.8.0 to 0.8.1
 
+## [0.10.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.10.1...noosphere-v0.10.2) (2023-05-05)
+
+
+### Features
+
+* Consider creating a new key with an empty string an error. Fixes [#331](https://github.com/subconsciousnetwork/noosphere/issues/331) ([#354](https://github.com/subconsciousnetwork/noosphere/issues/354)) ([0a0efa6](https://github.com/subconsciousnetwork/noosphere/commit/0a0efa60be5f258476249d5d8c8d5fb93911c42e))
+* Publish name record from gateway periodically. ([#334](https://github.com/subconsciousnetwork/noosphere/issues/334)) ([fc5e42f](https://github.com/subconsciousnetwork/noosphere/commit/fc5e42f2bd918fc1b3c448e55c611a99d49b00db))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-into bumped from 0.8.1 to 0.8.2
+
 ## [0.10.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.9.1...noosphere-v0.10.0) (2023-05-02)
 
 

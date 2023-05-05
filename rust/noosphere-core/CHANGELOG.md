@@ -5,6 +5,15 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-collections bumped from 0.3.1 to 0.3.2
 
+## [0.10.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.10.1...noosphere-core-v0.10.2) (2023-05-05)
+
+
+### Features
+
+* Enable expired yet valid records in the name system. Update to ucan 0.2.0. ([#360](https://github.com/subconsciousnetwork/noosphere/issues/360)) ([3b0663a](https://github.com/subconsciousnetwork/noosphere/commit/3b0663abc7783a6d33dd47d20caae7597ab93ed0))
+* Publish name record from gateway periodically. ([#334](https://github.com/subconsciousnetwork/noosphere/issues/334)) ([fc5e42f](https://github.com/subconsciousnetwork/noosphere/commit/fc5e42f2bd918fc1b3c448e55c611a99d49b00db))
+* Remove `Mutex` from NNS `ApiServer` for concurrency ([#357](https://github.com/subconsciousnetwork/noosphere/issues/357)) ([2347d10](https://github.com/subconsciousnetwork/noosphere/commit/2347d10490fbb7ecc219a3a09c1de21e11f66fa2))
+
 ## [0.10.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.10.0...noosphere-core-v0.10.1) (2023-05-02)
 
 
