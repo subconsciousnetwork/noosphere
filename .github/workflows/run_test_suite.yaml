@@ -17,7 +17,7 @@ jobs:
     runs-on: macos-12
     needs: ['build-noosphere-apple-artifacts']
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: 'Download XCode Framework artifact'
         uses: actions/download-artifact@v3
         with:
@@ -36,13 +36,11 @@ jobs:
   run-test-suite-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          override: true
-          profile: minimal
-          toolchain: stable
+      - name: 'Setup Rust'
+        run: | 
+          curl -sSf https://sh.rustup.rs | sh -s -- -y
       - name: 'Install environment packages'
         run: |
           choco install -y cmake protoc openssl
@@ -53,49 +51,35 @@ jobs:
           ipfs_version: v0.17.0
           run_daemon: true
       - name: 'Run Rust native target tests'
-        uses: actions-rs/cargo@v1.0.3
-        with:
-          command: test
-          args: --features test_kubo
+        run: cargo test --features test_kubo
 
   run-linting-linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          override: true
-          profile: minimal
-          components: rustfmt, clippy
-          toolchain: stable
+      - name: 'Setup Rust'
+        run: | 
+          curl -sSf https://sh.rustup.rs | sh -s -- -y
+          rustup component add clippy
+          rustup component add rustfmt
       - name: 'Install environment packages'
         run: |
           sudo apt-get update -qqy
           sudo apt-get install jq protobuf-compiler cmake
       - name: 'Check Format'
-        uses: actions-rs/cargo@v1
-        with:
-          args: --all -- --check
-          command: fmt
-          toolchain: stable
+        run: cargo fmt --all -- --check
       - name: 'Run Linter'
-        uses: actions-rs/cargo@v1
-        with:
-          args: --all -- -D warnings
-          command: clippy 
-          toolchain: stable
+        run: cargo clippy --all -- -D warnings
 
   run-test-suite-linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          override: true
-          profile: minimal
-          toolchain: stable
+      - name: 'Setup Rust'
+        run: | 
+          curl -sSf https://sh.rustup.rs | sh -s -- -y
       - name: 'Install environment packages'
         run: |
           sudo apt-get update -qqy
@@ -106,20 +90,15 @@ jobs:
           ipfs_version: v0.17.0
           run_daemon: true
       - name: 'Run Rust native target tests'
-        uses: actions-rs/cargo@v1.0.3
-        with:
-          command: test
-          args: --features test_kubo,headers
+        run: cargo test --features test_kubo,headers
   run-test-suite-linux-c:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          override: true
-          profile: minimal
-          toolchain: stable
+      - name: 'Setup Rust'
+        run: | 
+          curl -sSf https://sh.rustup.rs | sh -s -- -y
       - name: 'Install environment packages'
         run: |
           sudo apt-get update -qqy
@@ -133,13 +112,13 @@ jobs:
   run-test-suite-web-wasm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          override: true
-          profile: minimal
-          toolchain: stable
+      - name: 'Setup Rust'
+        run: | 
+          curl -sSf https://sh.rustup.rs | sh -s -- -y
+          rustup component add clippy
+          rustup component add rustfmt
       - name: 'Install environment packages'
         run: |
           sudo apt-get update -qqy
@@ -175,16 +154,14 @@ jobs:
   run-test-suite-web-typescript:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
       # Disable wireit cache for now, seeing some errors pop up:
       # https://github.com/subconsciousnetwork/noosphere/actions/runs/4682179827/jobs/8295693844
       # - uses: google/wireit@setup-github-actions-caching/v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          override: true
-          profile: minimal
-          toolchain: stable
+      - name: 'Setup Rust'
+        run: | 
+          curl -sSf https://sh.rustup.rs | sh -s -- -y
       - uses: actions/setup-node@v3
         with:
           node-version: lts/*

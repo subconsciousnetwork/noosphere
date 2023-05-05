@@ -64,19 +64,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ matrix.target }}
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          toolchain: stable
-          override: true
-          profile: minimal
-          target: ${{ matrix.target }}
+      - name: 'Setup Rust'
+        run: | 
+          curl -sSf https://sh.rustup.rs | sh -s -- -y
+          rustup target add ${{ matrix.target }}
       - uses: ConorMacBride/install-package@v1
         with:
           brew: protobuf cmake
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: build
-          args: --package noosphere --release --locked --target ${{ matrix.target }}
+      - name: 'Cargo Build'
+        run: cargo build --package noosphere --release --locked --target ${{ matrix.target }}
       - run: |
           cd target/${{ matrix.target }}/release
       - uses: actions/upload-artifact@v3
@@ -92,11 +88,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          toolchain: stable
-          override: true
-          profile: minimal
+      - name: 'Setup Rust'
+        run: | 
+          curl -sSf https://sh.rustup.rs | sh -s -- -y
       - uses: ConorMacBride/install-package@v1
         with:
           brew: protobuf cmake

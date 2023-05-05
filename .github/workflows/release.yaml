@@ -160,20 +160,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          override: true
-          profile: minimal
-          toolchain: stable
+      - name: 'Setup Rust'
+        run: | 
+          curl -sSf https://sh.rustup.rs | sh -s -- -y
       - name: 'Install environment packages'
         run: |
           sudo apt-get update -qqy
           sudo apt-get install protobuf-compiler cmake libssl-dev pkg-config
       - name: 'Install cargo-workspaces'
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: --force cargo-workspaces
+        run: cargo install --force cargo-workspaces
       - name: 'Publish crates'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}

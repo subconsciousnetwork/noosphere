@@ -21,21 +21,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          toolchain: stable
-          override: true
-          profile: minimal
-          target: ${{ matrix.target }}
+      - name: 'Setup Rust'
+        run: | 
+          curl -sSf https://sh.rustup.rs | sh -s -- -y
+          rustup target add ${{ matrix.target }}
       - name: 'Install environment packages'
         run: |
           sudo apt-get update -qqy
           sudo apt-get install protobuf-compiler cmake libssl-dev pkg-config
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: build
-          args: --release --locked --target ${{ matrix.target }}
-
+      - name: 'Cargo Build'
+        run: cargo build --release --locked --target ${{ matrix.target }}
       - name: 'Generate build tarball (*nix)'
         run: |
           cd target/${{ matrix.target }}/release
