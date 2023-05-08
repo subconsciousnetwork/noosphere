@@ -16,6 +16,20 @@
   * dependencies
     * noosphere-storage bumped from 0.6.2 to 0.6.3
 
+## [0.5.4](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.5.3...noosphere-collections-v0.5.4) (2023-05-08)
+
+
+### Features
+
+* Update IPLD-related dependencies ([#327](https://github.com/subconsciousnetwork/noosphere/issues/327)) ([5fdfadb](https://github.com/subconsciousnetwork/noosphere/commit/5fdfadb1656f9d6eef2dbbb8b00a598106bccf00))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.6.3 to 0.6.4
+
 ## [0.5.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.5.1...noosphere-collections-v0.5.2) (2023-04-22)
 
 

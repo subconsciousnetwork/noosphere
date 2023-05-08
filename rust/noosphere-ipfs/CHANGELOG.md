@@ -20,6 +20,25 @@
   * dev-dependencies
     * noosphere-core bumped from 0.10.1 to 0.10.2
 
+## [0.4.4](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.4.3...noosphere-ipfs-v0.4.4) (2023-05-08)
+
+
+### Features
+
+* Enable expired yet valid records in the name system. Update to ucan 0.2.0. ([#360](https://github.com/subconsciousnetwork/noosphere/issues/360)) ([3b0663a](https://github.com/subconsciousnetwork/noosphere/commit/3b0663abc7783a6d33dd47d20caae7597ab93ed0))
+* Update IPLD-related dependencies ([#327](https://github.com/subconsciousnetwork/noosphere/issues/327)) ([5fdfadb](https://github.com/subconsciousnetwork/noosphere/commit/5fdfadb1656f9d6eef2dbbb8b00a598106bccf00))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.6.3 to 0.6.4
+    * noosphere-car bumped from 0.1.1 to 0.1.2
+  * dev-dependencies
+    * noosphere-storage bumped from 0.6.3 to 0.6.4
+    * noosphere-core bumped from 0.11.0 to 0.12.0
+
 ## [0.4.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.4.2...noosphere-ipfs-v0.4.3) (2023-05-08)
 
 

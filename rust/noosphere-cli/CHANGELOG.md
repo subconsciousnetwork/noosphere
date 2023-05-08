@@ -96,6 +96,75 @@
   * dev-dependencies
     * noosphere-ns bumped from 0.6.2 to 0.6.3
 
+## [0.11.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.10.3...noosphere-cli-v0.11.0) (2023-05-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* Revised tracing configuration ([#342](https://github.com/subconsciousnetwork/noosphere/issues/342))
+* Apply breaking domain concept in anticipation of beta ([#298](https://github.com/subconsciousnetwork/noosphere/issues/298))
+* Traverse the Noosphere vast ([#284](https://github.com/subconsciousnetwork/noosphere/issues/284))
+* Fork `iroh-car` as `noosphere-car` ([#283](https://github.com/subconsciousnetwork/noosphere/issues/283))
+* Revise links and gateway ([#278](https://github.com/subconsciousnetwork/noosphere/issues/278))
+* Petname resolution and synchronization in spheres and gateways ([#253](https://github.com/subconsciousnetwork/noosphere/issues/253))
+* `SphereFile` fields referring to a `revision` now refer to a `version` instead.
+* Several critical dependencies of this library were updated to new versions that contain breaking changes.
+* The `StorageProvider` trait has been replaced by the `Storage` trait. This new trait allows for distinct backing implementations of `BlockStore` and `KeyValueStore`.
+* The `.sphere` directory has a new layout; the files previously used to store metadata have been replaced with database metadata; the `blocks` directory is now called `storage`. At this time the easiest migration path is to initialize a new sphere and copy your existing files into it.
+* Many APIs that previously asked for bare strings when a DID string was expected now expect a newtype called `Did` that wraps a string.
+* The `noosphere-api` Client now holds an owned key instead of a reference.
+
+### Features
+
+* `SphereFs` is initialized with key material ([#140](https://github.com/subconsciousnetwork/noosphere/issues/140)) ([af48061](https://github.com/subconsciousnetwork/noosphere/commit/af4806114ca8f7703e0a888c7f369a4a4ed69c00))
+* Add `noosphere` crate-based Swift package ([#131](https://github.com/subconsciousnetwork/noosphere/issues/131)) ([e1204c2](https://github.com/subconsciousnetwork/noosphere/commit/e1204c2a5822c3c0dbb7e61bbacffb2c1f49d8d8))
+* Beautify the Sphere Viewer demo app ([#186](https://github.com/subconsciousnetwork/noosphere/issues/186)) ([3e30fdb](https://github.com/subconsciousnetwork/noosphere/commit/3e30fdb5e2b6758397f05343491a36512a4f4a0c))
+* **cli:** Find the nearest ancestor sphere ([#119](https://github.com/subconsciousnetwork/noosphere/issues/119)) ([9e33026](https://github.com/subconsciousnetwork/noosphere/commit/9e3302623db3af88df626ccb02ad8fa699e79223))
+* Fork `iroh-car` as `noosphere-car` ([#283](https://github.com/subconsciousnetwork/noosphere/issues/283)) ([b0b7c38](https://github.com/subconsciousnetwork/noosphere/commit/b0b7c3835ff1ef271bbe0f833f6f7856fcc30de1))
+* Improve "orb" error messaging ([#280](https://github.com/subconsciousnetwork/noosphere/issues/280)) ([d4b08f3](https://github.com/subconsciousnetwork/noosphere/commit/d4b08f3658f59b642395085483c0c79b0a03fb5d))
+* Introduce `noosphere-gateway` crate ([#238](https://github.com/subconsciousnetwork/noosphere/issues/238)) ([791bc39](https://github.com/subconsciousnetwork/noosphere/commit/791bc3996cfac12cb077c3721f22d080a71d33ba))
+* Introduce `noosphere-ipfs` crate ([#203](https://github.com/subconsciousnetwork/noosphere/issues/203)) ([ad1945b](https://github.com/subconsciousnetwork/noosphere/commit/ad1945bb7d64f169b6dac96807bf8d8e0c3ab482))
+* Introduce web bindings and `orb` NPM package ([#182](https://github.com/subconsciousnetwork/noosphere/issues/182)) ([44170a2](https://github.com/subconsciousnetwork/noosphere/commit/44170a27be2e1d180b1cee153937ab2cef16a591))
+* Petname resolution and synchronization in spheres and gateways ([#253](https://github.com/subconsciousnetwork/noosphere/issues/253)) ([f7ddfa7](https://github.com/subconsciousnetwork/noosphere/commit/f7ddfa7b65129efe795c6e3fca58cdc22799127a))
+* Publish name record from gateway periodically. ([#334](https://github.com/subconsciousnetwork/noosphere/issues/334)) ([fc5e42f](https://github.com/subconsciousnetwork/noosphere/commit/fc5e42f2bd918fc1b3c448e55c611a99d49b00db))
+* Re-implement `noosphere-cli` in terms of `noosphere` ([#162](https://github.com/subconsciousnetwork/noosphere/issues/162)) ([1e83bbb](https://github.com/subconsciousnetwork/noosphere/commit/1e83bbb689642b878f4f6909d7dd4a6df56b29f9))
+* Refactor storage interfaces ([#178](https://github.com/subconsciousnetwork/noosphere/issues/178)) ([4db55c4](https://github.com/subconsciousnetwork/noosphere/commit/4db55c4cba56b329a638a4227e7f3247ad8d319c))
+* Remove `Mutex` from NNS `ApiServer` for concurrency ([#357](https://github.com/subconsciousnetwork/noosphere/issues/357)) ([2347d10](https://github.com/subconsciousnetwork/noosphere/commit/2347d10490fbb7ecc219a3a09c1de21e11f66fa2))
+* Revise links and gateway ([#278](https://github.com/subconsciousnetwork/noosphere/issues/278)) ([4cd2e3a](https://github.com/subconsciousnetwork/noosphere/commit/4cd2e3af8b10cdaae710d87e4b919b5180d10fec))
+* Revised tracing configuration ([#342](https://github.com/subconsciousnetwork/noosphere/issues/342)) ([c4a4084](https://github.com/subconsciousnetwork/noosphere/commit/c4a4084771680c8e49b3db498a5da422db2adda8))
+* Syndicate sphere revisions to IPFS Kubo ([#177](https://github.com/subconsciousnetwork/noosphere/issues/177)) ([e269e04](https://github.com/subconsciousnetwork/noosphere/commit/e269e0484b73e0f5507406d57a2c06cf849bee3d))
+* Traverse the Noosphere vast ([#284](https://github.com/subconsciousnetwork/noosphere/issues/284)) ([43bceaf](https://github.com/subconsciousnetwork/noosphere/commit/43bceafcc838c5b06565780f372bf7b401de288e))
+* Update IPLD-related dependencies ([#327](https://github.com/subconsciousnetwork/noosphere/issues/327)) ([5fdfadb](https://github.com/subconsciousnetwork/noosphere/commit/5fdfadb1656f9d6eef2dbbb8b00a598106bccf00))
+
+
+### Bug Fixes
+
+* Limit delegated UCAN's lifetime to authorization token's lifetime where appropriate. ([#249](https://github.com/subconsciousnetwork/noosphere/issues/249)) ([b62fb88](https://github.com/subconsciousnetwork/noosphere/commit/b62fb888e16718cb84f33aa93c14385ddef4d8d1))
+* Recover from Kubo pin check ([#193](https://github.com/subconsciousnetwork/noosphere/issues/193)) ([b0e0851](https://github.com/subconsciousnetwork/noosphere/commit/b0e0851a5748c88c05977091abd780cf1a4f12ce))
+* Unreachable petname sequence is not an error ([#310](https://github.com/subconsciousnetwork/noosphere/issues/310)) ([96f2938](https://github.com/subconsciousnetwork/noosphere/commit/96f2938d76f41fe240466bc7cfe397f886aa7e04))
+
+
+### Miscellaneous Chores
+
+* Apply breaking domain concept in anticipation of beta ([#298](https://github.com/subconsciousnetwork/noosphere/issues/298)) ([bd34ab4](https://github.com/subconsciousnetwork/noosphere/commit/bd34ab49b2d2c65cffe25657cf4d188d5c79d15f))
+* Update IPLD-adjacent dependencies ([#180](https://github.com/subconsciousnetwork/noosphere/issues/180)) ([1a1114b](https://github.com/subconsciousnetwork/noosphere/commit/1a1114b0c6277ea2c0d879e43191e962eb2e462b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-car bumped from 0.1.1 to 0.1.2
+    * noosphere-ipfs bumped from 0.4.3 to 0.4.4
+    * noosphere-core bumped from 0.11.0 to 0.12.0
+    * noosphere-sphere bumped from 0.5.3 to 0.5.4
+    * noosphere-storage bumped from 0.6.3 to 0.6.4
+    * noosphere-api bumped from 0.7.8 to 0.7.9
+    * noosphere-gateway bumped from 0.4.3 to 0.4.4
+    * noosphere bumped from 0.10.3 to 0.11.0
+  * dev-dependencies
+    * noosphere-ns bumped from 0.6.3 to 0.6.4
+
 ## [0.10.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.10.1...noosphere-cli-v0.10.2) (2023-05-05)
 
 

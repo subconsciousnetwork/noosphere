@@ -48,6 +48,24 @@
   * dependencies
     * noosphere-core bumped from 0.10.0 to 0.10.1
 
+## [0.7.9](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.7.8...noosphere-api-v0.7.9) (2023-05-08)
+
+
+### Features
+
+* Enable expired yet valid records in the name system. Update to ucan 0.2.0. ([#360](https://github.com/subconsciousnetwork/noosphere/issues/360)) ([3b0663a](https://github.com/subconsciousnetwork/noosphere/commit/3b0663abc7783a6d33dd47d20caae7597ab93ed0))
+* Sphere writes do not block immutable reads ([#321](https://github.com/subconsciousnetwork/noosphere/issues/321)) ([14373c5](https://github.com/subconsciousnetwork/noosphere/commit/14373c5281c091bb41623677571566a2788a7e3f))
+* Update IPLD-related dependencies ([#327](https://github.com/subconsciousnetwork/noosphere/issues/327)) ([5fdfadb](https://github.com/subconsciousnetwork/noosphere/commit/5fdfadb1656f9d6eef2dbbb8b00a598106bccf00))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.11.0 to 0.12.0
+    * noosphere-storage bumped from 0.6.3 to 0.6.4
+    * noosphere-car bumped from 0.1.1 to 0.1.2
+
 ## [0.7.8](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.7.7...noosphere-api-v0.7.8) (2023-05-08)
 
 

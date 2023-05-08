@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-gateway"
-version = "0.4.3"
+version = "0.4.4"
 edition = "2021"
 description = "A geist on the network that enables user spheres to discover each other"
 keywords = ["http", "geist", "noosphere", "p2p", "ucan"]
@@ -48,14 +48,14 @@ witty-phrase-generator = "~0.2"
 toml_edit = { version = "~0.15", features = [ "serde" ] }
 globset = "~0.4"
 
-noosphere-car = { version = "0.1.1", path = "../noosphere-car" }
-noosphere-ipfs = { version = "0.4.3", path = "../noosphere-ipfs" }
-noosphere-core = { version = "0.11.0", path = "../noosphere-core" }
-noosphere-ns = { version = "0.6.3", path = "../noosphere-ns" }
-noosphere-storage = { version = "0.6.3", path = "../noosphere-storage" }
-noosphere-sphere = { version = "0.5.3", path = "../noosphere-sphere" }
-noosphere-api = { version = "0.7.8", path = "../noosphere-api" }
-noosphere = { version = "0.10.3", path = "../noosphere" }
+noosphere-car = { version = "0.1.2", path = "../noosphere-car" }
+noosphere-ipfs = { version = "0.4.4", path = "../noosphere-ipfs" }
+noosphere-core = { version = "0.12.0", path = "../noosphere-core" }
+noosphere-ns = { version = "0.6.4", path = "../noosphere-ns" }
+noosphere-storage = { version = "0.6.4", path = "../noosphere-storage" }
+noosphere-sphere = { version = "0.5.4", path = "../noosphere-sphere" }
+noosphere-api = { version = "0.7.9", path = "../noosphere-api" }
+noosphere = { version = "0.11.0", path = "../noosphere" }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
 cid = { workspace = true }
