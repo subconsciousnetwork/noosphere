@@ -45,6 +45,11 @@
     * noosphere-sphere bumped from 0.5.3 to 0.5.4
     * noosphere bumped from 0.10.3 to 0.10.4
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ns bumped from 0.6.4 to 0.6.5
+    * noosphere bumped from 0.10.4 to 0.11.0
+
 ## [0.4.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.4.1...noosphere-gateway-v0.4.2) (2023-05-05)
 
 
