@@ -39,7 +39,7 @@ jobs:
       - uses: chainguard-dev/actions/setup-gitsign@main
       - name: 'Run release-please'
         id: release
-        uses: cdata/release-please-action@main
+        uses: cdata/release-please-action@fix/support-cargo-workspace-dependency-inheritance
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           default-branch: main
