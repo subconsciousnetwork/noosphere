@@ -17,7 +17,7 @@ default = []
 helpers = []
 
 [dependencies]
-anyhow = "^1"
+anyhow = { workspace = true }
 cid = { workspace = true }
 url = { version = "^2", features = ["serde"] }
 tracing = { workspace = true }
