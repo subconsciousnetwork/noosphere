@@ -5,6 +5,26 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-collections bumped from 0.3.1 to 0.3.2
 
+## [0.11.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.10.2...noosphere-core-v0.11.0) (2023-05-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* Revised tracing configuration ([#342](https://github.com/subconsciousnetwork/noosphere/issues/342))
+
+### Features
+
+* Enable expired yet valid records in the name system. Update to ucan 0.2.0. ([#360](https://github.com/subconsciousnetwork/noosphere/issues/360)) ([3b0663a](https://github.com/subconsciousnetwork/noosphere/commit/3b0663abc7783a6d33dd47d20caae7597ab93ed0))
+* Revised tracing configuration ([#342](https://github.com/subconsciousnetwork/noosphere/issues/342)) ([c4a4084](https://github.com/subconsciousnetwork/noosphere/commit/c4a4084771680c8e49b3db498a5da422db2adda8))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.6.2 to 0.6.3
+    * noosphere-collections bumped from 0.5.2 to 0.5.3
+
 ## [0.10.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.10.1...noosphere-core-v0.10.2) (2023-05-05)
 
 
