@@ -1,6 +1,6 @@
 [package]
 name = "noosphere"
-version = "0.10.2"
+version = "0.10.3"
 edition = "2021"
 description = "A high-level package for dealing with accessing the Noosphere"
 keywords = ["noosphere"]
@@ -37,11 +37,11 @@ libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
 bytes = "^1"
 
-noosphere-core = { version = "0.10.2", path = "../noosphere-core" }
-noosphere-sphere = { version = "0.5.2", path = "../noosphere-sphere" }
-noosphere-storage = { version = "0.6.2", path = "../noosphere-storage" }
-noosphere-api = { version = "0.7.7", path = "../noosphere-api" }
-noosphere-ipfs = { version = "0.4.2", path = "../noosphere-ipfs", optional = true }
+noosphere-core = { version = "0.11.0", path = "../noosphere-core" }
+noosphere-sphere = { version = "0.5.3", path = "../noosphere-sphere" }
+noosphere-storage = { version = "0.6.3", path = "../noosphere-storage" }
+noosphere-api = { version = "0.7.8", path = "../noosphere-api" }
+noosphere-ipfs = { version = "0.4.3", path = "../noosphere-ipfs", optional = true }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
 
@@ -56,7 +56,7 @@ rexie = { version = "~0.4" }
 wasm-bindgen = "~0.2"
 wasm-bindgen-futures = "0.4.33"
 js-sys = "~0.3"
-noosphere-into = { version = "0.8.2", path = "../noosphere-into" }
+noosphere-into = { version = "0.8.3", path = "../noosphere-into" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
 version = "~0.3"

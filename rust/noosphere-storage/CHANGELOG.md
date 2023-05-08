@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.6.2...noosphere-storage-v0.6.3) (2023-05-08)
+
+
+### Features
+
+* Enable expired yet valid records in the name system. Update to ucan 0.2.0. ([#360](https://github.com/subconsciousnetwork/noosphere/issues/360)) ([3b0663a](https://github.com/subconsciousnetwork/noosphere/commit/3b0663abc7783a6d33dd47d20caae7597ab93ed0))
+* Make anyhow a workspace dependency ([721c994](https://github.com/subconsciousnetwork/noosphere/commit/721c994886228dc61941328e49f7c8928269cdb8))
+
 ## [0.6.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.6.1...noosphere-storage-v0.6.2) (2023-04-22)
 
 

@@ -84,6 +84,18 @@
   * dev-dependencies
     * noosphere-ns bumped from 0.6.0 to 0.6.1
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.4.2 to 0.4.3
+    * noosphere-core bumped from 0.10.2 to 0.11.0
+    * noosphere-sphere bumped from 0.5.2 to 0.5.3
+    * noosphere-storage bumped from 0.6.2 to 0.6.3
+    * noosphere-api bumped from 0.7.7 to 0.7.8
+    * noosphere-gateway bumped from 0.4.2 to 0.4.3
+    * noosphere bumped from 0.10.2 to 0.10.3
+  * dev-dependencies
+    * noosphere-ns bumped from 0.6.2 to 0.6.3
+
 ## [0.10.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.10.1...noosphere-cli-v0.10.2) (2023-05-05)
 
 
