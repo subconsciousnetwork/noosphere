@@ -12,6 +12,13 @@
     * noosphere-api bumped from 0.7.6 to 0.7.7
     * noosphere-ipfs bumped from 0.4.1 to 0.4.2
 
+## [0.5.4](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.5.3...noosphere-sphere-v0.5.4) (2023-05-08)
+
+
+### Features
+
+* Make `anyhow` a workspace dependency in `noosphere-sphere` ([254049b](https://github.com/subconsciousnetwork/noosphere/commit/254049b12a1721a4c024e07dbd46b06737d00ee1))
+
 ## [0.5.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.5.2...noosphere-sphere-v0.5.3) (2023-05-08)
 
 

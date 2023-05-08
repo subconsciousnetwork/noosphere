@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-sphere"
-version = "0.5.3"
+version = "0.5.4"
 edition = "2021"
 description = "High-level access to content, address books and other features of spheres"
 keywords = []
