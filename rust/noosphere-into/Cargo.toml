@@ -25,7 +25,7 @@ async-trait = "~0.1"
 url = "2"
 tracing = { workspace = true }
 
-anyhow = "^1"
+anyhow = { workspace = true }
 
 horrorshow = "~0.8"
 cid = { workspace = true }
