@@ -55,6 +55,21 @@
   * dependencies
     * noosphere bumped from 0.10.3 to 0.10.4
 
+## [0.6.5](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.6.4...noosphere-ns-v0.6.5) (2023-05-09)
+
+
+### Features
+
+* Trim `void` workspace dependency ([5b52325](https://github.com/subconsciousnetwork/noosphere/commit/5b52325d66134d56294f344402050a958769769d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere bumped from 0.10.4 to 0.10.5
+    * noosphere-ipfs bumped from 0.4.3 to 0.4.4
+
 ## [0.6.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.6.1...noosphere-ns-v0.6.2) (2023-05-05)
 
 
