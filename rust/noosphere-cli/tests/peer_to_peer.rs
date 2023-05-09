@@ -3,628 +3,250 @@
 #[macro_use]
 extern crate tracing;
 
+mod helpers;
 use anyhow::Result;
-use noosphere_ipfs::{IpfsStore, KuboClient};
-use noosphere_storage::{BlockStoreRetry, MemoryStore, UcanStore};
-use std::{net::TcpListener, sync::Arc, time::Duration};
-
-use noosphere_cli::native::{
-    commands::{config::config_set, key::key_create, sphere::sphere_create},
-    workspace::Workspace,
-    ConfigSetCommand,
-};
-use noosphere_core::{data::Did, tracing::initialize_tracing};
-use noosphere_gateway::{start_gateway, GatewayScope};
-use noosphere_ns::{
-    helpers::NameSystemNetwork,
-    server::{start_name_system_api_server, HttpClient},
-    NameResolver,
-};
+use cid::Cid;
+use helpers::{start_name_system_server, wait, SpherePair};
+use noosphere_core::tracing::initialize_tracing;
+use noosphere_ns::{server::HttpClient, NameResolver};
 use noosphere_sphere::{
     HasMutableSphereContext, HasSphereContext, SphereContentWrite, SpherePetnameRead,
     SpherePetnameWrite, SphereSync,
 };
-use tokio::{sync::Mutex, task::JoinHandle};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use url::Url;
 
-async fn start_gateway_for_workspace(
-    workspace: &Workspace,
-    client_sphere_identity: &Did,
-    ipfs_url: &Url,
-    ns_url: &Url,
-) -> Result<(Url, JoinHandle<()>)> {
-    let gateway_listener = TcpListener::bind("127.0.0.1:0")?;
-    let gateway_address = gateway_listener.local_addr()?;
-    let gateway_url = Url::parse(&format!(
-        "http://{}:{}",
-        gateway_address.ip(),
-        gateway_address.port()
-    ))?;
-
-    let gateway_sphere_context = workspace.sphere_context().await?;
-
-    let client_sphere_identity = client_sphere_identity.clone();
-    let ns_url = ns_url.clone();
-    let ipfs_url = ipfs_url.clone();
-
-    let join_handle = tokio::spawn(async move {
-        start_gateway(
-            gateway_listener,
-            GatewayScope {
-                identity: gateway_sphere_context.identity().await.unwrap(),
-                counterpart: client_sphere_identity,
-            },
-            gateway_sphere_context,
-            ipfs_url,
-            ns_url,
-            None,
-        )
-        .await
-        .unwrap()
-    });
-
-    Ok((gateway_url, join_handle))
-}
-
-async fn start_name_system_server(ipfs_url: &Url) -> Result<(JoinHandle<()>, Url)> {
-    // TODO(#267)
-    let use_validation = false;
-    let store = if use_validation {
-        let inner = MemoryStore::default();
-        let inner = IpfsStore::new(inner, Some(KuboClient::new(ipfs_url).unwrap()));
-        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(1, 0));
-        let inner = UcanStore(inner);
-        Some(inner)
-    } else {
-        None
-    };
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let address = listener.local_addr().unwrap();
-    let url = Url::parse(format!("http://{}:{}", address.ip(), address.port()).as_str()).unwrap();
-
-    Ok((
-        tokio::spawn(async move {
-            let mut network = NameSystemNetwork::generate(2, store).await.unwrap();
-            let node = network.nodes_mut().pop().unwrap();
-            start_name_system_api_server(Arc::new(node), listener)
-                .await
-                .unwrap();
-        }),
-        url,
-    ))
-}
-
 #[tokio::test]
-async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() {
+async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() -> Result<()> {
     initialize_tracing(None);
 
     let ipfs_url = Url::parse("http://127.0.0.1:5001").unwrap();
-    let (ns_task, ns_url) = start_name_system_server(&ipfs_url).await.unwrap();
+    let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await.unwrap();
 
-    let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
-    let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
+    let mut base_pair = SpherePair::new("BASE", &ipfs_url, &ns_url).await?;
+    let mut other_pair = SpherePair::new("OTHER", &ipfs_url, &ns_url).await?;
 
-    let (third_party_client_workspace, _third_party_temporary_directores) =
-        Workspace::temporary().unwrap();
-    let (third_party_gateway_workspace, _third_party_temporary_directores) =
-        Workspace::temporary().unwrap();
+    base_pair.start_gateway().await?;
+    other_pair.start_gateway().await?;
 
-    let gateway_key_name = "GATEWAY_KEY";
-    let client_key_name = "CLIENT_KEY";
-    let third_party_client_key_name = "THIRD_PARTY_CLIENT_KEY";
-    let third_party_gateway_key_name = "THIRD_PARTY_GATEWAY_KEY";
+    let other_version = other_pair
+        .spawn(|mut ctx| async move {
+            ctx.write("foo", "text/plain", "bar".as_ref(), None).await?;
+            let version = ctx.save(None).await?;
+            ctx.sync().await?;
+            wait(1).await;
+            Ok(version)
+        })
+        .await?;
 
-    key_create(client_key_name, &client_workspace)
-        .await
-        .unwrap();
-    key_create(gateway_key_name, &gateway_workspace)
-        .await
-        .unwrap();
-    key_create(third_party_client_key_name, &third_party_client_workspace)
-        .await
-        .unwrap();
-    key_create(third_party_gateway_key_name, &third_party_gateway_workspace)
-        .await
-        .unwrap();
+    {
+        let other_pair_identity = other_pair.client.identity.clone();
+        let other_link = base_pair
+            .spawn(|mut ctx| async move {
+                ctx.set_petname("thirdparty", Some(other_pair_identity))
+                    .await?;
+                ctx.save(None).await?;
+                ctx.sync().await?;
+                wait(1).await;
 
-    sphere_create(client_key_name, &client_workspace)
-        .await
-        .unwrap();
-    sphere_create(gateway_key_name, &gateway_workspace)
-        .await
-        .unwrap();
-    sphere_create(third_party_client_key_name, &third_party_client_workspace)
-        .await
-        .unwrap();
-    sphere_create(third_party_gateway_key_name, &third_party_gateway_workspace)
-        .await
-        .unwrap();
-    let client_identity = client_workspace.sphere_identity().await.unwrap();
+                ctx.sync().await?;
+                ctx.resolve_petname("thirdparty").await
+            })
+            .await?;
+        assert_eq!(other_link, Some(other_version));
+    }
 
-    config_set(
-        ConfigSetCommand::Counterpart {
-            did: client_identity.clone().into(),
-        },
-        &gateway_workspace,
-    )
-    .await
-    .unwrap();
-
-    config_set(
-        ConfigSetCommand::Counterpart {
-            did: third_party_client_workspace
-                .sphere_identity()
-                .await
-                .unwrap()
-                .into(),
-        },
-        &third_party_gateway_workspace,
-    )
-    .await
-    .unwrap();
-
-    let (gateway_url, gateway_task) = start_gateway_for_workspace(
-        &gateway_workspace,
-        &client_workspace.sphere_identity().await.unwrap(),
-        &ipfs_url,
-        &ns_url,
-    )
-    .await
-    .unwrap();
-
-    let (third_party_gateway_url, third_party_gateway_task) = start_gateway_for_workspace(
-        &third_party_gateway_workspace,
-        &third_party_client_workspace
-            .sphere_identity()
-            .await
-            .unwrap(),
-        &ipfs_url,
-        &ns_url,
-    )
-    .await
-    .unwrap();
-
-    let mut third_party_client_sphere_context =
-        third_party_client_workspace.sphere_context().await.unwrap();
-
-    let third_party_client_task = tokio::spawn(async move {
-        third_party_client_sphere_context
-            .lock()
-            .await
-            .configure_gateway_url(Some(&third_party_gateway_url))
-            .await
-            .unwrap();
-
-        third_party_client_sphere_context
-            .write("foo", "text/plain", "bar".as_ref(), None)
-            .await
-            .unwrap();
-        let version = third_party_client_sphere_context.save(None).await.unwrap();
-        third_party_client_sphere_context.sync().await.unwrap();
-
-        tokio::time::sleep(Duration::from_secs(1)).await;
-
-        version
-    });
-
-    let third_party_client_sphere_identity = third_party_client_workspace
-        .sphere_identity()
-        .await
-        .unwrap();
-    let mut client_sphere_context = client_workspace.sphere_context().await.unwrap();
-
-    let client_task = tokio::spawn(async move {
-        let expected_third_party_sphere_version = third_party_client_task.await.unwrap();
-
-        client_sphere_context
-            .lock()
-            .await
-            .configure_gateway_url(Some(&gateway_url))
-            .await
-            .unwrap();
-
-        client_sphere_context
-            .set_petname("thirdparty", Some(third_party_client_sphere_identity))
-            .await
-            .unwrap();
-        client_sphere_context.save(None).await.unwrap();
-        client_sphere_context.sync().await.unwrap();
-
-        tokio::time::sleep(Duration::from_secs(1)).await;
-
-        debug!("Syncing to receive resolved name...");
-        client_sphere_context.sync().await.unwrap();
-
-        let resolved_third_party_sphere_version = client_sphere_context
-            .resolve_petname("thirdparty")
-            .await
-            .unwrap();
-
-        assert_eq!(
-            resolved_third_party_sphere_version,
-            Some(expected_third_party_sphere_version)
-        );
-        ns_task.abort();
-        gateway_task.abort();
-        third_party_gateway_task.abort();
-    });
-    client_task.await.unwrap();
+    ns_task.abort();
+    base_pair.stop_gateway().await?;
+    other_pair.stop_gateway().await?;
 
     // Restart gateway and name system, ensuring republishing occurs
-    let (ns_task, ns_url) = start_name_system_server(&ipfs_url).await.unwrap();
-    let ns_client = HttpClient::new(ns_url.clone()).await.unwrap();
+    let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
+    let ns_client = HttpClient::new(ns_url.clone()).await?;
     assert!(
-        ns_client.resolve(&client_identity).await.unwrap().is_none(),
+        ns_client
+            .resolve(&base_pair.client.identity)
+            .await?
+            .is_none(),
         "new name system does not contain client identity"
     );
 
-    let (_gateway_url, gateway_task) = start_gateway_for_workspace(
-        &gateway_workspace,
-        &client_workspace.sphere_identity().await.unwrap(),
-        &ipfs_url,
-        &ns_url,
-    )
-    .await
-    .unwrap();
+    base_pair.ns_url = ns_url.clone();
+    base_pair.start_gateway().await?;
+    wait(1).await;
 
-    tokio::time::sleep(Duration::from_secs(1)).await;
     assert!(
-        ns_client.resolve(&client_identity).await.unwrap().is_some(),
+        ns_client
+            .resolve(&base_pair.client.identity)
+            .await?
+            .is_some(),
         "the gateway republishes records on start."
     );
-    gateway_task.abort();
+    base_pair.stop_gateway().await?;
     ns_task.abort();
+    Ok(())
 }
 
+/// Test that we can read from an adjacent, followed sphere, as well
+/// as a followed sphere's followed sphere.
 #[tokio::test]
-async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() {
+async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() -> Result<()> {
     use noosphere_sphere::SphereContentRead;
     use tokio::io::AsyncReadExt;
     initialize_tracing(None);
 
-    let ipfs_url = Url::parse("http://127.0.0.1:5001").unwrap();
-    let (ns_task, ns_url) = start_name_system_server(&ipfs_url).await.unwrap();
+    let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
+    let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
 
-    let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
-    let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
+    let mut pair_1 = SpherePair::new("pair_1", &ipfs_url, &ns_url).await?;
+    let mut pair_2 = SpherePair::new("pair_2", &ipfs_url, &ns_url).await?;
+    let mut pair_3 = SpherePair::new("pair_3", &ipfs_url, &ns_url).await?;
 
-    let (third_party_client_workspace, _third_party_temporary_directores) =
-        Workspace::temporary().unwrap();
-    let (third_party_gateway_workspace, _third_party_temporary_directores) =
-        Workspace::temporary().unwrap();
+    pair_1.start_gateway().await?;
+    pair_2.start_gateway().await?;
+    pair_3.start_gateway().await?;
 
-    let gateway_key_name = "GATEWAY_KEY";
-    let client_key_name = "CLIENT_KEY";
-    let third_party_client_key_name = "THIRD_PARTY_CLIENT_KEY";
-    let third_party_gateway_key_name = "THIRD_PARTY_GATEWAY_KEY";
+    let mut versions: Vec<Cid> = vec![];
+    for pair in [&pair_1, &pair_2, &pair_3] {
+        let name = pair.name.clone();
+        let version = pair
+            .spawn(|mut ctx| async move {
+                ctx.write("my-name", "text/plain", name.as_ref(), None)
+                    .await?;
+                let version = ctx.save(None).await?;
+                ctx.sync().await?;
+                Ok(version)
+            })
+            .await?;
+        versions.push(version);
+    }
+    wait(1).await;
 
-    key_create(client_key_name, &client_workspace)
-        .await
-        .unwrap();
-    key_create(gateway_key_name, &gateway_workspace)
-        .await
-        .unwrap();
-    key_create(third_party_client_key_name, &third_party_client_workspace)
-        .await
-        .unwrap();
-    key_create(third_party_gateway_key_name, &third_party_gateway_workspace)
-        .await
-        .unwrap();
+    let id_2 = pair_2.client.identity.clone();
+    let id_3 = pair_3.client.identity.clone();
 
-    sphere_create(client_key_name, &client_workspace)
-        .await
-        .unwrap();
-    sphere_create(gateway_key_name, &gateway_workspace)
-        .await
-        .unwrap();
-    sphere_create(third_party_client_key_name, &third_party_client_workspace)
-        .await
-        .unwrap();
-    sphere_create(third_party_gateway_key_name, &third_party_gateway_workspace)
-        .await
-        .unwrap();
+    let pair_2_version = pair_2
+        .spawn(|mut ctx| async move {
+            ctx.set_petname("pair_3".into(), Some(id_3)).await?;
+            let version = ctx.save(None).await?;
+            ctx.sync().await?;
+            wait(1).await;
+            Ok(version)
+        })
+        .await?;
 
-    config_set(
-        ConfigSetCommand::Counterpart {
-            did: client_workspace.sphere_identity().await.unwrap().into(),
-        },
-        &gateway_workspace,
-    )
-    .await
-    .unwrap();
+    pair_1
+        .spawn(move |mut ctx| async move {
+            ctx.set_petname("pair_2".into(), Some(id_2)).await?;
+            ctx.save(None).await?;
+            ctx.sync().await?;
+            wait(1).await;
+            ctx.sync().await?;
+            assert_eq!(ctx.resolve_petname("pair_2").await?, Some(pair_2_version));
+            Ok(())
+        })
+        .await?;
 
-    config_set(
-        ConfigSetCommand::Counterpart {
-            did: third_party_client_workspace
-                .sphere_identity()
-                .await
-                .unwrap()
-                .into(),
-        },
-        &third_party_gateway_workspace,
-    )
-    .await
-    .unwrap();
+    pair_1
+        .spawn(|mut ctx| async move {
+            ctx.sync().await?;
+            let pair_2_context = Arc::new(Mutex::new(
+                ctx.sphere_context()
+                    .await?
+                    .traverse_by_petname("pair_2")
+                    .await?
+                    .unwrap(),
+            ));
 
-    let (gateway_url, gateway_task) = start_gateway_for_workspace(
-        &gateway_workspace,
-        &client_workspace.sphere_identity().await.unwrap(),
-        &ipfs_url,
-        &ns_url,
-    )
-    .await
-    .unwrap();
+            debug!("Reading file from local third party sphere context...");
+            let mut file = pair_2_context.read("my-name").await?.unwrap();
+            let mut content = String::new();
+            file.contents.read_to_string(&mut content).await?;
+            assert_eq!(
+                content.as_str(),
+                "pair_2",
+                "can read content from adjacent sphere"
+            );
 
-    let (third_party_gateway_url, third_party_gateway_task) = start_gateway_for_workspace(
-        &third_party_gateway_workspace,
-        &third_party_client_workspace
-            .sphere_identity()
-            .await
-            .unwrap(),
-        &ipfs_url,
-        &ns_url,
-    )
-    .await
-    .unwrap();
+            // TODO(#320)
+            /*
+            pair_2_context.sync().await?;
+            // Now test the leap connection
+            let pair_3_context = Arc::new(Mutex::new(
+                ctx.sphere_context()
+                    .await?
+                    .traverse_by_petnames(&vec!["pair_2".into(), "pair_3".into()])
+                    .await?
+                    .unwrap(),
+            ));
 
-    let mut third_party_client_sphere_context =
-        third_party_client_workspace.sphere_context().await.unwrap();
-
-    let third_party_client_task = tokio::spawn(async move {
-        third_party_client_sphere_context
-            .lock()
-            .await
-            .configure_gateway_url(Some(&third_party_gateway_url))
-            .await
-            .unwrap();
-
-        debug!("Writing content to third party sphere");
-        third_party_client_sphere_context
-            .write("foo", "text/plain", "bar".as_ref(), None)
-            .await
-            .unwrap();
-        let version = third_party_client_sphere_context.save(None).await.unwrap();
-        debug!("Syncing third party sphere");
-        third_party_client_sphere_context.sync().await.unwrap();
-
-        tokio::time::sleep(Duration::from_secs(1)).await;
-
-        version
-    });
-
-    let third_party_client_sphere_identity = third_party_client_workspace
-        .sphere_identity()
-        .await
-        .unwrap();
-    let mut client_sphere_context = client_workspace.sphere_context().await.unwrap();
-
-    let client_task = tokio::spawn(async move {
-        let _ = third_party_client_task.await.unwrap();
-
-        client_sphere_context
-            .lock()
-            .await
-            .configure_gateway_url(Some(&gateway_url))
-            .await
-            .unwrap();
-
-        client_sphere_context
-            .set_petname("thirdparty", Some(third_party_client_sphere_identity))
-            .await
-            .unwrap();
-        client_sphere_context.save(None).await.unwrap();
-        client_sphere_context.sync().await.unwrap();
-
-        tokio::time::sleep(Duration::from_secs(1)).await;
-
-        client_sphere_context.sync().await.unwrap();
-
-        let local_third_party_context = Arc::new(Mutex::new(
-            client_sphere_context
-                .sphere_context()
-                .await
-                .unwrap()
-                .traverse_by_petname("thirdparty")
-                .await
-                .unwrap()
-                .unwrap(),
-        ));
-
-        debug!("Reading file from local third party sphere context...");
-
-        let mut file = local_third_party_context
-            .read("foo")
-            .await
-            .unwrap()
-            .unwrap();
-
-        let mut content = String::new();
-        file.contents.read_to_string(&mut content).await.unwrap();
-
-        assert_eq!(content.as_str(), "bar");
-
-        ns_task.abort();
-        gateway_task.abort();
-        third_party_gateway_task.abort();
-    });
-
-    client_task.await.unwrap();
+            debug!("Reading file from local leap-following third party sphere context...");
+            let mut file = pair_3_context.read("my-name").await.unwrap().unwrap();
+            let mut content = String::new();
+            file.contents.read_to_string(&mut content).await.unwrap();
+            assert_eq!(
+                content.as_str(),
+                "pair_3",
+                "can read content from adjacent-adjacent sphere"
+            );
+            */
+            Ok(())
+        })
+        .await?;
+    ns_task.abort();
+    Ok(())
 }
 
 #[tokio::test]
-async fn synchronize_petnames_as_they_are_added_and_removed() {
+async fn synchronize_petnames_as_they_are_added_and_removed() -> Result<()> {
     initialize_tracing(None);
 
     let ipfs_url = Url::parse("http://127.0.0.1:5001").unwrap();
-    let (ns_task, ns_url) = start_name_system_server(&ipfs_url).await.unwrap();
+    let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await.unwrap();
 
-    let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
-    let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
+    let mut base_pair = SpherePair::new("BASE", &ipfs_url, &ns_url).await?;
+    let mut other_pair = SpherePair::new("OTHER", &ipfs_url, &ns_url).await?;
 
-    let (third_party_client_workspace, _third_party_temporary_directores) =
-        Workspace::temporary().unwrap();
-    let (third_party_gateway_workspace, _third_party_temporary_directores) =
-        Workspace::temporary().unwrap();
+    base_pair.start_gateway().await?;
+    other_pair.start_gateway().await?;
 
-    let gateway_key_name = "GATEWAY_KEY";
-    let client_key_name = "CLIENT_KEY";
-    let third_party_client_key_name = "THIRD_PARTY_CLIENT_KEY";
-    let third_party_gateway_key_name = "THIRD_PARTY_GATEWAY_KEY";
+    let other_pair_id = other_pair.client.identity.clone();
+    let other_version = other_pair
+        .spawn(|mut ctx| async move {
+            ctx.write("foo", "text/plain", "bar".as_ref(), None).await?;
+            let version = ctx.save(None).await?;
+            ctx.sync().await?;
+            wait(1).await;
+            Ok(version)
+        })
+        .await?;
 
-    key_create(client_key_name, &client_workspace)
-        .await
-        .unwrap();
-    key_create(gateway_key_name, &gateway_workspace)
-        .await
-        .unwrap();
-    key_create(third_party_client_key_name, &third_party_client_workspace)
-        .await
-        .unwrap();
-    key_create(third_party_gateway_key_name, &third_party_gateway_workspace)
-        .await
-        .unwrap();
+    base_pair
+        .spawn(move |mut ctx| async move {
+            ctx.set_petname("thirdparty", Some(other_pair_id)).await?;
+            ctx.save(None).await?;
+            ctx.sync().await?;
+            wait(1).await;
 
-    sphere_create(client_key_name, &client_workspace)
-        .await
-        .unwrap();
-    sphere_create(gateway_key_name, &gateway_workspace)
-        .await
-        .unwrap();
-    sphere_create(third_party_client_key_name, &third_party_client_workspace)
-        .await
-        .unwrap();
-    sphere_create(third_party_gateway_key_name, &third_party_gateway_workspace)
-        .await
-        .unwrap();
+            ctx.sync().await?;
+            let other_link = ctx.resolve_petname("thirdparty").await?;
+            assert_eq!(other_link, Some(other_version.clone()));
 
-    config_set(
-        ConfigSetCommand::Counterpart {
-            did: client_workspace.sphere_identity().await.unwrap().into(),
-        },
-        &gateway_workspace,
-    )
-    .await
-    .unwrap();
+            let resolved = ctx.resolve_petname("thirdparty").await?;
+            assert!(resolved.is_some());
 
-    config_set(
-        ConfigSetCommand::Counterpart {
-            did: third_party_client_workspace
-                .sphere_identity()
-                .await
-                .unwrap()
-                .into(),
-        },
-        &third_party_gateway_workspace,
-    )
-    .await
-    .unwrap();
+            info!("UNSETTING 'thirdparty' as a petname and syncing again...");
+            ctx.set_petname("thirdparty", None).await?;
+            ctx.save(None).await?;
+            ctx.sync().await?;
+            wait(1).await;
+            let resolved = ctx.resolve_petname("thirdparty").await?;
+            assert!(resolved.is_none());
+            Ok(())
+        })
+        .await?;
 
-    let (gateway_url, gateway_task) = start_gateway_for_workspace(
-        &gateway_workspace,
-        &client_workspace.sphere_identity().await.unwrap(),
-        &ipfs_url,
-        &ns_url,
-    )
-    .await
-    .unwrap();
-
-    let (third_party_gateway_url, third_party_gateway_task) = start_gateway_for_workspace(
-        &third_party_gateway_workspace,
-        &third_party_client_workspace
-            .sphere_identity()
-            .await
-            .unwrap(),
-        &ipfs_url,
-        &ns_url,
-    )
-    .await
-    .unwrap();
-
-    let mut third_party_client_sphere_context =
-        third_party_client_workspace.sphere_context().await.unwrap();
-
-    let third_party_client_task = tokio::spawn(async move {
-        third_party_client_sphere_context
-            .lock()
-            .await
-            .configure_gateway_url(Some(&third_party_gateway_url))
-            .await
-            .unwrap();
-
-        debug!("Writing content to third party sphere");
-        third_party_client_sphere_context
-            .write("foo", "text/plain", "bar".as_ref(), None)
-            .await
-            .unwrap();
-        let version = third_party_client_sphere_context.save(None).await.unwrap();
-        debug!("Syncing third party sphere");
-        third_party_client_sphere_context.sync().await.unwrap();
-
-        tokio::time::sleep(Duration::from_secs(1)).await;
-
-        version
-    });
-
-    let third_party_client_sphere_identity = third_party_client_workspace
-        .sphere_identity()
-        .await
-        .unwrap();
-    let mut client_sphere_context = client_workspace.sphere_context().await.unwrap();
-
-    let client_task = tokio::spawn(async move {
-        let _ = third_party_client_task.await.unwrap();
-
-        client_sphere_context
-            .lock()
-            .await
-            .configure_gateway_url(Some(&gateway_url))
-            .await
-            .unwrap();
-
-        info!("Setting 'thirdparty' as a petname and syncing...");
-
-        client_sphere_context
-            .set_petname("thirdparty", Some(third_party_client_sphere_identity))
-            .await
-            .unwrap();
-        client_sphere_context.save(None).await.unwrap();
-        client_sphere_context.sync().await.unwrap();
-
-        tokio::time::sleep(Duration::from_secs(1)).await;
-
-        client_sphere_context.sync().await.unwrap();
-
-        let thirdparty_sphere_cid = client_sphere_context
-            .resolve_petname("thirdparty")
-            .await
-            .unwrap();
-
-        assert!(thirdparty_sphere_cid.is_some());
-
-        info!("UNSETTING 'thirdparty' as a petname and syncing again...");
-
-        client_sphere_context
-            .set_petname("thirdparty", None)
-            .await
-            .unwrap();
-        client_sphere_context.save(None).await.unwrap();
-        client_sphere_context.sync().await.unwrap();
-
-        tokio::time::sleep(Duration::from_secs(1)).await;
-
-        client_sphere_context.sync().await.unwrap();
-
-        let thirdparty_sphere_cid = client_sphere_context
-            .resolve_petname("thirdparty")
-            .await
-            .unwrap();
-
-        assert!(thirdparty_sphere_cid.is_none());
-
-        ns_task.abort();
-        gateway_task.abort();
-        third_party_gateway_task.abort();
-    });
-
-    client_task.await.unwrap();
+    ns_task.abort();
+    Ok(())
 }
