@@ -66,6 +66,13 @@
   * dev-dependencies
     * noosphere-sphere bumped from 0.5.4 to 0.5.5
 
+## [0.8.6](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.8.5...noosphere-into-v0.8.6) (2023-05-09)
+
+
+### Features
+
+* Use `anyhow` workspace dep in `noosphere-into` ([f8ace5a](https://github.com/subconsciousnetwork/noosphere/commit/f8ace5a1a438cfa4387e8be884c2b9e89d26eb6d))
+
 ## [0.8.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.8.2...noosphere-into-v0.8.3) (2023-05-08)
 
 
