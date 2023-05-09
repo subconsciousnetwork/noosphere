@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-sphere"
-version = "0.5.4"
+version = "0.5.5"
 edition = "2021"
 description = "High-level access to content, address books and other features of spheres"
 keywords = []
@@ -24,9 +24,9 @@ tracing = { workspace = true }
 
 noosphere-core = { version = "0.11.0", path = "../noosphere-core" }
 noosphere-storage = { version = "0.6.3", path = "../noosphere-storage" }
-noosphere-api = { version = "0.7.8", path = "../noosphere-api" }
-noosphere-ipfs = { version = "0.4.3", path = "../noosphere-ipfs" }
-noosphere-car = { version = "0.1.1", path = "../noosphere-car" }
+noosphere-api = { version = "0.7.9", path = "../noosphere-api" }
+noosphere-ipfs = { version = "0.4.4", path = "../noosphere-ipfs" }
+noosphere-car = { version = "0.1.2", path = "../noosphere-car" }
 
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }

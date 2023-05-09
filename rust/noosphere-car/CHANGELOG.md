@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-car-v0.1.1...noosphere-car-v0.1.2) (2023-05-09)
+
+
+### Features
+
+* Make `anyhow` a workspace dependency in `noosphere-car` ([333882d](https://github.com/subconsciousnetwork/noosphere/commit/333882d28ea6f8479f307f4e61afbb3c9d75263e))
+
 ## [0.1.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-car-v0.1.0...noosphere-car-v0.1.1) (2023-04-22)
 
 
