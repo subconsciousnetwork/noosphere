@@ -122,6 +122,24 @@
   * dev-dependencies
     * noosphere-ns bumped from 0.6.5 to 0.6.6
 
+## [0.10.7](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.10.6...noosphere-cli-v0.10.7) (2023-05-09)
+
+
+### Bug Fixes
+
+* Removed petnames stay removed ([#373](https://github.com/subconsciousnetwork/noosphere/issues/373)) ([76a4ccf](https://github.com/subconsciousnetwork/noosphere/commit/76a4ccfd80f7855933a122a841f0398ab0bcc03c))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-sphere bumped from 0.5.5 to 0.5.6
+    * noosphere-gateway bumped from 0.4.6 to 0.4.7
+    * noosphere bumped from 0.10.6 to 0.10.7
+  * dev-dependencies
+    * noosphere-ns bumped from 0.6.6 to 0.6.7
+
 ## [0.10.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.10.1...noosphere-cli-v0.10.2) (2023-05-05)
 
 

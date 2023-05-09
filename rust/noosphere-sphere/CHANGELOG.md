@@ -18,6 +18,13 @@
     * noosphere-ipfs bumped from 0.4.3 to 0.4.4
     * noosphere-car bumped from 0.1.1 to 0.1.2
 
+## [0.5.6](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.5.5...noosphere-sphere-v0.5.6) (2023-05-09)
+
+
+### Bug Fixes
+
+* Removed petnames stay removed ([#373](https://github.com/subconsciousnetwork/noosphere/issues/373)) ([76a4ccf](https://github.com/subconsciousnetwork/noosphere/commit/76a4ccfd80f7855933a122a841f0398ab0bcc03c))
+
 ## [0.5.4](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.5.3...noosphere-sphere-v0.5.4) (2023-05-08)
 
 
