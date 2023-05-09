@@ -17,7 +17,7 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [dependencies]
-anyhow = "1"
+anyhow = { workspace = true }
 cid = { workspace = true }
 futures = "0.3"
 integer-encoding = { version = "3", features = ["tokio_async"] }
