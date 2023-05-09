@@ -17,7 +17,9 @@ use ucan::{
     crypto::KeyMaterial,
 };
 
-use crate::{metadata::COUNTERPART, HasMutableSphereContext, SpherePetnameWrite};
+use crate::{
+    metadata::COUNTERPART, HasMutableSphereContext, SpherePetnameRead, SpherePetnameWrite,
+};
 
 /// The default synchronization strategy is a git-like fetch->rebase->push flow.
 /// It depends on the corresponding history of a "counterpart" sphere that is
@@ -264,7 +266,7 @@ where
             return Ok(None);
         }
         info!(
-            "Adopting {} updated name resolutions...",
+            "Considering {} updated link records for adoption...",
             updated_names.len()
         );
 
@@ -272,7 +274,11 @@ where
 
         for (name, address) in updated_names.into_iter() {
             if let Some(link_record) = address.link_record(&db).await {
-                context.adopt_petname(&name, &link_record.into()).await?;
+                if context.get_petname(&name).await?.is_some() {
+                    context.adopt_petname(&name, &link_record.into()).await?;
+                } else {
+                    debug!("Not adopting link record for {name}, which is no longer present in the address book")
+                }
             }
         }
 

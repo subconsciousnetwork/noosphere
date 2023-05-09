@@ -94,7 +94,6 @@ async fn start_name_system_server(ipfs_url: &Url) -> Result<(JoinHandle<()>, Url
     ))
 }
 
-#[cfg(feature = "test_kubo")]
 #[tokio::test]
 async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() {
     initialize_tracing(None);
@@ -277,7 +276,6 @@ async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() {
     ns_task.abort();
 }
 
-#[cfg(feature = "test_kubo")]
 #[tokio::test]
 async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() {
     use noosphere_sphere::SphereContentRead;
@@ -444,6 +442,184 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() {
         file.contents.read_to_string(&mut content).await.unwrap();
 
         assert_eq!(content.as_str(), "bar");
+
+        ns_task.abort();
+        gateway_task.abort();
+        third_party_gateway_task.abort();
+    });
+
+    client_task.await.unwrap();
+}
+
+#[tokio::test]
+async fn synchronize_petnames_as_they_are_added_and_removed() {
+    initialize_tracing(None);
+
+    let ipfs_url = Url::parse("http://127.0.0.1:5001").unwrap();
+    let (ns_task, ns_url) = start_name_system_server(&ipfs_url).await.unwrap();
+
+    let (gateway_workspace, _gateway_temporary_directories) = Workspace::temporary().unwrap();
+    let (client_workspace, _client_temporary_directories) = Workspace::temporary().unwrap();
+
+    let (third_party_client_workspace, _third_party_temporary_directores) =
+        Workspace::temporary().unwrap();
+    let (third_party_gateway_workspace, _third_party_temporary_directores) =
+        Workspace::temporary().unwrap();
+
+    let gateway_key_name = "GATEWAY_KEY";
+    let client_key_name = "CLIENT_KEY";
+    let third_party_client_key_name = "THIRD_PARTY_CLIENT_KEY";
+    let third_party_gateway_key_name = "THIRD_PARTY_GATEWAY_KEY";
+
+    key_create(client_key_name, &client_workspace)
+        .await
+        .unwrap();
+    key_create(gateway_key_name, &gateway_workspace)
+        .await
+        .unwrap();
+    key_create(third_party_client_key_name, &third_party_client_workspace)
+        .await
+        .unwrap();
+    key_create(third_party_gateway_key_name, &third_party_gateway_workspace)
+        .await
+        .unwrap();
+
+    sphere_create(client_key_name, &client_workspace)
+        .await
+        .unwrap();
+    sphere_create(gateway_key_name, &gateway_workspace)
+        .await
+        .unwrap();
+    sphere_create(third_party_client_key_name, &third_party_client_workspace)
+        .await
+        .unwrap();
+    sphere_create(third_party_gateway_key_name, &third_party_gateway_workspace)
+        .await
+        .unwrap();
+
+    config_set(
+        ConfigSetCommand::Counterpart {
+            did: client_workspace.sphere_identity().await.unwrap().into(),
+        },
+        &gateway_workspace,
+    )
+    .await
+    .unwrap();
+
+    config_set(
+        ConfigSetCommand::Counterpart {
+            did: third_party_client_workspace
+                .sphere_identity()
+                .await
+                .unwrap()
+                .into(),
+        },
+        &third_party_gateway_workspace,
+    )
+    .await
+    .unwrap();
+
+    let (gateway_url, gateway_task) = start_gateway_for_workspace(
+        &gateway_workspace,
+        &client_workspace.sphere_identity().await.unwrap(),
+        &ipfs_url,
+        &ns_url,
+    )
+    .await
+    .unwrap();
+
+    let (third_party_gateway_url, third_party_gateway_task) = start_gateway_for_workspace(
+        &third_party_gateway_workspace,
+        &third_party_client_workspace
+            .sphere_identity()
+            .await
+            .unwrap(),
+        &ipfs_url,
+        &ns_url,
+    )
+    .await
+    .unwrap();
+
+    let mut third_party_client_sphere_context =
+        third_party_client_workspace.sphere_context().await.unwrap();
+
+    let third_party_client_task = tokio::spawn(async move {
+        third_party_client_sphere_context
+            .lock()
+            .await
+            .configure_gateway_url(Some(&third_party_gateway_url))
+            .await
+            .unwrap();
+
+        debug!("Writing content to third party sphere");
+        third_party_client_sphere_context
+            .write("foo", "text/plain", "bar".as_ref(), None)
+            .await
+            .unwrap();
+        let version = third_party_client_sphere_context.save(None).await.unwrap();
+        debug!("Syncing third party sphere");
+        third_party_client_sphere_context.sync().await.unwrap();
+
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        version
+    });
+
+    let third_party_client_sphere_identity = third_party_client_workspace
+        .sphere_identity()
+        .await
+        .unwrap();
+    let mut client_sphere_context = client_workspace.sphere_context().await.unwrap();
+
+    let client_task = tokio::spawn(async move {
+        let _ = third_party_client_task.await.unwrap();
+
+        client_sphere_context
+            .lock()
+            .await
+            .configure_gateway_url(Some(&gateway_url))
+            .await
+            .unwrap();
+
+        info!("Setting 'thirdparty' as a petname and syncing...");
+
+        client_sphere_context
+            .set_petname("thirdparty", Some(third_party_client_sphere_identity))
+            .await
+            .unwrap();
+        client_sphere_context.save(None).await.unwrap();
+        client_sphere_context.sync().await.unwrap();
+
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        client_sphere_context.sync().await.unwrap();
+
+        let thirdparty_sphere_cid = client_sphere_context
+            .resolve_petname("thirdparty")
+            .await
+            .unwrap();
+
+        assert!(thirdparty_sphere_cid.is_some());
+
+        info!("UNSETTING 'thirdparty' as a petname and syncing again...");
+
+        client_sphere_context
+            .set_petname("thirdparty", None)
+            .await
+            .unwrap();
+        client_sphere_context.save(None).await.unwrap();
+        client_sphere_context.sync().await.unwrap();
+
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        client_sphere_context.sync().await.unwrap();
+
+        let thirdparty_sphere_cid = client_sphere_context
+            .resolve_petname("thirdparty")
+            .await
+            .unwrap();
+
+        assert!(thirdparty_sphere_cid.is_none());
 
         ns_task.abort();
         gateway_task.abort();

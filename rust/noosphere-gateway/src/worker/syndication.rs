@@ -223,7 +223,7 @@ where
 
             cursor
                 .write(
-                    &kubo_identity.to_string(),
+                    &checkpoint_key,
                     &ContentType::Cbor.to_string(),
                     Cursor::new(bytes),
                     None,
