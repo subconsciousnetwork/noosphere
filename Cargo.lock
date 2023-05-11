@@ -3747,7 +3747,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere"
-version = "0.10.7"
+version = "0.10.8"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -3830,7 +3830,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-cli"
-version = "0.10.7"
+version = "0.10.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3942,7 +3942,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-gateway"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -3992,7 +3992,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-into"
-version = "0.8.7"
+version = "0.8.8"
 dependencies = [
  "anyhow",
  "async-compat",
@@ -4052,7 +4052,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-ns"
-version = "0.6.7"
+version = "0.6.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4087,7 +4087,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-sphere"
-version = "0.5.6"
+version = "0.5.7"
 dependencies = [
  "anyhow",
  "async-stream",
