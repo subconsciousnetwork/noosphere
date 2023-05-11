@@ -6,15 +6,12 @@ use futures_util::sink::SinkExt;
 use libipld_cbor::DagCborCodec;
 use noosphere_car::{CarHeader, CarWriter};
 use noosphere_core::{
-    data::{
-        ContentType, Link, LinkSend, MemoIpld, VersionedMapKey, VersionedMapSendSync,
-        VersionedMapValue,
-    },
+    data::{ContentType, MemoIpld, VersionedMapKey, VersionedMapValue},
     view::{Sphere, VersionedMap},
 };
-use noosphere_storage::{BlockStore, BlockStoreTap};
-use serde::{de::DeserializeOwned, Serialize};
+use noosphere_storage::{BlockStore, BlockStoreTap, UcanStore};
 use std::io::{Error as IoError, ErrorKind as IoErrorKind};
+use std::ops::Fn;
 use tokio::sync::mpsc::{channel, error::TryRecvError};
 use tokio_stream::{Stream, StreamExt};
 use tokio_util::{
@@ -37,21 +34,23 @@ where
     Ok(())
 }
 
-pub(crate) async fn walk_versioned_map_and_dereference_links<K, V, S>(
-    versioned_map: VersionedMap<K, Link<V>, S>,
+pub(crate) async fn walk_versioned_map_and<K, V, S, F, Fut>(
+    versioned_map: VersionedMap<K, V, S>,
     store: S,
+    callback: F,
 ) -> Result<()>
 where
     K: VersionedMapKey + 'static,
-    V: Serialize + DeserializeOwned + Clone + LinkSend + 'static,
-    Link<V>: Eq + VersionedMapSendSync,
+    V: VersionedMapValue + 'static,
     S: BlockStore + 'static,
+    Fut: std::future::Future<Output = Result<()>>,
+    F: 'static + Fn(K, V, S) -> Fut,
 {
     versioned_map.get_changelog().await?;
     let stream = versioned_map.into_stream().await?;
     tokio::pin!(stream);
-    while let Some((_, value)) = stream.try_next().await? {
-        store.get_block(&value.into()).await?;
+    while let Some((key, value)) = stream.try_next().await? {
+        callback(key, value, store.clone()).await?;
     }
     Ok(())
 }
@@ -77,8 +76,14 @@ where
                 let delegations = authority.get_delegations().await?;
                 let revocations = authority.get_revocations().await?;
 
-                let identities_task = tokio::spawn(walk_versioned_map(identities));
-                let content_task = tokio::spawn(walk_versioned_map_and_dereference_links(content, store.clone()));
+                let identities_task = tokio::spawn(walk_versioned_map_and(identities, store.clone(), |_, identity, store| async move {
+                    identity.link_record(&UcanStore(store)).await;
+                    Ok(())
+                }));
+                let content_task = tokio::spawn(walk_versioned_map_and(content, store.clone(), move |_, link, store| async move {
+                    store.get_block(&link.into()).await?;
+                    Ok(())
+                }));
                 let delegations_task = tokio::spawn(walk_versioned_map(delegations));
                 let revocations_task = tokio::spawn(walk_versioned_map(revocations));
 
@@ -189,13 +194,13 @@ mod tests {
         tracing::initialize_tracing,
         view::Sphere,
     };
-    use noosphere_storage::{BlockStore, MemoryStore};
+    use noosphere_storage::{BlockStore, MemoryStore, UcanStore};
     use tokio_stream::StreamExt;
     use tokio_util::io::StreamReader;
 
     use crate::{
         block_stream, car_stream,
-        helpers::{simulated_sphere_context, SimulationAccess},
+        helpers::{make_valid_link_record, simulated_sphere_context, SimulationAccess},
         walk_versioned_map, BodyChunkDecoder, HasMutableSphereContext, HasSphereContext,
         SphereContentWrite, SpherePetnameWrite,
     };
@@ -409,6 +414,14 @@ mod tests {
             sphere_context.save(None).await.unwrap();
         }
 
+        let mut db = sphere_context.sphere_context().await.unwrap().db().clone();
+        let (_, link_record, _) = make_valid_link_record(&mut db).await.unwrap();
+        sphere_context
+            .adopt_petname("hasrecord", &link_record)
+            .await
+            .unwrap();
+        sphere_context.save(None).await.unwrap();
+
         let final_version = sphere_context.version().await.unwrap();
 
         let mut other_store = MemoryStore::default();
@@ -461,6 +474,14 @@ mod tests {
                 let _ = identities.get(&petname.to_string()).await.unwrap();
             }
         }
+
+        let has_record = identities.get(&"hasrecord".into()).await.unwrap().unwrap();
+        let has_record_version = has_record.link_record(&UcanStore(other_store)).await;
+
+        assert!(
+            has_record_version.is_some(),
+            "We got a resolved link record from the stream"
+        );
 
         let authority = sphere.get_authority().await.unwrap();
         let delegations = authority.get_delegations().await.unwrap();

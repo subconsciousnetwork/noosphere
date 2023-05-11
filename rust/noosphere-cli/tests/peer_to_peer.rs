@@ -21,8 +21,8 @@ use url::Url;
 async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() -> Result<()> {
     initialize_tracing(None);
 
-    let ipfs_url = Url::parse("http://127.0.0.1:5001").unwrap();
-    let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await.unwrap();
+    let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
+    let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
 
     let mut base_pair = SpherePair::new("BASE", &ipfs_url, &ns_url).await?;
     let mut other_pair = SpherePair::new("OTHER", &ipfs_url, &ns_url).await?;
@@ -107,19 +107,14 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() -> R
     pair_2.start_gateway().await?;
     pair_3.start_gateway().await?;
 
-    let mut versions: Vec<Cid> = vec![];
+    // Write some content in each sphere and track the versions after saving for later
     for pair in [&pair_1, &pair_2, &pair_3] {
         let name = pair.name.clone();
-        let version = pair
-            .spawn(|mut ctx| async move {
-                ctx.write("my-name", "text/plain", name.as_ref(), None)
-                    .await?;
-                let version = ctx.save(None).await?;
-                ctx.sync().await?;
-                Ok(version)
-            })
+        let mut ctx = pair.sphere_context().await?;
+        ctx.write("my-name", "text/plain", name.as_ref(), None)
             .await?;
-        versions.push(version);
+        ctx.save(None).await?;
+        ctx.sync().await?;
     }
     wait(1).await;
 
@@ -129,10 +124,12 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() -> R
     let pair_2_version = pair_2
         .spawn(|mut ctx| async move {
             ctx.set_petname("pair_3".into(), Some(id_3)).await?;
-            let version = ctx.save(None).await?;
+            ctx.save(None).await?;
             ctx.sync().await?;
             wait(1).await;
-            Ok(version)
+            ctx.sync().await?;
+            assert!(ctx.resolve_petname("pair_3").await?.is_some());
+            Ok(ctx.version().await?)
         })
         .await?;
 
@@ -170,19 +167,18 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() -> R
             );
 
             // TODO(#320)
-            /*
-            pair_2_context.sync().await?;
-            // Now test the leap connection
             let pair_3_context = Arc::new(Mutex::new(
-                ctx.sphere_context()
+                pair_2_context
+                    .sphere_context()
                     .await?
-                    .traverse_by_petnames(&vec!["pair_2".into(), "pair_3".into()])
+                    .traverse_by_petname("pair_3")
                     .await?
                     .unwrap(),
             ));
 
             debug!("Reading file from local leap-following third party sphere context...");
-            let mut file = pair_3_context.read("my-name").await.unwrap().unwrap();
+
+            let mut file = pair_3_context.read("my-name").await?.unwrap();
             let mut content = String::new();
             file.contents.read_to_string(&mut content).await.unwrap();
             assert_eq!(
@@ -190,7 +186,6 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() -> R
                 "pair_3",
                 "can read content from adjacent-adjacent sphere"
             );
-            */
             Ok(())
         })
         .await?;
