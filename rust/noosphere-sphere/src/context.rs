@@ -394,7 +394,7 @@ pub mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use crate::{
-        helpers::{simulated_sphere_context, SimulationAccess},
+        helpers::{make_valid_link_record, simulated_sphere_context, SimulationAccess},
         HasMutableSphereContext, HasSphereContext, SphereContentRead, SphereContentWrite,
         SphereContext, SpherePetnameWrite,
     };
@@ -584,8 +584,8 @@ pub mod tests {
     async fn it_resolves_none_when_a_petname_is_missing_from_the_sequence() {
         initialize_tracing(None);
 
-        let name_seqeuence: Vec<String> = vec!["b".into(), "c".into()];
-        let origin_sphere_context = make_sphere_context_with_peer_chain(&name_seqeuence)
+        let name_sequence: Vec<String> = vec!["b".into(), "c".into()];
+        let origin_sphere_context = make_sphere_context_with_peer_chain(&name_sequence)
             .await
             .unwrap();
 
@@ -605,5 +605,79 @@ pub mod tests {
             .unwrap();
 
         assert!(target_sphere_context.is_none());
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_validates_slug_names_when_writing() -> Result<()> {
+        initialize_tracing(None);
+        let valid_names: &[&str] = &["j@__/_大", "/"];
+        let invalid_names: &[&str] = &[""];
+
+        let mut sphere_context =
+            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+
+        for invalid_name in invalid_names {
+            assert!(sphere_context
+                .write(
+                    invalid_name,
+                    &ContentType::Text.to_string(),
+                    "hello".as_ref(),
+                    None,
+                )
+                .await
+                .is_err());
+        }
+
+        for valid_name in valid_names {
+            assert!(sphere_context
+                .write(
+                    valid_name,
+                    &ContentType::Text.to_string(),
+                    "hello".as_ref(),
+                    None,
+                )
+                .await
+                .is_ok());
+        }
+
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_validates_petnames_when_setting() -> Result<()> {
+        initialize_tracing(None);
+        let valid_names: &[&str] = &["j@__/_大"];
+        let invalid_names: &[&str] = &[""];
+
+        let mut sphere_context =
+            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let mut db = sphere_context.sphere_context().await?.db().clone();
+        let (other_identity, link_record, _) = make_valid_link_record(&mut db).await?;
+
+        for invalid_name in invalid_names {
+            assert!(sphere_context
+                .adopt_petname(&invalid_name, &link_record)
+                .await
+                .is_err());
+            assert!(sphere_context
+                .set_petname(&invalid_name, Some(other_identity.clone()))
+                .await
+                .is_err());
+        }
+
+        for valid_name in valid_names {
+            assert!(sphere_context
+                .adopt_petname(&valid_name, &link_record)
+                .await
+                .is_ok());
+            assert!(sphere_context
+                .set_petname(&valid_name, Some(other_identity.clone()))
+                .await
+                .is_ok());
+        }
+
+        Ok(())
     }
 }
