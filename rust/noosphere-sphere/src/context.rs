@@ -123,7 +123,7 @@ where
     /// sphere referred to by the provided [Did]. If the local data for the
     /// sphere being traversed to is not available, an attempt will be made to
     /// replicate the data from a Noosphere Gateway.
-    #[instrument(level = "debug", fields(origin = self.sphere_identity.as_str()), skip(self))]
+    #[instrument(level = "debug", fields(via = self.sphere_identity.as_str(), origin = self.origin_sphere_identity.as_str()), skip(self))]
     pub async fn traverse_by_petname(&self, petname: &str) -> Result<Option<SphereContext<K, S>>> {
         // Resolve petname to sphere version via address book entry
 
@@ -238,7 +238,7 @@ where
                 identity.did.clone(),
                 self.author.clone(),
                 self.db.clone(),
-                Some(self.sphere_identity.clone()),
+                Some(self.origin_sphere_identity.clone()),
             )
             .await?,
         ))
