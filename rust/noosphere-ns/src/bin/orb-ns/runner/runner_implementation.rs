@@ -43,26 +43,18 @@ pub struct NameSystemRunner {
     api_address: Option<Url>,
 }
 
-const USE_RECORD_VALIDATION: bool = false;
-
 impl NameSystemRunner {
     pub(crate) async fn try_from_config(mut config: RunnerNodeConfig) -> Result<Self> {
         let node = if let Some(ipfs_api_url) = config.ipfs_api_url {
-            let store = if USE_RECORD_VALIDATION {
+            let store = {
                 let inner = MemoryStore::default();
                 let inner = IpfsStore::new(inner, Some(KuboClient::new(&ipfs_api_url)?));
-                let inner = BlockStoreRetry::new(inner, 3u32, Duration::new(1, 0));
+                let inner = BlockStoreRetry::new(inner, 6u32, Duration::from_secs(10));
                 Some(UcanStore(inner))
-            } else {
-                None
             };
             NameSystem::new(&config.key_material, config.dht_config.to_owned(), store)?
         } else {
-            let store = if USE_RECORD_VALIDATION {
-                Some(UcanStore(MemoryStore::default()))
-            } else {
-                None
-            };
+            let store = Some(UcanStore(MemoryStore::default()));
             NameSystem::new(&config.key_material, config.dht_config.to_owned(), store)?
         };
         let peer_id = node.peer_id().to_owned();
