@@ -122,6 +122,24 @@
   * dev-dependencies
     * noosphere-ns bumped from 0.6.5 to 0.6.6
 
+## [0.10.8](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.10.7...noosphere-cli-v0.10.8) (2023-05-11)
+
+
+### Bug Fixes
+
+* Ensure petname link records are replicated ([#377](https://github.com/subconsciousnetwork/noosphere/issues/377)) ([b5d0204](https://github.com/subconsciousnetwork/noosphere/commit/b5d020423d81ed4e37f33cf6bd0c73b8883b1673))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-sphere bumped from 0.5.6 to 0.5.7
+    * noosphere-gateway bumped from 0.4.7 to 0.4.8
+    * noosphere bumped from 0.10.7 to 0.10.8
+  * dev-dependencies
+    * noosphere-ns bumped from 0.6.7 to 0.6.8
+
 ## [0.10.7](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.10.6...noosphere-cli-v0.10.7) (2023-05-09)
 
 

@@ -18,6 +18,13 @@
     * noosphere-ipfs bumped from 0.4.3 to 0.4.4
     * noosphere-car bumped from 0.1.1 to 0.1.2
 
+## [0.5.7](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.5.6...noosphere-sphere-v0.5.7) (2023-05-11)
+
+
+### Bug Fixes
+
+* Ensure petname link records are replicated ([#377](https://github.com/subconsciousnetwork/noosphere/issues/377)) ([b5d0204](https://github.com/subconsciousnetwork/noosphere/commit/b5d020423d81ed4e37f33cf6bd0c73b8883b1673))
+
 ## [0.5.6](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.5.5...noosphere-sphere-v0.5.6) (2023-05-09)
 
 
