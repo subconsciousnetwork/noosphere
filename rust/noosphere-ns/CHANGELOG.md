@@ -67,6 +67,24 @@
   * dependencies
     * noosphere bumped from 0.10.7 to 0.10.8
 
+## [0.7.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.6.8...noosphere-ns-v0.7.0) (2023-05-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* Enable validation from `IpfsStore` in `orb-ns` ([#378](https://github.com/subconsciousnetwork/noosphere/issues/378))
+
+### Features
+
+* Enable validation from `IpfsStore` in `orb-ns` ([#378](https://github.com/subconsciousnetwork/noosphere/issues/378)) ([b07ceb3](https://github.com/subconsciousnetwork/noosphere/commit/b07ceb35255b1d4bca1050e86f2983ac5f6c55d3))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere bumped from 0.10.8 to 0.10.9
+
 ## [0.6.5](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.6.4...noosphere-ns-v0.6.5) (2023-05-09)
 
 

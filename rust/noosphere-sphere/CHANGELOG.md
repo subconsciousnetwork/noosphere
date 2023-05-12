@@ -18,6 +18,14 @@
     * noosphere-ipfs bumped from 0.4.3 to 0.4.4
     * noosphere-car bumped from 0.1.1 to 0.1.2
 
+## [0.5.8](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.5.7...noosphere-sphere-v0.5.8) (2023-05-12)
+
+
+### Features
+
+* Get petnames assigned to a DID for a sphere ([#384](https://github.com/subconsciousnetwork/noosphere/issues/384)) ([aa1cec7](https://github.com/subconsciousnetwork/noosphere/commit/aa1cec7663b41b5bb0f6ffe3066d944b86153b2a))
+* Validate petnames and slugs, disallow an empty strings. ([#382](https://github.com/subconsciousnetwork/noosphere/issues/382)) ([fdda233](https://github.com/subconsciousnetwork/noosphere/commit/fdda2330d8545a64054bcda5b97e288c6c7ffdaa))
+
 ## [0.5.7](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.5.6...noosphere-sphere-v0.5.7) (2023-05-11)
 
 
