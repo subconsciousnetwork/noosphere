@@ -42,6 +42,21 @@
     * noosphere-sphere bumped from 0.5.6 to 0.5.7
     * noosphere-into bumped from 0.8.7 to 0.8.8
 
+## [0.10.9](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.10.8...noosphere-v0.10.9) (2023-05-12)
+
+
+### Features
+
+* Get petnames assigned to a DID for a sphere ([#384](https://github.com/subconsciousnetwork/noosphere/issues/384)) ([aa1cec7](https://github.com/subconsciousnetwork/noosphere/commit/aa1cec7663b41b5bb0f6ffe3066d944b86153b2a))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-sphere bumped from 0.5.7 to 0.5.8
+    * noosphere-into bumped from 0.8.8 to 0.8.9
+
 ## [0.10.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.10.2...noosphere-v0.10.3) (2023-05-08)
 
 
