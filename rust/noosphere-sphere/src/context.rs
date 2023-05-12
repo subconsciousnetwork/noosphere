@@ -233,11 +233,16 @@ where
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use anyhow::Result;
 
-    use noosphere_core::{data::ContentType, tracing::initialize_tracing};
+    use noosphere_core::{
+        authority::{generate_capability, SphereAction},
+        data::{ContentType, LinkRecord},
+        tracing::initialize_tracing,
+    };
 
+    use ucan::builder::UcanBuilder;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
@@ -245,6 +250,7 @@ pub mod tests {
         helpers::{make_valid_link_record, simulated_sphere_context, SimulationAccess},
         HasMutableSphereContext, HasSphereContext, SphereContentWrite, SpherePetnameWrite,
     };
+    use serde_json::json;
 
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
@@ -281,7 +287,7 @@ pub mod tests {
     async fn it_validates_petnames_when_setting() -> Result<()> {
         initialize_tracing(None);
         let valid_names: &[&str] = &["j@__/_大"];
-        let invalid_names: &[&str] = &[""];
+        let invalid_names: &[&str] = &["", "did:key:foo"];
 
         let mut sphere_context =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
@@ -310,6 +316,57 @@ pub mod tests {
                 .await
                 .is_ok());
         }
+
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_disallows_adding_self_as_petname() -> Result<()> {
+        initialize_tracing(None);
+
+        let mut sphere_context =
+            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let db = sphere_context.sphere_context().await?.db().clone();
+        let sphere_identity = sphere_context.identity().await?;
+
+        let link_record = {
+            let version = sphere_context.version().await?;
+            let author = sphere_context.sphere_context().await?.author().clone();
+            LinkRecord::from(
+                UcanBuilder::default()
+                    .issued_by(&author.key)
+                    .for_audience(&sphere_identity)
+                    .witnessed_by(
+                        &author
+                            .authorization
+                            .as_ref()
+                            .unwrap()
+                            .resolve_ucan(&db)
+                            .await?,
+                    )
+                    .claiming_capability(&generate_capability(
+                        &sphere_identity,
+                        SphereAction::Publish,
+                    ))
+                    .with_lifetime(120)
+                    .with_fact(json!({
+                    "link": version.to_string()
+                    }))
+                    .build()?
+                    .sign()
+                    .await?,
+            )
+        };
+
+        assert!(sphere_context
+            .set_petname_record("myself", &link_record)
+            .await
+            .is_err());
+        assert!(sphere_context
+            .set_petname("myself", Some(sphere_identity.clone()))
+            .await
+            .is_err());
 
         Ok(())
     }

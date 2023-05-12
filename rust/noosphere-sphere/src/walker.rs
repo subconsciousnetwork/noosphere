@@ -311,7 +311,7 @@ where
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use std::collections::BTreeSet;
 
     use noosphere_core::data::ContentType;
