@@ -59,11 +59,11 @@ where
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
             let petnames = sphere.get_address_book().await?.get_identities().await?;
-            let stream = petnames.stream().await?;
+            let stream = petnames.into_stream().await?;
 
             for await entry in stream {
                 let (petname, address) = entry?;
-                yield (petname.clone(), address.clone());
+                yield (petname, address);
             }
         }
     }

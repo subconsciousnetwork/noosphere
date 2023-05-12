@@ -51,6 +51,26 @@ public func nsSphereFileContentsRead(_ noosphere: OpaquePointer!, _ sphere_file:
 }
 
 
+public typealias NsSpherePetnamesAssignedGetHandler = (OpaquePointer?, slice_boxed_char_ptr_t) -> ()
+
+/// See: ns_sphere_petnames_assigned_get
+public func nsSpherePetnamesAssignedGet(_ noosphere: OpaquePointer!, _ sphere_file: OpaquePointer!, _ peer_identity: UnsafePointer<CChar>!, handler: @escaping NsSpherePetnamesAssignedGetHandler) {
+    let context = Unmanaged.passRetained(Box(contents: handler)).toOpaque()
+
+    ns_sphere_petnames_assigned_get(noosphere, sphere_file, peer_identity, context) {
+        (context, error, petnames) in
+
+        guard let context = context else {
+            return
+        }
+
+        let handler = Unmanaged<Box<NsSpherePetnamesAssignedGetHandler>>.fromOpaque(context).takeRetainedValue()
+
+        handler.contents(error, petnames)
+    }
+}
+
+
 public typealias NsSphereTraverseByPetnameHandler = (OpaquePointer?, OpaquePointer?) -> ()
 
 /// See: ns_sphere_traverse_by_petname

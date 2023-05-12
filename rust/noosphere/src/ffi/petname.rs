@@ -1,18 +1,24 @@
 #![allow(unused_variables)]
+#![allow(clippy::type_complexity)]
 
-use std::str::FromStr;
+use std::{ffi::c_void, str::FromStr};
 
 use anyhow::anyhow;
 use cid::Cid;
+use noosphere_core::data::Did;
 use noosphere_sphere::{SpherePetnameRead, SpherePetnameWrite, SphereWalker};
 use safer_ffi::{char_p::InvalidNulTerminator, prelude::*};
 
-use crate::ffi::{NsError, TryOrInitialize};
+use crate::{
+    error::NoosphereError,
+    ffi::{NsError, TryOrInitialize},
+};
 
 use super::{NsNoosphere, NsSphere};
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Whether the given petname has been assigned to a sphere identity.
 ///
 /// If return value is `0`, it implies one of the following: the petname has never
@@ -41,6 +47,7 @@ pub fn ns_sphere_petname_is_set(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Get the sphere identity as a DID that the given petname is assigned to in
 /// the sphere.
 ///
@@ -69,6 +76,64 @@ pub fn ns_sphere_petname_get(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
+/// For a given ns_sphere_t and a sphere identity (a DID string), get all of the
+/// petnames assigned to that sphere identity at the current version of the
+/// ns_sphere_t.
+///
+/// The callback arguments are (in order):
+///
+///  1. The context argument provided in the original call to
+///     ns_sphere_content_read
+///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
+///  3. An owned pointer to a slice_boxed_char_ptr_t if the call was successful,
+///     otherwise NULL
+///
+/// Note that this call can be quite slow, especially for spheres that have a
+/// large address books. Results are cached by sphere version, but beware
+/// nonetheless.
+pub fn ns_sphere_petnames_assigned_get(
+    noosphere: &NsNoosphere,
+    sphere: &NsSphere,
+    peer_identity: char_p::Ref<'_>,
+    context: Option<repr_c::Box<c_void>>,
+    callback: extern "C" fn(
+        Option<repr_c::Box<c_void>>,
+        Option<repr_c::Box<NsError>>,
+        Option<c_slice::Box<char_p::Box>>,
+    ),
+) {
+    let sphere = sphere.inner().clone();
+    let did = Did(peer_identity.to_string());
+    let async_runtime = noosphere.async_runtime();
+
+    noosphere.async_runtime().spawn(async move {
+        let result = async {
+            let assigned_petnames = sphere
+                .get_assigned_petnames(&did)
+                .await?
+                .iter()
+                .filter_map(|name| name.to_owned().try_into().ok())
+                .collect::<Vec<char_p::Box>>();
+
+            Ok(assigned_petnames.into_boxed_slice().into()) as Result<_, anyhow::Error>
+        }
+        .await;
+
+        match result {
+            Ok(petnames) => {
+                async_runtime.spawn_blocking(move || callback(context, None, Some(petnames)))
+            }
+            Err(error) => async_runtime.spawn_blocking(move || {
+                callback(context, Some(NoosphereError::from(error).into()), None)
+            }),
+        };
+    });
+}
+
+#[ffi_export]
+/// @memberof ns_sphere_t
+///
 /// Assign a petname to a sphere identity (a DID).
 ///
 /// This will overwrite the petname so that it is assigned to the new sphere
@@ -104,6 +169,7 @@ pub fn ns_sphere_petname_set(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Resolve a configured petname.
 ///
 /// Uses the sphere identity that the petname is assigned to and determining
@@ -133,6 +199,7 @@ pub fn ns_sphere_petname_resolve(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Get an array of all of the petnames in a sphere at the current version.
 pub fn ns_sphere_petname_list(
     noosphere: &NsNoosphere,
@@ -168,6 +235,7 @@ pub fn ns_sphere_petname_list(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+///
 /// Get an array of all of the petnames that changed in a given sphere.
 ///
 /// Includes changes since, and excluding, the given revision. The revision

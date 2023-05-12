@@ -519,11 +519,11 @@ final class NoosphereTests: XCTestCase {
     
     func testSettingAndGettingAPetname() throws {
         let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
-
+        
         ns_key_create(noosphere, "bob", nil)
-
+        
         let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
-
+        
         let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
         let sphere = ns_sphere_open(noosphere, sphere_identity_ptr, nil)
         
@@ -534,22 +534,86 @@ final class NoosphereTests: XCTestCase {
         ns_sphere_save(noosphere, sphere, nil, nil)
         
         let has_alice = ns_sphere_petname_is_set(noosphere, sphere, "alice", nil) == 1
-
+        
         assert(has_alice)
-
+        
         let identity_ptr = ns_sphere_petname_get(noosphere, sphere, "alice", nil)
         let identity = String.init(cString: identity_ptr!)
         
         assert(identity == "did:key:alice")
-
+        
         // Unassign the petname alice
         ns_sphere_petname_set(noosphere, sphere, "alice", nil, nil)
         ns_sphere_save(noosphere, sphere, nil, nil)
-
+        
         let has_alice_after_unassign = ns_sphere_petname_is_set(noosphere, sphere, "alice", nil) == 1
         assert(!has_alice_after_unassign)
         
         ns_string_free(identity_ptr)
+        ns_sphere_free(sphere)
+        ns_free(noosphere)
+    }
+    
+    func testGetAllPetnamesAssignedToAnIdentityInASphere() throws {
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
+        
+        ns_key_create(noosphere, "bob", nil)
+        
+        let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
+        
+        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
+        let sphere = ns_sphere_open(noosphere, sphere_identity_ptr, nil)
+        
+        ns_string_free(sphere_identity_ptr)
+        ns_sphere_receipt_free(sphere_receipt)
+        
+        ns_sphere_petname_set(noosphere, sphere, "alice", "did:key:alice", nil)
+        ns_sphere_petname_set(noosphere, sphere, "furby", "did:key:alice", nil)
+        
+        ns_sphere_save(noosphere, sphere, nil, nil)
+        
+        let expectation = self.expectation(description: "Assigned petnames are given")
+        
+        nsSpherePetnamesAssignedGet(noosphere, sphere, "did:key:alice") {
+            (error, petnames) in
+            
+            if error != nil {
+                let error_message_ptr = ns_error_message_get(error)
+                let error_message = String.init(cString: error_message_ptr!)
+
+                print(error_message)
+
+                ns_string_free(error_message_ptr)
+                ns_error_free(error)
+                return
+            }
+            
+            let expected_petnames = [
+                "furby",
+                "alice"
+            ]
+            let petname_count = petnames.len
+            
+            assert(petname_count == expected_petnames.count)
+            
+            var pointer = petnames.ptr!
+            
+            for i in 0..<petname_count {
+                let petname = String.init(cString: pointer.pointee!)
+                
+                print("Petname:", petname)
+                assert(expected_petnames[i] == petname)
+                
+                pointer += 1;
+            }
+
+            ns_string_array_free(petnames)
+            
+            expectation.fulfill()
+        }
+        
+        self.waitForExpectations(timeout: 5)
+        
         ns_sphere_free(sphere)
         ns_free(noosphere)
     }

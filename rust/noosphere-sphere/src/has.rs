@@ -151,6 +151,21 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<K, S, T> HasSphereContext<K, S> for &T
+where
+    T: HasSphereContext<K, S>,
+    K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
+{
+    type SphereContext = T::SphereContext;
+
+    async fn sphere_context(&self) -> Result<Self::SphereContext> {
+        (*self).sphere_context().await
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl<K, S> HasSphereContext<K, S> for Arc<SphereContext<K, S>>
 where
     K: KeyMaterial + Clone + 'static,
