@@ -82,7 +82,7 @@ pub trait BlockStore: Clone + BlockStoreSendSync {
     {
         let codec = C::default();
         let block = codec.encode(&data)?;
-        let cid = Cid::new_v1(codec.into(), Code::Blake2b256.digest(&block));
+        let cid = Cid::new_v1(codec.into(), Code::Blake3_256.digest(&block));
 
         self.put_block(&cid, &block).await?;
         self.put_links::<C>(&cid, &block).await?;

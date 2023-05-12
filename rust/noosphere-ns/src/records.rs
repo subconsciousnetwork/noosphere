@@ -442,7 +442,7 @@ mod test {
     async fn test_nsrecord_self_signed() -> Result<(), anyhow::Error> {
         let sphere_key = generate_ed25519_key();
         let sphere_identity = Did::from(sphere_key.get_did().await?);
-        let link = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
+        let link = "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i";
         let cid_link: Cid = link.parse()?;
         let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
@@ -461,7 +461,7 @@ mod test {
         let sphere_key = generate_ed25519_key();
         let sphere_identity = Did::from(sphere_key.get_did().await?);
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
-        let link = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
+        let link = "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i";
         let cid_link: Cid = link.parse()?;
         let mut store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
@@ -485,7 +485,7 @@ mod test {
             .build()?
             .sign()
             .await?;
-        let _ = store.write_token(&delegate_ucan.encode()?).await?;
+        let out_cid = store.write_token(&delegate_ucan.encode()?).await?;
 
         // Attempt `owner` publishing `sphere` with the proper authorization.
         let proofs = vec![delegate_ucan.clone()];
