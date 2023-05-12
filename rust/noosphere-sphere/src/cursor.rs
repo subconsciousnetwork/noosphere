@@ -161,32 +161,11 @@ where
     }
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<'a, C, K, S> HasSphereContext<K, S> for &'a SphereCursor<C, K, S>
-where
-    C: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
-    S: Storage + 'static,
-{
-    type SphereContext = C::SphereContext;
-
-    async fn sphere_context(&self) -> Result<Self::SphereContext> {
-        self.has_sphere_context.sphere_context().await
-    }
-
-    async fn version(&self) -> Result<Cid> {
-        match &self.sphere_version {
-            Some(sphere_version) => Ok(*sphere_version),
-            None => self.has_sphere_context.version().await,
-        }
-    }
-}
-
 #[cfg(test)]
 pub mod tests {
-
+    use anyhow::Result;
     use noosphere_core::data::{ContentType, Header};
+    use noosphere_storage::UcanStore;
     use tokio::io::AsyncReadExt;
 
     #[cfg(target_arch = "wasm32")]
@@ -195,8 +174,11 @@ pub mod tests {
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
-    use crate::helpers::{simulated_sphere_context, SimulationAccess};
-    use crate::{HasMutableSphereContext, SphereContentRead, SphereContentWrite};
+    use crate::helpers::{make_valid_link_record, simulated_sphere_context, SimulationAccess};
+    use crate::{
+        HasMutableSphereContext, HasSphereContext, SphereContentRead, SphereContentWrite,
+        SpherePetnameRead, SpherePetnameWrite,
+    };
 
     use super::SphereCursor;
 
@@ -430,5 +412,81 @@ pub mod tests {
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "No changes to save");
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_get_all_petnames_assigned_to_an_identity() -> Result<()> {
+        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+
+        let mut db = UcanStore(sphere_context.sphere_context().await?.db().clone());
+
+        let (peer_1, link_record_1, _) = make_valid_link_record(&mut db).await?;
+        let (peer_2, link_record_2, _) = make_valid_link_record(&mut db).await?;
+        let (peer_3, link_record_3, _) = make_valid_link_record(&mut db).await?;
+
+        let mut cursor = SphereCursor::latest(sphere_context);
+
+        cursor.adopt_petname("foo1", &link_record_1).await?;
+        cursor.adopt_petname("bar1", &link_record_1).await?;
+        cursor.adopt_petname("baz1", &link_record_1).await?;
+
+        cursor.adopt_petname("foo2", &link_record_2).await?;
+
+        cursor.save(None).await?;
+
+        assert_eq!(
+            cursor.get_assigned_petnames(&peer_1).await?,
+            vec![
+                String::from("foo1"),
+                String::from("bar1"),
+                String::from("baz1")
+            ]
+        );
+
+        assert_eq!(
+            cursor.get_assigned_petnames(&peer_2).await?,
+            vec![String::from("foo2")]
+        );
+
+        assert_eq!(
+            cursor.get_assigned_petnames(&peer_3).await?,
+            Vec::<String>::new()
+        );
+
+        // Check one more time for good measure, since results are cached internally
+        assert_eq!(
+            cursor.get_assigned_petnames(&peer_1).await?,
+            vec![
+                String::from("foo1"),
+                String::from("bar1"),
+                String::from("baz1")
+            ]
+        );
+
+        cursor.adopt_petname("bar2", &link_record_2).await?;
+        cursor.adopt_petname("foo3", &link_record_3).await?;
+        cursor.save(None).await?;
+
+        assert_eq!(
+            cursor.get_assigned_petnames(&peer_1).await?,
+            vec![
+                String::from("foo1"),
+                String::from("bar1"),
+                String::from("baz1")
+            ]
+        );
+
+        assert_eq!(
+            cursor.get_assigned_petnames(&peer_2).await?,
+            vec![String::from("bar2"), String::from("foo2")]
+        );
+
+        assert_eq!(
+            cursor.get_assigned_petnames(&peer_3).await?,
+            vec![String::from("foo3")]
+        );
+
+        Ok(())
     }
 }
