@@ -34,13 +34,16 @@ where
 
 fn assigned_petnames_cache_key(origin: &Did, peer: &Did, origin_version: &Cid) -> String {
     format!(
-        "cache:petname:assigned:{}:{}:{}",
+        "noosphere:cache:petname:assigned:{}:{}:{}",
         origin, peer, origin_version
     )
 }
 
 fn sphere_checkpoint_cache_key(origin: &Did, origin_version: &Cid) -> String {
-    format!("cache:petname:checkpoint:{}:{}", origin, origin_version)
+    format!(
+        "noosphere:cache:petname:checkpoint:{}:{}",
+        origin, origin_version
+    )
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
