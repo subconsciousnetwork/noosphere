@@ -20,7 +20,7 @@
 //! async fn main() -> Result<()> {
 //!   let mut sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 //!
-//!   sphere_context.write("/foo", "text/plain", "bar".as_ref(), None).await?;
+//!   sphere_context.write("foo", "text/plain", "bar".as_ref(), None).await?;
 //!   sphere_context.save(None).await?;
 //!
 //!   Ok(())

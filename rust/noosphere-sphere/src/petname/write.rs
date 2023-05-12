@@ -1,10 +1,18 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use noosphere_core::data::{Did, IdentityIpld, Jwt};
 use noosphere_storage::Storage;
 use ucan::{crypto::KeyMaterial, store::UcanJwtStore, Ucan};
 
 use crate::{internal::SphereContextInternal, HasMutableSphereContext, SpherePetnameRead};
+
+fn validate_petname(petname: &str) -> Result<()> {
+    if petname.is_empty() {
+        Err(anyhow!("Petname must not be empty."))
+    } else {
+        Ok(())
+    }
+}
 
 /// Anything that can write petnames to a sphere should implement
 /// [SpherePetnameWrite]. A blanket implementation is provided for anything that
@@ -40,6 +48,7 @@ where
 {
     async fn set_petname(&mut self, name: &str, identity: Option<Did>) -> Result<()> {
         self.assert_write_access().await?;
+        validate_petname(name)?;
 
         let current_address = self.get_petname(name).await?;
 
@@ -69,6 +78,7 @@ where
 
     async fn adopt_petname(&mut self, name: &str, record: &Jwt) -> Result<Option<Did>> {
         self.assert_write_access().await?;
+        validate_petname(name)?;
 
         let ucan = Ucan::try_from(record.as_str())?;
         let identity = Did::from(ucan.audience());

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_core::data::{BodyChunkIpld, Header, MemoIpld};
@@ -11,6 +11,14 @@ use crate::{internal::SphereContextInternal, HasMutableSphereContext, HasSphereC
 use async_trait::async_trait;
 
 use crate::{AsyncFileBody, SphereContentRead};
+
+fn validate_slug(slug: &str) -> Result<()> {
+    if slug.is_empty() {
+        Err(anyhow!("Slug must not be empty."))
+    } else {
+        Ok(())
+    }
+}
 
 /// Anything that can write content to a sphere should implement
 /// [SphereContentWrite]. A blanket implementation is provided for anything that
@@ -73,6 +81,7 @@ where
 {
     async fn link_raw(&mut self, slug: &str, cid: &Cid) -> Result<()> {
         self.assert_write_access().await?;
+        validate_slug(slug)?;
 
         self.sphere_context_mut()
             .await?
@@ -91,6 +100,7 @@ where
         additional_headers: Option<Vec<(String, String)>>,
     ) -> Result<Cid> {
         self.assert_write_access().await?;
+        validate_slug(slug)?;
 
         let memo_cid = {
             let current_file = self.read(slug).await?;
@@ -139,6 +149,7 @@ where
         debug!("Writing {}...", slug);
 
         self.assert_write_access().await?;
+        validate_slug(slug)?;
 
         let mut bytes = Vec::new();
         value.read_to_end(&mut bytes).await?;
