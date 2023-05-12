@@ -146,37 +146,28 @@ jobs:
         with:
           name: swift-package-manifest
           path: ./Package.swift
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.GPG_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
       - name: 'Commit and tag Package.swift for latest release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NOOSPHERE_VERSION: ${{ needs.release-please.outputs.noosphere_release_tag_name }}
         run: |
-          # Adapted from https://gist.github.com/swinton/03e84635b45c78353b1f71e41007fc7c
-
           # Turn off history expansion so that Bash doesn't freak out about $MESSAGE contents
           # https://stackoverflow.com/a/11816138
           set +H
 
-          export MESSAGE="feat!: Update Swift Package Noosphere dependency to $NOOSPHERE_VERSION"
-          export SHA=$(git rev-parse main:Package.swift)
-          export CONTENT=$(base64 -i Package.swift)
+          git config --global user.name 'Subconscious Ops'
+          git config --global user.email 'github-ops@subconscious.network'
 
-          # Update Package.swift via the Github API (we do it this way to get 'easy' commit signing)
-          # https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28#create-or-update-file-contents
-
-          export COMMIT_SHA_TO_TAG=$(gh api --method PUT /repos/subconsciousnetwork/noosphere/contents/Package.swift \
-            --field message="$MESSAGE" \
-            --field content="$CONTENT" \
-            --field encoding="base64" \
-            --field branch="main" \
-            --field sha="$SHA" | jq .commit.sha | xargs echo)
-
-          # Also add a tag for the SwiftNoosphere release that correlates with the latest Noosphere release
-          # https://docs.github.com/en/rest/git/refs?apiVersion=2022-11-28#create-a-reference
-
-          gh api --method POST /repos/subconsciousnetwork/noosphere/git/refs \
-            --field ref="refs/tags/swift-$NOOSPHERE_VERSION" \
-            --field sha="$COMMIT_SHA_TO_TAG"
+          git commit -S -am "feat!: Update Swift Package Noosphere dependency to $NOOSPHERE_VERSION"
+          git tag "swift-$NOOSPHERE_VERSION"
+          git push --tags origin main
 
   # Publishes crates to crates.io in dependency order. This command is
   # idempotent and won't re-publish crates that are already published, so it's
