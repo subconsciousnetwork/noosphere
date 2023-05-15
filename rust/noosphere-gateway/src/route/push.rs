@@ -312,6 +312,7 @@ where
             if let Err(error) = self.name_system_tx.send(NameSystemJob::Publish {
                 context: self.sphere_context.clone(),
                 record: name_record.clone(),
+                temporary_validate_expiry: false,
             }) {
                 warn!("Failed to request name record publish: {}", error);
             }

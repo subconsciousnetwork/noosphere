@@ -5,17 +5,15 @@ use cid::Cid;
 use noosphere_core::data::ContentType;
 use noosphere_core::data::{Did, IdentityIpld, Jwt, LinkRecord, MapOperation};
 use noosphere_ipfs::{IpfsStore, KuboClient};
-use noosphere_ns::NsRecord;
-use noosphere_ns::{server::HttpClient as NameSystemHttpClient, NameResolver};
-use noosphere_sphere::SphereContentRead;
-use noosphere_sphere::SphereContentWrite;
-use noosphere_sphere::COUNTERPART;
+use noosphere_ns::{server::HttpClient as NameSystemHttpClient, NameResolver, NsRecord};
 use noosphere_sphere::{
     HasMutableSphereContext, SphereCursor, SpherePetnameRead, SpherePetnameWrite,
 };
+use noosphere_sphere::{SphereContentRead, SphereContentWrite, COUNTERPART};
 use noosphere_storage::KeyValueStore;
 use noosphere_storage::{BlockStoreRetry, Storage, UcanStore};
 use std::fmt::Display;
+use std::future::Future;
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     str::FromStr,
@@ -86,7 +84,11 @@ pub enum NameSystemJob<C> {
     /// revision
     ResolveSince { context: C, since: Option<Cid> },
     /// Publish a link record (given as a [Jwt]) to the name system
-    Publish { context: C, record: Jwt },
+    Publish {
+        context: C,
+        record: Jwt,
+        temporary_validate_expiry: bool,
+    },
 }
 
 pub fn start_name_system<C, K, S>(
@@ -151,6 +153,7 @@ where
             if let Err(error) = tx.send(NameSystemJob::Publish {
                 context: local_sphere.to_owned(),
                 record,
+                temporary_validate_expiry: false,
             }) {
                 warn!("Failed to request name record publish: {}", error);
             }
@@ -206,118 +209,145 @@ where
         }
     });
 
+    let ipfs_api = configuration.ipfs_api.clone();
     while let Some(job) = receiver.recv().await {
-        let ipfs_api_url = configuration.ipfs_api.clone();
-        let run_job = with_client.invoke(|client| async move {
-            debug!("Running {}", job);
-            match job {
-                NameSystemJob::Publish { record, context } => {
-                    if let Err(error) = set_counterpart_record(context, &record).await {
-                        warn!("Could not set counterpart record on sphere: {error}");
-                    }
-                    client.publish(NsRecord::from_str(&record)?).await?;
-                }
-                NameSystemJob::ResolveAll { context } => {
-                    let name_stream = {
-                        let sphere = context.to_sphere().await?;
-                        let names = sphere.get_address_book().await?.get_identities().await?;
-
-                        names.into_stream().await?
-                    };
-
-                    resolve_all(client.clone(), context, name_stream, ipfs_api_url).await?;
-                }
-                NameSystemJob::ResolveSince { context, since } => {
-                    let history_stream = {
-                        let sphere = context.to_sphere().await?;
-                        sphere.into_history_stream(since.as_ref())
-                    };
-
-                    tokio::pin!(history_stream);
-
-                    let reverse_history = history_stream
-                        .fold(VecDeque::new(), |mut all, step| {
-                            if let Ok(entry) = step {
-                                all.push_front(entry);
-                            }
-                            all
-                        })
-                        .await;
-
-                    let mut names_to_resolve = BTreeMap::<String, IdentityIpld>::new();
-                    let mut names_to_ignore = BTreeSet::new();
-
-                    for (_, sphere) in reverse_history {
-                        let names = sphere.get_address_book().await?.get_identities().await?;
-                        let changelog = names.load_changelog().await?;
-
-                        for operation in changelog.changes.iter() {
-                            match operation {
-                                MapOperation::Add { key, value } => {
-                                    // Walking backwards through history, we will
-                                    // ignore any name changes where the name has
-                                    // either been updated or removed in the future
-                                    if !names_to_ignore.contains(key)
-                                        && !names_to_resolve.contains_key(key)
-                                    {
-                                        names_to_resolve.insert(key.clone(), value.clone());
-                                    }
-                                }
-                                MapOperation::Remove { key } => {
-                                    names_to_ignore.insert(key.clone());
-                                }
-                            };
-                        }
-                    }
-
-                    resolve_all(
-                        client.clone(),
-                        context,
-                        tokio_stream::iter(names_to_resolve.into_iter().map(Ok)),
-                        ipfs_api_url,
-                    )
-                    .await?;
-                }
-                NameSystemJob::ResolveImmediately { context, name, tx } => {
-                    // TODO(#256): This is going to be blocked by any pending
-                    // "resolve all" jobs. We should consider delaying "resolve
-                    // all" so that an eager client can get ahead of the queue
-                    // if desired. Even better would be some kind of streamed
-                    // priority queue for resolutions, but that's a more
-                    // involved enhancement.
-                    let stream = {
-                        let sphere = context.to_sphere().await?;
-                        let names = sphere.get_address_book().await?.get_identities().await?;
-                        let address = names.get(&name).await?;
-
-                        match address {
-                            Some(address) => {
-                                tokio_stream::once(Ok((name.clone(), address.clone())))
-                            }
-                            None => {
-                                let _ = tx.send(None);
-                                return Ok(()) as Result<()>;
-                            }
-                        }
-                    };
-
-                    resolve_all(client.clone(), context.clone(), stream, ipfs_api_url).await?;
-
-                    let cid = context.resolve_petname(&name).await?;
-
-                    let _ = tx.send(cid);
-                }
-            };
-            Ok(())
-        });
-
-        match run_job.await {
-            Err(error) => warn!("Noosphere Name System job failed: {}", error),
-            _ => debug!("Noosphere Name System job completed successfully"),
+        if let Err(error) = process_job(job, &mut with_client, &ipfs_api).await {
+            warn!("Error processing NS job: {}", error);
         }
     }
-
     Ok(())
+}
+
+async fn process_job<C, K, S, I, O, F>(
+    job: NameSystemJob<C>,
+    with_client: &mut TryOrReset<I, O, F>,
+    ipfs_api: &Url,
+) -> Result<()>
+where
+    C: HasMutableSphereContext<K, S>,
+    K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
+    I: Fn() -> F,
+    O: NameResolver + 'static,
+    F: Future<Output = Result<O, anyhow::Error>>,
+{
+    let run_job = with_client.invoke(|client| async move {
+        debug!("Running {}", job);
+        match job {
+            NameSystemJob::Publish {
+                record,
+                context,
+                temporary_validate_expiry,
+            } => {
+                if let Err(error) = set_counterpart_record(context, &record).await {
+                    warn!("Could not set counterpart record on sphere: {error}");
+                }
+                // TODO(#257)
+                let link_record = NsRecord::from_str(&record)?;
+                let publishable = if temporary_validate_expiry {
+                    link_record.has_publishable_timeframe()
+                } else {
+                    true
+                };
+                if publishable {
+                    client.publish(link_record).await?;
+                } else {
+                    return Err(anyhow!("Record is expired and cannot be published."));
+                }
+            }
+            NameSystemJob::ResolveAll { context } => {
+                let name_stream = {
+                    let sphere = context.to_sphere().await?;
+                    let names = sphere.get_address_book().await?.get_identities().await?;
+
+                    names.into_stream().await?
+                };
+
+                resolve_all(client.clone(), context, name_stream, ipfs_api).await?;
+            }
+            NameSystemJob::ResolveSince { context, since } => {
+                let history_stream = {
+                    let sphere = context.to_sphere().await?;
+                    sphere.into_history_stream(since.as_ref())
+                };
+
+                tokio::pin!(history_stream);
+
+                let reverse_history = history_stream
+                    .fold(VecDeque::new(), |mut all, step| {
+                        if let Ok(entry) = step {
+                            all.push_front(entry);
+                        }
+                        all
+                    })
+                    .await;
+
+                let mut names_to_resolve = BTreeMap::<String, IdentityIpld>::new();
+                let mut names_to_ignore = BTreeSet::new();
+
+                for (_, sphere) in reverse_history {
+                    let names = sphere.get_address_book().await?.get_identities().await?;
+                    let changelog = names.load_changelog().await?;
+
+                    for operation in changelog.changes.iter() {
+                        match operation {
+                            MapOperation::Add { key, value } => {
+                                // Walking backwards through history, we will
+                                // ignore any name changes where the name has
+                                // either been updated or removed in the future
+                                if !names_to_ignore.contains(key)
+                                    && !names_to_resolve.contains_key(key)
+                                {
+                                    names_to_resolve.insert(key.clone(), value.clone());
+                                }
+                            }
+                            MapOperation::Remove { key } => {
+                                names_to_ignore.insert(key.clone());
+                            }
+                        };
+                    }
+                }
+
+                resolve_all(
+                    client.clone(),
+                    context,
+                    tokio_stream::iter(names_to_resolve.into_iter().map(Ok)),
+                    ipfs_api,
+                )
+                .await?;
+            }
+            NameSystemJob::ResolveImmediately { context, name, tx } => {
+                // TODO(#256): This is going to be blocked by any pending
+                // "resolve all" jobs. We should consider delaying "resolve
+                // all" so that an eager client can get ahead of the queue
+                // if desired. Even better would be some kind of streamed
+                // priority queue for resolutions, but that's a more
+                // involved enhancement.
+                let stream = {
+                    let sphere = context.to_sphere().await?;
+                    let names = sphere.get_address_book().await?.get_identities().await?;
+                    let address = names.get(&name).await?;
+
+                    match address {
+                        Some(address) => tokio_stream::once(Ok((name.clone(), address.clone()))),
+                        None => {
+                            let _ = tx.send(None);
+                            return Ok(()) as Result<()>;
+                        }
+                    }
+                };
+
+                resolve_all(client.clone(), context.clone(), stream, ipfs_api).await?;
+
+                let cid = context.resolve_petname(&name).await?;
+
+                let _ = tx.send(cid);
+            }
+        };
+        Ok(())
+    });
+
+    run_job.await
 }
 
 /// Consumes a stream of name / address tuples, resolving them one at a time
@@ -326,7 +356,7 @@ async fn resolve_all<C, K, S, N>(
     client: Arc<dyn NameResolver>,
     mut context: C,
     stream: N,
-    ipfs_url: Url,
+    ipfs_api: &Url,
 ) -> Result<()>
 where
     C: HasMutableSphereContext<K, S>,
@@ -336,15 +366,13 @@ where
 {
     tokio::pin!(stream);
 
-    let kubo_client = KuboClient::new(&ipfs_url)?;
+    let kubo_client = KuboClient::new(ipfs_api)?;
     let db = context.sphere_context().await?.db().clone();
 
-    // TODO(#267)
-    let use_ipfs_validation = false;
     let ipfs_store = {
         let inner = db.clone();
         let inner = IpfsStore::new(inner, Some(kubo_client));
-        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(1, 0));
+        let inner = BlockStoreRetry::new(inner, 6u32, Duration::new(10, 0));
         UcanStore(inner)
     };
 
@@ -354,8 +382,8 @@ where
         let next_record =
             match fetch_record(client.clone(), name.clone(), identity.did.clone()).await? {
                 Some(record) => {
-                    // TODO(#267)
-                    if use_ipfs_validation {
+                    // TODO(#257)
+                    if false {
                         if let Err(error) = record.validate(&ipfs_store, None).await {
                             error!("Failed record validation: {}", error);
                             continue;
@@ -363,7 +391,6 @@ where
                     }
 
                     // TODO(#258): Verify that the new value is the most recent value
-                    // TODO(#257): Verify the proof chain of the new value
                     Some(LinkRecord::from(Jwt(record.try_to_string()?)))
                 }
                 None => {
@@ -486,5 +513,92 @@ where
         Ok(Some(Jwt(buffer)))
     } else {
         Ok(None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use noosphere_ns::{
+        helpers::KeyValueNameResolver,
+        utils::{generate_capability, generate_fact},
+    };
+    use noosphere_sphere::helpers::{simulated_sphere_context, SimulationAccess};
+    use ucan::builder::UcanBuilder;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn it_publishes_to_the_name_system() -> Result<()> {
+        let ipfs_url: Url = "http://127.0.0.1:5000".parse()?;
+        let sphere = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let record = {
+            let context = sphere.lock().await;
+            let identity: &str = context.identity().into();
+            Jwt(UcanBuilder::default()
+                .issued_by(&context.author().key)
+                .for_audience(identity)
+                .claiming_capability(&generate_capability(identity))
+                .with_lifetime(1000)
+                .with_fact(generate_fact(
+                    "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72",
+                ))
+                .build()
+                .unwrap()
+                .sign()
+                .await
+                .unwrap()
+                .encode()
+                .unwrap())
+        };
+
+        let expired = {
+            let context = sphere.lock().await;
+            let identity: &str = context.identity().into();
+            Jwt(UcanBuilder::default()
+                .issued_by(&context.author().key)
+                .for_audience(identity)
+                .claiming_capability(&generate_capability(identity))
+                .with_expiration(ucan::time::now() - 1000)
+                .with_fact(generate_fact(
+                    "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72",
+                ))
+                .build()
+                .unwrap()
+                .sign()
+                .await
+                .unwrap()
+                .encode()
+                .unwrap())
+        };
+
+        let mut with_client = TryOrReset::new(|| async { Ok(KeyValueNameResolver::default()) });
+
+        // Valid, unexpired records should be publishable by a gateway
+        assert!(process_job(
+            NameSystemJob::Publish {
+                context: sphere.clone(),
+                record,
+                temporary_validate_expiry: true,
+            },
+            &mut with_client,
+            &ipfs_url,
+        )
+        .await
+        .is_ok());
+
+        // Expired records should not be publishable by a gateway
+        assert!(process_job(
+            NameSystemJob::Publish {
+                context: sphere.clone(),
+                record: expired,
+                temporary_validate_expiry: true,
+            },
+            &mut with_client,
+            &ipfs_url,
+        )
+        .await
+        .is_err());
+
+        Ok(())
     }
 }
