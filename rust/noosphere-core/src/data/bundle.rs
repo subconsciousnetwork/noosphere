@@ -73,10 +73,12 @@ impl Bundle {
 
         pin_mut!(stream);
 
+        debug!("@JS: Start extending bundle");
         while let Some(ancestor) = stream.next().await {
             let (_, memo) = ancestor?;
             memo.extend_bundle(&mut bundle, store).await?;
         }
+        debug!("@JS: Stop extending bundle");
 
         Ok(bundle)
     }

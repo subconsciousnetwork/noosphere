@@ -89,7 +89,13 @@ where
             .unwrap_or_else(|| "the beginning".into())
     );
 
-    let mut bundle = latest_local_sphere.bundle_until_ancestor(since).await?;
+    let mut bundle = latest_local_sphere
+        .bundle_until_ancestor(since)
+        .await
+        .map_err(|e| {
+            error!("@JS: bundle_until_ancestor {}", e.to_string());
+            e
+        })?;
 
     debug!("Resolving latest counterpart sphere version...");
 
