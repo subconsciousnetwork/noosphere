@@ -71,6 +71,21 @@
     * noosphere-sphere bumped from 0.5.7 to 0.5.8
     * noosphere bumped from 0.10.8 to 0.10.9
 
+## [0.4.10](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.4.9...noosphere-gateway-v0.4.10) (2023-05-17)
+
+
+### Features
+
+* Prepares gateway to validate name records' proof chains over IPFS ([#338](https://github.com/subconsciousnetwork/noosphere/issues/338)) ([435d43b](https://github.com/subconsciousnetwork/noosphere/commit/435d43bfdf84aaf867019ae56cebba4624e76bff))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ns bumped from 0.7.0 to 0.7.1
+    * noosphere bumped from 0.10.9 to 0.10.10
+
 ## [0.4.7](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.4.6...noosphere-gateway-v0.4.7) (2023-05-09)
 
 
