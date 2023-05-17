@@ -42,6 +42,13 @@
     * noosphere-sphere bumped from 0.5.6 to 0.5.7
     * noosphere-into bumped from 0.8.7 to 0.8.8
 
+## [0.10.10](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.10.9...noosphere-v0.10.10) (2023-05-17)
+
+
+### Bug Fixes
+
+* Return `None` instead of throwing in `ns_sphere_petname_resolve()` ([#396](https://github.com/subconsciousnetwork/noosphere/issues/396)) ([c26cda6](https://github.com/subconsciousnetwork/noosphere/commit/c26cda65c2f8a2eece7a0a23f0bb4a0e6e81b830))
+
 ## [0.10.9](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.10.8...noosphere-v0.10.9) (2023-05-12)
 
 
