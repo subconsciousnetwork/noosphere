@@ -183,18 +183,22 @@ pub fn ns_sphere_petname_resolve(
     petname: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<char_p::Box> {
-    error_out.try_or_initialize(|| {
-        noosphere.async_runtime().block_on(async {
-            sphere
-                .inner()
-                .resolve_petname(petname.to_str())
-                .await?
-                .ok_or_else(|| anyhow!("No record resolved for petname '{}'", petname.to_str()))?
-                .to_string()
-                .try_into()
-                .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into())
-        })
-    })
+    match error_out.try_or_initialize(|| {
+        let version = noosphere
+            .async_runtime()
+            .block_on(async { sphere.inner().resolve_petname(petname.to_str()).await })?;
+        if let Some(version) = version {
+            let version_str = version.to_string().try_into().map_err(
+                |error: InvalidNulTerminator<String>| -> NoosphereError { anyhow!(error).into() },
+            )?;
+            Ok(Some(version_str))
+        } else {
+            Ok(None)
+        }
+    }) {
+        Some(maybe_version) => maybe_version,
+        None => None,
+    }
 }
 
 #[ffi_export]
