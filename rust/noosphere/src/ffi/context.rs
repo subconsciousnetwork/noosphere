@@ -764,3 +764,26 @@ pub fn ns_sphere_identity(
         }
     })
 }
+
+#[ffi_export]
+/// @memberof ns_sphere_t
+///
+/// Get the version (a CID encoded as a UTF-8 string) for this ns_sphere_t.
+pub fn ns_sphere_version(
+    noosphere: &NsNoosphere,
+    sphere: &NsSphere,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<char_p::Box> {
+    error_out.try_or_initialize(|| {
+        match noosphere
+            .async_runtime()
+            .block_on(async { sphere.inner().version().await })
+        {
+            Ok(version) => version
+                .to_string()
+                .try_into()
+                .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into()),
+            Err(error) => Err(anyhow!(error).into()),
+        }
+    })
+}

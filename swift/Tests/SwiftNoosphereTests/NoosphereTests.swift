@@ -306,7 +306,7 @@ final class NoosphereTests: XCTestCase {
             
             ns_sphere_save(noosphere, sphere, nil, nil)
         
-            let sphere_version_ptr = ns_sphere_version_get(noosphere, sphere_identity_ptr, nil)
+            let sphere_version_ptr = ns_sphere_version(noosphere, sphere, nil)
             sphere_versions.append(String.init(cString: sphere_version_ptr!))
             ns_string_free(sphere_version_ptr)
         }
@@ -402,7 +402,7 @@ final class NoosphereTests: XCTestCase {
             }
             
             ns_sphere_save(noosphere, sphere, nil, nil)
-            let sphere_version_ptr = ns_sphere_version_get(noosphere, sphere_identity_ptr, nil)
+            let sphere_version_ptr = ns_sphere_version(noosphere, sphere, nil)
             sphere_versions.append(String.init(cString: sphere_version_ptr!))
             ns_string_free(sphere_version_ptr)
         }
@@ -664,7 +664,7 @@ final class NoosphereTests: XCTestCase {
             
             ns_sphere_save(noosphere, sphere, nil, nil)
         
-            let sphere_version_ptr = ns_sphere_version_get(noosphere, sphere_identity_ptr, nil)
+            let sphere_version_ptr = ns_sphere_version(noosphere, sphere, nil)
             sphere_versions.append(String.init(cString: sphere_version_ptr!))
             ns_string_free(sphere_version_ptr)
         }
@@ -743,7 +743,7 @@ final class NoosphereTests: XCTestCase {
             
             ns_sphere_save(noosphere, sphere, nil, nil)
         
-            let sphere_version_ptr = ns_sphere_version_get(noosphere, sphere_identity_ptr, nil)
+            let sphere_version_ptr = ns_sphere_version(noosphere, sphere, nil)
             sphere_versions.append(String.init(cString: sphere_version_ptr!))
             ns_string_free(sphere_version_ptr)
         }
