@@ -126,9 +126,11 @@ pub fn ns_sphere_join(
 
 #[ffi_export]
 /// @memberof ns_sphere_t
+/// @deprecated Use ns_sphere_version instead
 ///
 /// Get the version of a given sphere that is considered the most recent version
-/// in local history.
+/// in local history. NOTE: This only works for spheres that were initialized
+/// locally (which is to say, origin spheres).
 ///
 /// If a version is recorded, it is returned as a base64-encoded CID v1 string.
 pub fn ns_sphere_version_get(
