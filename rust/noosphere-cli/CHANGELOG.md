@@ -137,6 +137,13 @@
   * dev-dependencies
     * noosphere-ns bumped from 0.7.0 to 0.7.1
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-gateway bumped from 0.4.10 to 0.4.11
+    * noosphere bumped from 0.10.10 to 0.10.11
+  * dev-dependencies
+    * noosphere-ns bumped from 0.7.1 to 0.7.2
+
 ## [0.10.8](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.10.7...noosphere-cli-v0.10.8) (2023-05-11)
 
 

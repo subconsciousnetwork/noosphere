@@ -42,6 +42,13 @@
     * noosphere-sphere bumped from 0.5.6 to 0.5.7
     * noosphere-into bumped from 0.8.7 to 0.8.8
 
+## [0.10.11](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.10.10...noosphere-v0.10.11) (2023-05-18)
+
+
+### Bug Fixes
+
+* Make sphere version FFI generalized ([#397](https://github.com/subconsciousnetwork/noosphere/issues/397)) ([e053cfa](https://github.com/subconsciousnetwork/noosphere/commit/e053cfa1808be4a8d9e47885617ce7248a6b8e63))
+
 ## [0.10.10](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.10.9...noosphere-v0.10.10) (2023-05-17)
 
 
