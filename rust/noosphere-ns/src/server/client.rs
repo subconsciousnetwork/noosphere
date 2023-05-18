@@ -1,8 +1,8 @@
 use crate::server::routes::Route;
-use crate::{dht_client::DhtClient, Multiaddr, NetworkInfo, NsRecord, Peer, PeerId};
+use crate::{dht_client::DhtClient, Multiaddr, NetworkInfo, Peer, PeerId};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use noosphere_core::data::Did;
+use noosphere_core::data::{Did, LinkRecord};
 use reqwest::Body;
 use url::Url;
 
@@ -95,7 +95,7 @@ impl DhtClient for HttpClient {
         Ok(self.client.get(url).send().await?.json().await?)
     }
 
-    async fn get_record(&self, identity: &Did) -> Result<Option<NsRecord>> {
+    async fn get_record(&self, identity: &Did) -> Result<Option<LinkRecord>> {
         let mut url = self.api_base.clone();
         let path = Route::GetRecord
             .to_string()
@@ -104,7 +104,7 @@ impl DhtClient for HttpClient {
         Ok(self.client.get(url).send().await?.json().await?)
     }
 
-    async fn put_record(&self, record: NsRecord, quorum: usize) -> Result<()> {
+    async fn put_record(&self, record: LinkRecord, quorum: usize) -> Result<()> {
         let mut url = self.api_base.clone();
         url.set_path(&Route::PostRecord.to_string());
         url.set_query(Some(&format!("quorum={quorum}")));

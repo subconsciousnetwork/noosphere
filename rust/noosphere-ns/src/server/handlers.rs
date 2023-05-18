@@ -1,4 +1,4 @@
-use crate::{DhtClient, Multiaddr, NameSystem, NetworkInfo, NsRecord, Peer, PeerId};
+use crate::{DhtClient, Multiaddr, NameSystem, NetworkInfo, Peer, PeerId};
 use anyhow::Result;
 use axum::response::{IntoResponse, Response};
 use axum::{
@@ -6,7 +6,7 @@ use axum::{
     http::StatusCode,
     Extension, Json,
 };
-use noosphere_core::data::Did;
+use noosphere_core::data::{Did, LinkRecord};
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -92,7 +92,7 @@ pub async fn get_address(
 pub async fn get_record(
     Extension(name_system): Extension<Arc<NameSystem>>,
     Path(did): Path<Did>,
-) -> JsonResponse<Option<NsRecord>> {
+) -> JsonResponse<Option<LinkRecord>> {
     let record = name_system
         .get_record(&did)
         .await
@@ -107,7 +107,7 @@ pub struct PostRecordQuery {
 
 pub async fn post_record(
     Extension(name_system): Extension<Arc<NameSystem>>,
-    Json(record): Json<NsRecord>,
+    Json(record): Json<LinkRecord>,
     Query(query): Query<PostRecordQuery>,
 ) -> JsonResponse<()> {
     name_system

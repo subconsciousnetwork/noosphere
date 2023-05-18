@@ -21,7 +21,7 @@ anyhow = "^1"
 sha2 = "0.10"
 cid = { workspace = true }
 forest_hash_utils = "0.1.0"
-serde = "^1"
+serde = { workspace = true }
 serde_bytes = "0.11"
 serde_ipld_dagcbor = "0.2"
 byteorder = "^1.4"

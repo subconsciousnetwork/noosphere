@@ -1,8 +1,11 @@
-use crate::{DhtClient, DhtConfig, NameResolver, NameSystem, NsRecord};
+use crate::{DhtClient, DhtConfig, NameResolver, NameSystem};
 use anyhow::Result;
 use async_trait::async_trait;
 use libp2p::Multiaddr;
-use noosphere_core::{authority::generate_ed25519_key, data::Did};
+use noosphere_core::{
+    authority::generate_ed25519_key,
+    data::{Did, LinkRecord},
+};
 use std::collections::HashMap;
 use tokio::sync::Mutex;
 use ucan::store::UcanJwtStore;
@@ -68,7 +71,7 @@ impl NameSystemNetwork {
 }
 
 pub struct KeyValueNameResolver {
-    store: Mutex<HashMap<Did, NsRecord>>,
+    store: Mutex<HashMap<Did, LinkRecord>>,
 }
 
 impl KeyValueNameResolver {
@@ -87,14 +90,14 @@ impl Default for KeyValueNameResolver {
 
 #[async_trait]
 impl NameResolver for KeyValueNameResolver {
-    async fn publish(&self, record: NsRecord) -> Result<()> {
+    async fn publish(&self, record: LinkRecord) -> Result<()> {
         let mut store = self.store.lock().await;
-        let did_id = Did(record.identity().into());
+        let did_id = Did(record.sphere_identity().into());
         store.insert(did_id, record);
         Ok(())
     }
 
-    async fn resolve(&self, identity: &Did) -> Result<Option<NsRecord>> {
+    async fn resolve(&self, identity: &Did) -> Result<Option<LinkRecord>> {
         let store = self.store.lock().await;
         Ok(store.get(identity).map(|record| record.to_owned()))
     }

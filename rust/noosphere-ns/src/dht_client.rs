@@ -1,12 +1,11 @@
 use crate::{
     dht::{NetworkInfo, Peer},
-    records::NsRecord,
     PeerId,
 };
 use anyhow::Result;
 use async_trait::async_trait;
 use libp2p::Multiaddr;
-use noosphere_core::data::Did;
+use noosphere_core::data::{Did, LinkRecord};
 
 #[cfg(doc)]
 use crate::server::HttpClient;
@@ -45,12 +44,12 @@ pub trait DhtClient: Send + Sync {
 
     /* Record APIs */
 
-    /// Propagates the corresponding managed sphere's [NsRecord] on nearby peers
+    /// Propagates the corresponding managed sphere's [LinkRecord] on nearby peers
     /// in the DHT network.
-    async fn put_record(&self, record: NsRecord, quorum: usize) -> Result<()>;
+    async fn put_record(&self, record: LinkRecord, quorum: usize) -> Result<()>;
 
-    /// Returns an [NsRecord] for the provided identity if found.
-    async fn get_record(&self, identity: &Did) -> Result<Option<NsRecord>>;
+    /// Returns an [LinkRecord] for the provided identity if found.
+    async fn get_record(&self, identity: &Did) -> Result<Option<LinkRecord>>;
 
     /* Operator APIs */
 
@@ -97,11 +96,17 @@ pub mod test {
     use crate::{utils::wait_for_peers, NameSystemBuilder};
     use cid::Cid;
     use libp2p::multiaddr::Protocol;
-    use noosphere_core::{authority::generate_ed25519_key, data::Did, tracing::initialize_tracing};
+    use noosphere_core::{
+        authority::{generate_capability, generate_ed25519_key, SphereAction},
+        data::Did,
+        tracing::initialize_tracing,
+        view::SPHERE_LIFETIME,
+    };
     use noosphere_storage::{MemoryStorage, SphereDb};
+    use serde_json::json;
     use std::sync::Arc;
     use tokio::sync::Mutex;
-    use ucan::crypto::KeyMaterial;
+    use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
     pub async fn test_network_info<C: DhtClient>(client: Arc<Mutex<C>>) -> Result<()> {
         initialize_tracing(None);
@@ -165,20 +170,33 @@ pub mod test {
         client.listen("/ip4/127.0.0.1/tcp/0".parse()?).await?;
 
         let sphere_key = generate_ed25519_key();
-        let sphere_id = Did::from(sphere_key.get_did().await?);
-        let link: Cid = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72"
+        let sphere_identity = Did::from(sphere_key.get_did().await?);
+        let link: Cid = "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i"
             .parse()
             .unwrap();
-        let record = NsRecord::from_issuer(&sphere_key, &sphere_id, &link, None).await?;
+        let ucan = UcanBuilder::default()
+            .issued_by(&sphere_key)
+            .for_audience(&sphere_identity)
+            .claiming_capability(&generate_capability(
+                &sphere_identity,
+                SphereAction::Publish,
+            ))
+            .with_fact(json!({ "link": link.to_string() }))
+            .with_lifetime(SPHERE_LIFETIME)
+            .build()?
+            .sign()
+            .await?;
+        let record = LinkRecord::try_from(ucan)?;
+
         client.put_record(record, 1).await?;
 
         let retrieved = client
-            .get_record(&sphere_id)
+            .get_record(&sphere_identity)
             .await?
             .expect("should be some");
 
-        assert_eq!(retrieved.identity(), &sphere_id);
-        assert_eq!(retrieved.link(), Some(&link));
+        assert_eq!(retrieved.sphere_identity(), sphere_identity);
+        assert_eq!(retrieved.get_link(), Some(link.clone()));
         Ok(())
     }
 }

@@ -4,16 +4,16 @@
 use anyhow::Result;
 use cid::Cid;
 use noosphere_core::{
-    authority::generate_ed25519_key, data::Did, tracing::initialize_tracing, view::SPHERE_LIFETIME,
+    authority::{generate_capability, generate_ed25519_key, SphereAction},
+    data::Did,
+    tracing::initialize_tracing,
+    view::SPHERE_LIFETIME,
 };
-use noosphere_ns::{
-    helpers::NameSystemNetwork,
-    utils::{generate_capability, generate_fact},
-    DhtClient,
-};
+use noosphere_ns::{helpers::NameSystemNetwork, DhtClient};
 use noosphere_storage::{derive_cid, MemoryStorage, SphereDb};
 
 use libipld_cbor::DagCborCodec;
+use serde_json::json;
 use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore, time::now, Ucan};
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
@@ -35,7 +35,7 @@ impl PseudoSphere {
         let sphere_id = Did(sphere_key.get_did().await?);
 
         // Delegate `sphere_key`'s publishing authority to `owner_key`
-        let delegate_capability = generate_capability(&sphere_id);
+        let delegate_capability = generate_capability(&sphere_id, SphereAction::Publish);
         let delegation = UcanBuilder::default()
             .issued_by(&sphere_key)
             .for_audience(&owner_id)
@@ -57,8 +57,8 @@ impl PseudoSphere {
         UcanBuilder::default()
             .issued_by(&self.owner_key)
             .for_audience(&self.sphere_id)
-            .claiming_capability(&generate_capability(&self.sphere_id))
-            .with_fact(generate_fact(&cid.to_string()))
+            .claiming_capability(&generate_capability(&self.sphere_id, SphereAction::Publish))
+            .with_fact(json!({ "link": &cid.to_string() }))
             .witnessed_by(&self.delegation)
     }
 
@@ -94,7 +94,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
             .build()?
             .sign()
             .await?
-            .into(),
+            .try_into()?,
         1,
     )
     .await?;
@@ -110,9 +110,9 @@ async fn test_name_system_peer_propagation() -> Result<()> {
         ns_2.get_record(&sphere_1.sphere_id)
             .await?
             .expect("to be some")
-            .link()
+            .get_link()
             .unwrap(),
-        &sphere_1_cid_1,
+        sphere_1_cid_1,
         "first record found"
     );
 
@@ -124,7 +124,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
             .build()?
             .sign()
             .await?
-            .into(),
+            .try_into()?,
         1,
     )
     .await?;
@@ -133,9 +133,9 @@ async fn test_name_system_peer_propagation() -> Result<()> {
         ns_2.get_record(&sphere_1.sphere_id)
             .await?
             .expect("to be some")
-            .link()
+            .get_link()
             .unwrap(),
-        &sphere_1_cid_2,
+        sphere_1_cid_2,
         "latest record is found from network"
     );
 
@@ -147,7 +147,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
             .build()?
             .sign()
             .await?
-            .into(),
+            .try_into()?,
         1,
     )
     .await?;
@@ -158,9 +158,9 @@ async fn test_name_system_peer_propagation() -> Result<()> {
         ns_1.get_record(&sphere_2.sphere_id)
             .await?
             .expect("to be some")
-            .link()
+            .get_link()
             .unwrap(),
-        &sphere_2_cid_1,
+        sphere_2_cid_1,
         "non-cached record found for sphere_2"
     );
 
@@ -187,7 +187,7 @@ async fn test_name_system_validation() -> Result<()> {
                 .build()?
                 .sign()
                 .await?
-                .into(),
+                .try_into()?,
             1
         )
         .await

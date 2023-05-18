@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use ucan::capability::{Action, CapabilitySemantics, Scope};
+use ucan::capability::{Action, Capability, CapabilitySemantics, Resource, Scope, With};
 use url::Url;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
@@ -80,3 +80,34 @@ pub struct SphereSemantics {}
 impl CapabilitySemantics<SphereReference, SphereAction> for SphereSemantics {}
 
 pub const SPHERE_SEMANTICS: SphereSemantics = SphereSemantics {};
+
+/// Generates a [Capability] struct representing permissions in a [LinkRecord].
+///
+/// ```
+/// use noosphere_core::{authority::{generate_capability, SphereAction, SphereReference}};
+/// use ucan::capability::{Capability, Resource, With};
+///
+/// let identity = "did:key:z6MkoE19WHXJzpLqkxbGP7uXdJX38sWZNUWwyjcuCmjhPpUP";
+/// let expected_capability = Capability {
+///     with: With::Resource {
+///         kind: Resource::Scoped(SphereReference {
+///            did: identity.to_owned(),
+///         }),
+///     },
+///     can: SphereAction::Publish,
+/// };
+/// assert_eq!(generate_capability(&identity, SphereAction::Publish), expected_capability);
+/// ```
+pub fn generate_capability(
+    identity: &str,
+    action: SphereAction,
+) -> Capability<SphereReference, SphereAction> {
+    Capability {
+        with: With::Resource {
+            kind: Resource::Scoped(SphereReference {
+                did: identity.to_owned(),
+            }),
+        },
+        can: action,
+    }
+}

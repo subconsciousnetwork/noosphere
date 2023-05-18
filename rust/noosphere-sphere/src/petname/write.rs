@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use noosphere_core::data::{Did, IdentityIpld, Jwt};
+use noosphere_core::data::{Did, IdentityIpld, LinkRecord};
 use noosphere_storage::Storage;
-use ucan::{crypto::KeyMaterial, store::UcanJwtStore, Ucan};
+use ucan::{crypto::KeyMaterial, store::UcanJwtStore};
 
 use crate::{internal::SphereContextInternal, HasMutableSphereContext, SpherePetnameRead};
 
@@ -35,7 +35,7 @@ where
     /// associated [Jwt] to a known value. The [Jwt] must be a valid UCAN that
     /// publishes a name record and grants sufficient authority from the
     /// configured [Did] to the publisher.
-    async fn adopt_petname(&mut self, name: &str, record: &Jwt) -> Result<Option<Did>>;
+    async fn adopt_petname(&mut self, name: &str, record: &LinkRecord) -> Result<Option<Did>>;
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -76,18 +76,17 @@ where
         Ok(())
     }
 
-    async fn adopt_petname(&mut self, name: &str, record: &Jwt) -> Result<Option<Did>> {
+    async fn adopt_petname(&mut self, name: &str, record: &LinkRecord) -> Result<Option<Did>> {
         self.assert_write_access().await?;
         validate_petname(name)?;
 
-        let ucan = Ucan::try_from(record.as_str())?;
-        let identity = Did::from(ucan.audience());
+        let identity = Did::from(record.audience());
 
         let cid = self
             .sphere_context_mut()
             .await?
             .db_mut()
-            .write_token(record)
+            .write_token(&record.encode()?)
             .await?;
 
         // TODO: Verify that a record for an existing address is actually newer than the old one

@@ -12,8 +12,8 @@ mod dht_client;
 pub mod helpers;
 mod name_resolver;
 mod name_system;
-mod records;
 pub mod utils;
+mod validator;
 
 //#[cfg(feature = "api_server")]
 pub mod server;
@@ -24,4 +24,3 @@ pub use dht_client::DhtClient;
 pub use libp2p::{multiaddr::Multiaddr, PeerId};
 pub use name_resolver::NameResolver;
 pub use name_system::{NameSystem, NameSystemKeyMaterial, BOOTSTRAP_PEERS};
-pub use records::NsRecord;

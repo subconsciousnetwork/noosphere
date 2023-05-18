@@ -275,7 +275,7 @@ where
         for (name, address) in updated_names.into_iter() {
             if let Some(link_record) = address.link_record(&db).await {
                 if context.get_petname(&name).await?.is_some() {
-                    context.adopt_petname(&name, &link_record.into()).await?;
+                    context.adopt_petname(&name, &link_record).await?;
                 } else {
                     debug!("Not adopting link record for {name}, which is no longer present in the address book")
                 }

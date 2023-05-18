@@ -4,19 +4,14 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use noosphere_core::{
-    authority::{generate_ed25519_key, Author, SphereAction, SphereReference},
-    data::{Did, Jwt, Link, LinkRecord},
+    authority::{generate_capability, generate_ed25519_key, Author, SphereAction},
+    data::{Did, Link, LinkRecord},
     view::Sphere,
 };
 use noosphere_storage::{MemoryStorage, SphereDb, TrackingStorage};
 use serde_json::json;
 use tokio::sync::Mutex;
-use ucan::{
-    builder::UcanBuilder,
-    capability::{Capability, Resource, With},
-    crypto::KeyMaterial,
-    store::UcanJwtStore,
-};
+use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 use crate::SphereContext;
@@ -80,28 +75,25 @@ where
 
     let sphere_identity = sphere.get_identity().await?;
 
-    let link_record = LinkRecord::from(Jwt(UcanBuilder::default()
-        .issued_by(&owner_key)
-        .for_audience(&sphere_identity)
-        .witnessed_by(&ucan_proof)
-        .claiming_capability(&Capability {
-            with: With::Resource {
-                kind: Resource::Scoped(SphereReference {
-                    did: sphere_identity.to_string(),
-                }),
-            },
-            can: SphereAction::Publish,
-        })
-        .with_lifetime(120)
-        .with_fact(json!({
-          "link": sphere.cid().to_string()
-        }))
-        .build()?
-        .sign()
-        .await?
-        .encode()?));
+    let link_record = LinkRecord::from(
+        UcanBuilder::default()
+            .issued_by(&owner_key)
+            .for_audience(&sphere_identity)
+            .witnessed_by(&ucan_proof)
+            .claiming_capability(&generate_capability(
+                &sphere_identity,
+                SphereAction::Publish,
+            ))
+            .with_lifetime(120)
+            .with_fact(json!({
+              "link": sphere.cid().to_string()
+            }))
+            .build()?
+            .sign()
+            .await?,
+    );
 
-    let link = Link::from(store.write_token(&link_record).await?);
+    let link = Link::from(store.write_token(&link_record.encode()?).await?);
 
     Ok((sphere_identity, link_record, link))
 }
