@@ -5,7 +5,6 @@ extern crate tracing;
 
 mod helpers;
 use anyhow::Result;
-use cid::Cid;
 use helpers::{start_name_system_server, wait, SpherePair};
 use noosphere_core::tracing::initialize_tracing;
 use noosphere_ns::{server::HttpClient, NameResolver};

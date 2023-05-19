@@ -31,4 +31,4 @@ multihash = { workspace = true }
 tokio = { version = "^1", features = ["macros", "sync", "rt", "io-util"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-wasm-bindgen-test = "~0.3"
+wasm-bindgen-test = { workspace = true }

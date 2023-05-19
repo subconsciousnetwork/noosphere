@@ -99,7 +99,7 @@ mod tests {
     use super::*;
     use noosphere::key::KeyStorage;
     use std::path::PathBuf;
-    use tempdir::TempDir;
+    use tempfile::TempDir;
     use ucan::crypto::KeyMaterial;
 
     async fn keys_equal(key_1: &Ed25519KeyMaterial, key_2: &Ed25519KeyMaterial) -> Result<bool> {
@@ -115,7 +115,7 @@ mod tests {
 
     impl Env {
         pub fn new() -> Result<Self> {
-            let dir = TempDir::new("noosphere")?;
+            let dir = tempfile::Builder::new().prefix("noosphere").tempdir()?;
             let dir_path = dir.path().to_owned();
             let key_storage = InsecureKeyStorage::new(&dir_path)?;
 

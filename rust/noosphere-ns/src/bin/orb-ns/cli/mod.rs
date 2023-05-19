@@ -18,7 +18,6 @@ mod test {
     use noosphere_ns::{Multiaddr, PeerId};
     use serde::Deserialize;
     use serde_json::json;
-    use tempdir::TempDir;
     use tokio;
     use tokio::sync::oneshot;
     use ucan::builder::UcanBuilder;
@@ -72,7 +71,9 @@ mod test {
 
     #[tokio::test]
     async fn it_processes_record_commands() -> Result<()> {
-        let temp_dir = TempDir::new("orb-ns-processes-record-commands").unwrap();
+        let temp_dir = tempfile::Builder::new()
+            .prefix("orb-ns-processes-record-commands")
+            .tempdir()?;
         let key_storage = InsecureKeyStorage::new(temp_dir.path())?;
         let key_a = key_storage.create_key("key-a").await?;
         let key_b = key_storage.create_key("key-b").await?;
