@@ -20,7 +20,7 @@ pub fn base64_decode(encoded: &str) -> Result<Vec<u8>> {
     Ok(base64::decode_config(encoded, base64::URL_SAFE_NO_PAD)?)
 }
 
-/// Produces a CID for a block with a Blake2b hash; note that the bytes are
+/// Produces a CID for a block with a Blake3_256 hash; note that the bytes are
 /// presumed to be encoded with the specified codec (honor system; this is
 /// not validated in any way).
 pub fn derive_cid<C>(block: &[u8]) -> Cid
@@ -28,7 +28,7 @@ where
     C: Codec + Default,
     u64: From<C>,
 {
-    Cid::new_v1(u64::from(C::default()), Code::Blake2b256.digest(block))
+    Cid::new_v1(u64::from(C::default()), Code::Blake3_256.digest(block))
 }
 
 /// Encode any encodable type as a block using the specified codec

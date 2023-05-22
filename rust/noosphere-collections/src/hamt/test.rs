@@ -106,7 +106,7 @@ async fn test_set_if_absent() {
 
     assert_eq!(
         c.to_string().as_str(),
-        "bafy2bzaceb5xnigrmqoa3pcxwjhyrosrqm6wu3hyid67oickgm5dh72tdh2nq"
+        "bafyr4ielno5vz5topwq5hlc6lo6vck7pwjjjk2lr3e4abvnf5x2bahp23a"
     );
     let stats = store.to_stats().await;
 
@@ -139,7 +139,7 @@ async fn set_with_no_effect_does_not_put() {
     let c = begn.flush().await.unwrap();
     assert_eq!(
         c.to_string().as_str(),
-        "bafy2bzacec4jvhfbm7r5rvjog5ulmofu43jl7ocbxswfb6ssy4zuzdqng4yh2"
+        "bafyr4id7q2hdrwdwg2mhhq5atyep6jme6ywfr26h7rl4b5upx62c4535bm"
     );
 
     begn.set(
@@ -151,7 +151,7 @@ async fn set_with_no_effect_does_not_put() {
     let c2 = begn.flush().await.unwrap();
     assert_eq!(
         c2.to_string().as_str(),
-        "bafy2bzaceaiyvp6t7qzgryfzelbxwdxfsfb3a65en2ysaruoycndsei6cndxi"
+        "bafyr4ifyaz43okfrnriizp6xbqp6gd57ryix7berzhw3tv52juvfa3pzle"
     );
     let stats = store.to_stats().await;
 
@@ -162,7 +162,7 @@ async fn set_with_no_effect_does_not_put() {
             writes: 18,
             removes: 0,
             bytes_read: 0,
-            bytes_written: 1282,
+            bytes_written: 1246,
             bytes_removed: 0,
             flushes: 0
         }
@@ -178,7 +178,7 @@ async fn set_with_no_effect_does_not_put() {
     let c3 = begn.flush().await.unwrap();
     assert_eq!(
         c3.to_string().as_str(),
-        "bafy2bzaceaiyvp6t7qzgryfzelbxwdxfsfb3a65en2ysaruoycndsei6cndxi"
+        "bafyr4ifyaz43okfrnriizp6xbqp6gd57ryix7berzhw3tv52juvfa3pzle"
     );
 
     let stats = store.to_stats().await;
@@ -190,7 +190,7 @@ async fn set_with_no_effect_does_not_put() {
             writes: 19,
             removes: 0,
             bytes_read: 0,
-            bytes_written: 1372,
+            bytes_written: 1332,
             bytes_removed: 0,
             flushes: 0
         }
@@ -217,7 +217,7 @@ async fn delete() {
     let c = hamt.flush().await.unwrap();
     assert_eq!(
         c.to_string().as_str(),
-        "bafy2bzaceb2r5tut4pz7akosfode6fm2tsnbfmqmw7v4pwynthuwnpwecg2ae"
+        "bafyr4igjyveicvho3k32dboteukk527s4m27fdln3qrksaxc2hx5vcufji"
     );
 
     let mut h2 = Hamt::<_, String, String>::load(&c, store.clone())
@@ -229,7 +229,7 @@ async fn delete() {
     let c2 = h2.flush().await.unwrap();
     assert_eq!(
         c2.to_string().as_str(),
-        "bafy2bzaceaavokfk2jkspe2g6hvowyicg57tm2plzc32alwfeehzmpjuak3vi"
+        "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i"
     );
     let stats = store.to_stats().await;
     assert_eq!(
@@ -261,7 +261,7 @@ async fn delete_case() {
     let c = hamt.flush().await.unwrap();
     assert_eq!(
         c.to_string().as_str(),
-        "bafy2bzaceahota7ggilynp67qscapocgvfycri4ky52dqwnqt2uacxzzzgdvm"
+        "bafyr4ibscqqwfidiqfxikgpt6qocun4tylbw4mccfrxlmxznb3zym7en2a"
     );
 
     let mut h2: Hamt<_, ByteBuf, Vec<u8>> = Hamt::load(&c, store.clone()).await.unwrap();
@@ -271,7 +271,7 @@ async fn delete_case() {
     let c2 = h2.flush().await.unwrap();
     assert_eq!(
         c2.to_string().as_str(),
-        "bafy2bzaceamp42wmmgr2g2ymg46euououzfyck7szknvfacqscohrvaikwfay"
+        "bafyr4iglr65wqmb4ffdvf2q47w3sptju5cvutaxgqmwjfknlm4lp2bgloi"
     );
     let stats = store.to_stats().await;
     assert_eq!(
@@ -305,7 +305,7 @@ async fn reload_empty() {
     assert_eq!(c, c2);
     assert_eq!(
         c.to_string().as_str(),
-        "bafy2bzaceamp42wmmgr2g2ymg46euououzfyck7szknvfacqscohrvaikwfay"
+        "bafyr4iglr65wqmb4ffdvf2q47w3sptju5cvutaxgqmwjfknlm4lp2bgloi"
     );
     #[rustfmt::skip]
     let stats = store.to_stats().await;
@@ -340,7 +340,7 @@ async fn set_delete_many() {
     let c1 = hamt.flush().await.unwrap();
     assert_eq!(
         c1.to_string().as_str(),
-        "bafy2bzacedhuekpbloj7daxgdzzezb5u5vpdtk4tcjb7bx5qavo4fgthm73ra"
+        "bafyr4igb6depnsaoyu4vj24bve5rp53zvwamnedh2ru2zvuaijlvf7b2oe"
     );
 
     for i in 200..400 {
@@ -350,7 +350,7 @@ async fn set_delete_many() {
     let cid_all = hamt.flush().await.unwrap();
     assert_eq!(
         cid_all.to_string().as_str(),
-        "bafy2bzacecgzjkxti6czw5i3uv334aqb5awcz4bqwobuodlsft4y7yuznfpri"
+        "bafyr4if7dszb5im3uadfkn62z64td6dmrtv57qdzzyof2gzojhettpszsa"
     );
 
     for i in 200..400 {
@@ -364,7 +364,7 @@ async fn set_delete_many() {
     let cid_d = hamt.flush().await.unwrap();
     assert_eq!(
         cid_d.to_string().as_str(),
-        "bafy2bzacedhuekpbloj7daxgdzzezb5u5vpdtk4tcjb7bx5qavo4fgthm73ra"
+        "bafyr4igb6depnsaoyu4vj24bve5rp53zvwamnedh2ru2zvuaijlvf7b2oe"
     );
 
     let stats = store.to_stats().await;
@@ -375,7 +375,7 @@ async fn set_delete_many() {
             writes: 91,
             removes: 0,
             bytes_read: 0,
-            bytes_written: 9251,
+            bytes_written: 9075,
             bytes_removed: 0,
             flushes: 0
         }
@@ -438,7 +438,7 @@ async fn for_each() {
     let c = hamt.flush().await.unwrap();
     assert_eq!(
         c.to_string().as_str(),
-        "bafy2bzacedhuekpbloj7daxgdzzezb5u5vpdtk4tcjb7bx5qavo4fgthm73ra",
+        "bafyr4igb6depnsaoyu4vj24bve5rp53zvwamnedh2ru2zvuaijlvf7b2oe"
     );
 
     let mut hamt: Hamt<_, i32, i32> = Hamt::load_with_bit_width(&c, store.clone(), 5)
@@ -470,7 +470,7 @@ async fn for_each() {
     let c = hamt.flush().await.unwrap();
     assert_eq!(
         c.to_string().as_str(),
-        "bafy2bzacedhuekpbloj7daxgdzzezb5u5vpdtk4tcjb7bx5qavo4fgthm73ra",
+        "bafyr4igb6depnsaoyu4vj24bve5rp53zvwamnedh2ru2zvuaijlvf7b2oe",
     );
 
     let stats = store.to_stats().await;
@@ -481,8 +481,8 @@ async fn for_each() {
             reads: 29,
             writes: 30,
             removes: 0,
-            bytes_read: 2536,
-            bytes_written: 3803,
+            bytes_read: 2480,
+            bytes_written: 3691,
             bytes_removed: 0,
             flushes: 0
         }
@@ -708,7 +708,7 @@ async fn clean_child_ordering() {
     let root = h.flush().await.unwrap();
     assert_eq!(
         root.to_string().as_str(),
-        "bafy2bzacebqox3gtng4ytexyacr6zmaliyins3llnhbnfbcrqmhzuhmuuawqk"
+        "bafyr4ic3fjkghhv2aedghk2otgnjq4ykjfcm3lsks3uue3l6qffr7ndnfq"
     );
     let mut h = Hamt::<_, u8>::load_with_bit_width(&root, store.clone(), 5)
         .await
@@ -723,7 +723,7 @@ async fn clean_child_ordering() {
 
     assert_eq!(
         root.to_string().as_str(),
-        "bafy2bzacedlyeuub3mo4aweqs7zyxrbldsq2u4a2taswubudgupglu2j4eru6"
+        "bafyr4ihgjokfxpyh7qnprh5odqc3isvvf4obldvpzc2l7odyhsri7lw67u"
     );
 
     let stats = store.to_stats().await;
@@ -734,8 +734,8 @@ async fn clean_child_ordering() {
             reads: 3,
             writes: 11,
             removes: 0,
-            bytes_read: 1449,
-            bytes_written: 1751,
+            bytes_read: 1415,
+            bytes_written: 1717,
             bytes_removed: 0,
             flushes: 0
         }

@@ -95,7 +95,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), test)]
     fn symmetric_header_v1() {
-        let digest = multihash::Code::Blake2b256.digest(b"test");
+        let digest = multihash::Code::Blake3_256.digest(b"test");
         let cid = Cid::new_v1(DagCborCodec.into(), digest);
 
         let header = CarHeaderV1::from(vec![cid]);
