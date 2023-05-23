@@ -147,7 +147,7 @@ where
         debug!("Petname assigned to {:?}", identity);
 
         let resolved_version = match identity.link_record(self.db()).await {
-            Some(link_record) => link_record.dereference().await,
+            Some(link_record) => link_record.get_link(),
             None => None,
         };
 
@@ -378,17 +378,14 @@ pub mod tests {
     use std::sync::Arc;
 
     use noosphere_core::{
-        authority::{SphereAction, SphereReference},
-        data::{ContentType, Jwt},
+        authority::{generate_capability, SphereAction},
+        data::{ContentType, LinkRecord},
         tracing::initialize_tracing,
     };
     use noosphere_storage::{MemoryStorage, TrackingStorage};
     use serde_json::json;
     use tokio::{io::AsyncReadExt, sync::Mutex};
-    use ucan::{
-        builder::UcanBuilder,
-        capability::{Capability, Resource, With},
-    };
+    use ucan::builder::UcanBuilder;
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -451,37 +448,33 @@ pub mod tests {
                     .clone();
                 let next_identity = next_sphere_context.identity().await.unwrap();
 
-                let link_record = Jwt(UcanBuilder::default()
-                    .issued_by(&next_author.key)
-                    .for_audience(&next_identity)
-                    .witnessed_by(
-                        &next_author
-                            .authorization
-                            .as_ref()
-                            .unwrap()
-                            .resolve_ucan(&db)
-                            .await
-                            .unwrap(),
-                    )
-                    .claiming_capability(&Capability {
-                        with: With::Resource {
-                            kind: Resource::Scoped(SphereReference {
-                                did: next_identity.into(),
-                            }),
-                        },
-                        can: SphereAction::Publish,
-                    })
-                    .with_lifetime(120)
-                    .with_fact(json!({
-                    "link": version.to_string()
-                    }))
-                    .build()
-                    .unwrap()
-                    .sign()
-                    .await
-                    .unwrap()
-                    .encode()
-                    .unwrap());
+                let link_record = LinkRecord::from(
+                    UcanBuilder::default()
+                        .issued_by(&next_author.key)
+                        .for_audience(&next_identity)
+                        .witnessed_by(
+                            &next_author
+                                .authorization
+                                .as_ref()
+                                .unwrap()
+                                .resolve_ucan(&db)
+                                .await
+                                .unwrap(),
+                        )
+                        .claiming_capability(&generate_capability(
+                            &next_identity,
+                            SphereAction::Publish,
+                        ))
+                        .with_lifetime(120)
+                        .with_fact(json!({
+                        "link": version.to_string()
+                        }))
+                        .build()
+                        .unwrap()
+                        .sign()
+                        .await
+                        .unwrap(),
+                );
 
                 let mut name = String::new();
                 let mut file = next_sphere_context.read("my-name").await.unwrap().unwrap();

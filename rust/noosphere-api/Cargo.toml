@@ -23,7 +23,7 @@ anyhow = "^1"
 thiserror = { workspace = true }
 cid = { workspace = true }
 url = "^2"
-serde = "^1"
+serde = { workspace = true }
 serde_urlencoded = "~0.7"
 tracing = { workspace = true }
 noosphere-core = { version = "0.11.0", path = "../noosphere-core" }

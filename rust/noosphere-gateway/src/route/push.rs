@@ -8,7 +8,7 @@ use cid::Cid;
 use noosphere_api::data::{PushBody, PushError, PushResponse};
 use noosphere_core::{
     authority::{SphereAction, SphereReference},
-    data::{Bundle, MapOperation},
+    data::{Bundle, LinkRecord, MapOperation},
     view::Sphere,
 };
 use noosphere_sphere::{HasMutableSphereContext, SphereContentWrite, SphereCursor};
@@ -311,7 +311,7 @@ where
         if let Some(name_record) = &self.request_body.name_record {
             if let Err(error) = self.name_system_tx.send(NameSystemJob::Publish {
                 context: self.sphere_context.clone(),
-                record: name_record.clone(),
+                record: LinkRecord::try_from(name_record)?,
                 temporary_validate_expiry: false,
             }) {
                 warn!("Failed to request name record publish: {}", error);

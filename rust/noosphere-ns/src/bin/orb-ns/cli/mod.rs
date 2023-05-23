@@ -12,12 +12,16 @@ mod test {
     use anyhow::Result;
     use cid::Cid;
     use noosphere::key::{InsecureKeyStorage, KeyStorage};
-    use noosphere_core::data::Did;
-    use noosphere_ns::{Multiaddr, NsRecord, PeerId};
+    use noosphere_core::authority::{generate_capability, SphereAction};
+    use noosphere_core::data::{Did, LinkRecord};
+    use noosphere_core::view::SPHERE_LIFETIME;
+    use noosphere_ns::{Multiaddr, PeerId};
     use serde::Deserialize;
+    use serde_json::json;
     use tempdir::TempDir;
     use tokio;
     use tokio::sync::oneshot;
+    use ucan::builder::UcanBuilder;
     use ucan::crypto::KeyMaterial;
     use url::Url;
 
@@ -116,9 +120,18 @@ mod test {
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
 
-        let link = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72";
+        let link = "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i";
         let cid_link: Cid = link.parse()?;
-        let record = NsRecord::from_issuer(&key_b, &id_b, &cid_link, None).await?;
+        let ucan = UcanBuilder::default()
+            .issued_by(&key_b)
+            .for_audience(&id_b)
+            .claiming_capability(&generate_capability(&id_b, SphereAction::Publish))
+            .with_fact(json!({ "link": cid_link.to_string() }))
+            .with_lifetime(SPHERE_LIFETIME)
+            .build()?
+            .sign()
+            .await?;
+        let record = LinkRecord::try_from(ucan)?;
 
         // Push record from node B (for node B)
         assert!(process_command(
@@ -144,9 +157,9 @@ mod test {
         .await
         .unwrap();
         let value = res.value().unwrap();
-        let fetched_record = serde_json::from_str::<NsRecord>(value).unwrap();
-        assert_eq!(fetched_record.link().unwrap(), &cid_link);
-        assert_eq!(fetched_record.identity(), &id_b);
+        let fetched = serde_json::from_str::<LinkRecord>(value).unwrap();
+        assert_eq!(fetched.get_link().unwrap(), cid_link);
+        assert_eq!(fetched.sphere_identity(), &id_b);
 
         Ok(())
     }

@@ -1,13 +1,13 @@
 use crate::{
     dht::{DhtConfig, DhtError, DhtNode, DhtRecord, NetworkInfo, Peer},
-    records::{NsRecord, RecordValidator},
     utils::make_p2p_address,
+    validator::RecordValidator,
     DhtClient, PeerId,
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use libp2p::{identity::Keypair, Multiaddr};
-use noosphere_core::data::Did;
+use noosphere_core::data::{Did, LinkRecord};
 use ucan::{crypto::KeyMaterial, store::UcanJwtStore};
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
@@ -130,8 +130,8 @@ impl DhtClient for NameSystem {
         }
     }
 
-    async fn put_record(&self, record: NsRecord, quorum: usize) -> Result<()> {
-        let identity = Did::from(record.identity());
+    async fn put_record(&self, record: LinkRecord, quorum: usize) -> Result<()> {
+        let identity = Did::from(record.sphere_identity());
         let record_bytes: Vec<u8> = record.try_into()?;
         match self
             .dht
@@ -143,10 +143,10 @@ impl DhtClient for NameSystem {
         }
     }
 
-    async fn get_record(&self, identity: &Did) -> Result<Option<NsRecord>> {
+    async fn get_record(&self, identity: &Did) -> Result<Option<LinkRecord>> {
         match self.dht.get_record(identity.as_bytes()).await {
             Ok(DhtRecord { key: _, value }) => match value {
-                Some(value) => Ok(Some(NsRecord::try_from(value)?)),
+                Some(value) => Ok(Some(LinkRecord::try_from(value)?)),
                 None => Ok(None),
             },
             Err(e) => Err(anyhow!(e.to_string())),

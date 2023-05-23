@@ -2,10 +2,9 @@ use crate::try_or_reset::TryOrReset;
 use anyhow::anyhow;
 use anyhow::Result;
 use cid::Cid;
-use noosphere_core::data::ContentType;
-use noosphere_core::data::{Did, IdentityIpld, Jwt, LinkRecord, MapOperation};
+use noosphere_core::data::{ContentType, Did, IdentityIpld, LinkRecord, MapOperation};
 use noosphere_ipfs::{IpfsStore, KuboClient};
-use noosphere_ns::{server::HttpClient as NameSystemHttpClient, NameResolver, NsRecord};
+use noosphere_ns::{server::HttpClient as NameSystemHttpClient, NameResolver};
 use noosphere_sphere::{
     HasMutableSphereContext, SphereCursor, SpherePetnameRead, SpherePetnameWrite,
 };
@@ -16,7 +15,6 @@ use std::fmt::Display;
 use std::future::Future;
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
-    str::FromStr,
     string::ToString,
     sync::Arc,
     time::Duration,
@@ -86,7 +84,7 @@ pub enum NameSystemJob<C> {
     /// Publish a link record (given as a [Jwt]) to the name system
     Publish {
         context: C,
-        record: Jwt,
+        record: LinkRecord,
         temporary_validate_expiry: bool,
     },
 }
@@ -243,14 +241,13 @@ where
                     warn!("Could not set counterpart record on sphere: {error}");
                 }
                 // TODO(#257)
-                let link_record = NsRecord::from_str(&record)?;
                 let publishable = if temporary_validate_expiry {
-                    link_record.has_publishable_timeframe()
+                    record.has_publishable_timeframe()
                 } else {
                     true
                 };
                 if publishable {
-                    client.publish(link_record).await?;
+                    client.publish(record).await?;
                 } else {
                     return Err(anyhow!("Record is expired and cannot be published."));
                 }
@@ -384,14 +381,17 @@ where
                 Some(record) => {
                     // TODO(#257)
                     if false {
-                        if let Err(error) = record.validate(&ipfs_store, None).await {
-                            error!("Failed record validation: {}", error);
-                            continue;
+                        match record.validate(&ipfs_store).await {
+                            Ok(_) => {}
+                            Err(error) => {
+                                error!("Failed record validation: {}", error);
+                                continue;
+                            }
                         }
                     }
 
                     // TODO(#258): Verify that the new value is the most recent value
-                    Some(LinkRecord::from(Jwt(record.try_to_string()?)))
+                    Some(record)
                 }
                 None => {
                     // TODO(#259): Expire recorded value if we don't get an updated
@@ -425,7 +425,7 @@ async fn fetch_record(
     client: Arc<dyn NameResolver>,
     name: String,
     identity: Did,
-) -> Result<Option<NsRecord>> {
+) -> Result<Option<LinkRecord>> {
     debug!("Resolving record '{}' ({})...", name, identity);
     Ok(match client.resolve(&identity).await {
         Ok(Some(record)) => {
@@ -466,7 +466,7 @@ impl<H> OnDemandNameResolver<H> {
     }
 }
 
-async fn set_counterpart_record<C, K, S>(context: C, record: &Jwt) -> Result<()>
+async fn set_counterpart_record<C, K, S>(context: C, record: &LinkRecord) -> Result<()>
 where
     C: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
@@ -484,7 +484,7 @@ where
         .write(
             &counterpart_link_record_key,
             &ContentType::Text.to_string(),
-            record.as_bytes(),
+            record.encode()?.as_bytes(),
             None,
         )
         .await?;
@@ -493,7 +493,7 @@ where
     Ok(())
 }
 
-async fn get_counterpart_record<C, K, S>(context: &C) -> Result<Option<Jwt>>
+async fn get_counterpart_record<C, K, S>(context: &C) -> Result<Option<LinkRecord>>
 where
     C: HasMutableSphereContext<K, S>,
     K: KeyMaterial + Clone + 'static,
@@ -510,7 +510,7 @@ where
     let mut buffer = String::new();
     if let Some(mut file) = context.read(&counterpart_link_record_key).await? {
         file.contents.read_to_string(&mut buffer).await?;
-        Ok(Some(Jwt(buffer)))
+        Ok(Some(LinkRecord::try_from(buffer)?))
     } else {
         Ok(None)
     }
@@ -518,11 +518,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use noosphere_ns::{
-        helpers::KeyValueNameResolver,
-        utils::{generate_capability, generate_fact},
-    };
+    use noosphere_core::authority::{generate_capability, SphereAction};
+    use noosphere_ns::helpers::KeyValueNameResolver;
     use noosphere_sphere::helpers::{simulated_sphere_context, SimulationAccess};
+    use serde_json::json;
     use ucan::builder::UcanBuilder;
 
     use super::*;
@@ -531,44 +530,42 @@ mod tests {
     async fn it_publishes_to_the_name_system() -> Result<()> {
         let ipfs_url: Url = "http://127.0.0.1:5000".parse()?;
         let sphere = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
-        let record = {
+        let record: LinkRecord = {
             let context = sphere.lock().await;
             let identity: &str = context.identity().into();
-            Jwt(UcanBuilder::default()
+            UcanBuilder::default()
                 .issued_by(&context.author().key)
                 .for_audience(identity)
-                .claiming_capability(&generate_capability(identity))
+                .claiming_capability(&generate_capability(identity, SphereAction::Publish))
                 .with_lifetime(1000)
-                .with_fact(generate_fact(
-                    "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72",
-                ))
+                .with_fact(
+                    json!({ "link": "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i" }),
+                )
                 .build()
                 .unwrap()
                 .sign()
                 .await
                 .unwrap()
-                .encode()
-                .unwrap())
+                .into()
         };
 
-        let expired = {
+        let expired: LinkRecord = {
             let context = sphere.lock().await;
             let identity: &str = context.identity().into();
-            Jwt(UcanBuilder::default()
+            UcanBuilder::default()
                 .issued_by(&context.author().key)
                 .for_audience(identity)
-                .claiming_capability(&generate_capability(identity))
+                .claiming_capability(&generate_capability(identity, SphereAction::Publish))
                 .with_expiration(ucan::time::now() - 1000)
-                .with_fact(generate_fact(
-                    "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72",
-                ))
+                .with_fact(
+                    json!({ "link": "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i" }),
+                )
                 .build()
                 .unwrap()
                 .sign()
                 .await
                 .unwrap()
-                .encode()
-                .unwrap())
+                .into()
         };
 
         let mut with_client = TryOrReset::new(|| async { Ok(KeyValueNameResolver::default()) });

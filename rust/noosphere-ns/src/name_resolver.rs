@@ -1,23 +1,23 @@
-use crate::{DhtClient, NsRecord};
+use crate::DhtClient;
 use anyhow::Result;
 use async_trait::async_trait;
-use noosphere_core::data::Did;
+use noosphere_core::data::{Did, LinkRecord};
 
 #[async_trait]
 pub trait NameResolver: Send + Sync {
     /// Publishes a record to the name system.
-    async fn publish(&self, record: NsRecord) -> Result<()>;
+    async fn publish(&self, record: LinkRecord) -> Result<()>;
     /// Retrieves a record from the name system.
-    async fn resolve(&self, identity: &Did) -> Result<Option<NsRecord>>;
+    async fn resolve(&self, identity: &Did) -> Result<Option<LinkRecord>>;
 }
 
 #[async_trait]
 impl<T: DhtClient> NameResolver for T {
-    async fn publish(&self, record: NsRecord) -> Result<()> {
+    async fn publish(&self, record: LinkRecord) -> Result<()> {
         self.put_record(record, 0).await
     }
 
-    async fn resolve(&self, identity: &Did) -> Result<Option<NsRecord>> {
+    async fn resolve(&self, identity: &Did) -> Result<Option<LinkRecord>> {
         self.get_record(identity).await
     }
 }
@@ -42,21 +42,39 @@ macro_rules! name_resolver_tests {
 pub mod test {
     use super::*;
     use cid::Cid;
-    use noosphere_core::{authority::generate_ed25519_key, data::Did, tracing::initialize_tracing};
-    use ucan::crypto::KeyMaterial;
+    use noosphere_core::{
+        authority::{generate_capability, generate_ed25519_key, SphereAction},
+        data::Did,
+        tracing::initialize_tracing,
+        view::SPHERE_LIFETIME,
+    };
+    use serde_json::json;
+    use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
     pub async fn test_name_resolver_simple<N: NameResolver>(resolver: N) -> Result<()> {
         initialize_tracing(None);
         let sphere_key = generate_ed25519_key();
-        let sphere_id = Did::from(sphere_key.get_did().await?);
-        let link: Cid = "bafy2bzacec4p5h37mjk2n6qi6zukwyzkruebvwdzqpdxzutu4sgoiuhqwne72"
+        let sphere_identity = Did::from(sphere_key.get_did().await?);
+        let link: Cid = "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i"
             .parse()
             .unwrap();
-        let record = NsRecord::from_issuer(&sphere_key, &sphere_id, &link, None).await?;
+        let ucan = UcanBuilder::default()
+            .issued_by(&sphere_key)
+            .for_audience(&sphere_identity)
+            .claiming_capability(&generate_capability(
+                &sphere_identity,
+                SphereAction::Publish,
+            ))
+            .with_fact(json!({ "link": link.to_string() }))
+            .with_lifetime(SPHERE_LIFETIME)
+            .build()?
+            .sign()
+            .await?;
+        let record = LinkRecord::try_from(ucan)?;
 
         resolver.publish(record).await?;
-        let resolved = resolver.resolve(&sphere_id).await?.unwrap();
-        assert_eq!(resolved.link().unwrap(), &link);
+        let resolved = resolver.resolve(&sphere_identity).await?.unwrap();
+        assert_eq!(resolved.get_link().unwrap(), link);
         Ok(())
     }
 }

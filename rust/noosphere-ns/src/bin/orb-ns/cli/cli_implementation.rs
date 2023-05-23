@@ -4,8 +4,8 @@ use crate::cli::address::{
     deserialize_multiaddr, deserialize_socket_addr, deserialize_url, parse_cli_address,
 };
 use clap::{Parser, Subcommand};
-use noosphere_core::data::Did;
-use noosphere_ns::{DhtConfig, Multiaddr, NsRecord};
+use noosphere_core::data::{Did, LinkRecord};
+use noosphere_ns::{DhtConfig, Multiaddr};
 use serde::Deserialize;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -94,7 +94,7 @@ pub enum CLIRecords {
         api_url: Url,
     },
     Put {
-        record: NsRecord,
+        record: LinkRecord,
         #[arg(short, long, value_parser = parse_cli_address::<Url>)]
         api_url: Url,
     },

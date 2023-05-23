@@ -30,7 +30,7 @@ tracing = "~0.1"
 ucan = { workspace = true }
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
-serde = "^1"
+serde = { workspace = true }
 base64 = "=0.13.0"
 url = { version = "^2" }
 

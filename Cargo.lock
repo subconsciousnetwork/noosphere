@@ -3926,6 +3926,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_ipld_dagcbor",
+ "serde_json",
  "strum",
  "strum_macros",
  "tiny-bip39",

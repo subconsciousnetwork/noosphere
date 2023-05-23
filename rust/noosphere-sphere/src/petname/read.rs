@@ -130,7 +130,7 @@ where
                     .await;
 
                 match link_record {
-                    Some(link_record) => link_record.dereference().await,
+                    Some(link_record) => link_record.get_link(),
                     None => None,
                 }
             }
