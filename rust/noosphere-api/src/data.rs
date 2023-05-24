@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_core::{
     authority::{SphereAction, SphereReference, SPHERE_SEMANTICS},
-    data::{Bundle, Did, Jwt},
+    data::{Bundle, Did, Jwt, Link, MemoIpld},
 };
 use noosphere_storage::{base64_decode, base64_encode};
 use reqwest::StatusCode;
@@ -45,13 +45,28 @@ where
     }
 }
 
-/// The parameters expected for the "fetch" API route
+/// The query parameters expected for the "replicate" API route
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ReplicateParameters {
+    /// This is the last revision of the content that is being fetched that is
+    /// already fully available to the caller of the API
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    pub since: Option<Link<MemoIpld>>,
+}
+
+impl AsQuery for ReplicateParameters {
+    fn as_query(&self) -> Result<Option<String>> {
+        Ok(self.since.as_ref().map(|since| format!("since={since}")))
+    }
+}
+
+/// The query parameters expected for the "fetch" API route
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FetchParameters {
     /// This is the last revision of the "counterpart" sphere that is managed
     /// by the API host that the client is fetching from
     #[serde(default, deserialize_with = "empty_string_as_none")]
-    pub since: Option<Cid>,
+    pub since: Option<Link<MemoIpld>>,
 }
 
 impl AsQuery for FetchParameters {
@@ -69,10 +84,6 @@ pub enum FetchResponse {
         /// The tip of the "counterpart" sphere that is managed by the API host
         /// that the client is fetching from
         tip: Cid,
-        /// All the new blocks of the "counterpart" sphere as well as the new
-        /// blocks of the local sphere that correspond to remote changes from
-        /// other clients
-        blocks: Bundle,
     },
     /// There are no new revisions since the revision specified in the initial
     /// fetch request
@@ -86,9 +97,11 @@ pub struct PushBody {
     pub sphere: Did,
     /// The base revision represented by the payload being pushed; if the
     /// entire history is being pushed, then this should be None
-    pub base: Option<Cid>,
+    pub local_base: Option<Link<MemoIpld>>,
     /// The tip of the history represented by the payload being pushed
-    pub tip: Cid,
+    pub local_tip: Link<MemoIpld>,
+    /// The last received tip of the counterpart sphere
+    pub counterpart_tip: Option<Link<MemoIpld>>,
     /// A bundle of all the blocks needed to hydrate the revisions from the
     /// base to the tip of history as represented by this payload
     pub blocks: Bundle,
@@ -106,7 +119,7 @@ pub enum PushResponse {
         /// at least one revision ahead of the latest revision being tracked
         /// by the client (because it points to the newly received tip of the
         /// local sphere's history)
-        new_tip: Cid,
+        new_tip: Link<MemoIpld>,
         /// The blocks needed to hydrate the revisions of the "counterpart"
         /// sphere history to the tip represented in this response
         blocks: Bundle,

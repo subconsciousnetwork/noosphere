@@ -211,7 +211,7 @@ impl TryBundle for MemoIpld {
 
         bundle.add(self_cid, self_bytes);
 
-        match self.get_first_header(&Header::ContentType.to_string()) {
+        match self.get_first_header(&Header::ContentType) {
             Some(value) => {
                 match ContentType::from_str(&value)? {
                     ContentType::Subtext
@@ -618,7 +618,7 @@ mod tests {
 
         let (sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
-        let original_cid = *sphere.cid();
+        let original_cid = sphere.cid().clone();
 
         let foo_key = String::from("foo");
         let foo_memo = MemoIpld::for_body(&mut store, b"foo").await.unwrap();

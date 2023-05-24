@@ -12,12 +12,13 @@ use ucan::{
     chain::ProofChain,
     crypto::{did::DidParser, KeyMaterial},
     store::UcanJwtStore,
+    Ucan,
 };
 
 use crate::{
     authority::{
-        ed25519_key_to_mnemonic, generate_ed25519_key, restore_ed25519_key, Authorization,
-        SphereAction, SphereReference, SPHERE_SEMANTICS,
+        ed25519_key_to_mnemonic, generate_capability, generate_ed25519_key, restore_ed25519_key,
+        Authorization, SphereAction, SphereReference, SPHERE_SEMANTICS, SUPPORTED_KEYS,
     },
     data::{
         Bundle, ChangelogIpld, ContentType, DelegationIpld, Did, Header, IdentityIpld, Link,
@@ -26,9 +27,9 @@ use crate::{
     view::{Content, SphereMutation, SphereRevision, Timeline},
 };
 
-use noosphere_storage::{block_serialize, BlockStore, UcanStore};
+use noosphere_storage::{base64_decode, block_serialize, BlockStore, SphereDb, Storage, UcanStore};
 
-use super::{address::AddressBook, Authority, Delegations, Identities, Revocations};
+use super::{address::AddressBook, Authority, Delegations, Identities, Revocations, Timeslice};
 
 pub const SPHERE_LIFETIME: u64 = 315360000000; // 10,000 years (arbitrarily high)
 
@@ -36,9 +37,164 @@ pub const SPHERE_LIFETIME: u64 = 315360000000; // 10,000 years (arbitrarily high
 #[derive(Clone)]
 pub struct Sphere<S: BlockStore> {
     store: S,
-    cid: Cid,
+    cid: Link<MemoIpld>,
     body: OnceCell<SphereIpld>,
     memo: OnceCell<MemoIpld>,
+}
+
+impl<S> Sphere<SphereDb<S>>
+where
+    S: Storage,
+{
+    /// The same as [Sphere::traverse_by_petname], but accepts a linear sequence
+    /// of petnames and attempts to recursively traverse through spheres using
+    /// that sequence. The sequence is traversed from back to front. So, if the
+    /// sequence is "gold", "cat", "bob", it will traverse to bob, then to bob's
+    /// cat, then to bob's cat's gold.
+    pub async fn traverse_by_petnames<F, Fut>(
+        &self,
+        petname_path: &[String],
+        replicate: &F,
+    ) -> Result<Option<Self>>
+    where
+        F: Fn(Link<MemoIpld>, Option<Link<MemoIpld>>) -> Fut,
+        Fut: std::future::Future<Output = Result<()>>,
+    {
+        let mut sphere: Option<Self> = None;
+        let mut path = Vec::from(petname_path);
+        let mut traversed = Vec::new();
+
+        while let Some(petname) = path.pop() {
+            let next_sphere = match sphere {
+                None => self.traverse_by_petname(&petname, replicate).await?,
+                Some(sphere) => sphere.traverse_by_petname(&petname, replicate).await?,
+            };
+            sphere = match next_sphere {
+                any @ Some(_) => {
+                    traversed.push(petname);
+                    any
+                }
+                None => {
+                    warn!(
+                        "No sphere found for '{petname}' after traveling to '{}'",
+                        traversed.join(" -> ")
+                    );
+                    return Ok(None);
+                }
+            };
+        }
+
+        Ok(sphere)
+    }
+
+    /// Given a petname that has been assigned to a sphere identity within this
+    /// sphere's address book, produce a [Sphere] backed by the same storage as
+    /// this one, but that accesses the sphere referred to by the designated
+    /// [Did] identity. If the local data for the sphere being traversed to is
+    /// not available, an attempt will be made to replicate the data from a
+    /// Noosphere Gateway.
+    pub async fn traverse_by_petname<F, Fut>(
+        &self,
+        petname: &str,
+        replicate: &F,
+    ) -> Result<Option<Self>>
+    where
+        F: Fn(Link<MemoIpld>, Option<Link<MemoIpld>>) -> Fut,
+        Fut: std::future::Future<Output = Result<()>>,
+    {
+        // Resolve petname to sphere version via address book entry
+
+        let identity = match self
+            .get_address_book()
+            .await?
+            .get_identities()
+            .await?
+            .get(&petname.to_string())
+            .await?
+        {
+            Some(address) => address.clone(),
+            None => {
+                warn!("\"{petname}\" is not assigned to an identity");
+                return Ok(None);
+            }
+        };
+
+        debug!("Petname assigned to {:?}", identity);
+
+        let link_record_version = match identity.link_record(&UcanStore(self.store().clone())).await
+        {
+            Some(link_record) => link_record.get_link(),
+            None => None,
+        };
+
+        let link_record_version = match link_record_version {
+            Some(cid) => cid,
+            None => {
+                return Err(anyhow!(
+                    "No version has been resolved for \"{petname}\" ({})",
+                    identity.did
+                ));
+            }
+        };
+
+        debug!("Link record version is {}", link_record_version);
+
+        // Check for version in local sphere DB
+        // If desired version available, check for memo and body blocks
+
+        let local_version = self
+            .store()
+            .get_version(&identity.did)
+            .await?
+            .map(|cid| cid.into());
+        let (replication_required, local_version) =
+            if local_version.as_ref() == Some(&link_record_version) {
+                match self
+                    .store()
+                    .load::<DagCborCodec, MemoIpld>(&link_record_version)
+                    .await
+                {
+                    Ok(memo) => {
+                        if memo.content_type() != Some(ContentType::Sphere) {
+                            return Err(anyhow!(
+                            "Resolved content for \"{petname}\" ({}) does not refer to a sphere",
+                            identity.did
+                        ));
+                        }
+
+                        debug!("Checking to see if we can get the sphere body...");
+
+                        match self
+                            .store()
+                            .load::<DagCborCodec, SphereIpld>(&memo.body)
+                            .await
+                        {
+                            Ok(_) => (false, local_version),
+                            Err(error) => {
+                                warn!("{error}");
+                                (true, None)
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        warn!("{error}");
+                        (true, None)
+                    }
+                }
+            } else {
+                (true, local_version)
+            };
+
+        // If no version available or memo/body missing, attempt to replicate the needed blocks
+
+        if replication_required {
+            debug!("Attempting to replicate from gateway...");
+
+            replicate(link_record_version.clone(), local_version).await?;
+        }
+
+        Ok(Some(Sphere::at(&link_record_version, self.store())))
+    }
 }
 
 impl<S: BlockStore> Sphere<S> {
@@ -46,10 +202,10 @@ impl<S: BlockStore> Sphere<S> {
     /// version and [BlockStore] are provided, the initialized [Sphere] is
     /// lazy and won't load the associated [MemoIpld] or [SphereIpld] unless
     /// they are accessed.
-    pub fn at(cid: &Cid, store: &S) -> Sphere<S> {
+    pub fn at(cid: &Link<MemoIpld>, store: &S) -> Sphere<S> {
         Sphere {
             store: store.clone(),
-            cid: *cid,
+            cid: cid.clone(),
             body: OnceCell::new(),
             memo: OnceCell::new(),
         }
@@ -61,7 +217,7 @@ impl<S: BlockStore> Sphere<S> {
         let (cid, _) = block_serialize::<DagCborCodec, _>(memo)?;
         Ok(Sphere {
             store: store.clone(),
-            cid,
+            cid: cid.into(),
             body: OnceCell::new(),
             memo: OnceCell::new_with(Some(memo.clone())),
         })
@@ -73,7 +229,7 @@ impl<S: BlockStore> Sphere<S> {
 
     /// Get the CID that points to the sphere's wrapping memo that corresponds
     /// to this revision of the sphere
-    pub fn cid(&self) -> &Cid {
+    pub fn cid(&self) -> &Link<MemoIpld> {
         &self.cid
     }
 
@@ -109,7 +265,7 @@ impl<S: BlockStore> Sphere<S> {
     /// produce a series of sequential revisions of this sphere, up to but
     /// excluding the given [Cid] (or until the genesis revision of the
     /// sphere if no [Cid] is given).
-    pub async fn bundle_until_ancestor(&self, cid: Option<&Cid>) -> Result<Bundle> {
+    pub async fn bundle_until_ancestor(&self, cid: Option<&Link<MemoIpld>>) -> Result<Bundle> {
         Bundle::from_timeslice(
             &Timeline::new(&self.store).slice(&self.cid, cid),
             &self.store,
@@ -166,7 +322,7 @@ impl<S: BlockStore> Sphere<S> {
         // implementation on our views
         let memo = self.to_memo().await?;
         let author = memo
-            .get_first_header(&Header::Author.to_string())
+            .get_first_header(&Header::Author)
             .ok_or_else(|| anyhow!("No author header found"))?;
 
         let mut mutation = SphereMutation::new(&author);
@@ -250,7 +406,7 @@ impl<S: BlockStore> Sphere<S> {
     /// Apply a mutation to the sphere given a revision CID, producing a new
     /// sphere revision that must then be signed as an additional step
     pub async fn apply_mutation_with_cid(
-        cid: &Cid,
+        cid: &Link<MemoIpld>,
         mutation: &SphereMutation,
         store: &mut S,
     ) -> Result<SphereRevision<S>> {
@@ -317,6 +473,7 @@ impl<S: BlockStore> Sphere<S> {
         memo.body = store.save::<DagCborCodec, _>(&sphere).await?;
 
         Ok(SphereRevision {
+            sphere_identity: sphere.identity,
             memo,
             store: store.clone(),
         })
@@ -324,13 +481,17 @@ impl<S: BlockStore> Sphere<S> {
 
     /// Same as `rebase_version`, but uses the version that this [Sphere] refers
     /// to as the version to rebase.
-    pub async fn rebase(&self, onto: &Cid) -> Result<SphereRevision<S>> {
+    pub async fn rebase(&self, onto: &Link<MemoIpld>) -> Result<SphereRevision<S>> {
         Sphere::rebase_version(self.cid(), onto, &mut self.store.clone()).await
     }
 
     /// "Rebase" the given version of a sphere so that its change is made with
     /// the "onto" version as its base.
-    pub async fn rebase_version(cid: &Cid, onto: &Cid, store: &mut S) -> Result<SphereRevision<S>> {
+    pub async fn rebase_version(
+        cid: &Link<MemoIpld>,
+        onto: &Link<MemoIpld>,
+        store: &mut S,
+    ) -> Result<SphereRevision<S>> {
         Sphere::apply_mutation_with_cid(
             onto,
             &Sphere::at(cid, store).derive_mutation().await?,
@@ -341,13 +502,29 @@ impl<S: BlockStore> Sphere<S> {
 
     /// "Hydrate" a range of revisions of a sphere. See the comments on
     /// the `try_hydrate` method for details and implications.
-    pub async fn hydrate_range(from: Option<&Cid>, to: &Cid, store: &S) -> Result<()> {
+    #[instrument(level = "trace", skip(store))]
+    #[deprecated(note = "Use hydrate_timeslice instead")]
+    pub async fn hydrate_range(
+        from: Option<&Link<MemoIpld>>,
+        to: &Link<MemoIpld>,
+        store: &S,
+    ) -> Result<()> {
         let timeline = Timeline::new(store);
         let timeslice = timeline.slice(to, from);
+
+        Self::hydrate_timeslice(&timeslice).await?;
+
+        Ok(())
+    }
+
+    /// "Hydrate" a range of revisions of a sphere, defined by a [Timeslice].
+    /// See the comments on the `try_hydrate` method for details and
+    /// implications.
+    pub async fn hydrate_timeslice<'a>(timeslice: &Timeslice<'a, S>) -> Result<()> {
         let items = timeslice.to_chronological().await?;
 
         for (cid, _) in items {
-            Sphere::at(&cid, store).hydrate().await?;
+            Sphere::at(&cid, timeslice.timeline.store).hydrate().await?;
         }
 
         Ok(())
@@ -364,7 +541,8 @@ impl<S: BlockStore> Sphere<S> {
     }
 
     /// Same as try_hydrate, but specifying the CID to hydrate at
-    pub async fn hydrate_with_cid(cid: &Cid, store: &mut S) -> Result<()> {
+    pub async fn hydrate_with_cid(cid: &Link<MemoIpld>, store: &mut S) -> Result<()> {
+        trace!("Hydrating {}...", cid);
         let sphere = Sphere::at(cid, store);
         let memo = sphere.to_memo().await?;
         let base_cid = match memo.parent {
@@ -372,7 +550,7 @@ impl<S: BlockStore> Sphere<S> {
             None => {
                 let base_sphere = SphereIpld::new(&sphere.get_identity().await?, store).await?;
                 let empty_dag = MemoIpld::for_body(store, &base_sphere).await?;
-                store.save::<DagCborCodec, _>(&empty_dag).await?
+                store.save::<DagCborCodec, _>(&empty_dag).await?.into()
             }
         };
 
@@ -395,20 +573,21 @@ impl<S: BlockStore> Sphere<S> {
     /// the history onto a branch with an implicitly common lineage.
     pub async fn sync<Credential: KeyMaterial>(
         &self,
-        old_base: &Cid,
-        new_base: &Cid,
+        old_base: &Link<MemoIpld>,
+        new_base: &Link<MemoIpld>,
         credential: &Credential,
         authorization: Option<&Authorization>,
-    ) -> Result<Cid> {
+    ) -> Result<Link<MemoIpld>> {
         let mut store = self.store.clone();
 
-        Sphere::hydrate_range(Some(old_base), new_base, &self.store).await?;
+        let timeline = Timeline::new(&self.store);
+        Sphere::hydrate_timeslice(&timeline.slice(new_base, Some(old_base))).await?;
 
         let timeline = Timeline::new(&self.store);
         let timeslice = timeline.slice(self.cid(), Some(old_base));
         let rebase_revisions = timeslice.to_chronological().await?;
 
-        let mut next_base = *new_base;
+        let mut next_base = new_base.clone();
 
         for (cid, _) in rebase_revisions.iter().skip(1) {
             let mut revision = Sphere::rebase_version(cid, &next_base, &mut store).await?;
@@ -461,7 +640,7 @@ impl<S: BlockStore> Sphere<S> {
 
         memo.sign(&sphere_key, None).await?;
 
-        let sphere_cid = store.save::<DagCborCodec, _>(&memo).await?;
+        let sphere_cid = store.save::<DagCborCodec, _>(&memo).await?.into();
 
         let jwt = ucan.encode()?;
         let delegation = DelegationIpld::register("(OWNER)", &jwt, store).await?;
@@ -472,6 +651,7 @@ impl<S: BlockStore> Sphere<S> {
             .delegations_mut()
             .set(&Link::new(delegation.jwt), &delegation);
 
+        memo.sign(&sphere_key, None).await?;
         let mut revision = sphere.apply_mutation(&mutation).await?;
         let sphere_cid = revision.sign(&sphere_key, None).await?;
 
@@ -587,8 +767,8 @@ impl<S: BlockStore> Sphere<S> {
     /// will be streamed.
     pub fn into_history_stream(
         self,
-        since: Option<&Cid>,
-    ) -> impl Stream<Item = Result<(Cid, Sphere<S>)>> {
+        since: Option<&Link<MemoIpld>>,
+    ) -> impl Stream<Item = Result<(Link<MemoIpld>, Sphere<S>)>> {
         let since = since.cloned();
 
         try_stream! {
@@ -597,7 +777,7 @@ impl<S: BlockStore> Sphere<S> {
             let stream = timeslice.stream();
 
             for await item in stream {
-                let (cid, _) = item?;
+                let (cid, memo) = item?;
 
                 match since {
                     Some(since) if since == cid => {
@@ -606,8 +786,68 @@ impl<S: BlockStore> Sphere<S> {
                     _ => ()
                 };
 
-                yield (cid, Sphere::at(&cid, &self.store));
+                yield (cid, Sphere::from_memo(&memo, &self.store)?);
             }
+        }
+    }
+
+    // Validate this sphere revision's signature and proof chain
+    pub async fn verify_signature(&self) -> Result<()> {
+        let memo = self.to_memo().await?;
+
+        // Ensure that we have the correct content type
+        memo.expect_header(&Header::ContentType, &ContentType::Sphere)?;
+
+        // Extract signature from the eponimous header
+        let signature_header = memo
+            .get_header(&Header::Signature)
+            .first()
+            .cloned()
+            .ok_or_else(|| anyhow!("No signature header found"))?;
+
+        let signature = base64_decode(&signature_header)?;
+
+        let mut did_parser = DidParser::new(SUPPORTED_KEYS);
+
+        let sphere_ipld = self.to_body().await?;
+
+        // If we have an authorizing proof...
+        if let Some(proof_header) = memo.get_header(&Header::Proof).first() {
+            // Interpret the header as a JWT-encoded UCAN..
+            let ucan = Ucan::try_from(proof_header.as_str())?;
+
+            // Discover the intended audience of the UCAN
+            let credential = did_parser.parse(ucan.audience())?;
+
+            // Verify the audience signature of the body CID
+            credential.verify(&memo.body.to_bytes(), &signature).await?;
+
+            // Check the proof's provenance and that it enables the signer to sign
+            let ucan_store = UcanStore(self.store.clone());
+            let proof = ProofChain::from_ucan(ucan, None, &mut did_parser, &ucan_store).await?;
+
+            let desired_capability = generate_capability(&sphere_ipld.identity, SphereAction::Push);
+
+            for capability_info in proof.reduce_capabilities(&SPHERE_SEMANTICS) {
+                let capability = capability_info.capability;
+                if capability_info
+                    .originators
+                    .contains(sphere_ipld.identity.as_str())
+                    && capability.enables(&desired_capability)
+                {
+                    return Ok(());
+                }
+            }
+
+            Err(anyhow!("Proof did not enable signer to sign this sphere"))
+        } else {
+            // Assume the identity is the signer
+            let credential = did_parser.parse(&sphere_ipld.identity)?;
+
+            // Verify the identity signature of the body CID
+            credential.verify(&memo.body.to_bytes(), &signature).await?;
+
+            Ok(())
         }
     }
 
@@ -616,12 +856,17 @@ impl<S: BlockStore> Sphere<S> {
     /// skip versions where no petnames or resolutions changed.
     pub fn into_identities_changelog_stream(
         self,
-        since: Option<&Cid>,
-    ) -> impl Stream<Item = Result<(Cid, ChangelogIpld<MapOperation<String, IdentityIpld>>)>> {
+        since: Option<&Link<MemoIpld>>,
+    ) -> impl Stream<
+        Item = Result<(
+            Link<MemoIpld>,
+            ChangelogIpld<MapOperation<String, IdentityIpld>>,
+        )>,
+    > {
         let since = since.cloned();
 
         try_stream! {
-            let history: Vec<Result<(Cid, Sphere<S>)>> = self.into_history_stream(since.as_ref()).collect().await;
+            let history: Vec<Result<(Link<MemoIpld>, Sphere<S>)>> = self.into_history_stream(since.as_ref()).collect().await;
 
             for item in history.into_iter().rev() {
                 let (cid, sphere) = item?;
@@ -640,13 +885,17 @@ impl<S: BlockStore> Sphere<S> {
     /// versions where no content changed.
     pub fn into_content_changelog_stream(
         self,
-        since: Option<&Cid>,
-    ) -> impl Stream<Item = Result<(Cid, ChangelogIpld<MapOperation<String, Link<MemoIpld>>>)>>
-    {
+        since: Option<&Link<MemoIpld>>,
+    ) -> impl Stream<
+        Item = Result<(
+            Link<MemoIpld>,
+            ChangelogIpld<MapOperation<String, Link<MemoIpld>>>,
+        )>,
+    > {
         let since = since.cloned();
 
         try_stream! {
-            let history: Vec<Result<(Cid, Sphere<S>)>> = self.into_history_stream(since.as_ref()).collect().await;
+            let history: Vec<Result<(Link<MemoIpld>, Sphere<S>)>> = self.into_history_stream(since.as_ref()).collect().await;
 
             for item in history.into_iter().rev() {
                 let (cid, sphere) = item?;
@@ -699,7 +948,7 @@ mod tests {
             let owner_did = owner_key.get_did().await.unwrap();
             let (sphere, _, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
-            (*sphere.cid(), sphere.get_identity().await.unwrap())
+            (sphere.cid().clone(), sphere.get_identity().await.unwrap())
         };
 
         let restored_sphere = Sphere::at(&sphere_cid, &store);
@@ -935,7 +1184,7 @@ mod tests {
         let owner_did = owner_key.get_did().await.unwrap();
 
         let (mut sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
-        let mut lineage = vec![*sphere.cid()];
+        let mut lineage = vec![sphere.cid().clone()];
         let foo_key = String::from("foo");
 
         for i in 0..2u8 {
@@ -971,7 +1220,7 @@ mod tests {
         let owner_did = owner_key.get_did().await.unwrap();
 
         let (mut sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
-        let mut lineage = vec![*sphere.cid()];
+        let mut lineage = vec![sphere.cid().clone()];
 
         for i in 0..5u8 {
             let mut mutation = SphereMutation::new(&owner_did);
@@ -988,7 +1237,7 @@ mod tests {
             lineage.push(next_cid);
         }
 
-        let since = lineage[2];
+        let since = lineage[2].clone();
 
         let stream = sphere.into_content_changelog_stream(Some(&since));
 
@@ -1005,7 +1254,7 @@ mod tests {
             .await;
 
         assert_eq!(change_revisions.len(), 3);
-        assert_eq!(change_revisions.contains(&since), false);
+        assert!(!change_revisions.contains(&since));
         assert_eq!(change_revisions, lineage.split_at(3).1);
     }
 
@@ -1282,13 +1531,13 @@ mod tests {
         let owner_did = owner_key.get_did().await.unwrap();
 
         async fn make_revision<Credential: KeyMaterial, Storage: Store>(
-            base_cid: &Cid,
+            base_cid: &Link<MemoIpld>,
             author_did: &str,
             credential: &Credential,
             authorization: &Authorization,
             store: &mut Storage,
             (change_key, change_memo): (&str, &MemoIpld),
-        ) -> anyhow::Result<Cid> {
+        ) -> anyhow::Result<Link<MemoIpld>> {
             let mut mutation = SphereMutation::new(author_did);
             mutation.content_mut().set(
                 &change_key.into(),

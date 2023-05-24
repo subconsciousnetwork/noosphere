@@ -26,7 +26,7 @@ pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) ->
     let mut db = workspace.db().await?;
 
     let latest_sphere_cid = db.require_version(&sphere_did).await?;
-    let sphere = Sphere::at(&latest_sphere_cid, &db);
+    let sphere = Sphere::at(&latest_sphere_cid.into(), &db);
 
     let authority = sphere.get_authority().await?;
     let delegations = authority.get_delegations().await?;
@@ -106,7 +106,7 @@ You will be able to add a new one after the old one is revoked"#,
 
     let delegation = DelegationIpld::register(&name, &jwt, &db).await?;
 
-    let sphere = Sphere::at(&latest_sphere_cid, &db);
+    let sphere = Sphere::at(&latest_sphere_cid.into(), &db);
 
     let mut mutation = SphereMutation::new(&my_did);
 
@@ -146,7 +146,7 @@ pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {
         .await?
         .ok_or_else(|| anyhow!("Sphere version pointer is missing or corrupted"))?;
 
-    let sphere = Sphere::at(&latest_sphere_cid, &db);
+    let sphere = Sphere::at(&latest_sphere_cid.into(), &db);
 
     let authorization = sphere.get_authority().await?;
 
@@ -204,7 +204,7 @@ pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
     let my_key = workspace.key().await?;
     let my_did = my_key.get_did().await?;
 
-    let sphere = Sphere::at(&latest_sphere_cid, &db);
+    let sphere = Sphere::at(&latest_sphere_cid.into(), &db);
 
     let authority = sphere.get_authority().await?;
 

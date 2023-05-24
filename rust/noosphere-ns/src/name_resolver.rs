@@ -74,7 +74,7 @@ pub mod test {
 
         resolver.publish(record).await?;
         let resolved = resolver.resolve(&sphere_identity).await?.unwrap();
-        assert_eq!(resolved.get_link().unwrap(), link);
+        assert_eq!(resolved.get_link().unwrap(), link.into());
         Ok(())
     }
 }

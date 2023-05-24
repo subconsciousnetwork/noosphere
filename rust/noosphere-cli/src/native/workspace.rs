@@ -364,10 +364,7 @@ impl Workspace {
                 }
             };
 
-            let extension = match sphere_file
-                .memo
-                .get_first_header(&Header::FileExtension.to_string())
-            {
+            let extension = match sphere_file.memo.get_first_header(&Header::FileExtension) {
                 Some(extension) => Some(extension),
                 None => match sphere_file.memo.content_type() {
                     Some(content_type) => self.infer_file_extension(content_type).await,

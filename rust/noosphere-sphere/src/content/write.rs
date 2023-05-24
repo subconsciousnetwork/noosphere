@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
-use noosphere_core::data::{BodyChunkIpld, Header, MemoIpld};
+use noosphere_core::data::{BodyChunkIpld, Header, Link, MemoIpld};
 use noosphere_storage::{BlockStore, Storage};
 
 use tokio::io::AsyncReadExt;
@@ -33,7 +33,7 @@ where
     /// Like link, this takes a [Cid] that should be associated directly with
     /// a slug, but in this case the [Cid] is assumed to refer to a memo, so
     /// no wrapping memo is created.
-    async fn link_raw(&mut self, slug: &str, cid: &Cid) -> Result<()>;
+    async fn link_raw(&mut self, slug: &str, cid: &Link<MemoIpld>) -> Result<()>;
 
     /// Similar to write, but instead of generating blocks from some provided
     /// bytes, the caller provides a CID of an existing DAG in storage. That
@@ -45,7 +45,7 @@ where
         content_type: &str,
         body_cid: &Cid,
         additional_headers: Option<Vec<(String, String)>>,
-    ) -> Result<Cid>;
+    ) -> Result<Link<MemoIpld>>;
 
     /// Write to a slug in the sphere. In order to commit the change to the
     /// sphere, you must call save. You can buffer multiple writes before
@@ -58,7 +58,7 @@ where
         content_type: &str,
         mut value: F,
         additional_headers: Option<Vec<(String, String)>>,
-    ) -> Result<Cid>;
+    ) -> Result<Link<MemoIpld>>;
 
     /// Unlinks a slug from the content space. Note that this does not remove
     /// the blocks that were previously associated with the content found at the
@@ -68,7 +68,7 @@ where
     ///
     /// The returned value is the CID previously associated with the slug, if
     /// any.
-    async fn remove(&mut self, slug: &str) -> Result<Option<Cid>>;
+    async fn remove(&mut self, slug: &str) -> Result<Option<Link<MemoIpld>>>;
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -79,7 +79,7 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    async fn link_raw(&mut self, slug: &str, cid: &Cid) -> Result<()> {
+    async fn link_raw(&mut self, slug: &str, cid: &Link<MemoIpld>) -> Result<()> {
         self.assert_write_access().await?;
         validate_slug(slug)?;
 
@@ -87,7 +87,7 @@ where
             .await?
             .mutation_mut()
             .content_mut()
-            .set(&slug.into(), &(*cid).into());
+            .set(&slug.into(), cid);
 
         Ok(())
     }
@@ -98,7 +98,7 @@ where
         content_type: &str,
         body_cid: &Cid,
         additional_headers: Option<Vec<(String, String)>>,
-    ) -> Result<Cid> {
+    ) -> Result<Link<MemoIpld>> {
         self.assert_write_access().await?;
         validate_slug(slug)?;
 
@@ -125,13 +125,14 @@ where
                 new_memo.replace_headers(headers)
             }
 
-            new_memo.replace_first_header(&Header::ContentType.to_string(), content_type);
+            new_memo.replace_first_header(&Header::ContentType, content_type);
 
             // TODO(#43): Configure default/implicit headers here
             sphere_context
                 .db_mut()
                 .save::<DagCborCodec, MemoIpld>(new_memo)
                 .await?
+                .into()
         };
 
         self.link_raw(slug, &memo_cid).await?;
@@ -145,7 +146,7 @@ where
         content_type: &str,
         mut value: F,
         additional_headers: Option<Vec<(String, String)>>,
-    ) -> Result<Cid> {
+    ) -> Result<Link<MemoIpld>> {
         debug!("Writing {}...", slug);
 
         self.assert_write_access().await?;
@@ -164,7 +165,7 @@ where
             .await
     }
 
-    async fn remove(&mut self, slug: &str) -> Result<Option<Cid>> {
+    async fn remove(&mut self, slug: &str) -> Result<Option<Link<MemoIpld>>> {
         self.assert_write_access().await?;
 
         let current_file = self.read(slug).await?;

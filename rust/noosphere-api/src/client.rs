@@ -1,7 +1,9 @@
 use std::str::FromStr;
 
 use crate::{
-    data::{FetchParameters, FetchResponse, IdentifyResponse, PushBody, PushResponse},
+    data::{
+        FetchParameters, IdentifyResponse, PushBody, PushError, PushResponse, ReplicateParameters,
+    },
     route::{Route, RouteUrl},
 };
 
@@ -10,7 +12,10 @@ use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_car::CarReader;
 
-use noosphere_core::authority::{Author, SphereAction, SphereReference};
+use noosphere_core::{
+    authority::{Author, SphereAction, SphereReference},
+    data::{Link, MemoIpld},
+};
 use noosphere_storage::{block_deserialize, block_serialize};
 use reqwest::{header::HeaderMap, Body, StatusCode};
 use tokio_stream::{Stream, StreamExt};
@@ -136,19 +141,25 @@ where
 
         match authorization.resolve_ucan(store).await {
             Ok(ucan) => {
-                // TODO(ucan-wg/rs-ucan#37): We should integrate a helper for this kind of stuff into rs-ucan
-                let mut proofs_to_search: Vec<String> = ucan.proofs().clone();
+                if let Some(ucan_proofs) = ucan.proofs() {
+                    // TODO(ucan-wg/rs-ucan#37): We should integrate a helper for this kind of stuff into rs-ucan
+                    let mut proofs_to_search: Vec<String> = ucan_proofs.clone();
 
-                debug!("Making bearer token... {:?}", proofs_to_search);
-                while let Some(cid_string) = proofs_to_search.pop() {
-                    let cid = Cid::from_str(cid_string.as_str())?;
-                    let jwt = store.require_token(&cid).await?;
-                    let ucan = Ucan::from_str(&jwt)?;
+                    debug!("Making bearer token... {:?}", proofs_to_search);
 
-                    debug!("Adding UCAN header for {}", cid);
+                    while let Some(cid_string) = proofs_to_search.pop() {
+                        let cid = Cid::from_str(cid_string.as_str())?;
+                        let jwt = store.require_token(&cid).await?;
+                        let ucan = Ucan::from_str(&jwt)?;
 
-                    proofs_to_search.extend(ucan.proofs().clone().into_iter());
-                    ucan_headers.append("ucan", format!("{cid} {jwt}").parse()?);
+                        debug!("Adding UCAN header for {}", cid);
+
+                        if let Some(ucan_proofs) = ucan.proofs() {
+                            proofs_to_search.extend(ucan_proofs.clone().into_iter());
+                        }
+
+                        ucan_headers.append("ucan", format!("{cid} {jwt}").parse()?);
+                    }
                 }
 
                 ucan_headers.append(
@@ -185,14 +196,15 @@ where
     pub async fn replicate(
         &self,
         memo_version: &Cid,
+        params: Option<&ReplicateParameters>,
     ) -> Result<impl Stream<Item = Result<(Cid, Vec<u8>)>>> {
-        let url = Url::try_from(RouteUrl::<()>(
+        let url = Url::try_from(RouteUrl(
             &self.api_base,
             Route::Replicate(Some(*memo_version)),
-            None,
+            params,
         ))?;
 
-        debug!("Client replicating memo from {}", url);
+        debug!("Client replicating {} from {}", memo_version, url);
 
         let capability = Capability {
             with: With::Resource {
@@ -238,9 +250,14 @@ where
         )
     }
 
-    pub async fn fetch(&self, params: &FetchParameters) -> Result<FetchResponse> {
+    pub async fn fetch(
+        &self,
+        params: &FetchParameters,
+    ) -> Result<Option<(Link<MemoIpld>, impl Stream<Item = Result<(Cid, Vec<u8>)>>)>> {
         let url = Url::try_from(RouteUrl(&self.api_base, Route::Fetch, Some(params)))?;
+
         debug!("Client fetching blocks from {}", url);
+
         let capability = Capability {
             with: With::Resource {
                 kind: Resource::Scoped(SphereReference {
@@ -258,20 +275,45 @@ where
         )
         .await?;
 
-        let bytes = self
+        let response = self
             .client
             .get(url)
             .bearer_auth(token)
             .headers(ucan_headers)
             .send()
-            .await?
-            .bytes()
             .await?;
 
-        block_deserialize::<DagCborCodec, _>(&bytes)
+        let reader = CarReader::new(StreamReader::new(response.bytes_stream().map(
+            |item| match item {
+                Ok(item) => Ok(item),
+                Err(error) => {
+                    error!("Failed to read CAR stream: {}", error);
+                    Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe))
+                }
+            },
+        )))
+        .await?;
+
+        let tip = reader.header().roots().first().cloned();
+
+        if let Some(tip) = tip {
+            Ok(match tip.codec() {
+                // Identity codec = no changes
+                0 => None,
+                _ => Some((
+                    tip.into(),
+                    reader.stream().map(|block| match block {
+                        Ok(block) => Ok(block),
+                        Err(error) => Err(anyhow!(error)),
+                    }),
+                )),
+            })
+        } else {
+            Ok(None)
+        }
     }
 
-    pub async fn push(&self, push_body: &PushBody) -> Result<PushResponse> {
+    pub async fn push(&self, push_body: &PushBody) -> Result<PushResponse, PushError> {
         let url = Url::try_from(RouteUrl::<()>(&self.api_base, Route::Push, None))?;
         debug!(
             "Client pushing {} blocks for sphere {} to {}",
@@ -298,7 +340,7 @@ where
 
         let (_, push_body_bytes) = block_serialize::<DagCborCodec, _>(push_body)?;
 
-        let bytes = self
+        let response = self
             .client
             .put(url)
             .bearer_auth(token)
@@ -306,10 +348,18 @@ where
             .header("Content-Type", "application/octet-stream")
             .body(Body::from(push_body_bytes))
             .send()
-            .await?
-            .bytes()
-            .await?;
+            .await
+            .map_err(|err| PushError::Internal(anyhow!(err)))?;
 
-        block_deserialize::<DagCborCodec, _>(bytes.as_ref())
+        if response.status() == StatusCode::CONFLICT {
+            return Err(PushError::Conflict);
+        }
+
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|err| PushError::Internal(anyhow!(err)))?;
+
+        Ok(block_deserialize::<DagCborCodec, _>(bytes.as_ref())?)
     }
 }
