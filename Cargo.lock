@@ -3735,6 +3735,7 @@ dependencies = [
  "noosphere-storage",
  "serde",
  "serde_json",
+ "thiserror",
  "tokio",
  "tokio-stream",
  "tokio-util 0.7.8",
@@ -5725,9 +5726,9 @@ checksum = "497961ef93d974e23eb6f433eb5fe1b7930b659f06d12dec6fc44a8f554c0bba"
 
 [[package]]
 name = "ucan"
-version = "0.3.0"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "344a58bff2ec2ad9d9519ca80fa5625fa86847759f578cc7f571cf71c1e7add0"
+checksum = "f2d1efb030f1b24acd7f6a84ef7346d4b6f390000c5304f1d4db11428b9ac5bb"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -5752,9 +5753,9 @@ dependencies = [
 
 [[package]]
 name = "ucan-key-support"
-version = "0.1.4"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24358164703d05d3136d13e4fc7af44411a51f8d0f94653ed2d97e80e4e94fd6"
+checksum = "09c8af03a21853cc6e1edf43a28aa2d6712b5d1692c75777896cd9bf09d56d9c"
 dependencies = [
  "anyhow",
  "async-trait",

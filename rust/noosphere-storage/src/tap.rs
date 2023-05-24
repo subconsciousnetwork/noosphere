@@ -99,7 +99,7 @@ mod tests {
         for (i, (cid, bytes)) in results.iter().enumerate() {
             assert_eq!(cid, &cids[i]);
 
-            let value = block_deserialize::<DagCborCodec, Vec<u8>>(&bytes).unwrap();
+            let value = block_deserialize::<DagCborCodec, Vec<u8>>(bytes).unwrap();
 
             assert_eq!(value.as_slice(), &[i as u8]);
         }

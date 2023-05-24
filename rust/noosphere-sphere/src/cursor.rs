@@ -1,14 +1,16 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use cid::Cid;
-use noosphere_storage::Storage;
+use noosphere_api::data::ReplicateParameters;
+use noosphere_core::{
+    data::{Link, MemoIpld},
+    view::{Sphere, Timeline},
+};
+use noosphere_storage::{BlockStore, Storage};
+use tokio_stream::StreamExt;
 use ucan::crypto::KeyMaterial;
 
-use crate::{HasMutableSphereContext, HasSphereContext};
-use std::marker::PhantomData;
-
-#[cfg(doc)]
-use crate::SphereContext;
+use crate::{HasMutableSphereContext, HasSphereContext, SphereContext, SphereReplicaRead};
+use std::{marker::PhantomData, sync::Arc};
 
 /// A [SphereCursor] is a structure that enables reading from and writing to a
 /// [SphereContext] at specific versions of the associated sphere's history.
@@ -28,7 +30,7 @@ where
     has_sphere_context: C,
     key: PhantomData<K>,
     storage: PhantomData<S>,
-    sphere_version: Option<Cid>,
+    sphere_version: Option<Link<MemoIpld>>,
 }
 
 impl<C, K, S> SphereCursor<C, K, S>
@@ -37,14 +39,18 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
+    pub fn to_inner(self) -> C {
+        self.has_sphere_context
+    }
+
     /// Same as [SphereCursor::mount], but mounts the [SphereCursor] to a known
     /// version of the history of the sphere.
-    pub fn mounted_at(has_sphere_context: C, sphere_version: &Cid) -> Self {
+    pub fn mounted_at(has_sphere_context: C, sphere_version: &Link<MemoIpld>) -> Self {
         SphereCursor {
             has_sphere_context,
             key: PhantomData,
             storage: PhantomData,
-            sphere_version: Some(*sphere_version),
+            sphere_version: Some(sphere_version.clone()),
         }
     }
 
@@ -58,7 +64,7 @@ where
             .has_sphere_context
             .sphere_context()
             .await?
-            .head()
+            .version()
             .await?;
 
         self.sphere_version = Some(sphere_version);
@@ -101,13 +107,13 @@ where
     /// version to rewind to then the returned `Option` has the [Cid] of the
     /// revision, otherwise if the current version is the oldest one it is
     /// `None`.
-    pub async fn rewind(&mut self) -> Result<Option<Cid>> {
+    pub async fn rewind(&mut self) -> Result<Option<&Link<MemoIpld>>> {
         let sphere = self.to_sphere().await?;
 
         match sphere.get_parent().await? {
             Some(parent) => {
-                self.sphere_version = Some(*parent.cid());
-                Ok(self.sphere_version)
+                self.sphere_version = Some(parent.cid().clone());
+                Ok(self.sphere_version.as_ref())
             }
             None => Ok(None),
         }
@@ -128,11 +134,14 @@ where
         self.has_sphere_context.sphere_context_mut().await
     }
 
-    async fn save(&mut self, additional_headers: Option<Vec<(String, String)>>) -> Result<Cid> {
+    async fn save(
+        &mut self,
+        additional_headers: Option<Vec<(String, String)>>,
+    ) -> Result<Link<MemoIpld>> {
         let new_version = self.has_sphere_context.save(additional_headers).await?;
 
         if self.sphere_version.is_some() {
-            self.sphere_version = Some(new_version);
+            self.sphere_version = Some(new_version.clone());
         }
 
         Ok(new_version)
@@ -153,18 +162,112 @@ where
         self.has_sphere_context.sphere_context().await
     }
 
-    async fn version(&self) -> Result<Cid> {
+    async fn version(&self) -> Result<Link<MemoIpld>> {
         match &self.sphere_version {
-            Some(sphere_version) => Ok(*sphere_version),
+            Some(sphere_version) => Ok(sphere_version.clone()),
             None => self.has_sphere_context.version().await,
         }
     }
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<K, S> SphereReplicaRead<K, S> for SphereCursor<Arc<SphereContext<K, S>>, K, S>
+where
+    K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
+{
+    async fn traverse_by_petnames(&self, petname_path: &[String]) -> Result<Option<Self>> {
+        let replicate = {
+            let sphere_context = self.sphere_context().await?;
+
+            move |version: Link<MemoIpld>, since: Option<Link<MemoIpld>>| {
+                let sphere_context = sphere_context.clone();
+                async move {
+                    let client = sphere_context.client().await?;
+                    let replicate_parameters = since.as_ref().map(|since| ReplicateParameters {
+                        since: Some(since.clone()),
+                    });
+                    let stream = client
+                        .replicate(&version, replicate_parameters.as_ref())
+                        .await?;
+
+                    tokio::pin!(stream);
+
+                    let mut db = sphere_context.db().clone();
+
+                    while let Some((cid, block)) = stream.try_next().await? {
+                        db.put_block(&cid, &block).await?;
+                    }
+
+                    // If this was incremental replication, we have to hydrate...
+                    if since.is_some() {
+                        let timeline = Timeline::new(&db);
+
+                        Sphere::hydrate_timeslice(
+                            &timeline.slice(&version, since.as_ref()).exclude_past(),
+                        )
+                        .await?;
+                    }
+
+                    Ok(()) as Result<(), anyhow::Error>
+                }
+            }
+        };
+
+        let sphere = self.to_sphere().await?;
+
+        let peer_sphere = match sphere
+            .traverse_by_petnames(petname_path, &replicate)
+            .await?
+        {
+            Some(sphere) => sphere,
+            None => return Ok(None),
+        };
+
+        let mut db = sphere.store().clone();
+        let peer_identity = sphere.get_identity().await?;
+        let local_version = db.get_version(&peer_identity).await?.map(|cid| cid.into());
+
+        let should_update_version = if let Some(since) = local_version {
+            let since_memo = Sphere::at(&since, &db).to_memo().await?;
+            let latest_memo = peer_sphere.to_memo().await?;
+
+            since_memo.lamport_order() < latest_memo.lamport_order()
+        } else {
+            true
+        };
+
+        if should_update_version {
+            debug!(
+                "Updating local version of {} to more recent revision {}",
+                peer_identity,
+                peer_sphere.cid()
+            );
+
+            db.set_version(&peer_identity, peer_sphere.cid()).await?;
+        }
+
+        let peer_sphere_context = self
+            .sphere_context()
+            .await?
+            .to_visitor(&peer_identity)
+            .await?;
+
+        Ok(Some(SphereCursor::mounted_at(
+            Arc::new(peer_sphere_context),
+            peer_sphere.cid(),
+        )))
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
+    use std::sync::Arc;
+
     use anyhow::Result;
     use noosphere_core::data::{ContentType, Header};
+    use noosphere_core::tracing::initialize_tracing;
     use noosphere_storage::UcanStore;
     use tokio::io::AsyncReadExt;
 
@@ -174,10 +277,13 @@ pub mod tests {
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
-    use crate::helpers::{make_valid_link_record, simulated_sphere_context, SimulationAccess};
+    use crate::helpers::{
+        make_sphere_context_with_peer_chain, make_valid_link_record, simulated_sphere_context,
+        SimulationAccess,
+    };
     use crate::{
         HasMutableSphereContext, HasSphereContext, SphereContentRead, SphereContentWrite,
-        SpherePetnameRead, SpherePetnameWrite,
+        SpherePetnameRead, SpherePetnameWrite, SphereReplicaRead,
     };
 
     use super::SphereCursor;
@@ -193,7 +299,7 @@ pub mod tests {
         cursor
             .write(
                 "cats",
-                &ContentType::Subtext.to_string(),
+                &ContentType::Subtext,
                 b"Cats are great".as_ref(),
                 None,
             )
@@ -230,7 +336,7 @@ pub mod tests {
         cursor
             .write(
                 "cats",
-                &ContentType::Subtext.to_string(),
+                &ContentType::Subtext,
                 b"Cats are great".as_ref(),
                 None,
             )
@@ -279,7 +385,7 @@ pub mod tests {
         let write_result = cursor
             .write(
                 "cats",
-                &ContentType::Subtext.to_string(),
+                &ContentType::Subtext,
                 b"Cats are great".as_ref(),
                 None,
             )
@@ -299,7 +405,7 @@ pub mod tests {
         cursor
             .write(
                 "cats",
-                &ContentType::Subtext.to_string(),
+                &ContentType::Subtext,
                 b"Cats are great".as_ref(),
                 None,
             )
@@ -311,10 +417,7 @@ pub mod tests {
         let mut file = cursor.read("cats").await.unwrap().unwrap();
 
         file.memo
-            .expect_header(
-                &Header::ContentType.to_string(),
-                &ContentType::Subtext.to_string(),
-            )
+            .expect_header(&Header::ContentType, &ContentType::Subtext)
             .unwrap();
 
         let mut value = String::new();
@@ -334,7 +437,7 @@ pub mod tests {
         cursor
             .write(
                 "cats",
-                &ContentType::Subtext.to_string(),
+                &ContentType::Subtext,
                 b"Cats are great".as_ref(),
                 None,
             )
@@ -346,7 +449,7 @@ pub mod tests {
         cursor
             .write(
                 "cats",
-                &ContentType::Subtext.to_string(),
+                &ContentType::Subtext,
                 b"Cats are better than dogs".as_ref(),
                 None,
             )
@@ -358,10 +461,7 @@ pub mod tests {
         let mut file = cursor.read("cats").await.unwrap().unwrap();
 
         file.memo
-            .expect_header(
-                &Header::ContentType.to_string(),
-                &ContentType::Subtext.to_string(),
-            )
+            .expect_header(&Header::ContentType, &ContentType::Subtext)
             .unwrap();
 
         let mut value = String::new();
@@ -374,10 +474,7 @@ pub mod tests {
         file = cursor.read("cats").await.unwrap().unwrap();
 
         file.memo
-            .expect_header(
-                &Header::ContentType.to_string(),
-                &ContentType::Subtext.to_string(),
-            )
+            .expect_header(&Header::ContentType, &ContentType::Subtext)
             .unwrap();
 
         value.clear();
@@ -486,6 +583,95 @@ pub mod tests {
             cursor.get_assigned_petnames(&peer_3).await?,
             vec![String::from("foo3")]
         );
+
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_traverse_a_sequence_of_petnames() -> Result<()> {
+        initialize_tracing(None);
+
+        let name_seqeuence: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+        let origin_sphere_context = make_sphere_context_with_peer_chain(&name_seqeuence).await?;
+
+        let cursor = SphereCursor::latest(Arc::new(
+            origin_sphere_context.sphere_context().await?.clone(),
+        ));
+
+        let target_sphere_context = cursor
+            .traverse_by_petnames(&name_seqeuence.into_iter().rev().collect::<Vec<String>>())
+            .await?
+            .unwrap();
+
+        let mut name = String::new();
+        let mut file = target_sphere_context.read("my-name").await?.unwrap();
+        file.contents.read_to_string(&mut name).await?;
+
+        assert_eq!(name.as_str(), "c");
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_resolves_none_when_a_petname_is_missing_from_the_sequence() -> Result<()> {
+        initialize_tracing(None);
+
+        let name_sequence: Vec<String> = vec!["b".into(), "c".into()];
+        let origin_sphere_context = make_sphere_context_with_peer_chain(&name_sequence).await?;
+
+        let cursor = SphereCursor::latest(Arc::new(
+            origin_sphere_context.sphere_context().await?.clone(),
+        ));
+
+        let traversed_sequence: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+
+        let target_sphere_context = cursor
+            .traverse_by_petnames(
+                &traversed_sequence
+                    .into_iter()
+                    .rev()
+                    .collect::<Vec<String>>(),
+            )
+            .await
+            .unwrap();
+
+        assert!(target_sphere_context.is_none());
+
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_traverse_a_sequence_of_petnames_one_at_a_time() -> Result<()> {
+        initialize_tracing(None);
+
+        let name_sequence: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+
+        let origin_sphere_context = make_sphere_context_with_peer_chain(&name_sequence).await?;
+
+        let cursor = SphereCursor::latest(Arc::new(
+            origin_sphere_context.sphere_context().await?.clone(),
+        ));
+
+        let mut target_sphere_context = cursor;
+
+        for name in name_sequence.iter() {
+            target_sphere_context = target_sphere_context
+                .traverse_by_petnames(&[name.clone()])
+                .await?
+                .unwrap();
+        }
+
+        let mut name = String::new();
+        let mut file = target_sphere_context
+            .read("my-name")
+            .await
+            .unwrap()
+            .unwrap();
+        file.contents.read_to_string(&mut name).await.unwrap();
+
+        assert_eq!(name.as_str(), "c");
 
         Ok(())
     }

@@ -262,9 +262,11 @@ pub fn ns_sphere_petname_changes(
     let possible_output = error_out.try_or_initialize(|| {
         noosphere.async_runtime().block_on(async {
             let since = match since_cid {
-                Some(cid_string) => {
-                    Some(Cid::from_str(cid_string.to_str()).map_err(|error| anyhow!(error))?)
-                }
+                Some(cid_string) => Some(
+                    Cid::from_str(cid_string.to_str())
+                        .map_err(|error| anyhow!(error))?
+                        .into(),
+                ),
                 None => None,
             };
 

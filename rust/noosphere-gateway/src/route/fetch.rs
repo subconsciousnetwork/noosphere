@@ -1,32 +1,38 @@
+use std::{pin::Pin, time::Duration};
+
 use anyhow::Result;
 
-use axum::{extract::Query, http::StatusCode, response::IntoResponse, Extension};
-use cid::Cid;
-use noosphere_api::data::{FetchParameters, FetchResponse};
+use axum::{body::StreamBody, extract::Query, http::StatusCode, Extension};
+use bytes::Bytes;
+use noosphere_api::data::FetchParameters;
 use noosphere_core::{
     authority::{SphereAction, SphereReference},
-    data::Bundle,
+    data::{Link, MemoIpld},
     view::Sphere,
 };
-use noosphere_sphere::HasSphereContext;
-use noosphere_storage::{SphereDb, Storage};
+use noosphere_ipfs::{IpfsStore, KuboClient};
+use noosphere_sphere::{car_stream, memo_history_stream, HasSphereContext};
+use noosphere_storage::{BlockStoreRetry, SphereDb, Storage};
+use tokio_stream::{Stream, StreamExt};
 use ucan::{
     capability::{Capability, Resource, With},
     crypto::KeyMaterial,
 };
 
-use crate::{authority::GatewayAuthority, extractor::Cbor, GatewayScope};
+use crate::{authority::GatewayAuthority, GatewayScope};
 
+#[instrument(level = "debug", skip(authority, scope, sphere_context, ipfs_client))]
 pub async fn fetch_route<C, K, S>(
     authority: GatewayAuthority<K>,
     Query(FetchParameters { since }): Query<FetchParameters>,
     Extension(scope): Extension<GatewayScope>,
+    Extension(ipfs_client): Extension<KuboClient>,
     Extension(sphere_context): Extension<C>,
-) -> Result<impl IntoResponse, StatusCode>
+) -> Result<StreamBody<impl Stream<Item = Result<Bytes, std::io::Error>>>, StatusCode>
 where
     C: HasSphereContext<K, S>,
     K: KeyMaterial + Clone,
-    S: Storage,
+    S: Storage + 'static,
 {
     authority.try_authorize(&Capability {
         with: With::Resource {
@@ -36,39 +42,36 @@ where
         },
         can: SphereAction::Fetch,
     })?;
-    let sphere_context = sphere_context
-        .sphere_context()
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let sphere_context = sphere_context.sphere_context().await.map_err(|err| {
+        error!("{err}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     let db = sphere_context.db();
 
-    let response = match generate_fetch_bundle(&scope, since.as_ref(), db)
+    let stream = generate_fetch_stream(&scope, since.as_ref(), db, ipfs_client)
         .await
-        .map_err(|error| {
-            error!("{:?}", error);
+        .map_err(|err| {
+            error!("{err}");
             StatusCode::INTERNAL_SERVER_ERROR
-        })? {
-        Some((tip, bundle)) => FetchResponse::NewChanges {
-            tip,
-            blocks: bundle,
-        },
-        None => FetchResponse::UpToDate,
-    };
+        })?;
 
-    Ok(Cbor(response))
+    Ok(StreamBody::new(stream))
 }
 
-pub async fn generate_fetch_bundle<S>(
+/// Generates a CAR stream that can be used as a the streaming body of a
+/// gateway fetch route response
+pub async fn generate_fetch_stream<S>(
     scope: &GatewayScope,
-    since: Option<&Cid>,
+    since: Option<&Link<MemoIpld>>,
     db: &SphereDb<S>,
-) -> Result<Option<(Cid, Bundle)>>
+    ipfs_client: KuboClient,
+) -> Result<Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send>>>
 where
-    S: Storage,
+    S: Storage + 'static,
 {
-    debug!("Resolving latest local sphere version...");
+    let latest_local_sphere_cid = db.require_version(&scope.identity).await?.into();
 
-    let latest_local_sphere_cid = db.require_version(&scope.identity).await?;
+    debug!("The latest gateway sphere version is {latest_local_sphere_cid}...");
 
     if Some(&latest_local_sphere_cid) == since {
         debug!(
@@ -77,22 +80,27 @@ where
                 .map(|cid| cid.to_string())
                 .unwrap_or_else(|| "the beginning...".into())
         );
-        return Ok(None);
+        return Ok(Box::pin(car_stream(vec![], tokio_stream::empty())));
     }
 
-    let latest_local_sphere = Sphere::at(&latest_local_sphere_cid, db);
-
     debug!(
-        "Bundling local sphere revisions since {:?}...",
+        "Streaming gateway sphere revisions since {:?}...",
         since
             .map(|cid| cid.to_string())
             .unwrap_or_else(|| "the beginning".into())
     );
 
-    let mut bundle = latest_local_sphere.bundle_until_ancestor(since).await?;
+    let store = BlockStoreRetry::new(
+        IpfsStore::new(db.clone(), Some(ipfs_client)),
+        6,
+        Duration::from_secs(10),
+    );
+
+    let stream = memo_history_stream(store.clone(), &latest_local_sphere_cid, since);
 
     debug!("Resolving latest counterpart sphere version...");
 
+    let latest_local_sphere = Sphere::at(&latest_local_sphere_cid, db);
     match latest_local_sphere
         .get_content()
         .await?
@@ -106,32 +114,35 @@ where
                 Some(since_local_sphere_cid) => {
                     let since_local_sphere = Sphere::at(since_local_sphere_cid, db);
                     let links = since_local_sphere.get_content().await?;
-                    links
-                        .get(&scope.counterpart)
-                        .await?
-                        .map(|link| Cid::from(link.clone()))
+                    links.get(&scope.counterpart).await?.cloned()
                 }
                 None => None,
             };
 
             debug!(
-                "Bundling counterpart revisions from {} to {}...",
+                "Streaming counterpart revisions from {} to {}...",
                 latest_counterpart_sphere_cid,
                 since
+                    .as_ref()
                     .map(|cid| cid.to_string())
                     .unwrap_or_else(|| "the beginning".into())
             );
 
-            bundle.merge(
-                Sphere::at(latest_counterpart_sphere_cid, db)
-                    .bundle_until_ancestor(since.as_ref())
-                    .await?,
-            )
+            return Ok(Box::pin(car_stream(
+                vec![latest_local_sphere_cid.into()],
+                stream.merge(memo_history_stream(
+                    store,
+                    latest_counterpart_sphere_cid,
+                    since.as_ref(),
+                )),
+            )));
         }
         None => {
             warn!("No revisions found for counterpart {}!", scope.counterpart);
+            Ok(Box::pin(car_stream(
+                vec![latest_local_sphere_cid.into()],
+                stream,
+            )))
         }
-    };
-
-    Ok(Some((latest_local_sphere_cid, bundle)))
+    }
 }
