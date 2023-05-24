@@ -3,7 +3,7 @@ use std::ffi::c_void;
 use anyhow::anyhow;
 use cid::Cid;
 use noosphere_core::{authority::Authorization, data::Did};
-use noosphere_sphere::{HasSphereContext, SphereSync};
+use noosphere_sphere::{HasSphereContext, SphereSync, SyncRecovery};
 use safer_ffi::char_p::InvalidNulTerminator;
 use safer_ffi::prelude::*;
 
@@ -147,7 +147,7 @@ pub fn ns_sphere_version_get(
 
             let sphere_context = sphere_channel.immutable();
             sphere_context
-                .sphere()
+                .to_sphere()
                 .await?
                 .cid()
                 .to_string()
@@ -192,7 +192,7 @@ pub fn ns_sphere_sync(
 
     noosphere.async_runtime().spawn(async move {
         let result: Result<char_p::Box, anyhow::Error> = async {
-            sphere_channel.mutable().sync().await?;
+            sphere_channel.mutable().sync(SyncRecovery::None).await?;
 
             sphere_channel
                 .immutable()
@@ -235,7 +235,7 @@ pub fn ns_sphere_sync_blocking(
                 .get_sphere_channel(&Did(sphere_identity.to_str().into()))
                 .await?;
 
-            sphere_channel.mutable().sync().await?;
+            sphere_channel.mutable().sync(SyncRecovery::None).await?;
 
             Ok(sphere_channel
                 .immutable()

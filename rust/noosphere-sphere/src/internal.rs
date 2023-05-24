@@ -74,7 +74,7 @@ where
             // because our mutation here is propagating immutable blocks
             // into the local DB
             let mut db = sphere_context.db().clone();
-            let stream = client.replicate(&memo_link).await?;
+            let stream = client.replicate(&memo_link, None).await?;
 
             tokio::pin!(stream);
             while let Some((cid, block)) = stream.try_next().await? {
@@ -82,7 +82,7 @@ where
             }
         }
 
-        let content_type = match memo.get_first_header(&Header::ContentType.to_string()) {
+        let content_type = match memo.get_first_header(&Header::ContentType) {
             Some(content_type) => Some(ContentType::from_str(content_type.as_str())?),
             None => None,
         };
@@ -95,8 +95,8 @@ where
 
         Ok(SphereFile {
             sphere_identity: sphere_context.identity().clone(),
-            sphere_version: *sphere_revision,
-            memo_version: memo_link.into(),
+            sphere_version: sphere_revision.into(),
+            memo_version: memo_link,
             memo,
             // NOTE: we have to box here because traits don't support `impl` types in return values
             contents: Box::new(StreamReader::new(stream)),

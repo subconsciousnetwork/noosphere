@@ -1,4 +1,4 @@
-use std::{convert::Infallible, fmt::Display, str::FromStr};
+use std::{convert::Infallible, fmt::Display, ops::Deref, str::FromStr};
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Debug)]
 pub enum ContentType {
@@ -13,17 +13,7 @@ pub enum ContentType {
 
 impl Display for ContentType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let value = match self {
-            ContentType::Text => "text/plain",
-            ContentType::Subtext => "text/subtext",
-            ContentType::Sphere => "noo/sphere",
-            ContentType::Bytes => "raw/bytes",
-            ContentType::Cbor => "application/cbor",
-            ContentType::Json => "application/json",
-            ContentType::Unknown(header) => header.as_str(),
-        };
-
-        write!(f, "{value}")
+        write!(f, "{}", Deref::deref(self))
     }
 }
 
@@ -40,5 +30,21 @@ impl FromStr for ContentType {
             "application/cbor" => ContentType::Cbor,
             _ => ContentType::Unknown(String::from(s)),
         })
+    }
+}
+
+impl Deref for ContentType {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            ContentType::Text => "text/plain",
+            ContentType::Subtext => "text/subtext",
+            ContentType::Sphere => "noo/sphere",
+            ContentType::Bytes => "raw/bytes",
+            ContentType::Cbor => "application/cbor",
+            ContentType::Json => "application/json",
+            ContentType::Unknown(content_type) => content_type.as_str(),
+        }
     }
 }

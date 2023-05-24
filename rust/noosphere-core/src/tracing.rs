@@ -1,6 +1,6 @@
-///! Helpers to wrangle logging across Noosphere crates
-///! NOTE: [initialize_tracing] should only ever be called in tests or binaries;
-///! a library should only concern itself with instrumentation and logging.
+//! Helpers to wrangle logging across Noosphere crates
+//! NOTE: [initialize_tracing] should only ever be called in tests or binaries;
+//! a library should only concern itself with instrumentation and logging.
 use strum_macros::{Display, EnumString};
 
 /// The crates that are considered when evaluating [NoosphereLog] and

@@ -196,7 +196,7 @@ pub mod test {
             .expect("should be some");
 
         assert_eq!(retrieved.sphere_identity(), sphere_identity);
-        assert_eq!(retrieved.get_link(), Some(link.clone()));
+        assert_eq!(retrieved.get_link(), Some(link.into()));
         Ok(())
     }
 }

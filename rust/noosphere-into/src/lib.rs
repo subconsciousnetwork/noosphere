@@ -1,6 +1,6 @@
-///! This crate implements transformations of Noosphere content into other
-///! content types. For the time being, the focus is on transforming Subtext
-///! to HTML.
+//! This crate implements transformations of Noosphere content into other
+//! content types. For the time being, the focus is on transforming Subtext
+//! to HTML.
 
 #[macro_use]
 extern crate tracing;

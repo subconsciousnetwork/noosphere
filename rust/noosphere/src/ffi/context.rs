@@ -18,7 +18,7 @@ use crate::{
 
 use noosphere_sphere::{
     AsyncFileBody, HasMutableSphereContext, HasSphereContext, SphereContentRead,
-    SphereContentWrite, SphereContext, SphereCursor, SphereFile, SphereWalker,
+    SphereContentWrite, SphereContext, SphereCursor, SphereFile, SphereReplicaRead, SphereWalker,
 };
 
 #[derive_ReprC(rename = "ns_sphere")]
@@ -31,7 +31,13 @@ pub struct NsSphere {
 }
 
 impl NsSphere {
-    pub fn inner(&self) -> &Arc<SphereContext<PlatformKeyMaterial, PlatformStorage>> {
+    pub fn inner(
+        &self,
+    ) -> &SphereCursor<
+        Arc<SphereContext<PlatformKeyMaterial, PlatformStorage>>,
+        PlatformKeyMaterial,
+        PlatformStorage,
+    > {
         self.inner.immutable()
     }
 
@@ -149,7 +155,7 @@ pub fn ns_sphere_traverse_by_petname(
         Option<repr_c::Box<NsSphere>>,
     ),
 ) {
-    let mut sphere = sphere.inner_mut().clone();
+    let sphere = sphere.inner().clone();
     let async_runtime = noosphere.async_runtime();
     let raw_petnames = format!("@{}", petname.to_str());
 
@@ -161,11 +167,7 @@ pub fn ns_sphere_traverse_by_petname(
                 _ => Err(anyhow!("No petnames found in {}", raw_petnames))?,
             };
 
-            let next_sphere_context = sphere
-                .sphere_context_mut()
-                .await?
-                .traverse_by_petnames(&petnames)
-                .await?;
+            let next_sphere_context = sphere.traverse_by_petnames(&petnames).await?;
 
             Ok(next_sphere_context.map(|next_sphere_context| {
                 Box::new(NsSphere {
@@ -210,12 +212,7 @@ pub fn ns_sphere_traverse_by_petname_blocking(
                 _ => return Err(anyhow!("No petnames found in {}", raw_petnames)),
             };
 
-            let sphere_context = sphere.inner_mut();
-            let next_sphere_context = sphere_context
-                .sphere_context_mut()
-                .await?
-                .traverse_by_petnames(&petnames)
-                .await?;
+            let next_sphere_context = sphere.inner().traverse_by_petnames(&petnames).await?;
 
             Ok(next_sphere_context.map(|next_sphere_context| {
                 Box::new(NsSphere {
@@ -281,18 +278,11 @@ pub fn ns_sphere_content_read(
             };
 
             let cursor = match slashlink.peer {
-                Peer::Name(petnames) => {
-                    match sphere
-                        .sphere_context()
-                        .await?
-                        .traverse_by_petnames(&petnames)
-                        .await?
-                    {
-                        Some(sphere_context) => SphereCursor::latest(Arc::new(sphere_context)),
-                        None => return Ok(None),
-                    }
-                }
-                Peer::None => SphereCursor::latest(sphere.clone()),
+                Peer::Name(petnames) => match sphere.traverse_by_petnames(&petnames).await? {
+                    Some(sphere_context) => sphere_context,
+                    None => return Ok(None),
+                },
+                Peer::None => sphere,
                 Peer::Did(_) => return Err(anyhow!("DID peer in slashlink not yet supported")),
             };
 
@@ -350,18 +340,12 @@ pub fn ns_sphere_content_read_blocking(
 
                 let cursor = match slashlink.peer {
                     Peer::Name(petnames) => {
-                        match sphere
-                            .inner()
-                            .sphere_context()
-                            .await?
-                            .traverse_by_petnames(&petnames)
-                            .await?
-                        {
-                            Some(sphere_context) => SphereCursor::latest(Arc::new(sphere_context)),
+                        match sphere.inner().traverse_by_petnames(&petnames).await? {
+                            Some(sphere_context) => sphere_context,
                             None => return Ok(None),
                         }
                     }
-                    Peer::None => SphereCursor::latest(sphere.inner().clone()),
+                    Peer::None => sphere.inner().clone(),
                     Peer::Did(_) => return Err(anyhow!("DID peer in slashlink not yet supported")),
                 };
 
@@ -542,9 +526,11 @@ pub fn ns_sphere_content_changes(
     let possible_output = error_out.try_or_initialize(|| {
         noosphere.async_runtime().block_on(async {
             let since = match since_cid {
-                Some(cid_string) => {
-                    Some(Cid::from_str(cid_string.to_str()).map_err(|error| anyhow!(error))?)
-                }
+                Some(cid_string) => Some(
+                    Cid::from_str(cid_string.to_str())
+                        .map_err(|error| anyhow!(error))?
+                        .into(),
+                ),
                 None => None,
             };
 

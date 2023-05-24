@@ -135,7 +135,7 @@ where
                 .await?;
         }
 
-        next_sphere_cid = cursor.rewind().await?;
+        next_sphere_cid = cursor.rewind().await?.cloned();
         latest_revision = false;
     }
 
@@ -188,7 +188,7 @@ pub mod tests {
         let cats_cid = cursor
             .write(
                 "cats",
-                &ContentType::Subtext.to_string(),
+                &ContentType::Subtext,
                 b"# Cats\n\n> It is said that cats are /divine creatures\n\nCats [[are]] great\n\n/animals".as_ref(),
                 None
             )
@@ -197,7 +197,7 @@ pub mod tests {
 
         cursor.write(
             "animals",
-            &ContentType::Subtext.to_string(),
+            &ContentType::Subtext,
             b"Animals are multicellular, eukaryotic organisms in the biological kingdom Animalia."
                 .as_ref(),
             Some(vec![(Header::Title.to_string(), "Animals".into())]),
@@ -257,7 +257,7 @@ pub mod tests {
         let _cats_cid = cursor
             .write(
                 "cats",
-                &ContentType::Subtext.to_string(),
+                &ContentType::Subtext,
                 b"# Cats\n\n> It is said that cats are /divine creatures\n\nCats [[are]] great\n\n/animals".as_ref(),
                 None,
             )
@@ -267,7 +267,7 @@ pub mod tests {
         let cats_revised_cid = cursor
             .write(
                 "cats",
-                &ContentType::Subtext.to_string(),
+                &ContentType::Subtext,
                 b"Nevermind, I don't like cats".as_ref(),
                 None,
             )

@@ -112,7 +112,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
             .expect("to be some")
             .get_link()
             .unwrap(),
-        sphere_1_cid_1,
+        sphere_1_cid_1.into(),
         "first record found"
     );
 
@@ -135,7 +135,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
             .expect("to be some")
             .get_link()
             .unwrap(),
-        sphere_1_cid_2,
+        sphere_1_cid_2.into(),
         "latest record is found from network"
     );
 
@@ -160,7 +160,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
             .expect("to be some")
             .get_link()
             .unwrap(),
-        sphere_2_cid_1,
+        sphere_2_cid_1.into(),
         "non-cached record found for sphere_2"
     );
 

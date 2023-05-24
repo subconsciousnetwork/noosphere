@@ -42,18 +42,20 @@ impl NameSystemKeyMaterial for Ed25519KeyMaterial {
     }
 }
 
-/// The [NameSystem] is responsible for both propagating and resolving Sphere DIDs
-/// into an authorized UCAN publish token, resolving into a [Cid] address for
-/// a sphere's content. These records are propagated and resolved via the
-/// Noosphere Name System, a distributed network, built on [libp2p](https://libp2p.io)'s
-/// [Kademlia DHT specification](https://github.com/libp2p/specs/blob/master/kad-dht/README.md).
+/// The [NameSystem] is responsible for both propagating and resolving Sphere
+/// DIDs into an authorized UCAN publish token, resolving into a
+/// [Link<MemoIpld>] address for a sphere's content. These records are
+/// propagated and resolved via the Noosphere Name System, a distributed
+/// network, built on [libp2p](https://libp2p.io)'s [Kademlia DHT
+/// specification](https://github.com/libp2p/specs/blob/master/kad-dht/README.md).
 ///
 /// Hosted records can be set via [NameSystem::put_record], propagating the
-/// record immediately, and repropagating on a specified interval. Records
-/// can be resolved via [NameSystem::get_record].
+/// record immediately, and repropagating on a specified interval. Records can
+/// be resolved via [NameSystem::get_record].
 ///
-/// See <https://github.com/subconsciousnetwork/noosphere/blob/main/design/name-system.md> for
-/// the full Noosphere Name System spec.
+/// See
+/// <https://github.com/subconsciousnetwork/noosphere/blob/main/design/name-system.md>
+/// for the full Noosphere Name System spec.
 pub struct NameSystem {
     pub(crate) dht: DhtNode,
 }

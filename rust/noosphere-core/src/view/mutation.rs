@@ -1,17 +1,16 @@
 use anyhow::{anyhow, Result};
-use cid::Cid;
 use libipld_cbor::DagCborCodec;
-use ucan::crypto::KeyMaterial;
+use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
 use crate::{
-    authority::Authorization,
+    authority::{generate_capability, Authorization, SphereAction},
     data::{
         ChangelogIpld, DelegationIpld, Did, IdentityIpld, Jwt, Link, MapOperation, MemoIpld,
         RevocationIpld, VersionedMapKey, VersionedMapValue,
     },
 };
 
-use noosphere_storage::BlockStore;
+use noosphere_storage::{BlockStore, UcanStore};
 
 pub type ContentMutation = VersionedMapMutation<String, Link<MemoIpld>>;
 pub type IdentitiesMutation = VersionedMapMutation<String, IdentityIpld>;
@@ -22,12 +21,13 @@ pub type RevocationsMutation = VersionedMapMutation<Link<Jwt>, RevocationIpld>;
 use crate::view::Sphere;
 
 /// A [SphereRevision] represents a new, unsigned version of a [Sphere]. A
-/// [SphereRevision] must be signed as a final step before the [Cid] of a new
-/// sphere version can be considered part of the official history of the sphere.
-/// The credential used to sign must be authorized to create new history by the
-/// sphere's key.
+/// [SphereRevision] must be signed as a final step before the [Link<MemoIpld>]
+/// of a new sphere version can be considered part of the official history of
+/// the sphere. The credential used to sign must be authorized to create new
+/// history by the sphere's key.
 #[derive(Debug)]
 pub struct SphereRevision<S: BlockStore> {
+    pub sphere_identity: Did,
     pub store: S,
     pub memo: MemoIpld,
 }
@@ -37,9 +37,34 @@ impl<S: BlockStore> SphereRevision<S> {
         &mut self,
         credential: &Credential,
         authorization: Option<&Authorization>,
-    ) -> Result<Cid> {
-        self.memo.sign(credential, authorization).await?;
-        self.store.save::<DagCborCodec, _>(&self.memo).await
+    ) -> Result<Link<MemoIpld>> {
+        let proof = match authorization {
+            Some(authorization) => {
+                let witness_ucan = authorization
+                    .resolve_ucan(&UcanStore(self.store.clone()))
+                    .await?;
+
+                Some(
+                    UcanBuilder::default()
+                        .issued_by(credential)
+                        .for_audience(&self.sphere_identity)
+                        .with_lifetime(120)
+                        .witnessed_by(&witness_ucan)
+                        .claiming_capability(&generate_capability(
+                            &self.sphere_identity,
+                            SphereAction::Publish,
+                        ))
+                        .with_nonce()
+                        .build()?
+                        .sign()
+                        .await?,
+                )
+            }
+            None => None,
+        };
+
+        self.memo.sign(credential, proof.as_ref()).await?;
+        Ok(self.store.save::<DagCborCodec, _>(&self.memo).await?.into())
     }
 }
 

@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use noosphere_core::{authority::Authorization, data::Did};
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 
-use noosphere_sphere::SphereContext;
+use noosphere_sphere::{SphereContext, SphereCursor};
 use tokio::sync::Mutex;
 use url::Url;
 
@@ -158,7 +158,10 @@ impl NoosphereContext {
         let mut sphere_contexts = self.sphere_channels.lock().await;
         sphere_contexts.insert(
             sphere_identity.clone(),
-            SphereChannel::new(Arc::new(context.clone()), Arc::new(Mutex::new(context))),
+            SphereChannel::new(
+                SphereCursor::latest(Arc::new(context.clone())),
+                Arc::new(Mutex::new(context)),
+            ),
         );
 
         Ok(SphereReceipt {
@@ -196,7 +199,10 @@ impl NoosphereContext {
         let mut sphere_contexts = self.sphere_channels.lock().await;
         sphere_contexts.insert(
             sphere_identity,
-            SphereChannel::new(Arc::new(context.clone()), Arc::new(Mutex::new(context))),
+            SphereChannel::new(
+                SphereCursor::latest(Arc::new(context.clone())),
+                Arc::new(Mutex::new(context)),
+            ),
         );
 
         Ok(())
@@ -226,7 +232,10 @@ impl NoosphereContext {
             let context = SphereContext::from(artifacts);
             contexts.insert(
                 sphere_identity.to_owned(),
-                SphereChannel::new(Arc::new(context.clone()), Arc::new(Mutex::new(context))),
+                SphereChannel::new(
+                    SphereCursor::latest(Arc::new(context.clone())),
+                    Arc::new(Mutex::new(context)),
+                ),
             );
         }
 

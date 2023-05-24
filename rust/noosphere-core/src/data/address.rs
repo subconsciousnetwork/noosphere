@@ -7,7 +7,7 @@ use serde::{de, ser, Deserialize, Serialize};
 use std::{convert::TryFrom, fmt::Display, ops::Deref, str::FromStr};
 use ucan::{chain::ProofChain, crypto::did::DidParser, store::UcanJwtStore, Ucan};
 
-use super::{Did, IdentitiesIpld, Jwt, Link};
+use super::{Did, IdentitiesIpld, Jwt, Link, MemoIpld};
 
 #[cfg(docs)]
 use crate::data::SphereIpld;
@@ -123,16 +123,21 @@ impl LinkRecord {
         self.0.audience()
     }
 
-    /// The sphere revision address ([Cid]) that the sphere's identity maps to.
-    pub fn get_link(&self) -> Option<Cid> {
-        let facts = self.0.facts();
+    /// The sphere revision address ([Link<MemoIpld>]) that the sphere's identity maps to.
+    pub fn get_link(&self) -> Option<Link<MemoIpld>> {
+        let facts = if let Some(facts) = self.0.facts() {
+            facts
+        } else {
+            warn!("No facts found in the link record!");
+            return None;
+        };
 
         for fact in facts {
             match fact.as_object() {
                 Some(fields) => match fields.get("link") {
                     Some(cid_string) => {
                         match Cid::try_from(cid_string.as_str().unwrap_or_default()) {
-                            Ok(cid) => return Some(cid),
+                            Ok(cid) => return Some(cid.into()),
                             Err(error) => {
                                 warn!(
                                     "Could not parse '{}' as name record link: {}",
@@ -155,6 +160,34 @@ impl LinkRecord {
         }
         warn!("No facts contained a link!");
         None
+    }
+
+    /// Walk the underlying [Ucan] and collect all of the supporting proofs that
+    /// verify the link publisher's authority to publish the link
+    #[instrument(level = "trace", skip(self, store))]
+    pub async fn collect_proofs<S>(&self, store: &S) -> Result<Vec<Ucan>>
+    where
+        S: UcanJwtStore,
+    {
+        let mut proofs = vec![];
+        let mut remaining = vec![self.0.clone()];
+
+        while let Some(ucan) = remaining.pop() {
+            if let Some(ucan_proofs) = ucan.proofs() {
+                for proof_cid_string in ucan_proofs {
+                    let cid = Cid::try_from(proof_cid_string.as_str())?;
+                    trace!("Collecting proof with CID {}", cid);
+                    let jwt = store.require_token(&cid).await?;
+                    let ucan = Ucan::try_from(jwt.as_str())?;
+
+                    remaining.push(ucan);
+                }
+            };
+
+            proofs.push(ucan);
+        }
+
+        Ok(proofs)
     }
 }
 
@@ -302,13 +335,23 @@ impl TryFrom<String> for LinkRecord {
 }
 
 #[cfg(test)]
-#[cfg(test)]
-mod test {
+mod tests {
     use super::*;
-    use crate::{authority::generate_ed25519_key, data::Did, view::SPHERE_LIFETIME};
-    use noosphere_storage::{MemoryStorage, SphereDb};
+    use crate::{
+        authority::generate_ed25519_key,
+        data::Did,
+        tracing::initialize_tracing,
+        view::{Sphere, SPHERE_LIFETIME},
+    };
+    use noosphere_storage::{MemoryStorage, SphereDb, UcanStore};
     use serde_json::json;
     use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
+
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
     pub async fn from_issuer<K: KeyMaterial>(
         issuer: &K,
@@ -343,12 +386,13 @@ mod test {
         assert!(record.validate(store).await.is_err(), "{}", message);
     }
 
-    #[tokio::test]
-    async fn test_self_signed_link_record() -> Result<(), anyhow::Error> {
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn test_self_signed_link_record() -> Result<()> {
         let sphere_key = generate_ed25519_key();
         let sphere_identity = Did::from(sphere_key.get_did().await?);
         let link = "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i";
-        let cid_link: Cid = link.parse()?;
+        let cid_link: Link<MemoIpld> = link.parse()?;
         let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
 
         let record = from_issuer(&sphere_key, &sphere_identity, &cid_link, None).await?;
@@ -359,8 +403,9 @@ mod test {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_delegated_link_record() -> Result<(), anyhow::Error> {
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn test_delegated_link_record() -> Result<()> {
         let owner_key = generate_ed25519_key();
         let owner_identity = Did::from(owner_key.get_did().await?);
         let sphere_key = generate_ed25519_key();
@@ -374,7 +419,7 @@ mod test {
         let record = from_issuer(&owner_key, &sphere_identity, &cid_link, None).await?;
 
         assert_eq!(record.sphere_identity(), &sphere_identity);
-        assert_eq!(record.get_link(), Some(cid_link.clone()));
+        assert_eq!(record.get_link(), Some(cid_link.into()));
         if LinkRecord::validate(&record, &store).await.is_ok() {
             panic!("Owner should not have authorization to publish record")
         }
@@ -398,7 +443,7 @@ mod test {
         let record = from_issuer(&owner_key, &sphere_identity, &cid_link, Some(&proofs)).await?;
 
         assert_eq!(record.sphere_identity(), &sphere_identity);
-        assert_eq!(record.get_link(), Some(cid_link.clone()));
+        assert_eq!(record.get_link(), Some(cid_link.into()));
         assert!(LinkRecord::has_publishable_timeframe(&record));
         LinkRecord::validate(&record, &store).await?;
 
@@ -419,14 +464,15 @@ mod test {
             .await?
             .into();
         assert_eq!(expired.sphere_identity(), &sphere_identity);
-        assert_eq!(expired.get_link(), Some(cid_link));
-        assert!(expired.has_publishable_timeframe() == false);
+        assert_eq!(expired.get_link(), Some(cid_link.into()));
+        assert!(!expired.has_publishable_timeframe());
         LinkRecord::validate(&record, &store).await?;
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_link_record_failures() -> Result<(), anyhow::Error> {
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn test_link_record_failures() -> Result<()> {
         let sphere_key = generate_ed25519_key();
         let sphere_identity = Did::from(sphere_key.get_did().await?);
         let cid_address = "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i";
@@ -494,14 +540,15 @@ mod test {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_link_record_convert() -> Result<(), anyhow::Error> {
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn test_link_record_convert() -> Result<()> {
         let sphere_key = generate_ed25519_key();
         let identity = Did::from(sphere_key.get_did().await?);
         let capability = generate_capability(&identity, SphereAction::Publish);
         let cid_address = "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i";
         let link = Cid::from_str(cid_address)?;
-        let maybe_link = Some(link.clone());
+        let maybe_link = Some(link.into());
         let fact = json!({ "link": cid_address });
 
         let ucan = UcanBuilder::default()
@@ -522,7 +569,7 @@ mod test {
             let record: LinkRecord = encoded.parse()?;
             assert_eq!(record.sphere_identity(), identity, "LinkRecord::from_str()");
             assert_eq!(record.get_link(), maybe_link, "LinkRecord::from_str()");
-            let record: LinkRecord = String::from(encoded.clone()).try_into()?;
+            let record: LinkRecord = encoded.clone().try_into()?;
             assert_eq!(
                 record.sphere_identity(),
                 identity,
@@ -598,6 +645,67 @@ mod test {
             assert_eq!(record.sphere_identity(), identity, "deserialize()");
             assert_eq!(record.get_link(), maybe_link, "deserialize()");
         }
+
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_collect_related_proofs_from_storage() -> Result<()> {
+        initialize_tracing(None);
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await?;
+
+        let delegatee_key = generate_ed25519_key();
+        let delegatee_did = delegatee_key.get_did().await?;
+
+        let mut db = SphereDb::new(&MemoryStorage::default()).await?;
+        let mut ucan_store = UcanStore(db.clone());
+
+        let (sphere, proof, _) = Sphere::generate(&owner_did, &mut db).await?;
+        let ucan = proof.resolve_ucan(&db).await?;
+
+        let sphere_identity = sphere.get_identity().await?;
+
+        let delegated_ucan = UcanBuilder::default()
+            .issued_by(&owner_key)
+            .for_audience(&delegatee_did)
+            .witnessed_by(&ucan)
+            .claiming_capability(&generate_capability(
+                &sphere_identity,
+                SphereAction::Publish,
+            ))
+            .with_lifetime(120)
+            .build()?
+            .sign()
+            .await?;
+
+        let link_record_ucan = UcanBuilder::default()
+            .issued_by(&delegatee_key)
+            .for_audience(&sphere_identity)
+            .witnessed_by(&delegated_ucan)
+            .claiming_capability(&generate_capability(
+                &sphere_identity,
+                SphereAction::Publish,
+            ))
+            .with_lifetime(120)
+            .with_fact(json!({
+                "link": sphere.cid().to_string()
+            }))
+            .build()?
+            .sign()
+            .await?;
+
+        let link_record = LinkRecord::from(link_record_ucan.clone());
+
+        ucan_store.write_token(&ucan.encode()?).await?;
+        ucan_store.write_token(&delegated_ucan.encode()?).await?;
+        ucan_store.write_token(&link_record.encode()?).await?;
+
+        let proofs = link_record.collect_proofs(&ucan_store).await?;
+
+        assert_eq!(proofs.len(), 3);
+        assert_eq!(vec![link_record_ucan, delegated_ucan, ucan], proofs);
 
         Ok(())
     }
