@@ -8,13 +8,13 @@ use noosphere_core::{
     data::{Did, Link, LinkRecord},
     view::Sphere,
 };
-use noosphere_storage::{MemoryStorage, SphereDb, TrackingStorage};
+use noosphere_storage::{BlockStore, MemoryStorage, SphereDb, TrackingStorage, UcanStore};
 use serde_json::json;
 use tokio::sync::Mutex;
 use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
-use crate::SphereContext;
+use crate::{walk_versioned_map_elements, walk_versioned_map_elements_and, SphereContext};
 
 /// Access levels available when simulating a [SphereContext]
 pub enum SimulationAccess {
@@ -44,7 +44,7 @@ pub async fn simulated_sphere_context(
 
     let (sphere, proof, _) = Sphere::generate(&owner_did, &mut db).await?;
 
-    let sphere_identity = sphere.get_identity().await.unwrap();
+    let sphere_identity = sphere.get_identity().await?;
     let author = Author {
         key: owner_key,
         authorization: match profile {
@@ -56,12 +56,12 @@ pub async fn simulated_sphere_context(
     db.set_version(&sphere_identity, sphere.cid()).await?;
 
     Ok(Arc::new(Mutex::new(
-        SphereContext::new(sphere_identity, author, db, None)
-            .await
-            .unwrap(),
+        SphereContext::new(sphere_identity, author, db, None).await?,
     )))
 }
 
+/// Make a valid link record that represents a sphere "in the distance." The
+/// link record and its proof are both put into the provided [UcanJwtStore]
 pub async fn make_valid_link_record<S>(store: &mut S) -> Result<(Did, LinkRecord, Link<LinkRecord>)>
 where
     S: UcanJwtStore,
@@ -93,7 +93,56 @@ where
             .await?,
     );
 
+    store.write_token(&ucan_proof.encode()?).await?;
     let link = Link::from(store.write_token(&link_record.encode()?).await?);
 
     Ok((sphere_identity, link_record, link))
+}
+
+#[cfg(docs)]
+use noosphere_core::data::MemoIpld;
+
+/// Attempt to walk an entire sphere, touching every block up to and including
+/// any [MemoIpld] nodes, but excluding those memo's body content. This helper
+/// is useful for asserting that the blocks expected to be sent during
+/// replication have in fact been sent.
+pub async fn touch_all_sphere_blocks<S>(sphere: &Sphere<S>) -> Result<()>
+where
+    S: BlockStore + 'static,
+{
+    trace!("Touching content blocks...");
+    let content = sphere.get_content().await?;
+    let _ = content.load_changelog().await?;
+
+    walk_versioned_map_elements(content).await?;
+
+    trace!("Touching identity blocks...");
+    let identities = sphere.get_address_book().await?.get_identities().await?;
+    let _ = identities.load_changelog().await?;
+
+    walk_versioned_map_elements_and(
+        identities,
+        sphere.store().clone(),
+        |_, identity, store| async move {
+            let ucan_store = UcanStore(store);
+            if let Some(record) = identity.link_record(&ucan_store).await {
+                record.collect_proofs(&ucan_store).await?;
+            }
+            Ok(())
+        },
+    )
+    .await?;
+
+    trace!("Touching authority blocks...");
+    let authority = sphere.get_authority().await?;
+
+    trace!("Touching delegation blocks...");
+    let delegations = authority.get_delegations().await?;
+    walk_versioned_map_elements(delegations).await?;
+
+    trace!("Touching revocation blocks...");
+    let revocations = authority.get_revocations().await?;
+    walk_versioned_map_elements(revocations).await?;
+
+    Ok(())
 }

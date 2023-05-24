@@ -25,11 +25,7 @@ where
         }
     }
 
-    /// Writes header and stream of data to writer in Car format.
-    pub async fn write<T>(&mut self, cid: Cid, data: T) -> Result<(), Error>
-    where
-        T: AsRef<[u8]>,
-    {
+    pub async fn write_header(&mut self) -> Result<(), Error> {
         if !self.is_header_written {
             // Write header bytes
             let header_bytes = self.header.encode()?;
@@ -37,6 +33,15 @@ where
             self.writer.write_all(&header_bytes).await?;
             self.is_header_written = true;
         }
+        Ok(())
+    }
+
+    /// Writes header and stream of data to writer in Car format.
+    pub async fn write<T>(&mut self, cid: Cid, data: T) -> Result<(), Error>
+    where
+        T: AsRef<[u8]>,
+    {
+        self.write_header().await?;
 
         // Write the given block.
         self.cid_buffer.clear();

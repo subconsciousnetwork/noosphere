@@ -1,7 +1,8 @@
 use crate::try_or_reset::TryOrReset;
 use anyhow::anyhow;
 use anyhow::Result;
-use cid::Cid;
+use noosphere_core::data::Link;
+use noosphere_core::data::MemoIpld;
 use noosphere_core::data::{ContentType, Did, IdentityIpld, LinkRecord, MapOperation};
 use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_ns::{server::HttpClient as NameSystemHttpClient, NameResolver};
@@ -76,11 +77,14 @@ pub enum NameSystemJob<C> {
     ResolveImmediately {
         context: C,
         name: String,
-        tx: Sender<Option<Cid>>,
+        tx: Sender<Option<Link<MemoIpld>>>,
     },
     /// Resolve all added names of a given sphere since the given sphere
     /// revision
-    ResolveSince { context: C, since: Option<Cid> },
+    ResolveSince {
+        context: C,
+        since: Option<Link<MemoIpld>>,
+    },
     /// Publish a link record (given as a [Jwt]) to the name system
     Publish {
         context: C,
@@ -453,7 +457,7 @@ pub struct OnDemandNameResolver<H>(UnboundedSender<NameSystemJob<H>>);
 
 impl<H> OnDemandNameResolver<H> {
     #[allow(dead_code)]
-    pub async fn resolve(&self, context: H, name: &str) -> Result<Option<Cid>> {
+    pub async fn resolve(&self, context: H, name: &str) -> Result<Option<Link<MemoIpld>>> {
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.0
             .send(NameSystemJob::ResolveImmediately {

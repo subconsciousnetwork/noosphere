@@ -50,8 +50,8 @@ where
 
         let sphere_file = SphereFile {
             sphere_identity,
-            sphere_version: *sphere.cid(),
-            memo_version: *sphere.cid(),
+            sphere_version: sphere.cid().clone(),
+            memo_version: sphere.cid().clone(),
             memo,
             contents: TransformStream(sphere_to_subtext_stream(sphere)).into_reader(),
         };

@@ -1,6 +1,5 @@
 use anyhow::Result;
-use cid::Cid;
-use noosphere_core::data::{IdentityIpld, MapOperation};
+use noosphere_core::data::{IdentityIpld, Link, MapOperation, MemoIpld};
 use std::{collections::BTreeSet, marker::PhantomData};
 
 use async_stream::try_stream;
@@ -74,8 +73,8 @@ where
     /// parameter.
     pub fn petname_change_stream<'a>(
         &'a self,
-        since: Option<&'a Cid>,
-    ) -> impl Stream<Item = Result<(Cid, BTreeSet<String>)>> + 'a {
+        since: Option<&'a Link<MemoIpld>>,
+    ) -> impl Stream<Item = Result<(Link<MemoIpld>, BTreeSet<String>)>> + 'a {
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
             let since = since.cloned();
@@ -144,7 +143,10 @@ where
     /// proportionally to the size of the sphere and the length of its history.
     /// For a more efficient method of accessing changes, consider using
     /// [SphereWalker::petname_change_stream] instead.
-    pub async fn petname_changes(&self, since: Option<&Cid>) -> Result<BTreeSet<String>> {
+    pub async fn petname_changes(
+        &self,
+        since: Option<&Link<MemoIpld>>,
+    ) -> Result<BTreeSet<String>> {
         let sphere_identity = self.has_sphere_context.identity().await?;
         let change_stream = self.petname_change_stream(since);
 
@@ -217,8 +219,8 @@ where
     /// the entire history, pass `None` as the parameter.
     pub fn content_change_stream<'a>(
         &'a self,
-        since: Option<&'a Cid>,
-    ) -> impl Stream<Item = Result<(Cid, BTreeSet<String>)>> + 'a {
+        since: Option<&'a Link<MemoIpld>>,
+    ) -> impl Stream<Item = Result<(Link<MemoIpld>, BTreeSet<String>)>> + 'a {
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
             let since = since.cloned();
@@ -284,7 +286,10 @@ where
     /// proportionally to the size of the sphere and the length of its history.
     /// For a more efficient method of accessing changes, consider using
     /// [SphereWalker::content_change_stream] instead.
-    pub async fn content_changes(&self, since: Option<&Cid>) -> Result<BTreeSet<String>> {
+    pub async fn content_changes(
+        &self,
+        since: Option<&Link<MemoIpld>>,
+    ) -> Result<BTreeSet<String>> {
         let sphere_identity = self.has_sphere_context.identity().await?;
         let change_stream = self.content_change_stream(since);
 

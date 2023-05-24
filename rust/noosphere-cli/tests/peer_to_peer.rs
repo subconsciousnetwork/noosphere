@@ -6,13 +6,15 @@ extern crate tracing;
 mod helpers;
 use anyhow::Result;
 use helpers::{start_name_system_server, wait, SpherePair};
+use noosphere_core::data::ContentType;
 use noosphere_core::tracing::initialize_tracing;
 use noosphere_ns::{server::HttpClient, NameResolver};
 use noosphere_sphere::{
-    HasMutableSphereContext, HasSphereContext, SphereContentWrite, SpherePetnameRead,
-    SpherePetnameWrite, SphereSync,
+    HasMutableSphereContext, HasSphereContext, SphereContentRead, SphereContentWrite,
+    SpherePetnameRead, SpherePetnameWrite, SphereSync,
 };
 use std::sync::Arc;
+use tokio::io::AsyncReadExt;
 use tokio::sync::Mutex;
 use url::Url;
 
@@ -241,6 +243,124 @@ async fn synchronize_petnames_as_they_are_added_and_removed() -> Result<()> {
         })
         .await?;
 
+    ns_task.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_ipfs() -> Result<()>
+{
+    initialize_tracing(None);
+
+    let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
+    let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
+
+    let mut pair_1 = SpherePair::new("pair_1", &ipfs_url, &ns_url).await?;
+    let mut pair_2 = SpherePair::new("pair_2", &ipfs_url, &ns_url).await?;
+
+    pair_1.start_gateway().await?;
+    pair_2.start_gateway().await?;
+
+    // Write some content in each sphere and track the versions after saving for later
+    for pair in [&pair_1, &pair_2] {
+        let name = pair.name.clone();
+        let mut ctx = pair.sphere_context().await?;
+        ctx.write("my-name", "text/plain", name.as_ref(), None)
+            .await?;
+        ctx.save(None).await?;
+        ctx.sync().await?;
+    }
+    wait(1).await;
+
+    let id_2 = pair_2.client.identity.clone();
+    let pair_2_version = pair_2.sphere_context().await?.version().await?;
+
+    pair_1
+        .spawn(move |mut ctx| async move {
+            ctx.set_petname("pair_2".into(), Some(id_2)).await?;
+            ctx.save(None).await?;
+            ctx.sync().await?;
+            wait(1).await;
+            ctx.sync().await?;
+            assert_eq!(ctx.resolve_petname("pair_2").await?, Some(pair_2_version));
+            Ok(())
+        })
+        .await?;
+
+    pair_1
+        .spawn(|mut ctx| async move {
+            ctx.sync().await?;
+            let pair_2_context = Arc::new(Mutex::new(
+                ctx.sphere_context()
+                    .await?
+                    .traverse_by_petname("pair_2")
+                    .await?
+                    .unwrap(),
+            ));
+
+            debug!("Reading file from local third party sphere context...");
+            let mut file = pair_2_context.read("my-name").await?.unwrap();
+            let mut content = String::new();
+            file.contents.read_to_string(&mut content).await?;
+            assert_eq!(
+                content.as_str(),
+                "pair_2",
+                "can read content from adjacent sphere"
+            );
+
+            Ok(())
+        })
+        .await?;
+
+    pair_2
+        .spawn(|mut ctx| async move {
+            ctx.write("foo", &ContentType::Text, "foo".as_bytes(), None)
+                .await?;
+            ctx.save(None).await?;
+
+            ctx.write("bar", &ContentType::Text, "bar".as_bytes(), None)
+                .await?;
+            ctx.save(None).await?;
+
+            ctx.write("baz", &ContentType::Text, "baz".as_bytes(), None)
+                .await?;
+            ctx.save(None).await?;
+
+            ctx.remove("my-name").await?;
+            let latest_version = ctx.save(None).await?;
+
+            info!("Expect version: {}", latest_version);
+            ctx.sync().await?;
+
+            wait(3).await;
+
+            Ok(())
+        })
+        .await?;
+
+    pair_1
+        .spawn(|mut ctx| async move {
+            ctx.sync().await?;
+
+            let pair_2_context = Arc::new(Mutex::new(
+                ctx.sphere_context()
+                    .await?
+                    .traverse_by_petname("pair_2")
+                    .await?
+                    .unwrap(),
+            ));
+
+            let version = pair_2_context.version().await?;
+            info!("Have version: {}", version);
+
+            let mut file = pair_2_context.read("baz").await?.unwrap();
+            let mut content = String::new();
+            file.contents.read_to_string(&mut content).await?;
+            assert_eq!(content.as_str(), "baz");
+
+            Ok(())
+        })
+        .await?;
     ns_task.abort();
     Ok(())
 }

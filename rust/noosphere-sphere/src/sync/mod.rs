@@ -2,6 +2,7 @@ mod gateway;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use noosphere_core::data::{Link, MemoIpld};
 use noosphere_storage::Storage;
 use ucan::crypto::KeyMaterial;
 
@@ -21,7 +22,7 @@ where
     /// fetched to local storage. Then, the local changes will be replayed on
     /// top of those changes. Finally, the synchronized local history will be
     /// pushed up to the gateway.
-    async fn sync(&mut self) -> Result<()>;
+    async fn sync(&mut self) -> Result<Link<MemoIpld>>;
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -32,10 +33,10 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    async fn sync(&mut self) -> Result<()> {
+    async fn sync(&mut self) -> Result<Link<MemoIpld>> {
         let sync_strategy = GatewaySyncStrategy::default();
-        sync_strategy.sync(self).await?;
+        let version = sync_strategy.sync(self).await?;
         self.sphere_context_mut().await?.reset_access();
-        Ok(())
+        Ok(version)
     }
 }

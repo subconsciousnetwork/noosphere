@@ -135,7 +135,7 @@ where
                 .await?;
         }
 
-        next_sphere_cid = cursor.rewind().await?;
+        next_sphere_cid = cursor.rewind().await?.cloned();
         latest_revision = false;
     }
 

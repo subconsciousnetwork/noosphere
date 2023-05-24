@@ -1,11 +1,10 @@
 use std::{collections::BTreeMap, marker::PhantomData};
 
 use anyhow::{anyhow, Result};
-use cid::Cid;
-use noosphere_api::data::{FetchParameters, FetchResponse, PushBody, PushResponse};
+use noosphere_api::data::{FetchParameters, PushBody, PushResponse};
 use noosphere_core::{
     authority::{SphereAction, SphereReference},
-    data::{Did, IdentityIpld, Jwt},
+    data::{Did, IdentityIpld, Jwt, Link, MemoIpld},
     view::Sphere,
 };
 use noosphere_storage::{KeyValueStore, SphereDb, Storage};
@@ -64,14 +63,14 @@ where
 {
     /// Synchronize a local sphere's data with the data in a gateway, and rollback
     /// if there is an error.
-    pub async fn sync(&self, context: &mut C) -> Result<()>
+    pub async fn sync(&self, context: &mut C) -> Result<Link<MemoIpld>, anyhow::Error>
     where
         C: HasMutableSphereContext<K, S>,
     {
         let (local_sphere_version, counterpart_sphere_identity, counterpart_sphere_version) =
             self.handshake(context).await?;
 
-        let result: Result<(), anyhow::Error> = {
+        let result: Result<Link<MemoIpld>, anyhow::Error> = {
             let (mut local_sphere_version, counterpart_sphere_version, updated_names) = self
                 .fetch_remote_changes(
                     context,
@@ -93,7 +92,7 @@ where
             )
             .await?;
 
-            Ok(())
+            Ok(local_sphere_version)
         };
 
         // Rollback if there is an error while syncing
@@ -110,7 +109,11 @@ where
         result
     }
 
-    async fn handshake(&self, context: &mut C) -> Result<(Option<Cid>, Did, Option<Cid>)> {
+    #[instrument(level = "debug", skip(self, context))]
+    async fn handshake(
+        &self,
+        context: &mut C,
+    ) -> Result<(Option<Link<MemoIpld>>, Did, Option<Link<MemoIpld>>)> {
         let mut context = context.sphere_context_mut().await?;
         let client = context.client().await?;
         let counterpart_sphere_identity = client.session.sphere_identity.clone();
@@ -131,48 +134,60 @@ where
             .await?;
 
         Ok((
-            local_sphere_version,
+            local_sphere_version.map(|cid| cid.into()),
             counterpart_sphere_identity,
-            counterpart_sphere_version,
+            counterpart_sphere_version.map(|cid| cid.into()),
         ))
     }
 
     /// Fetches the latest changes from a gateway and updates the local lineage
     /// using a conflict-free rebase strategy
+    #[instrument(level = "debug", skip(self, context))]
     async fn fetch_remote_changes(
         &self,
         context: &mut C,
-        local_sphere_tip: Option<&Cid>,
+        local_sphere_tip: Option<&Link<MemoIpld>>,
         counterpart_sphere_identity: &Did,
-        counterpart_sphere_base: Option<&Cid>,
-    ) -> Result<(Cid, Cid, BTreeMap<String, IdentityIpld>)> {
+        counterpart_sphere_base: Option<&Link<MemoIpld>>,
+    ) -> Result<(
+        Link<MemoIpld>,
+        Link<MemoIpld>,
+        BTreeMap<String, IdentityIpld>,
+    )> {
         let mut context = context.sphere_context_mut().await?;
         let local_sphere_identity = context.identity().clone();
         let client = context.client().await?;
+
         let fetch_response = client
             .fetch(&FetchParameters {
                 since: counterpart_sphere_base.cloned(),
             })
             .await?;
+
         let mut updated_names = BTreeMap::new();
 
-        let (counterpart_sphere_tip, new_blocks) = match fetch_response {
-            FetchResponse::NewChanges { tip, blocks } => (tip, blocks),
-            FetchResponse::UpToDate => {
+        let (counterpart_sphere_tip, block_stream) = match fetch_response {
+            Some((tip, stream)) => (tip, stream),
+            None => {
                 info!("Local history is already up to date...");
-                let local_sphere_tip = context.db().require_version(&local_sphere_identity).await?;
+                let local_sphere_tip = context
+                    .db()
+                    .require_version(&local_sphere_identity)
+                    .await?
+                    .into();
                 return Ok((
                     local_sphere_tip,
-                    *counterpart_sphere_base
-                        .ok_or_else(|| anyhow!("Counterpart sphere history is missing!"))?,
+                    counterpart_sphere_base
+                        .ok_or_else(|| anyhow!("Counterpart sphere history is missing!"))?
+                        .clone(),
                     updated_names,
                 ));
             }
         };
 
-        new_blocks.load_into(context.db_mut()).await?;
+        context.db_mut().put_block_stream(block_stream).await?;
 
-        let counterpart_history: Vec<Result<(Cid, Sphere<SphereDb<S>>)>> =
+        let counterpart_history: Vec<Result<(Link<MemoIpld>, Sphere<SphereDb<S>>)>> =
             Sphere::at(&counterpart_sphere_tip, context.db_mut())
                 .into_history_stream(counterpart_sphere_base)
                 .collect()
@@ -198,7 +213,7 @@ where
                 .await?
                 .get(&local_sphere_identity)
                 .await?
-                .map(|link| link.cid),
+                .cloned(),
             None => None,
         };
         let local_sphere_new_base = Sphere::at(&counterpart_sphere_tip, context.db())
@@ -206,7 +221,7 @@ where
             .await?
             .get(&local_sphere_identity)
             .await?
-            .map(|link| link.cid);
+            .cloned();
 
         let local_sphere_tip = match (
             local_sphere_tip,
@@ -230,12 +245,12 @@ where
                 info!("Hydrating received local sphere revisions...");
                 Sphere::hydrate_range(old_base.as_ref(), &new_base, context.db_mut()).await?;
 
-                new_base
+                new_base.clone()
             }
             // No new history at all
             (Some(current_tip), _, _) => {
                 info!("Nothing to sync!");
-                *current_tip
+                current_tip.clone()
             }
             // We should have local history but we don't!
             _ => {
@@ -249,6 +264,7 @@ where
             .await?;
 
         debug!("Setting counterpart sphere version to {counterpart_sphere_tip}");
+
         context
             .db_mut()
             .set_version(counterpart_sphere_identity, &counterpart_sphere_tip)
@@ -257,11 +273,12 @@ where
         Ok((local_sphere_tip, counterpart_sphere_tip, updated_names))
     }
 
+    #[instrument(level = "debug", skip(self, context))]
     async fn adopt_names(
         &self,
         context: &mut C,
         updated_names: BTreeMap<String, IdentityIpld>,
-    ) -> Result<Option<Cid>> {
+    ) -> Result<Option<Link<MemoIpld>>> {
         if updated_names.is_empty() {
             return Ok(None);
         }
@@ -283,7 +300,7 @@ where
         }
 
         Ok(if context.has_unsaved_changes().await? {
-            Some(context.save(None).await?)
+            Some(context.save(None).await?.into())
         } else {
             None
         })
@@ -291,12 +308,13 @@ where
 
     /// Attempts to push the latest local lineage to the gateway, causing the
     /// gateway to update its own pointer to the tip of the local sphere's history
+    #[instrument(level = "debug", skip(self, context))]
     async fn push_local_changes(
         &self,
         context: &mut C,
-        local_sphere_tip: &Cid,
+        local_sphere_tip: &Link<MemoIpld>,
         counterpart_sphere_identity: &Did,
-        counterpart_sphere_tip: &Cid,
+        counterpart_sphere_tip: &Link<MemoIpld>,
     ) -> Result<()> {
         let mut context = context.sphere_context_mut().await?;
 
@@ -305,7 +323,7 @@ where
             .await?
             .get(context.identity())
             .await?
-            .map(|link| link.cid);
+            .cloned();
 
         if local_sphere_base.as_ref() == Some(local_sphere_tip) {
             info!("Gateway is already up to date!");
@@ -356,8 +374,9 @@ where
         let result = client
             .push(&PushBody {
                 sphere: local_sphere_identity.clone(),
-                base: local_sphere_base,
-                tip: *local_sphere_tip,
+                local_base: local_sphere_base,
+                local_tip: local_sphere_tip.clone(),
+                counterpart_tip: Some(counterpart_sphere_tip.clone()),
                 blocks: bundle,
                 name_record: Some(name_record),
             })
@@ -374,6 +393,11 @@ where
 
         new_blocks.load_into(context.db_mut()).await?;
 
+        debug!(
+            "Hydrating updated counterpart sphere history (from {} back to {})...",
+            counterpart_sphere_tip, counterpart_sphere_updated_tip
+        );
+
         Sphere::hydrate_range(
             Some(counterpart_sphere_tip),
             &counterpart_sphere_updated_tip,
@@ -389,12 +413,13 @@ where
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self, context))]
     async fn rollback(
         &self,
         context: &mut C,
-        original_sphere_version: Option<&Cid>,
+        original_sphere_version: Option<&Link<MemoIpld>>,
         counterpart_identity: &Did,
-        original_counterpart_version: Option<&Cid>,
+        original_counterpart_version: Option<&Link<MemoIpld>>,
     ) -> Result<()> {
         let sphere_identity = context.identity().await?;
         let mut context = context.sphere_context_mut().await?;

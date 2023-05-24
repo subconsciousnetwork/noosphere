@@ -1,18 +1,17 @@
 use std::{collections::VecDeque, fmt::Display};
 
 use anyhow::Result;
-use cid::Cid;
 use futures::{stream, StreamExt, TryStream};
 use libipld_cbor::DagCborCodec;
 
-use crate::data::MemoIpld;
+use crate::data::{Link, MemoIpld};
 
 use noosphere_storage::BlockStore;
 
 // Assumptions:
 // - network operations are _always_ mediated by a "remote" agent (no client-to-client syncing)
 // - the "remote" always has the authoritative state (we always rebase merge onto remote's tip)
-
+#[derive(Debug)]
 pub struct Timeline<'a, S: BlockStore> {
     pub store: &'a S,
 }
@@ -22,7 +21,11 @@ impl<'a, S: BlockStore> Timeline<'a, S> {
         Timeline { store }
     }
 
-    pub fn slice(&'a self, future: &'a Cid, past: Option<&'a Cid>) -> Timeslice<'a, S> {
+    pub fn slice(
+        &'a self,
+        future: &'a Link<MemoIpld>,
+        past: Option<&'a Link<MemoIpld>>,
+    ) -> Timeslice<'a, S> {
         Timeslice {
             timeline: self,
             past,
@@ -31,25 +34,27 @@ impl<'a, S: BlockStore> Timeline<'a, S> {
     }
 
     // TODO(#263): Consider using async-stream crate for this
+    #[instrument(level = "trace", skip(self))]
     pub fn stream(
         &self,
-        future: &Cid,
-        past: Option<&Cid>,
-    ) -> impl TryStream<Item = Result<(Cid, MemoIpld)>> {
+        future: &Link<MemoIpld>,
+        past: Option<&Link<MemoIpld>>,
+    ) -> impl TryStream<Item = Result<(Link<MemoIpld>, MemoIpld)>> {
         stream::try_unfold(
-            (Some(*future), past.cloned(), self.store.clone()),
+            (Some(future.clone()), past.cloned(), self.store.clone()),
             |(from, to, storage)| async move {
-                match from {
+                match &from {
                     Some(from) => {
+                        trace!("Stepping backward through version {}...", from);
                         let cid = from;
                         let next_dag = storage.load::<DagCborCodec, MemoIpld>(&cid).await?;
 
-                        let next_from = match to {
+                        let next_from: Option<Link<MemoIpld>> = match &to {
                             Some(to) if from == to => None,
-                            _ => next_dag.parent,
+                            _ => next_dag.parent.clone(),
                         };
 
-                        Ok(Some(((cid, next_dag), (next_from, to, storage))))
+                        Ok(Some(((cid.clone(), next_dag), (next_from, to, storage))))
                     }
                     None => Ok(None),
                 }
@@ -58,18 +63,19 @@ impl<'a, S: BlockStore> Timeline<'a, S> {
     }
 }
 
+#[derive(Debug)]
 pub struct Timeslice<'a, S: BlockStore> {
     pub timeline: &'a Timeline<'a, S>,
-    pub past: Option<&'a Cid>,
-    pub future: &'a Cid,
+    pub past: Option<&'a Link<MemoIpld>>,
+    pub future: &'a Link<MemoIpld>,
 }
 
 impl<'a, S: BlockStore> Timeslice<'a, S> {
-    pub fn stream(&self) -> impl TryStream<Item = Result<(Cid, MemoIpld)>> {
+    pub fn stream(&self) -> impl TryStream<Item = Result<(Link<MemoIpld>, MemoIpld)>> {
         self.timeline.stream(self.future, self.past)
     }
 
-    pub async fn to_chronological(&self) -> Result<Vec<(Cid, MemoIpld)>> {
+    pub async fn to_chronological(&self) -> Result<Vec<(Link<MemoIpld>, MemoIpld)>> {
         let mut chronological = VecDeque::new();
         let mut stream = Box::pin(self.stream());
 
@@ -93,7 +99,7 @@ impl<'a, S: BlockStore> Display for Timeslice<'a, S> {
 
 #[cfg(test)]
 mod tests {
-    use cid::Cid;
+    use anyhow::Result;
     use libipld_cbor::DagCborCodec;
     use noosphere_storage::{BlockStore, MemoryStore};
     use ucan::crypto::KeyMaterial;
@@ -102,7 +108,7 @@ mod tests {
 
     use crate::{
         authority::generate_ed25519_key,
-        data::MemoIpld,
+        data::{Link, MemoIpld},
         view::{Sphere, SphereMutation},
     };
 
@@ -113,37 +119,36 @@ mod tests {
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    async fn it_includes_the_revision_delimiters() {
+    async fn it_includes_the_revision_delimiters() -> Result<()> {
         let mut store = MemoryStore::default();
         let owner_key = generate_ed25519_key();
-        let owner_did = owner_key.get_did().await.unwrap();
+        let owner_did = owner_key.get_did().await?;
 
-        let (mut sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
-        let mut lineage = vec![*sphere.cid()];
+        let (mut sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await?;
+        let mut lineage = vec![sphere.cid().clone()];
 
         for i in 0..5u8 {
             let mut mutation = SphereMutation::new(&owner_did);
-            let memo = MemoIpld::for_body(&mut store, &[i]).await.unwrap();
-            let cid = store.save::<DagCborCodec, _>(&memo).await.unwrap();
+            let memo = MemoIpld::for_body(&mut store, &[i]).await?;
+            let cid = store.save::<DagCborCodec, _>(&memo).await?;
 
             mutation.content_mut().set(&format!("foo/{i}"), &cid.into());
-            let mut revision = sphere.apply_mutation(&mutation).await.unwrap();
-            let next_cid = revision.sign(&owner_key, Some(&ucan)).await.unwrap();
+            let mut revision = sphere.apply_mutation(&mutation).await?;
+            let next_cid = revision.sign(&owner_key, Some(&ucan)).await?;
 
             sphere = Sphere::at(&next_cid, &store);
             lineage.push(next_cid);
         }
 
-        let past = lineage[1];
-        let future = lineage[3];
+        let past = lineage[1].clone();
+        let future = lineage[3].clone();
 
         let timeline = Timeline::new(&store);
         let timeslice = timeline.slice(&future, Some(&past));
 
-        let items: Vec<Cid> = timeslice
+        let items: Vec<Link<MemoIpld>> = timeslice
             .to_chronological()
-            .await
-            .unwrap()
+            .await?
             .into_iter()
             .map(|(cid, _)| cid)
             .collect();
@@ -152,5 +157,7 @@ mod tests {
 
         assert_eq!(items[0], past);
         assert_eq!(items[2], future);
+
+        Ok(())
     }
 }

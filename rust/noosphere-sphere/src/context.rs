@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
-use cid::Cid;
 use futures_util::TryStreamExt;
 use libipld_cbor::DagCborCodec;
-use noosphere_api::client::Client;
+use noosphere_api::{client::Client, data::ReplicateParameters};
 
 use noosphere_core::{
     authority::{Access, Author, SUPPORTED_KEYS},
-    data::{ContentType, Did, MemoIpld, SphereIpld},
+    data::{ContentType, Did, Link, MemoIpld, SphereIpld},
     view::{Sphere, SphereMutation},
 };
 use noosphere_storage::{BlockStore, KeyValueStore, SphereDb, Storage};
@@ -146,12 +145,12 @@ where
 
         debug!("Petname assigned to {:?}", identity);
 
-        let resolved_version = match identity.link_record(self.db()).await {
+        let link_record_version = match identity.link_record(self.db()).await {
             Some(link_record) => link_record.get_link(),
             None => None,
         };
 
-        let resolved_version = match resolved_version {
+        let link_record_version = match link_record_version {
             Some(cid) => cid,
             None => {
                 return Err(anyhow!(
@@ -161,63 +160,64 @@ where
             }
         };
 
-        debug!("Resolved version is {}", resolved_version);
+        debug!("Link record version is {}", link_record_version);
 
         // Check for version in local sphere DB
+        // If desired version available, check for memo and body blocks
 
-        let maybe_has_resolved_version = match self.db().get_version(&identity.did).await? {
-            Some(local_version) => {
-                debug!("Local version: {}", local_version);
-                local_version == resolved_version
-            }
-            None => {
-                debug!("No local version");
-                false
-            }
-        };
-
-        // If version available, check for memo and body blocks
-
-        let should_replicate_from_gateway = if maybe_has_resolved_version {
-            match self
-                .db()
-                .load::<DagCborCodec, MemoIpld>(&resolved_version)
-                .await
-            {
-                Ok(memo) => {
-                    if memo.content_type() != Some(ContentType::Sphere) {
-                        return Err(anyhow!(
+        let local_version = self
+            .db()
+            .get_version(&identity.did)
+            .await?
+            .map(|cid| cid.into());
+        let (should_replicate_from_gateway, local_version) =
+            if local_version.as_ref() == Some(&link_record_version) {
+                match self
+                    .db()
+                    .load::<DagCborCodec, MemoIpld>(&link_record_version)
+                    .await
+                {
+                    Ok(memo) => {
+                        if memo.content_type() != Some(ContentType::Sphere) {
+                            return Err(anyhow!(
                             "Resolved content for \"{petname}\" ({}) does not refer to a sphere",
                             identity.did
                         ));
-                    }
+                        }
 
-                    debug!("Checking to see if we can get the sphere body...");
+                        debug!("Checking to see if we can get the sphere body...");
 
-                    match self.db().load::<DagCborCodec, SphereIpld>(&memo.body).await {
-                        Ok(_) => false,
-                        Err(error) => {
-                            warn!("{error}");
-                            true
+                        match self.db().load::<DagCborCodec, SphereIpld>(&memo.body).await {
+                            Ok(_) => (false, local_version),
+                            Err(error) => {
+                                warn!("{error}");
+                                (true, None)
+                            }
                         }
                     }
+                    Err(error) => {
+                        warn!("{error}");
+                        (true, None)
+                    }
                 }
-                Err(error) => {
-                    warn!("{error}");
-                    true
-                }
-            }
-        } else {
-            true
-        };
+            } else {
+                (true, local_version)
+            };
 
         // If no version available or memo/body missing, replicate from gateway
+
         let mut db = self.db.clone();
 
         if should_replicate_from_gateway {
             debug!("Attempting to replicate from gateway...");
+
             let client = self.client().await?;
-            let stream = client.replicate(&resolved_version).await?;
+            let replicate_parameters = local_version.as_ref().map(|since| ReplicateParameters {
+                since: Some(since.clone()),
+            });
+            let stream = client
+                .replicate(&link_record_version, replicate_parameters.as_ref())
+                .await?;
 
             tokio::pin!(stream);
 
@@ -225,9 +225,21 @@ where
                 db.put_block(&cid, &block).await?;
             }
 
-            debug!("Setting local version to resolved version");
+            let should_update_version = if let Some(since) = local_version {
+                let since_memo = db.load::<DagCborCodec, MemoIpld>(&since).await?;
+                let latest_memo = db
+                    .load::<DagCborCodec, MemoIpld>(&link_record_version)
+                    .await?;
 
-            db.set_version(&identity.did, &resolved_version).await?;
+                since_memo.lamport_order() < latest_memo.lamport_order()
+            } else {
+                true
+            };
+
+            if should_update_version {
+                debug!("Setting local version to resolved version");
+                db.set_version(&identity.did, &link_record_version).await?;
+            }
         }
 
         // Initialize a `SphereContext` with the same author and sphere DB as
@@ -244,6 +256,18 @@ where
         ))
     }
 
+    pub async fn to_visitor(&self, peer_identity: &Did) -> Result<Self> {
+        self.db().require_version(peer_identity).await?;
+
+        Ok(SphereContext::new(
+            peer_identity.clone(),
+            self.author.clone(),
+            self.db.clone(),
+            Some(self.origin_sphere_identity.clone()),
+        )
+        .await?)
+    }
+
     /// Given a [Did] of a sphere, produce a [SphereContext] backed by the same credentials and
     /// storage primitives as this one, but that accesses the sphere referred to by the provided
     /// [Did].
@@ -254,18 +278,28 @@ where
         unimplemented!()
     }
 
-    /// Resolve the most recent version in the local history of the sphere
-    pub async fn head(&self) -> Result<Cid> {
-        let sphere_identity = self.identity();
-        self.db
-            .get_version(&self.sphere_identity)
-            .await?
-            .ok_or_else(|| anyhow!("No version found for {}", sphere_identity))
-    }
-
     /// The identity of the sphere
     pub fn identity(&self) -> &Did {
         &self.sphere_identity
+    }
+
+    /// The identity of the counterpart sphere in use during this session, if
+    /// any; note that this will cause a request to be made to a gateway if no
+    /// handshake has yet occurred.
+    pub async fn counterpart_identity(&self) -> Result<Did> {
+        Ok(self.client().await?.session.sphere_identity.clone())
+    }
+
+    /// The identity of the counterpart sphere in use during this session, if
+    /// any; note that this will cause a request to be made to a gateway if no
+    /// handshake has yet occurred.
+    pub async fn gateway_identity(&self) -> Result<Did> {
+        Ok(self.client().await?.session.gateway_identity.clone())
+    }
+
+    /// The CID of the most recent local version of this sphere
+    pub async fn version(&self) -> Result<Link<MemoIpld>> {
+        Ok(self.db().require_version(self.identity()).await?.into())
     }
 
     /// The [Author] who is currently accessing the sphere
@@ -333,7 +367,7 @@ where
     /// convenient than working directly with raw data.
     pub async fn sphere(&self) -> Result<Sphere<SphereDb<S>>> {
         Ok(Sphere::at(
-            &self.db.require_version(self.identity()).await?,
+            &self.db.require_version(self.identity()).await?.into(),
             self.db(),
         ))
     }

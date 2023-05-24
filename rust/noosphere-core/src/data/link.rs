@@ -7,6 +7,7 @@ use libipld_core::{
 use std::{
     fmt::{Display, Formatter},
     io::{Read, Seek, Write},
+    str::FromStr,
 };
 use std::{hash::Hash, marker::PhantomData, ops::Deref};
 
@@ -146,12 +147,41 @@ where
     }
 }
 
+impl<T> From<&Cid> for Link<T>
+where
+    T: Clone,
+{
+    fn from(cid: &Cid) -> Self {
+        Self::new(cid.clone())
+    }
+}
+
 impl<T> From<Link<T>> for Cid
 where
     T: Clone,
 {
     fn from(link: Link<T>) -> Self {
         link.cid
+    }
+}
+
+impl<T> FromStr for Link<T>
+where
+    T: Clone,
+{
+    type Err = <Cid as FromStr>::Err;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(Cid::from_str(s)?.into())
+    }
+}
+
+impl<T> From<Link<T>> for String
+where
+    T: Clone,
+{
+    fn from(value: Link<T>) -> Self {
+        From::from(value.cid)
     }
 }
 

@@ -147,7 +147,7 @@ pub fn ns_sphere_version_get(
 
             let sphere_context = sphere_channel.immutable();
             sphere_context
-                .sphere()
+                .to_sphere()
                 .await?
                 .cid()
                 .to_string()
