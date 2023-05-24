@@ -46,12 +46,11 @@ ucan-key-support = { workspace = true }
 
 [dev-dependencies]
 noosphere-sphere = { version = "0.5.8", path = "../noosphere-sphere", features = ["helpers"] }
-wasm-bindgen-test = "~0.3"
+wasm-bindgen-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 # Mostly these dependencies are used in the examples
 tokio = { version = "^1", features = ["full"] }
-tempfile = "^3"
+tempfile = { workspace = true }
 axum = "~0.6"
-axum-extra = { version = "~0.4", features = ["spa"] }
 tower-http = { version = "~0.3", features = ["fs", "trace"] }

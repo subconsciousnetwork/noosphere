@@ -20,10 +20,10 @@ resolver = "2"
 [workspace.dependencies]
 anyhow = { version = "1" }
 subtext = { version = "0.3.4" }
+tempfile = { version = "^3" }
 tracing = { version = "0.1" }
-tracing-subscriber = { version = "0.3", features = ["env-filter", "tracing-log"] }
+tracing-subscriber = { version = "~0.3.16", features = ["env-filter", "tracing-log"] }
 thiserror = { version = "1" }
-instant = { version = "0.1" }
 gloo-timers = { version = "0.2", features = ["futures"] }
 ucan = { version = "0.3.0" }
 ucan-key-support = { version = "0.1.4" }
@@ -38,6 +38,11 @@ strum = { version = "0.24" }
 strum_macros = { version = "0.24" }
 serde = { version = "^1" }
 serde_json = { version = "^1" }
+
+js-sys = { version = "^0.3" }
+wasm-bindgen = { version = "^0.2" }
+wasm-bindgen-test = { version = "^0.3" }
+wasm-bindgen-futures = { version = "^0.4" }
 
 [profile.release]
 opt-level = 'z'

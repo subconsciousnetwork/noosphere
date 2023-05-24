@@ -26,7 +26,7 @@ reqwest = { version = "~0.11", default-features = false, features = ["json", "ru
 noosphere-ns = { version = "0.7.2", path = "../noosphere-ns" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tempfile = "^3"
+tempfile = { workspace = true }
 clap = { version = "^4.1", features = ["derive", "cargo"] }
 anyhow = "^1"
 
@@ -36,17 +36,14 @@ tower = "~0.4"
 tower-http = { version = "~0.3", features = ["cors", "trace"] }
 async-trait = "~0.1"
 tracing = { workspace = true }
-multipart = "~0.18"
 noosphere-car = { version = "0.1.2", path = "../noosphere-car" }
 
 url = { version = "^2", features = [ "serde" ] }
 whoami = "^1"
 home = "~0.5"
 pathdiff = "~0.2"
-path-absolutize = "^3"
 mime_guess = "^2"
 witty-phrase-generator = "~0.2"
-toml_edit = { version = "~0.15", features = [ "serde" ] }
 globset = "~0.4"
 
 noosphere-ipfs = { version = "0.4.4", path = "../noosphere-ipfs" }
@@ -67,4 +64,4 @@ libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "~0.2"
+wasm-bindgen = { workspace = true }

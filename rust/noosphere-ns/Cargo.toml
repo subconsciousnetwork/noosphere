@@ -58,9 +58,8 @@ url = { version = "^2", features = [ "serde" ], optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 rand = { version = "0.8.5" }
-test-log = { version = "0.2.11", default-features = false, features = ["trace"] }
 libipld-cbor = { workspace = true }
-tempdir = { version = "~0.3" }
+tempfile = { workspace = true }
 
 [features]
 default = ["orb-ns", "api-server"]

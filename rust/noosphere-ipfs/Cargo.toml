@@ -43,8 +43,7 @@ noosphere-storage = { version = "0.6.3", path = "../noosphere-storage" }
 ucan = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-noosphere-car = { version = "0.1.2", path = "../noosphere-car" }
-hyper = { version = "~0.14", features = ["full"] }
+hyper = { version = "^0.14.26", features = ["full"] }
 hyper-multipart-rfc7578 = "~0.8"
 ipfs-api-prelude = "~0.5"
 
@@ -54,4 +53,5 @@ ipfs-api-prelude = "~0.5"
 rand = "~0.8"
 libipld-cbor = { workspace = true }
 noosphere-storage = { version = "0.6.3", path = "../noosphere-storage" }
+noosphere-car = { version = "0.1.2", path = "../noosphere-car" }
 noosphere-core = { version = "0.11.0", path = "../noosphere-core" }
