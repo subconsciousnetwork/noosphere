@@ -146,7 +146,7 @@ mod inner {
 use std::sync::Arc;
 
 pub use inner::*;
-use noosphere_sphere::SphereContext;
+use noosphere_sphere::{SphereContext, SphereCursor};
 use tokio::sync::Mutex;
 
 use crate::sphere::SphereChannel;
@@ -154,9 +154,17 @@ use crate::sphere::SphereChannel;
 // NOTE: We may someday define the 3rd and 4th terms of this type differently on
 // web, where `Arc` and `Mutex` are currently overkill for our needs and may be
 // substituted for `Rc` and `RwLock`, respectively.
+pub type PlatformSphereContext = SphereCursor<
+    Arc<SphereContext<PlatformKeyMaterial, PlatformStorage>>,
+    PlatformKeyMaterial,
+    PlatformStorage,
+>;
+pub type PlatformMutableSphereContext =
+    Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>;
+
 pub type PlatformSphereChannel = SphereChannel<
     PlatformKeyMaterial,
     PlatformStorage,
-    Arc<SphereContext<PlatformKeyMaterial, PlatformStorage>>,
-    Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>,
+    PlatformSphereContext,
+    PlatformMutableSphereContext,
 >;

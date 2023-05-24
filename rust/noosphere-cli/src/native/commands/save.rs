@@ -54,7 +54,7 @@ pub async fn save(workspace: &Workspace) -> Result<()> {
                 .map(|extension| vec![(Header::FileExtension.to_string(), extension.clone())]);
 
             sphere_context
-                .link(slug, &content_type.to_string(), cid, headers)
+                .link(slug, content_type, cid, headers)
                 .await?;
         }
     }

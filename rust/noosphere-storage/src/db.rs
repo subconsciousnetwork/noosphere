@@ -10,7 +10,7 @@ use libipld_core::{
 use serde::{de::DeserializeOwned, Serialize};
 use std::future::Future;
 use std::{collections::BTreeSet, fmt::Debug};
-use tokio_stream::Stream;
+use tokio_stream::{Stream, StreamExt};
 use ucan::store::{UcanStore, UcanStoreConditionalSend};
 
 use crate::{BlockStore, BlockStoreSend, KeyValueStore, MemoryStore, Storage};
@@ -201,6 +201,31 @@ where
                 }
             }
         }
+    }
+
+    pub async fn put_block_stream<Str>(&mut self, stream: Str) -> Result<()>
+    where
+        Str: Stream<Item = Result<(Cid, Vec<u8>)>>,
+    {
+        tokio::pin!(stream);
+
+        while let Some((cid, block)) = stream.try_next().await? {
+            trace!("Putting streamed block {}...", cid);
+
+            self.put_block(&cid, &block).await?;
+
+            match cid.codec() {
+                codec_id if codec_id == u64::from(DagCborCodec) => {
+                    self.put_links::<DagCborCodec>(&cid, &block).await?;
+                }
+                codec_id if codec_id == u64::from(RawCodec) => {
+                    self.put_links::<RawCodec>(&cid, &block).await?;
+                }
+                codec_id => warn!("Unrecognized codec {}; skipping...", codec_id),
+            }
+        }
+
+        Ok(())
     }
 
     /// Get an owned copy of the underlying primitive [BlockStore] for this

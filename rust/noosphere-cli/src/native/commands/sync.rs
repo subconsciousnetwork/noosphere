@@ -1,6 +1,6 @@
 use crate::native::workspace::Workspace;
 use anyhow::{anyhow, Result};
-use noosphere_sphere::SphereSync;
+use noosphere_sphere::{SphereSync, SyncRecovery};
 use noosphere_storage::MemoryStore;
 
 pub async fn sync(workspace: &Workspace) -> Result<()> {
@@ -22,7 +22,7 @@ pub async fn sync(workspace: &Workspace) -> Result<()> {
 
     {
         let mut context = workspace.sphere_context().await?;
-        context.sync().await?;
+        context.sync(SyncRecovery::None).await?;
     }
 
     info!("Sync complete, rendering updated workspace...");

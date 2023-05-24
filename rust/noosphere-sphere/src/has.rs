@@ -1,8 +1,10 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use cid::Cid;
-use noosphere_core::{data::Did, view::Sphere};
-use noosphere_storage::Storage;
+use noosphere_core::{
+    data::{Did, Link, MemoIpld},
+    view::Sphere,
+};
+use noosphere_storage::{SphereDb, Storage};
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -50,25 +52,15 @@ where
         Ok(sphere_context.identity().clone())
     }
 
-    /// The CID revision of the sphere that this FS view is reading from and
-    /// writing to
-    async fn version(&self) -> Result<Cid> {
-        let identity = self.identity().await?;
-        let sphere_context = self.sphere_context().await?;
-
-        sphere_context
-            .db()
-            .get_version(&identity)
-            .await?
-            .ok_or_else(|| anyhow!("No version found for {}", identity))
+    /// The CID of the most recent local version of this sphere
+    async fn version(&self) -> Result<Link<MemoIpld>> {
+        self.sphere_context().await?.version().await
     }
 
     /// Get a data view into the sphere at the current revision
-    async fn to_sphere(&self) -> Result<Sphere<S::BlockStore>> {
-        Ok(Sphere::at(
-            &self.version().await?,
-            &self.sphere_context().await?.db().to_block_store(),
-        ))
+    async fn to_sphere(&self) -> Result<Sphere<SphereDb<S>>> {
+        let version = self.version().await?;
+        Ok(Sphere::at(&version, self.sphere_context().await?.db()))
     }
 }
 
@@ -105,7 +97,10 @@ where
     /// new version [Cid] of the sphere is returned. This method must be invoked
     /// in order to update the local history of the sphere with any changes that
     /// have been made.
-    async fn save(&mut self, additional_headers: Option<Vec<(String, String)>>) -> Result<Cid> {
+    async fn save(
+        &mut self,
+        additional_headers: Option<Vec<(String, String)>>,
+    ) -> Result<Link<MemoIpld>> {
         let sphere = self.to_sphere().await?;
         let mut sphere_context = self.sphere_context_mut().await?;
         let sphere_identity = sphere_context.identity().clone();
@@ -166,6 +161,21 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<K, S, T> HasSphereContext<K, S> for Box<T>
+where
+    T: HasSphereContext<K, S>,
+    K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
+{
+    type SphereContext = T::SphereContext;
+
+    async fn sphere_context(&self) -> Result<Self::SphereContext> {
+        T::sphere_context(self).await
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl<K, S> HasSphereContext<K, S> for Arc<SphereContext<K, S>>
 where
     K: KeyMaterial + Clone + 'static,
@@ -189,5 +199,20 @@ where
 
     async fn sphere_context_mut(&mut self) -> Result<Self::MutableSphereContext> {
         self.sphere_context().await
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<K, S, T> HasMutableSphereContext<K, S> for Box<T>
+where
+    T: HasMutableSphereContext<K, S>,
+    K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
+{
+    type MutableSphereContext = T::MutableSphereContext;
+
+    async fn sphere_context_mut(&mut self) -> Result<Self::MutableSphereContext> {
+        T::sphere_context_mut(self).await
     }
 }

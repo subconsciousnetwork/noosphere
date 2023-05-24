@@ -46,12 +46,12 @@ where
 
         let (html_prefix, html_suffix) = html_document_envelope(&memo);
 
-        memo.replace_first_header(&Header::ContentType.to_string(), &ContentType::Subtext.to_string());
+        memo.replace_first_header(&Header::ContentType, &ContentType::Subtext);
 
         let sphere_file = SphereFile {
             sphere_identity,
-            sphere_version: *sphere.cid(),
-            memo_version: *sphere.cid(),
+            sphere_version: sphere.cid().clone(),
+            memo_version: sphere.cid().clone(),
             memo,
             contents: TransformStream(sphere_to_subtext_stream(sphere)).into_reader(),
         };

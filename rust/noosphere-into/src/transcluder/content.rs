@@ -72,7 +72,7 @@ where
                     Some(file) => {
                         // TODO(#52): Maybe fall back to first heading if present and use
                         // that as a stand-in for title...
-                        let title = file.memo.get_first_header(&Header::Title.to_string());
+                        let title = file.memo.get_first_header(&Header::Title);
 
                         let subtext_ast_stream =
                             subtext::stream::<Block<Entity>, _, _>(file.contents).await;
