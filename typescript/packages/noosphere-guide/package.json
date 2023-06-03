@@ -1,0 +1,33 @@
+{
+  "name": "@subconsciousnetwork/noosphere-guide",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "wireit",
+    "serve": "wireit",
+    "clean": "wireit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0 OR MIT",
+  "devDependencies": {
+    "@11ty/eleventy": "^2.0.1",
+    "markdown-it": "^13.0.1",
+    "markdown-it-anchor": "^8.6.7",
+    "slugify": "^1.6.6",
+    "wireit": "^0.9.0"
+  },
+  "wireit": {
+    "build": {
+      "command": "npx @11ty/eleventy"
+    },
+    "serve": {
+      "service": true,
+      "command": "npx @11ty/eleventy --serve"
+    },
+    "clean": {
+      "command": "rm -rf ./_site"
+    }
+  }
+}

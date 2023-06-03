@@ -50,6 +50,7 @@
         "../../../rust/**/*.rs",
         "./scripts/generate-wasm-artifacts.sh"
       ],
+      "clean": "if-file-deleted",
       "output": [
         "lib/noosphere.{d.ts,js}",
         "lib/noosphere_bg.{d.ts,wasm}"
