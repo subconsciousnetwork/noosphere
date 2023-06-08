@@ -68,7 +68,7 @@ impl LinkRecord {
     /// permissions, as an expired token can be considered valid.
     /// Returns an `Err` if validation fails.
     pub async fn validate<S: UcanJwtStore>(&self, store: &S) -> Result<()> {
-        let identity = self.sphere_identity();
+        let identity = self.to_sphere_identity();
         let token = &self.0;
 
         if self.get_link().is_none() {
@@ -89,11 +89,11 @@ impl LinkRecord {
             ProofChain::from_ucan(token.to_owned(), Some(now_time), &mut did_parser, store).await?;
 
         {
-            let desired_capability = generate_capability(identity, SphereAction::Publish);
+            let desired_capability = generate_capability(&identity, SphereAction::Publish);
             let mut has_capability = false;
             for capability_info in proof.reduce_capabilities(&SPHERE_SEMANTICS) {
                 let capability = capability_info.capability;
-                if capability_info.originators.contains(identity)
+                if capability_info.originators.contains(identity.as_str())
                     && capability.enables(&desired_capability)
                 {
                     has_capability = true;
@@ -119,8 +119,8 @@ impl LinkRecord {
     }
 
     /// The DID key of the sphere that this record maps.
-    pub fn sphere_identity(&self) -> &str {
-        self.0.audience()
+    pub fn to_sphere_identity(&self) -> Did {
+        Did::from(self.0.audience())
     }
 
     /// The sphere revision address ([Link<MemoIpld>]) that the sphere's identity maps to.
@@ -240,7 +240,7 @@ impl Display for LinkRecord {
         write!(
             f,
             "LinkRecord({}, {})",
-            self.sphere_identity(),
+            self.to_sphere_identity(),
             self.get_link()
                 .map_or_else(|| String::from("None"), String::from)
         )
@@ -397,7 +397,7 @@ mod tests {
 
         let record = from_issuer(&sphere_key, &sphere_identity, &cid_link, None).await?;
 
-        assert_eq!(&Did::from(record.sphere_identity()), &sphere_identity);
+        assert_eq!(&Did::from(record.to_sphere_identity()), &sphere_identity);
         assert_eq!(LinkRecord::get_link(&record), Some(cid_link));
         LinkRecord::validate(&record, &store).await?;
         Ok(())
@@ -418,7 +418,7 @@ mod tests {
         // without delegation.
         let record = from_issuer(&owner_key, &sphere_identity, &cid_link, None).await?;
 
-        assert_eq!(record.sphere_identity(), &sphere_identity);
+        assert_eq!(record.to_sphere_identity(), sphere_identity);
         assert_eq!(record.get_link(), Some(cid_link.into()));
         if LinkRecord::validate(&record, &store).await.is_ok() {
             panic!("Owner should not have authorization to publish record")
@@ -442,7 +442,7 @@ mod tests {
         let proofs = vec![delegate_ucan.clone()];
         let record = from_issuer(&owner_key, &sphere_identity, &cid_link, Some(&proofs)).await?;
 
-        assert_eq!(record.sphere_identity(), &sphere_identity);
+        assert_eq!(record.to_sphere_identity(), sphere_identity);
         assert_eq!(record.get_link(), Some(cid_link.into()));
         assert!(LinkRecord::has_publishable_timeframe(&record));
         LinkRecord::validate(&record, &store).await?;
@@ -463,7 +463,7 @@ mod tests {
             .sign()
             .await?
             .into();
-        assert_eq!(expired.sphere_identity(), &sphere_identity);
+        assert_eq!(expired.to_sphere_identity(), sphere_identity);
         assert_eq!(expired.get_link(), Some(cid_link.into()));
         assert!(!expired.has_publishable_timeframe());
         LinkRecord::validate(&record, &store).await?;
@@ -567,11 +567,15 @@ mod tests {
         // from_str, String
         {
             let record: LinkRecord = encoded.parse()?;
-            assert_eq!(record.sphere_identity(), identity, "LinkRecord::from_str()");
+            assert_eq!(
+                record.to_sphere_identity(),
+                identity,
+                "LinkRecord::from_str()"
+            );
             assert_eq!(record.get_link(), maybe_link, "LinkRecord::from_str()");
             let record: LinkRecord = encoded.clone().try_into()?;
             assert_eq!(
-                record.sphere_identity(),
+                record.to_sphere_identity(),
                 identity,
                 "LinkRecord::try_from(String)"
             );
@@ -585,10 +589,14 @@ mod tests {
         // Ucan convert
         {
             let from_ucan_ref = LinkRecord::from(&ucan);
-            assert_eq!(base.sphere_identity(), identity, "LinkRecord::from(Ucan)");
+            assert_eq!(
+                base.to_sphere_identity(),
+                identity,
+                "LinkRecord::from(Ucan)"
+            );
             assert_eq!(base.get_link(), maybe_link, "LinkRecord::from(Ucan)");
             assert_eq!(
-                from_ucan_ref.sphere_identity(),
+                from_ucan_ref.to_sphere_identity(),
                 identity,
                 "LinkRecord::from(&Ucan)"
             );
@@ -614,7 +622,7 @@ mod tests {
             let bytes = Vec::from(encoded.clone());
             let record = LinkRecord::try_from(bytes.clone())?;
             assert_eq!(
-                record.sphere_identity(),
+                record.to_sphere_identity(),
                 identity,
                 "LinkRecord::try_from(Vec<u8>)"
             );
@@ -626,7 +634,7 @@ mod tests {
 
             let record = LinkRecord::try_from(bytes.as_slice())?;
             assert_eq!(
-                record.sphere_identity(),
+                record.to_sphere_identity(),
                 identity,
                 "LinkRecord::try_from(&[u8])"
             );
@@ -642,7 +650,7 @@ mod tests {
             let serialized = serde_json::to_string(&base)?;
             assert_eq!(serialized, format!("\"{}\"", encoded), "serialize()");
             let record: LinkRecord = serde_json::from_str(&serialized)?;
-            assert_eq!(record.sphere_identity(), identity, "deserialize()");
+            assert_eq!(record.to_sphere_identity(), identity, "deserialize()");
             assert_eq!(record.get_link(), maybe_link, "deserialize()");
         }
 

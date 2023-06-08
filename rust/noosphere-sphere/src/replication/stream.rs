@@ -369,14 +369,11 @@ mod tests {
             }
 
             for petname in petname_change {
-                sphere_context
-                    .adopt_petname(
-                        petname,
-                        &make_valid_link_record(&mut UcanStore(original_store.clone()))
-                            .await?
-                            .1,
-                    )
-                    .await?;
+                let (id, record, _) =
+                    make_valid_link_record(&mut UcanStore(original_store.clone())).await?;
+                sphere_context.set_petname(petname, Some(id)).await?;
+                versions.push(sphere_context.save(None).await?);
+                sphere_context.set_petname_record(petname, &record).await?;
             }
 
             versions.push(sphere_context.save(None).await?);
@@ -520,9 +517,11 @@ mod tests {
         }
 
         let mut db = sphere_context.sphere_context().await?.db().clone();
-        let (_, link_record, _) = make_valid_link_record(&mut db).await?;
+        let (id, link_record, _) = make_valid_link_record(&mut db).await?;
+        sphere_context.set_petname("hasrecord", Some(id)).await?;
+        sphere_context.save(None).await?;
         sphere_context
-            .adopt_petname("hasrecord", &link_record)
+            .set_petname_record("hasrecord", &link_record)
             .await?;
         sphere_context.save(None).await?;
 

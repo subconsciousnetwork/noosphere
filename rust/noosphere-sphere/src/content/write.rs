@@ -30,9 +30,9 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    /// Like link, this takes a [Link<MemoIpld>] that should be associated directly with
-    /// a slug, but in this case the [Link<MemoIpld>] is assumed to refer to a memo, so
-    /// no wrapping memo is created.
+    /// Like link, this takes a [Link<MemoIpld>] that should be associated
+    /// directly with a slug, but in this case the [Link<MemoIpld>] is assumed
+    /// to refer to a memo, so no wrapping memo is created.
     async fn link_raw(&mut self, slug: &str, cid: &Link<MemoIpld>) -> Result<()>;
 
     /// Similar to write, but instead of generating blocks from some provided

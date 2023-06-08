@@ -133,7 +133,7 @@ impl DhtClient for NameSystem {
     }
 
     async fn put_record(&self, record: LinkRecord, quorum: usize) -> Result<()> {
-        let identity = Did::from(record.sphere_identity());
+        let identity = record.to_sphere_identity();
         let record_bytes: Vec<u8> = record.try_into()?;
         match self
             .dht

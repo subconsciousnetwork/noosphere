@@ -160,7 +160,7 @@ mod test {
         let value = res.value().unwrap();
         let fetched = serde_json::from_str::<LinkRecord>(value).unwrap();
         assert_eq!(fetched.get_link().unwrap(), cid_link.into());
-        assert_eq!(fetched.sphere_identity(), &id_b);
+        assert_eq!(fetched.to_sphere_identity(), id_b);
 
         Ok(())
     }

@@ -243,7 +243,7 @@ pub mod tests {
 
     use crate::{
         helpers::{make_valid_link_record, simulated_sphere_context, SimulationAccess},
-        HasSphereContext, SphereContentWrite, SpherePetnameWrite,
+        HasMutableSphereContext, HasSphereContext, SphereContentWrite, SpherePetnameWrite,
     };
 
     #[cfg(target_arch = "wasm32")]
@@ -290,7 +290,7 @@ pub mod tests {
 
         for invalid_name in invalid_names {
             assert!(sphere_context
-                .adopt_petname(invalid_name, &link_record)
+                .set_petname_record(invalid_name, &link_record)
                 .await
                 .is_err());
             assert!(sphere_context
@@ -301,11 +301,12 @@ pub mod tests {
 
         for valid_name in valid_names {
             assert!(sphere_context
-                .adopt_petname(valid_name, &link_record)
+                .set_petname(valid_name, Some(other_identity.clone()))
                 .await
                 .is_ok());
+            sphere_context.save(None).await?;
             assert!(sphere_context
-                .set_petname(valid_name, Some(other_identity.clone()))
+                .set_petname_record(valid_name, &link_record)
                 .await
                 .is_ok());
         }

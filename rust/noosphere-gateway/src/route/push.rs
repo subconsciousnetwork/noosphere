@@ -260,7 +260,7 @@ where
                         // can ignore changes to names in the past that we have
                         // already encountered in the future
                         if updated_names.contains(&key) {
-                            trace!("Skipping name add for {}...", key);
+                            trace!("Skipping name add for '{}' (already seen)...", key);
                             continue;
                         }
 
@@ -270,7 +270,7 @@ where
                         // changed to avoid redundantly recording updates made
                         // on the client due to a previous sync
                         if my_value != Some(&value) {
-                            debug!("Adding name {}...", key);
+                            debug!("Adding name '{}' ({})...", key, value.did);
                             self.sphere_context
                                 .sphere_context_mut()
                                 .await?
@@ -283,11 +283,11 @@ where
                     }
                     MapOperation::Remove { key } => {
                         if updated_names.contains(&key) {
-                            trace!("Skipping name removal for {}...", key);
+                            trace!("Skipping name removal for '{}' (already seen)...", key);
                             continue;
                         }
 
-                        debug!("Removing name {}...", key);
+                        debug!("Removing name '{}'...", key);
                         self.sphere_context
                             .sphere_context_mut()
                             .await?

@@ -15,7 +15,7 @@ use noosphere_storage::{BlockStoreRetry, Storage, UcanStore};
 use std::fmt::Display;
 use std::future::Future;
 use std::{
-    collections::{BTreeMap, BTreeSet, VecDeque},
+    collections::{BTreeMap, BTreeSet},
     string::ToString,
     sync::Arc,
     time::Duration,
@@ -274,19 +274,10 @@ where
 
                 tokio::pin!(history_stream);
 
-                let reverse_history = history_stream
-                    .fold(VecDeque::new(), |mut all, step| {
-                        if let Ok(entry) = step {
-                            all.push_front(entry);
-                        }
-                        all
-                    })
-                    .await;
-
                 let mut names_to_resolve = BTreeMap::<String, IdentityIpld>::new();
                 let mut names_to_ignore = BTreeSet::new();
 
-                for (_, sphere) in reverse_history {
+                while let Some((_, sphere)) = history_stream.try_next().await? {
                     let names = sphere.get_address_book().await?.get_identities().await?;
                     let changelog = names.load_changelog().await?;
 
@@ -411,7 +402,8 @@ where
                     "Gateway adopting petname record for '{}' ({}): {}",
                     name, identity.did, record
                 );
-                context.adopt_petname(&name, record).await?;
+
+                context.set_petname_record(&name, record).await?;
             }
             _ => continue,
         }
