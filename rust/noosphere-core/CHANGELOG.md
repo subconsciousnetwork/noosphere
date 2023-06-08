@@ -5,6 +5,30 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-collections bumped from 0.3.1 to 0.3.2
 
+## [0.12.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.11.0...noosphere-core-v0.12.0) (2023-06-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* Enable incremental sphere replication ([#409](https://github.com/subconsciousnetwork/noosphere/issues/409))
+
+### Features
+
+* Consolidate `NsRecord` implementation in`LinkRecord`. Fixes [#395](https://github.com/subconsciousnetwork/noosphere/issues/395) ([#399](https://github.com/subconsciousnetwork/noosphere/issues/399)) ([9ee4798](https://github.com/subconsciousnetwork/noosphere/commit/9ee47981232fde00b34bb9458c5b0b2799a610ca))
+
+
+### Bug Fixes
+
+* Enable incremental sphere replication ([#409](https://github.com/subconsciousnetwork/noosphere/issues/409)) ([8812a1e](https://github.com/subconsciousnetwork/noosphere/commit/8812a1e8c9348301b36b77d6c1a2024432806358))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.6.3 to 0.7.0
+    * noosphere-collections bumped from 0.5.3 to 0.6.0
+
 ## [0.11.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.10.2...noosphere-core-v0.11.0) (2023-05-08)
 
 

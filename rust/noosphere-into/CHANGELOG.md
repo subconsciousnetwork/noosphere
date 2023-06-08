@@ -84,6 +84,34 @@
   * dev-dependencies
     * noosphere-sphere bumped from 0.5.7 to 0.5.8
 
+## [0.9.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.8.9...noosphere-into-v0.9.0) (2023-06-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* Enable incremental sphere replication ([#409](https://github.com/subconsciousnetwork/noosphere/issues/409))
+* Migrate blake2b->blake3 everywhere. ([#400](https://github.com/subconsciousnetwork/noosphere/issues/400))
+
+### Features
+
+* Migrate blake2b-&gt;blake3 everywhere. ([#400](https://github.com/subconsciousnetwork/noosphere/issues/400)) ([f9e0aec](https://github.com/subconsciousnetwork/noosphere/commit/f9e0aecd76a7253aba13b1881af32a2e543fb6de)), closes [#386](https://github.com/subconsciousnetwork/noosphere/issues/386)
+
+
+### Bug Fixes
+
+* Enable incremental sphere replication ([#409](https://github.com/subconsciousnetwork/noosphere/issues/409)) ([8812a1e](https://github.com/subconsciousnetwork/noosphere/commit/8812a1e8c9348301b36b77d6c1a2024432806358))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.11.0 to 0.12.0
+    * noosphere-storage bumped from 0.6.3 to 0.7.0
+    * noosphere-sphere bumped from 0.5.8 to 0.6.0
+  * dev-dependencies
+    * noosphere-sphere bumped from 0.5.8 to 0.6.0
+
 ## [0.8.6](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.8.5...noosphere-into-v0.8.6) (2023-05-09)
 
 

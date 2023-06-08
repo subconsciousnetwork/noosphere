@@ -16,6 +16,25 @@
   * dependencies
     * noosphere-storage bumped from 0.6.2 to 0.6.3
 
+## [0.6.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.5.3...noosphere-collections-v0.6.0) (2023-06-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* Migrate blake2b->blake3 everywhere. ([#400](https://github.com/subconsciousnetwork/noosphere/issues/400))
+
+### Features
+
+* Consolidate `NsRecord` implementation in`LinkRecord`. Fixes [#395](https://github.com/subconsciousnetwork/noosphere/issues/395) ([#399](https://github.com/subconsciousnetwork/noosphere/issues/399)) ([9ee4798](https://github.com/subconsciousnetwork/noosphere/commit/9ee47981232fde00b34bb9458c5b0b2799a610ca))
+* Migrate blake2b-&gt;blake3 everywhere. ([#400](https://github.com/subconsciousnetwork/noosphere/issues/400)) ([f9e0aec](https://github.com/subconsciousnetwork/noosphere/commit/f9e0aecd76a7253aba13b1881af32a2e543fb6de)), closes [#386](https://github.com/subconsciousnetwork/noosphere/issues/386)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.6.3 to 0.7.0
+
 ## [0.5.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.5.1...noosphere-collections-v0.5.2) (2023-04-22)
 
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-car-v0.1.2...noosphere-car-v0.2.0) (2023-06-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* Enable incremental sphere replication ([#409](https://github.com/subconsciousnetwork/noosphere/issues/409))
+* Migrate blake2b->blake3 everywhere. ([#400](https://github.com/subconsciousnetwork/noosphere/issues/400))
+
+### Features
+
+* Migrate blake2b-&gt;blake3 everywhere. ([#400](https://github.com/subconsciousnetwork/noosphere/issues/400)) ([f9e0aec](https://github.com/subconsciousnetwork/noosphere/commit/f9e0aecd76a7253aba13b1881af32a2e543fb6de)), closes [#386](https://github.com/subconsciousnetwork/noosphere/issues/386)
+
+
+### Bug Fixes
+
+* Enable incremental sphere replication ([#409](https://github.com/subconsciousnetwork/noosphere/issues/409)) ([8812a1e](https://github.com/subconsciousnetwork/noosphere/commit/8812a1e8c9348301b36b77d6c1a2024432806358))
+
 ## [0.1.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-car-v0.1.1...noosphere-car-v0.1.2) (2023-05-09)
 
 

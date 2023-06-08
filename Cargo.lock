@@ -3397,7 +3397,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere"
-version = "0.10.11"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -3438,7 +3438,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-api"
-version = "0.7.9"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
@@ -3464,7 +3464,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-car"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
@@ -3480,7 +3480,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-cli"
-version = "0.10.11"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3521,7 +3521,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-collections"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-once-cell 0.3.1",
@@ -3547,7 +3547,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-core"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "async-once-cell 0.3.1",
@@ -3588,7 +3588,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-gateway"
-version = "0.4.11"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -3626,7 +3626,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-into"
-version = "0.8.9"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "async-compat",
@@ -3657,7 +3657,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-ipfs"
-version = "0.4.4"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-compat",
@@ -3685,7 +3685,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-ns"
-version = "0.7.2"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3719,7 +3719,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-sphere"
-version = "0.5.8"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -3750,7 +3750,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-storage"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-std",
