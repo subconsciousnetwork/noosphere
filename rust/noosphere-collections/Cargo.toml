@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-collections"
-version = "0.5.3"
+version = "0.6.0"
 edition = "2021"
 description = "Collection data types that are needed by an efficient implementation of Noosphere's IPLD data structures"
 keywords = ["hamt", "ipld", "noosphere", "p2p", "async"]
@@ -31,7 +31,7 @@ async-once-cell = "0.3"
 async-recursion = "^1"
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
-noosphere-storage = { version = "0.6.3", path = "../noosphere-storage" }
+noosphere-storage = { version = "0.7.0", path = "../noosphere-storage" }
 
 tokio = { version = "^1", features = ["sync", "io-util"] }
 tokio-stream = "~0.1"

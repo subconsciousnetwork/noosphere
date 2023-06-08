@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.7.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.6.3...noosphere-storage-v0.7.0) (2023-06-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* Enable incremental sphere replication ([#409](https://github.com/subconsciousnetwork/noosphere/issues/409))
+* Migrate blake2b->blake3 everywhere. ([#400](https://github.com/subconsciousnetwork/noosphere/issues/400))
+
+### Features
+
+* Consolidate `NsRecord` implementation in`LinkRecord`. Fixes [#395](https://github.com/subconsciousnetwork/noosphere/issues/395) ([#399](https://github.com/subconsciousnetwork/noosphere/issues/399)) ([9ee4798](https://github.com/subconsciousnetwork/noosphere/commit/9ee47981232fde00b34bb9458c5b0b2799a610ca))
+* Migrate blake2b-&gt;blake3 everywhere. ([#400](https://github.com/subconsciousnetwork/noosphere/issues/400)) ([f9e0aec](https://github.com/subconsciousnetwork/noosphere/commit/f9e0aecd76a7253aba13b1881af32a2e543fb6de)), closes [#386](https://github.com/subconsciousnetwork/noosphere/issues/386)
+
+
+### Bug Fixes
+
+* Enable incremental sphere replication ([#409](https://github.com/subconsciousnetwork/noosphere/issues/409)) ([8812a1e](https://github.com/subconsciousnetwork/noosphere/commit/8812a1e8c9348301b36b77d6c1a2024432806358))
+
 ## [0.6.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.6.2...noosphere-storage-v0.6.3) (2023-05-08)
 
 

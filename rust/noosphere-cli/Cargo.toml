@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-cli"
-version = "0.10.11"
+version = "0.11.0"
 edition = "2021"
 description = "Reference client and pedagogical tool to demonstrate the principles of the Noosphere protocol"
 keywords = ["cli", "sync", "noosphere", "p2p", "ucan"]
@@ -23,7 +23,7 @@ test_kubo = []
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls", "stream"] }
-noosphere-ns = { version = "0.7.2", path = "../noosphere-ns" }
+noosphere-ns = { version = "0.8.0", path = "../noosphere-ns" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tempfile = { workspace = true }
@@ -36,7 +36,7 @@ tower = "~0.4"
 tower-http = { version = "~0.3", features = ["cors", "trace"] }
 async-trait = "~0.1"
 tracing = { workspace = true }
-noosphere-car = { version = "0.1.2", path = "../noosphere-car" }
+noosphere-car = { version = "0.2.0", path = "../noosphere-car" }
 
 url = { version = "^2", features = [ "serde" ] }
 whoami = "^1"
@@ -46,13 +46,13 @@ mime_guess = "^2"
 witty-phrase-generator = "~0.2"
 globset = "~0.4"
 
-noosphere-ipfs = { version = "0.4.4", path = "../noosphere-ipfs" }
-noosphere-core = { version = "0.11.0", path = "../noosphere-core" }
-noosphere-sphere = { version = "0.5.8", path = "../noosphere-sphere" }
-noosphere-storage = { version = "0.6.3", path = "../noosphere-storage" }
-noosphere-api = { version = "0.7.9", path = "../noosphere-api" }
-noosphere-gateway = { version = "0.4.11", path = "../noosphere-gateway" }
-noosphere = { version = "0.10.11", path = "../noosphere" }
+noosphere-ipfs = { version = "0.5.0", path = "../noosphere-ipfs" }
+noosphere-core = { version = "0.12.0", path = "../noosphere-core" }
+noosphere-sphere = { version = "0.6.0", path = "../noosphere-sphere" }
+noosphere-storage = { version = "0.7.0", path = "../noosphere-storage" }
+noosphere-api = { version = "0.8.0", path = "../noosphere-api" }
+noosphere-gateway = { version = "0.5.0", path = "../noosphere-gateway" }
+noosphere = { version = "0.11.0", path = "../noosphere" }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
 cid = { workspace = true }

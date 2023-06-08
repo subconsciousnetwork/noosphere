@@ -71,6 +71,34 @@
   * dependencies
     * noosphere bumped from 0.10.10 to 0.10.11
 
+## [0.8.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.7.2...noosphere-ns-v0.8.0) (2023-06-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* Enable incremental sphere replication ([#409](https://github.com/subconsciousnetwork/noosphere/issues/409))
+* Migrate blake2b->blake3 everywhere. ([#400](https://github.com/subconsciousnetwork/noosphere/issues/400))
+
+### Features
+
+* Consolidate `NsRecord` implementation in`LinkRecord`. Fixes [#395](https://github.com/subconsciousnetwork/noosphere/issues/395) ([#399](https://github.com/subconsciousnetwork/noosphere/issues/399)) ([9ee4798](https://github.com/subconsciousnetwork/noosphere/commit/9ee47981232fde00b34bb9458c5b0b2799a610ca))
+* Migrate blake2b-&gt;blake3 everywhere. ([#400](https://github.com/subconsciousnetwork/noosphere/issues/400)) ([f9e0aec](https://github.com/subconsciousnetwork/noosphere/commit/f9e0aecd76a7253aba13b1881af32a2e543fb6de)), closes [#386](https://github.com/subconsciousnetwork/noosphere/issues/386)
+
+
+### Bug Fixes
+
+* Enable incremental sphere replication ([#409](https://github.com/subconsciousnetwork/noosphere/issues/409)) ([8812a1e](https://github.com/subconsciousnetwork/noosphere/commit/8812a1e8c9348301b36b77d6c1a2024432806358))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.6.3 to 0.7.0
+    * noosphere-core bumped from 0.11.0 to 0.12.0
+    * noosphere bumped from 0.10.11 to 0.11.0
+    * noosphere-ipfs bumped from 0.4.4 to 0.5.0
+
 ## [0.7.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.7.0...noosphere-ns-v0.7.1) (2023-05-17)
 
 
