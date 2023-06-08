@@ -1,6 +1,6 @@
-///! IPFS integration for various backend implementations.
-///! Provides the generalized [IpfsClient] trait, and implementations
-///! for Kubo's HTTP RPC API, and a more limited IPFS HTTP Gateway.
+//! IPFS integration for various backend implementations.
+//! Provides the generalized [IpfsClient] trait, and implementations
+//! for Kubo's HTTP RPC API, and a more limited IPFS HTTP Gateway.
 mod gateway;
 pub use gateway::GatewayClient;
 

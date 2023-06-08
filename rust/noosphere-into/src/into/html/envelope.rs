@@ -8,7 +8,7 @@ use noosphere_core::data::{ContentType, Header, MemoIpld};
 pub fn html_document_envelope(memo: &MemoIpld) -> (String, String) {
     let content_type = memo.content_type();
 
-    let title = if let Some(title) = memo.get_first_header(&Header::Title.to_string()) {
+    let title = if let Some(title) = memo.get_first_header(&Header::Title) {
         title
     } else {
         match content_type {

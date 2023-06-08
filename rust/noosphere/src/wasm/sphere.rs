@@ -36,7 +36,7 @@ impl SphereContext {
         let cid = Cid::try_from(version).map_err(|error| format!("{:?}", error))?;
 
         Ok(SphereFs {
-            inner: SphereCursor::mounted_at(self.inner.mutable().clone(), &cid),
+            inner: SphereCursor::mounted_at(self.inner.mutable().clone(), &cid.into()),
         })
     }
 }

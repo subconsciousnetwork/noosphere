@@ -113,21 +113,23 @@ where
 
     #[instrument(skip(self), level = "trace")]
     async fn get_block(&self, cid: &Cid) -> Result<Option<Vec<u8>>> {
-        trace!("IpfsStore: Getting block {}...", cid);
+        trace!("Looking up block locally...");
         let maybe_block = {
             let local_store = self.local_store.read().await;
             local_store.get_block(cid).await?
         };
 
         if let Some(block) = maybe_block {
-            trace!("IpfsStore: Got block locally {}", cid);
+            trace!("Found block locally!");
             return Ok(Some(block));
         }
 
+        trace!("Block not available locally...");
+
         if let Some(ipfs_client) = self.ipfs_client.as_ref() {
-            trace!("IpfsStore: Querying IPFS for {}...", cid);
+            trace!("Looking up block in IPFS...");
             if let Some(bytes) = ipfs_client.get_block(cid).await? {
-                trace!("IpfsStore: Got block via IPFS {}", cid);
+                trace!("Found block in IPFS!");
                 let mut local_store = self.local_store.write().await;
                 local_store.put_block(cid, &bytes).await?;
                 return Ok(Some(bytes));

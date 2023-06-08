@@ -57,12 +57,13 @@ impl SphereIpld {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use ed25519_zebra::{SigningKey as Ed25519PrivateKey, VerificationKey as Ed25519PublicKey};
     use libipld_cbor::DagCborCodec;
     use ucan::{
         builder::UcanBuilder,
         capability::{Capability, Resource, With},
-        crypto::{did::DidParser, KeyMaterial},
+        crypto::KeyMaterial,
         store::UcanJwtStore,
     };
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
@@ -70,10 +71,9 @@ mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use crate::{
-        authority::{
-            verify_sphere_cid, Authorization, SphereAction, SphereReference, SUPPORTED_KEYS,
-        },
+        authority::{SphereAction, SphereReference},
         data::{ContentType, Did, Header, MemoIpld, SphereIpld},
+        view::Sphere,
     };
 
     use noosphere_storage::{BlockStore, MemoryStorage, SphereDb};
@@ -86,15 +86,15 @@ mod tests {
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    async fn it_can_be_signed_by_identity_key_and_verified() {
+    async fn it_can_be_signed_by_identity_key_and_verified() -> Result<()> {
         let identity_credential = generate_credential();
-        let identity = Did(identity_credential.get_did().await.unwrap());
+        let identity = Did(identity_credential.get_did().await?);
 
-        let mut store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+        let mut store = SphereDb::new(&MemoryStorage::default()).await?;
 
-        let sphere = SphereIpld::new(&identity, &mut store).await.unwrap();
+        let sphere = SphereIpld::new(&identity, &mut store).await?;
 
-        let sphere_cid = store.save::<DagCborCodec, _>(&sphere).await.unwrap();
+        let sphere_cid = store.save::<DagCborCodec, _>(&sphere).await?;
 
         let mut memo = MemoIpld {
             parent: None,
@@ -114,58 +114,43 @@ mod tests {
             can: SphereAction::Authorize,
         };
 
-        let authorization = Authorization::Ucan(
-            UcanBuilder::default()
-                .issued_by(&identity_credential)
-                .for_audience(&identity)
-                .with_lifetime(100)
-                .claiming_capability(&capability)
-                .build()
-                .unwrap()
-                .sign()
-                .await
-                .unwrap(),
-        );
+        let authorization = UcanBuilder::default()
+            .issued_by(&identity_credential)
+            .for_audience(&identity)
+            .with_lifetime(100)
+            .claiming_capability(&capability)
+            .build()?
+            .sign()
+            .await?;
 
         memo.sign(&identity_credential, Some(&authorization))
-            .await
-            .unwrap();
+            .await?;
 
-        store
-            .write_token(
-                &authorization
-                    .resolve_ucan(&store)
-                    .await
-                    .unwrap()
-                    .encode()
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        store.write_token(&authorization.encode()?).await?;
 
-        let memo_cid = store.save::<DagCborCodec, _>(&memo).await.unwrap();
+        let memo_cid = store.save::<DagCborCodec, _>(&memo).await?.into();
 
-        let mut did_parser = DidParser::new(SUPPORTED_KEYS);
+        let sphere = Sphere::at(&memo_cid, &store);
 
-        verify_sphere_cid(&memo_cid, &store, &mut did_parser)
-            .await
-            .unwrap();
+        sphere.verify_signature().await?;
+
+        Ok(())
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    async fn it_can_be_signed_by_an_authorized_key_and_verified() {
+    async fn it_can_be_signed_by_an_authorized_key_and_verified() -> Result<()> {
         let identity_credential = generate_credential();
         let authorized_credential = generate_credential();
 
-        let identity = Did(identity_credential.get_did().await.unwrap());
-        let authorized = Did(authorized_credential.get_did().await.unwrap());
+        let identity = Did(identity_credential.get_did().await?);
+        let authorized = Did(authorized_credential.get_did().await?);
 
-        let mut store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+        let mut store = SphereDb::new(&MemoryStorage::default()).await?;
 
-        let sphere = SphereIpld::new(&identity, &mut store).await.unwrap();
+        let sphere = SphereIpld::new(&identity, &mut store).await?;
 
-        let sphere_cid = store.save::<DagCborCodec, _>(&sphere).await.unwrap();
+        let sphere_cid = store.save::<DagCborCodec, _>(&sphere).await?;
 
         let mut memo = MemoIpld {
             parent: None,
@@ -185,41 +170,26 @@ mod tests {
             can: SphereAction::Authorize,
         };
 
-        let authorization = Authorization::Ucan(
-            UcanBuilder::default()
-                .issued_by(&identity_credential)
-                .for_audience(&authorized)
-                .with_lifetime(100)
-                .claiming_capability(&capability)
-                .build()
-                .unwrap()
-                .sign()
-                .await
-                .unwrap(),
-        );
+        let authorization = UcanBuilder::default()
+            .issued_by(&identity_credential)
+            .for_audience(&authorized)
+            .with_lifetime(100)
+            .claiming_capability(&capability)
+            .build()?
+            .sign()
+            .await?;
 
         memo.sign(&authorized_credential, Some(&authorization))
-            .await
-            .unwrap();
+            .await?;
 
-        store
-            .write_token(
-                &authorization
-                    .resolve_ucan(&store)
-                    .await
-                    .unwrap()
-                    .encode()
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        store.write_token(&authorization.encode().unwrap()).await?;
 
-        let memo_cid = store.save::<DagCborCodec, _>(&memo).await.unwrap();
+        let memo_cid = store.save::<DagCborCodec, _>(&memo).await?.into();
 
-        let mut did_parser = DidParser::new(SUPPORTED_KEYS);
+        let sphere = Sphere::at(&memo_cid, &store);
 
-        verify_sphere_cid(&memo_cid, &store, &mut did_parser)
-            .await
-            .unwrap();
+        sphere.verify_signature().await?;
+
+        Ok(())
     }
 }

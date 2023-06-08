@@ -7,20 +7,22 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use serde::{Deserialize, Serialize};
-use ucan::crypto::KeyMaterial;
+use ucan::{crypto::KeyMaterial, Ucan};
 
-use crate::{authority::Authorization, data::Header};
+use crate::data::Header;
 
 use noosphere_storage::{base64_encode, BlockStore, BlockStoreSend};
 
-use super::ContentType;
+use super::{ContentType, Link};
+
+pub type LamportOrder = u32;
 
 /// A basic Memo. A Memo is a history-retaining structure that pairs
 /// inline headers with a body CID.
 #[derive(Debug, Default, Eq, PartialEq, Clone, Serialize, Deserialize, Hash)]
 pub struct MemoIpld {
     /// An optional pointer to the previous version of the DAG
-    pub parent: Option<Cid>,
+    pub parent: Option<Link<MemoIpld>>,
     /// Headers that are associated with the content of this DAG
     pub headers: Vec<(String, String)>,
     /// A pointer to the body content
@@ -28,16 +30,47 @@ pub struct MemoIpld {
 }
 
 impl MemoIpld {
+    /// Gets the Lamport order from the memo's headers, if one is set. Returns
+    /// the starting order value if no such header is found.
+    pub fn lamport_order(&self) -> LamportOrder {
+        if let Some(lamport_order) = self.get_first_header(&Header::LamportOrder) {
+            u32::from_str(&lamport_order).unwrap_or_default()
+        } else {
+            0u32
+        }
+    }
+
+    /// If there is a "proof" header in the memo, attempts to interpret it as a
+    /// [Ucan] and return the result.
+    pub fn get_proof(&self) -> Result<Option<Ucan>> {
+        if let Some(since_proof) = self.get_first_header(&Header::Proof) {
+            if let Ok(ucan) = Ucan::from_str(&since_proof) {
+                return Ok(Some(ucan));
+            }
+        };
+        Ok(None)
+    }
+
+    /// Same as [Ucan::get_proof] except it returns an error result if a valid
+    /// "proof" header is not found.
+    pub fn require_proof(&self) -> Result<Ucan> {
+        if let Some(ucan) = self.get_proof()? {
+            Ok(ucan)
+        } else {
+            Err(anyhow!("No valid 'proof' header found"))
+        }
+    }
+
     /// If the body of this memo is different from it's parent, returns true.
-    pub async fn try_compare_body<S: BlockStore>(&self, store: &S) -> Result<bool> {
-        let parent_cid = match self.parent {
+    pub async fn compare_body<S: BlockStore>(&self, store: &S) -> Result<bool> {
+        let parent_cid = match &self.parent {
             Some(cid) => cid,
             None => return Ok(true),
         };
 
         let MemoIpld {
             body: parent_body, ..
-        } = store.load::<DagCborCodec, _>(&parent_cid).await?;
+        } = store.load::<DagCborCodec, _>(parent_cid).await?;
 
         Ok(self.body != parent_body)
     }
@@ -78,15 +111,21 @@ impl MemoIpld {
         })
     }
 
-    /// Loads a memo from the provided CID, initializes a copy of it, sets
-    /// the copy's parent to the provided CID and cleans signature information
-    /// from the copy's headers; the new memo is returned.
-    pub async fn branch_from<S: BlockStore>(cid: &Cid, store: &S) -> Result<Self> {
+    /// Loads a memo from the provided CID, initializes a copy of it, sets the
+    /// copy's parent to the provided CID and cleans signature information from
+    /// the copy's headers, increments the Lamport order of the memo; the new
+    /// memo is returned.
+    pub async fn branch_from<S: BlockStore>(cid: &Link<MemoIpld>, store: &S) -> Result<Self> {
         match store.load::<DagCborCodec, MemoIpld>(cid).await {
             Ok(mut memo) => {
-                memo.parent = Some(*cid);
-                memo.remove_header(&Header::Signature.to_string());
-                memo.remove_header(&Header::Proof.to_string());
+                memo.parent = Some(cid.clone());
+                memo.remove_header(&Header::Signature);
+                memo.remove_header(&Header::Proof);
+
+                memo.replace_headers(vec![(
+                    Header::LamportOrder.to_string(),
+                    (memo.lamport_order() + 1).to_string(),
+                )]);
 
                 Ok(memo)
             }
@@ -99,24 +138,21 @@ impl MemoIpld {
     pub async fn sign<Credential: KeyMaterial>(
         &mut self,
         credential: &Credential,
-        authorization: Option<&Authorization>,
+        proof: Option<&Ucan>,
     ) -> Result<()> {
         let signature = base64_encode(&credential.sign(&self.body.to_bytes()).await?)?;
 
-        self.replace_first_header(&Header::Signature.to_string(), &signature);
+        self.replace_first_header(&Header::Signature, &signature);
 
-        if let Some(authorization) = authorization {
-            self.replace_first_header(
-                &Header::Proof.to_string(),
-                &Cid::try_from(authorization)?.to_string(),
-            );
+        if let Some(proof) = proof {
+            self.replace_first_header(&Header::Proof, &proof.encode()?);
         } else {
-            self.remove_header(&Header::Proof.to_string())
+            self.remove_header(&Header::Proof)
         }
 
         let did = credential.get_did().await?;
 
-        self.replace_first_header(&Header::Author.to_string(), &did);
+        self.replace_first_header(&Header::Author, &did);
 
         Ok(())
     }
@@ -205,7 +241,7 @@ impl MemoIpld {
         let new_header_set = new_headers
             .iter()
             .fold(BTreeSet::new(), |mut set, (key, _)| {
-                set.insert(key);
+                set.insert(key.to_lowercase());
                 set
             });
 
@@ -213,7 +249,7 @@ impl MemoIpld {
             .headers
             .clone()
             .into_iter()
-            .filter(|(key, _)| !new_header_set.contains(key))
+            .filter(|(key, _)| !new_header_set.contains(&key.to_lowercase()))
             .collect();
 
         modified_headers.append(&mut new_headers);
@@ -235,7 +271,7 @@ impl MemoIpld {
 
     /// Helper to quickly deserialize a content-type (if any) from the memo
     pub fn content_type(&self) -> Option<ContentType> {
-        if let Some(content_type) = self.get_first_header(&Header::ContentType.to_string()) {
+        if let Some(content_type) = self.get_first_header(&Header::ContentType) {
             if let Ok(content_type) = ContentType::from_str(&content_type) {
                 Some(content_type)
             } else {
@@ -249,6 +285,7 @@ impl MemoIpld {
 
 #[cfg(test)]
 mod test {
+    use anyhow::Result;
     use libipld_cbor::DagCborCodec;
     use libipld_core::{ipld::Ipld, raw::RawCodec};
     #[cfg(target_arch = "wasm32")]
@@ -310,5 +347,35 @@ mod test {
             .unwrap();
 
         assert_eq!(decoded_body.foo, String::from("bar"));
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_causally_order_a_lineage_of_memos() -> Result<()> {
+        let mut store = MemoryStore::default();
+
+        let mut memo = MemoIpld::default();
+        let mut memo_cid = store.save::<DagCborCodec, _>(&memo).await?;
+
+        let mut memos = vec![memo];
+
+        for _ in 0..5 {
+            memo = MemoIpld::branch_from(&memo_cid.into(), &mut store).await?;
+            memo_cid = store.save::<DagCborCodec, _>(&memo).await?;
+
+            memos.push(memo);
+        }
+
+        let first_memo = memos.get(0).unwrap();
+        let third_memo = memos.get(2).unwrap();
+        let fourth_memo = memos.get(3).unwrap();
+        let fifth_memo = memos.get(4).unwrap();
+
+        assert!(third_memo.lamport_order() < fourth_memo.lamport_order());
+        assert!(fifth_memo.lamport_order() > fourth_memo.lamport_order());
+        assert!(first_memo.lamport_order() < third_memo.lamport_order());
+        assert!(first_memo.lamport_order() < fifth_memo.lamport_order());
+
+        Ok(())
     }
 }

@@ -1,13 +1,10 @@
 use crate::{authority::GatewayAuthority, GatewayScope};
 use axum::{http::StatusCode, response::IntoResponse, Extension, Json};
 use noosphere_api::data::IdentifyResponse;
-use noosphere_core::authority::{SphereAction, SphereReference};
+use noosphere_core::authority::{generate_capability, SphereAction};
 use noosphere_sphere::HasSphereContext;
 use noosphere_storage::Storage;
-use ucan::{
-    capability::{Capability, Resource, With},
-    crypto::KeyMaterial,
-};
+use ucan::crypto::KeyMaterial;
 
 pub async fn identify_route<C, K, S>(
     Extension(scope): Extension<GatewayScope>,
@@ -21,14 +18,10 @@ where
 {
     debug!("Invoking identify route...");
 
-    authority.try_authorize(&Capability {
-        with: With::Resource {
-            kind: Resource::Scoped(SphereReference {
-                did: scope.counterpart.to_string(),
-            }),
-        },
-        can: SphereAction::Fetch,
-    })?;
+    authority.try_authorize(&generate_capability(
+        &scope.counterpart,
+        SphereAction::Fetch,
+    ))?;
 
     let sphere_context = sphere_context
         .sphere_context()
@@ -41,7 +34,7 @@ where
             .author()
             .require_authorization()
             .map_err(|error| {
-                error!("{:?}", error);
+                error!("Could not find authorization: {:?}", error);
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 

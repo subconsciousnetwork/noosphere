@@ -4,11 +4,10 @@ use anyhow::Result;
 
 use axum::{http::StatusCode, Extension};
 
-use cid::Cid;
 use noosphere_api::data::{PushBody, PushError, PushResponse};
 use noosphere_core::{
     authority::{SphereAction, SphereReference},
-    data::{Bundle, LinkRecord, MapOperation},
+    data::{Bundle, Link, LinkRecord, MapOperation, MemoIpld},
     view::Sphere,
 };
 use noosphere_sphere::{HasMutableSphereContext, SphereContentWrite, SphereCursor};
@@ -112,7 +111,7 @@ where
         // These steps are order-independent
         let _ = tokio::join!(
             self.notify_name_resolver(),
-            self.notify_ipfs_syndicator(next_version)
+            self.notify_ipfs_syndicator(next_version.clone())
         );
 
         Ok(PushResponse::Accepted {
@@ -128,12 +127,21 @@ where
     async fn verify_history(&self) -> Result<(), PushError> {
         debug!("Verifying pushed sphere history...");
 
+        let gateway_sphere_tip = self.sphere_context.version().await?;
+        if Some(&gateway_sphere_tip) != self.request_body.counterpart_tip.as_ref() {
+            warn!(
+                "Gateway sphere conflict; we have {gateway_sphere_tip}, they have {:?}",
+                self.request_body.counterpart_tip
+            );
+            return Err(PushError::Conflict);
+        }
+
         let sphere_identity = &self.request_body.sphere;
         let gateway_sphere_context = self.sphere_context.sphere_context().await?;
         let db = gateway_sphere_context.db();
 
-        let local_sphere_base_cid = db.get_version(sphere_identity).await?;
-        let request_sphere_base_cid = self.request_body.base;
+        let local_sphere_base_cid = db.get_version(sphere_identity).await?.map(|cid| cid.into());
+        let request_sphere_base_cid = self.request_body.local_base.clone();
 
         match (local_sphere_base_cid, request_sphere_base_cid) {
             (Some(mine), theirs) => {
@@ -141,18 +149,21 @@ where
                 // their base is even in our lineage. Note that this condition
                 // will be hit if theirs is ahead of mine, which actually
                 // should be a "missing revisions" condition.
-                let conflict = match theirs {
-                    Some(cid) if cid != mine => true,
+                let conflict = match &theirs {
+                    Some(cid) if cid != &mine => true,
                     None => true,
                     _ => false,
                 };
 
                 if conflict {
-                    warn!("Conflict!");
+                    warn!(
+                        "Counterpart sphere conflict; we have {mine}, they have {:?}",
+                        theirs
+                    );
                     return Err(PushError::Conflict);
                 }
 
-                if self.request_body.tip == mine {
+                if self.request_body.local_tip == mine {
                     warn!("No new changes in push body!");
                     return Err(PushError::UpToDate);
                 }
@@ -180,12 +191,17 @@ where
                 .load_into(sphere_context.db_mut())
                 .await?;
 
-            let PushBody { base, tip, .. } = &self.request_body;
+            let PushBody {
+                local_base: base,
+                local_tip: tip,
+                ..
+            } = &self.request_body;
 
-            let history: Vec<Result<(Cid, Sphere<_>)>> = Sphere::at(tip, sphere_context.db())
-                .into_history_stream(base.as_ref())
-                .collect()
-                .await;
+            let history: Vec<Result<(Link<MemoIpld>, Sphere<_>)>> =
+                Sphere::at(tip, sphere_context.db())
+                    .into_history_stream(base.as_ref())
+                    .collect()
+                    .await;
 
             for step in history.into_iter().rev() {
                 let (cid, sphere) = step?;
@@ -205,7 +221,10 @@ where
         }
 
         self.sphere_context
-            .link_raw(&self.gateway_scope.counterpart, &self.request_body.tip)
+            .link_raw(
+                &self.gateway_scope.counterpart,
+                &self.request_body.local_tip,
+            )
             .await?;
 
         Ok(())
@@ -217,8 +236,8 @@ where
         let my_sphere = self.sphere_context.to_sphere().await?;
         let my_names = my_sphere.get_address_book().await?.get_identities().await?;
 
-        let sphere = Sphere::at(&self.request_body.tip, my_sphere.store());
-        let stream = sphere.into_history_stream(self.request_body.base.as_ref());
+        let sphere = Sphere::at(&self.request_body.local_tip, my_sphere.store());
+        let stream = sphere.into_history_stream(self.request_body.local_base.as_ref());
 
         tokio::pin!(stream);
 
@@ -288,9 +307,12 @@ where
     /// Apply any mutations accrued during the push operation to the local
     /// sphere and return the new version, along with the blocks needed to
     /// synchronize the pusher with the latest local history.
-    async fn update_gateway_sphere(&mut self) -> Result<(Cid, Bundle), PushError> {
+    async fn update_gateway_sphere(&mut self) -> Result<(Link<MemoIpld>, Bundle), PushError> {
         debug!("Updating the gateway's sphere...");
 
+        // NOTE CDATA: "Previous version" doesn't cover all cases; this needs to be a version given
+        // in the push body, or else we don't know how far back we actually have to go (e.g., the name
+        // system may have created a new version in the mean time.
         let previous_version = self.sphere_context.version().await?;
         let next_version = SphereCursor::latest(self.sphere_context.clone())
             .save(None)
@@ -320,7 +342,7 @@ where
 
         if let Err(error) = self.name_system_tx.send(NameSystemJob::ResolveSince {
             context: self.sphere_context.clone(),
-            since: self.request_body.base,
+            since: self.request_body.local_base.clone(),
         }) {
             warn!("Failed to request name system resolutions: {}", error);
         };
@@ -329,7 +351,7 @@ where
     }
 
     /// Request that new history be syndicated to IPFS
-    async fn notify_ipfs_syndicator(&self, next_version: Cid) -> Result<()> {
+    async fn notify_ipfs_syndicator(&self, next_version: Link<MemoIpld>) -> Result<()> {
         // TODO(#156): This should not be happening on every push, but rather on
         // an explicit publish action. Move this to the publish handler when we
         // have added it to the gateway.

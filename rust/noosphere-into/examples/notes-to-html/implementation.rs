@@ -74,7 +74,7 @@ pub async fn main() -> Result<()> {
         cursor
             .write(
                 &slug,
-                &ContentType::Subtext.to_string(),
+                &ContentType::Subtext,
                 file,
                 Some(vec![(Header::Title.to_string(), title)]),
             )

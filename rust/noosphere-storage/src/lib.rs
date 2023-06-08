@@ -1,6 +1,6 @@
-///! This crate contains generic interfaces and concrete implementations to
-///! support a common API for data persistance in Noosphere on many different
-///! platforms.
+//! This crate contains generic interfaces and concrete implementations to
+//! support a common API for data persistance in Noosphere on many different
+//! platforms.
 
 #[macro_use]
 extern crate tracing;

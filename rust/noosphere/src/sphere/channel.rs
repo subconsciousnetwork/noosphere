@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use noosphere_sphere::{HasMutableSphereContext, HasSphereContext, SphereContext};
+use noosphere_sphere::{HasMutableSphereContext, HasSphereContext, SphereContext, SphereCursor};
 use noosphere_storage::Storage;
 use tokio::sync::Mutex;
 use ucan::crypto::KeyMaterial;
@@ -61,5 +61,23 @@ where
 {
     fn from(value: SphereContext<K, S>) -> Self {
         SphereChannel::new(Arc::new(value.clone()), Arc::new(Mutex::new(value)))
+    }
+}
+
+impl<K, S> From<SphereCursor<Arc<SphereContext<K, S>>, K, S>>
+    for SphereChannel<
+        K,
+        S,
+        SphereCursor<Arc<SphereContext<K, S>>, K, S>,
+        Arc<Mutex<SphereContext<K, S>>>,
+    >
+where
+    K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
+{
+    fn from(value: SphereCursor<Arc<SphereContext<K, S>>, K, S>) -> Self {
+        let mutable = Arc::new(Mutex::new(value.clone().to_inner().as_ref().clone()));
+
+        SphereChannel::new(value, mutable)
     }
 }

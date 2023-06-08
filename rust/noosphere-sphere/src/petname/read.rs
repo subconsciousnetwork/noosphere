@@ -4,7 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use cid::Cid;
 use futures_util::TryStreamExt;
-use noosphere_core::data::Did;
+use noosphere_core::data::{Did, Link, MemoIpld};
 use noosphere_storage::{KeyValueStore, Storage};
 use ucan::crypto::KeyMaterial;
 
@@ -25,7 +25,7 @@ where
 
     /// Resolve the petname via its assigned [Did] to a [Cid] that refers to a
     /// point in history of a sphere
-    async fn resolve_petname(&self, name: &str) -> Result<Option<Cid>>;
+    async fn resolve_petname(&self, name: &str) -> Result<Option<Link<MemoIpld>>>;
 
     /// Given a [Did], get all the petnames that have been assigned to it
     /// in this sphere
@@ -116,7 +116,7 @@ where
         Ok(address_ipld.map(|ipld| ipld.did.clone()))
     }
 
-    async fn resolve_petname(&self, name: &str) -> Result<Option<Cid>> {
+    async fn resolve_petname(&self, name: &str) -> Result<Option<Link<MemoIpld>>> {
         let sphere = self.to_sphere().await?;
         let identities = sphere.get_address_book().await?.get_identities().await?;
         let address_ipld = identities.get(&name.to_string()).await?;

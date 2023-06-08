@@ -1,10 +1,9 @@
 use std::{io::Cursor, sync::Arc};
 
 use anyhow::Result;
-use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_core::{
-    data::{ContentType, Did},
+    data::{ContentType, Did, Link, MemoIpld},
     view::Timeline,
 };
 use noosphere_ipfs::{IpfsClient, KuboClient};
@@ -32,7 +31,7 @@ pub struct SyndicationJob<C> {
     /// The revision of the _local_ sphere to discover the _counterpart_ sphere
     /// from; the counterpart sphere's revision will need to be derived using
     /// this checkpoint in local sphere history.
-    pub revision: Cid,
+    pub revision: Link<MemoIpld>,
     /// The [SphereContext] that corresponds to the _local_ sphere relative to
     /// the gateway.
     pub context: C,
@@ -44,7 +43,7 @@ pub struct SyndicationJob<C> {
 /// gives us a short-cut to determine if a block should be added.
 #[derive(Serialize, Deserialize)]
 pub struct SyndicationCheckpoint {
-    pub revision: Cid,
+    pub revision: Link<MemoIpld>,
     pub syndicated_blocks: BloomFilter<256, 30>,
 }
 
@@ -196,7 +195,7 @@ where
         // we could send over CARs of arbitrary size (within the limits of
         // whatever the IPFS receiving implementation can support).
         let mut car = Vec::new();
-        let car_header = CarHeader::new_v1(vec![cid]);
+        let car_header = CarHeader::new_v1(vec![cid.clone().into()]);
         let mut car_writer = CarWriter::new(car_header, &mut car);
 
         tokio::pin!(stream);
@@ -239,7 +238,7 @@ where
         cursor
             .write(
                 &checkpoint_key,
-                &ContentType::Cbor.to_string(),
+                &ContentType::Cbor,
                 Cursor::new(bytes),
                 None,
             )
