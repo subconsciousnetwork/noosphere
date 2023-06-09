@@ -5,6 +5,13 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-collections bumped from 0.3.1 to 0.3.2
 
+## [0.12.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.12.0...noosphere-core-v0.12.1) (2023-06-09)
+
+
+### Bug Fixes
+
+* Resolve petnames in correct order ([#412](https://github.com/subconsciousnetwork/noosphere/issues/412)) ([5df3f91](https://github.com/subconsciousnetwork/noosphere/commit/5df3f9187be1d0ef6edd542a9d1268c7cb4ffdb7))
+
 ## [0.12.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.11.0...noosphere-core-v0.12.0) (2023-06-08)
 
 

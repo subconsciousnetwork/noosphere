@@ -71,6 +71,22 @@
   * dependencies
     * noosphere bumped from 0.10.10 to 0.10.11
 
+## [0.8.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.8.0...noosphere-ns-v0.8.1) (2023-06-09)
+
+
+### Bug Fixes
+
+* Resolve petnames in correct order ([#412](https://github.com/subconsciousnetwork/noosphere/issues/412)) ([5df3f91](https://github.com/subconsciousnetwork/noosphere/commit/5df3f9187be1d0ef6edd542a9d1268c7cb4ffdb7))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.12.0 to 0.12.1
+    * noosphere bumped from 0.11.0 to 0.11.1
+    * noosphere-ipfs bumped from 0.5.0 to 0.5.1
+
 ## [0.8.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.7.2...noosphere-ns-v0.8.0) (2023-06-08)
 
 

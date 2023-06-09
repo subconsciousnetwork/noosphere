@@ -52,6 +52,10 @@
   * dependencies
     * noosphere-car bumped from 0.1.1 to 0.1.2
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.12.0 to 0.12.1
+
 ## [0.8.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.7.9...noosphere-api-v0.8.0) (2023-06-08)
 
 
