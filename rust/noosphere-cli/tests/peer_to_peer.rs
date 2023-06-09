@@ -194,14 +194,27 @@ async fn synchronize_petnames_as_they_are_added_and_removed() -> Result<()> {
 
     let mut base_pair = SpherePair::new("BASE", &ipfs_url, &ns_url).await?;
     let mut other_pair = SpherePair::new("OTHER", &ipfs_url, &ns_url).await?;
+    let mut third_pair = SpherePair::new("THIRD", &ipfs_url, &ns_url).await?;
 
     base_pair.start_gateway().await?;
     other_pair.start_gateway().await?;
+    third_pair.start_gateway().await?;
 
     let other_pair_id = other_pair.client.identity.clone();
     let other_version = other_pair
         .spawn(|mut ctx| async move {
             ctx.write("foo", "text/plain", "bar".as_ref(), None).await?;
+            let version = ctx.save(None).await?;
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+            wait(1).await;
+            Ok(version)
+        })
+        .await?;
+
+    let third_pair_id = third_pair.client.identity.clone();
+    let third_version = third_pair
+        .spawn(|mut ctx| async move {
+            ctx.write("bar", "text/plain", "baz".as_ref(), None).await?;
             let version = ctx.save(None).await?;
             ctx.sync(SyncRecovery::Retry(3)).await?;
             wait(1).await;
@@ -227,8 +240,27 @@ async fn synchronize_petnames_as_they_are_added_and_removed() -> Result<()> {
             ctx.set_petname("thirdparty", None).await?;
             ctx.save(None).await?;
             ctx.sync(SyncRecovery::Retry(3)).await?;
+            wait(1).await;
+            ctx.sync(SyncRecovery::Retry(3)).await?;
             let resolved = ctx.resolve_petname("thirdparty").await?;
             assert!(resolved.is_none());
+            let recorded = ctx.get_petname("thirdparty").await?;
+            assert!(recorded.is_none());
+
+            info!("SETTING 'thirdparty' petname to a different identity and syncing again...");
+            ctx.set_petname("thirdparty", Some(third_pair_id.clone()))
+                .await?;
+            ctx.save(None).await?;
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+            wait(1).await;
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+
+            let saved_id = ctx.get_petname("thirdparty").await?;
+            assert_eq!(saved_id, Some(third_pair_id));
+
+            let third_link = ctx.resolve_petname("thirdparty").await?;
+            assert_eq!(third_link, Some(third_version.clone()));
+
             Ok(())
         })
         .await?;

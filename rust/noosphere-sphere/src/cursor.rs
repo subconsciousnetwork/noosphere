@@ -530,11 +530,26 @@ pub mod tests {
 
         let mut cursor = SphereCursor::latest(sphere_context);
 
-        cursor.adopt_petname("foo1", &link_record_1).await?;
-        cursor.adopt_petname("bar1", &link_record_1).await?;
-        cursor.adopt_petname("baz1", &link_record_1).await?;
+        cursor
+            .set_petname("foo1", Some(link_record_1.to_sphere_identity()))
+            .await?;
+        cursor
+            .set_petname("bar1", Some(link_record_1.to_sphere_identity()))
+            .await?;
+        cursor
+            .set_petname("baz1", Some(link_record_1.to_sphere_identity()))
+            .await?;
 
-        cursor.adopt_petname("foo2", &link_record_2).await?;
+        cursor
+            .set_petname("foo2", Some(link_record_2.to_sphere_identity()))
+            .await?;
+        cursor.save(None).await?;
+
+        cursor.set_petname_record("foo1", &link_record_1).await?;
+        cursor.set_petname_record("bar1", &link_record_1).await?;
+        cursor.set_petname_record("baz1", &link_record_1).await?;
+
+        cursor.set_petname_record("foo2", &link_record_2).await?;
 
         cursor.save(None).await?;
 
@@ -567,8 +582,16 @@ pub mod tests {
             ]
         );
 
-        cursor.adopt_petname("bar2", &link_record_2).await?;
-        cursor.adopt_petname("foo3", &link_record_3).await?;
+        cursor
+            .set_petname("bar2", Some(link_record_2.to_sphere_identity()))
+            .await?;
+        cursor
+            .set_petname("foo3", Some(link_record_3.to_sphere_identity()))
+            .await?;
+        cursor.save(None).await?;
+
+        cursor.set_petname_record("bar2", &link_record_2).await?;
+        cursor.set_petname_record("foo3", &link_record_3).await?;
         cursor.save(None).await?;
 
         assert_eq!(

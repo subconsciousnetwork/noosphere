@@ -92,7 +92,7 @@ impl Default for KeyValueNameResolver {
 impl NameResolver for KeyValueNameResolver {
     async fn publish(&self, record: LinkRecord) -> Result<()> {
         let mut store = self.store.lock().await;
-        let did_id = Did(record.sphere_identity().into());
+        let did_id = Did(record.to_sphere_identity().into());
         store.insert(did_id, record);
         Ok(())
     }

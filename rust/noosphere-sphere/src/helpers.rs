@@ -236,9 +236,13 @@ pub async fn make_sphere_context_with_peer_chain(
             file.contents.read_to_string(&mut name).await.unwrap();
 
             debug!("Adopting {name}");
+            sphere_context
+                .set_petname(&name, Some(next_identity))
+                .await?;
+            sphere_context.save(None).await?;
 
             sphere_context
-                .adopt_petname(&name, &link_record)
+                .set_petname_record(&name, &link_record)
                 .await
                 .unwrap();
             let identity = sphere_context.identity().await?;
