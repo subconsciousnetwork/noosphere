@@ -18,6 +18,21 @@
     * noosphere-ipfs bumped from 0.4.3 to 0.4.4
     * noosphere-car bumped from 0.1.1 to 0.1.2
 
+## [0.6.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.6.0...noosphere-sphere-v0.6.1) (2023-06-09)
+
+
+### Bug Fixes
+
+* Resolve petnames in correct order ([#412](https://github.com/subconsciousnetwork/noosphere/issues/412)) ([5df3f91](https://github.com/subconsciousnetwork/noosphere/commit/5df3f9187be1d0ef6edd542a9d1268c7cb4ffdb7))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.12.0 to 0.12.1
+    * noosphere-api bumped from 0.8.0 to 0.8.1
+
 ## [0.6.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.5.8...noosphere-sphere-v0.6.0) (2023-06-08)
 
 
