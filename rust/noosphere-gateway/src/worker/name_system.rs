@@ -86,11 +86,7 @@ pub enum NameSystemJob<C> {
         since: Option<Link<MemoIpld>>,
     },
     /// Publish a link record (given as a [Jwt]) to the name system
-    Publish {
-        context: C,
-        record: LinkRecord,
-        temporary_validate_expiry: bool,
-    },
+    Publish { context: C, record: LinkRecord },
 }
 
 pub fn start_name_system<C, K, S>(
@@ -155,7 +151,6 @@ where
             if let Err(error) = tx.send(NameSystemJob::Publish {
                 context: local_sphere.to_owned(),
                 record,
-                temporary_validate_expiry: false,
             }) {
                 warn!("Failed to request name record publish: {}", error);
             }
@@ -236,21 +231,11 @@ where
     let run_job = with_client.invoke(|client| async move {
         debug!("Running {}", job);
         match job {
-            NameSystemJob::Publish {
-                record,
-                context,
-                temporary_validate_expiry,
-            } => {
+            NameSystemJob::Publish { record, context } => {
                 if let Err(error) = set_counterpart_record(context, &record).await {
                     warn!("Could not set counterpart record on sphere: {error}");
                 }
-                // TODO(#257)
-                let publishable = if temporary_validate_expiry {
-                    record.has_publishable_timeframe()
-                } else {
-                    true
-                };
-                if publishable {
+                if record.has_publishable_timeframe() {
                     client.publish(record).await?;
                 } else {
                     return Err(anyhow!("Record is expired and cannot be published."));
@@ -571,7 +556,6 @@ mod tests {
             NameSystemJob::Publish {
                 context: sphere.clone(),
                 record,
-                temporary_validate_expiry: true,
             },
             &mut with_client,
             &ipfs_url,
@@ -584,7 +568,6 @@ mod tests {
             NameSystemJob::Publish {
                 context: sphere.clone(),
                 record: expired,
-                temporary_validate_expiry: true,
             },
             &mut with_client,
             &ipfs_url,
