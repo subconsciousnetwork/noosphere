@@ -264,7 +264,7 @@ mod tests {
     async fn it_can_stream_all_blocks_in_a_sphere_version() -> Result<()> {
         initialize_tracing(None);
 
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 
         let changes = vec![
@@ -343,7 +343,7 @@ mod tests {
     async fn it_can_stream_all_delta_blocks_for_a_range_of_history() -> Result<()> {
         initialize_tracing(None);
 
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 
         let changes = vec![
@@ -429,7 +429,7 @@ mod tests {
     async fn it_can_stream_all_blocks_in_some_sphere_content() -> Result<()> {
         initialize_tracing(None);
 
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
         let mut db = sphere_context.sphere_context().await?.db_mut().clone();
 
@@ -485,7 +485,7 @@ mod tests {
     async fn it_can_stream_all_blocks_in_a_sphere_version_as_a_car() -> Result<()> {
         initialize_tracing(None);
 
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 
         let changes = vec![

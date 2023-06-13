@@ -1,3 +1,4 @@
+mod authority;
 mod context;
 mod error;
 mod headers;
@@ -9,6 +10,7 @@ mod tracing;
 
 pub use crate::ffi::noosphere::*;
 pub use crate::ffi::tracing::*;
+pub use authority::*;
 pub use context::*;
 pub use error::*;
 pub use headers::*;

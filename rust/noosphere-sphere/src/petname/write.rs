@@ -42,6 +42,7 @@ where
     /// set.
     async fn set_petname_record(&mut self, name: &str, record: &LinkRecord) -> Result<Option<Did>>;
 
+    /// Deprecated; use [SpherePetnameWrite::set_petname_record] instead
     #[deprecated(note = "Use set_petname_record instead")]
     async fn adopt_petname(&mut self, name: &str, record: &LinkRecord) -> Result<Option<Did>>;
 }

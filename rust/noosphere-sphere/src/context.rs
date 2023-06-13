@@ -67,6 +67,12 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
+    /// Instantiate a new [SphereContext] given a sphere [Did], an [Author], a
+    /// [SphereDb] and an optional origin sphere [Did]. The origin sphere [Did]
+    /// is intended to signify whether the [SphereContext] is a local sphere, or
+    /// a global sphere that is being visited by a local author. In most cases,
+    /// a [SphereContext] with _some_ value set as the origin sphere [Did] will
+    /// be read-only.
     pub async fn new(
         sphere_identity: Did,
         author: Author<K>,
@@ -89,12 +95,27 @@ where
         })
     }
 
+    /// Clone this [SphereContext], setting the sphere identity to a peer's [Did]
     pub async fn to_visitor(&self, peer_identity: &Did) -> Result<Self> {
         self.db().require_version(peer_identity).await?;
 
         SphereContext::new(
             peer_identity.clone(),
             self.author.clone(),
+            self.db.clone(),
+            Some(self.origin_sphere_identity.clone()),
+        )
+        .await
+    }
+
+    /// Clone this [SphereContext], replacing the [Author] with the provided one
+    pub async fn with_author<J>(&self, author: &Author<J>) -> Result<SphereContext<J, S>>
+    where
+        J: KeyMaterial + Clone + 'static,
+    {
+        SphereContext::new(
+            self.sphere_identity.clone(),
+            author.clone(),
             self.db.clone(),
             Some(self.origin_sphere_identity.clone()),
         )
@@ -179,10 +200,14 @@ where
         &mut self.db
     }
 
+    /// Get a read-only reference to the underlying [SphereMutation] that this
+    /// [SphereContext] is tracking
     pub fn mutation(&self) -> &SphereMutation {
         &self.mutation
     }
 
+    /// Get a mutable reference to the underlying [SphereMutation] that this
+    /// [SphereContext] is tracking
     pub fn mutation_mut(&mut self) -> &mut SphereMutation {
         &mut self.mutation
     }
@@ -262,7 +287,7 @@ mod tests {
         let valid_names: &[&str] = &["j@__/_大", "/"];
         let invalid_names: &[&str] = &[""];
 
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 
         for invalid_name in invalid_names {
@@ -289,7 +314,7 @@ mod tests {
         let valid_names: &[&str] = &["j@__/_大"];
         let invalid_names: &[&str] = &["", "did:key:foo"];
 
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
         let mut db = sphere_context.sphere_context().await?.db().clone();
         let (other_identity, link_record, _) = make_valid_link_record(&mut db).await?;
@@ -325,7 +350,7 @@ mod tests {
     async fn it_disallows_adding_self_as_petname() -> Result<()> {
         initialize_tracing(None);
 
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
         let db = sphere_context.sphere_context().await?.db().clone();
         let sphere_identity = sphere_context.identity().await?;
@@ -337,14 +362,7 @@ mod tests {
                 UcanBuilder::default()
                     .issued_by(&author.key)
                     .for_audience(&sphere_identity)
-                    .witnessed_by(
-                        &author
-                            .authorization
-                            .as_ref()
-                            .unwrap()
-                            .resolve_ucan(&db)
-                            .await?,
-                    )
+                    .witnessed_by(&author.authorization.as_ref().unwrap().as_ucan(&db).await?)
                     .claiming_capability(&generate_capability(
                         &sphere_identity,
                         SphereAction::Publish,

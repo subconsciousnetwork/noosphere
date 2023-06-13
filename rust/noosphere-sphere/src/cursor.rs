@@ -2,14 +2,20 @@ use anyhow::Result;
 use async_trait::async_trait;
 use noosphere_api::data::ReplicateParameters;
 use noosphere_core::{
-    data::{Link, MemoIpld},
+    authority::Author,
+    data::{Link, MemoIpld, Mnemonic},
     view::{Sphere, Timeline},
 };
 use noosphere_storage::{BlockStore, Storage};
+use std::future::Future;
+use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use ucan::crypto::KeyMaterial;
 
-use crate::{HasMutableSphereContext, HasSphereContext, SphereContext, SphereReplicaRead};
+use crate::{
+    HasMutableSphereContext, HasSphereContext, SphereAuthorityEscalate, SphereAuthoritySend,
+    SphereContext, SphereReplicaRead,
+};
 use std::{marker::PhantomData, sync::Arc};
 
 /// A [SphereCursor] is a structure that enables reading from and writing to a
@@ -39,6 +45,7 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
+    /// Consume the [SphereCursor] and return its wrapped [HasSphereContext]
     pub fn to_inner(self) -> C {
         self.has_sphere_context
     }
@@ -54,31 +61,6 @@ where
         }
     }
 
-    /// "Mount" the [SphereCursor] to the latest local version of the sphere it
-    /// refers to. If the [SphereCursor] is already mounted, the version it is
-    /// mounted to will be overwritten. A mounted [SphereCursor] will remain at
-    /// the version it is mounted to even when the latest version of the sphere
-    /// changes.
-    pub async fn mount(&mut self) -> Result<&Self> {
-        let sphere_version = self
-            .has_sphere_context
-            .sphere_context()
-            .await?
-            .version()
-            .await?;
-
-        self.sphere_version = Some(sphere_version);
-
-        Ok(self)
-    }
-
-    /// "Unmount" the [SphereCursor] so that it always uses the latest local
-    /// version of the sphere that it refers to.
-    pub fn unmount(mut self) -> Result<Self> {
-        self.sphere_version = None;
-        Ok(self)
-    }
-
     /// Create the [SphereCursor] at the latest local version of the associated
     /// sphere, mounted to that version. If the latest version changes due to
     /// effects in the distance, the cursor will still point to the same version
@@ -88,6 +70,37 @@ where
         let mut cursor = Self::latest(has_sphere_context);
         cursor.mount().await?;
         Ok(cursor)
+    }
+
+    /// "Mount" the [SphereCursor] to the given version of the sphere it refers
+    /// to. If the [SphereCursor] is already mounted, the version it is mounted
+    /// to will be overwritten. A mounted [SphereCursor] will remain at the
+    /// version it is mounted to even when the latest version of the sphere
+    /// changes.
+    pub async fn mount_at(&mut self, sphere_version: &Link<MemoIpld>) -> Result<&Self> {
+        self.sphere_version = Some(sphere_version.clone());
+
+        Ok(self)
+    }
+
+    /// Same as [SphereCursor::mount_at] except that it mounts to the latest
+    /// local version of the sphere.
+    pub async fn mount(&mut self) -> Result<&Self> {
+        let sphere_version = self
+            .has_sphere_context
+            .sphere_context()
+            .await?
+            .version()
+            .await?;
+
+        self.mount_at(&sphere_version).await
+    }
+
+    /// "Unmount" the [SphereCursor] so that it always uses the latest local
+    /// version of the sphere that it refers to.
+    pub fn unmount(mut self) -> Result<Self> {
+        self.sphere_version = None;
+        Ok(self)
     }
 
     /// Create this [SphereCursor] at the latest local version of the associated
@@ -267,8 +280,54 @@ where
     }
 }
 
+/// The type of the [HasMutableSphereContext] provided when writing to a [SphereCursor] with
+/// escalated authority
+pub type EscalatedSphereCursor<K, S> = SphereCursor<Arc<Mutex<SphereContext<K, S>>>, K, S>;
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<C, K, S>
+    SphereAuthorityEscalate<
+        EscalatedSphereCursor<Arc<Box<dyn KeyMaterial>>, S>,
+        Arc<Box<dyn KeyMaterial>>,
+        S,
+    > for SphereCursor<C, K, S>
+where
+    C: HasMutableSphereContext<K, S>,
+    K: KeyMaterial + Clone + 'static,
+    S: Storage + 'static,
+{
+    async fn with_root_authority<F, Fut>(&mut self, mnemonic: &Mnemonic, callback: F) -> Result<()>
+    where
+        Fut: Future<Output = Result<Option<Link<MemoIpld>>>> + SphereAuthoritySend,
+        F: FnOnce(EscalatedSphereCursor<Arc<Box<dyn KeyMaterial>>, S>) -> Fut + SphereAuthoritySend,
+    {
+        let sphere_context = self.sphere_context_mut().await?;
+        let root_sphere_author = Author {
+            key: mnemonic.to_credential()?,
+            authorization: None,
+        };
+
+        let mut cursor = SphereCursor::latest(Arc::new(Mutex::new(
+            sphere_context.with_author(&root_sphere_author).await?,
+        )));
+
+        if let Some(version) = self.sphere_version.as_ref() {
+            cursor.mount_at(version).await?;
+        }
+
+        let maybe_new_version = callback(cursor).await?;
+
+        if self.sphere_version.is_some() && maybe_new_version.is_some() {
+            self.sphere_version = maybe_new_version;
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
@@ -297,7 +356,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_unlink_slugs_from_the_content_space() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -325,7 +384,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_flushes_on_every_save() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let initial_stats = {
@@ -382,7 +441,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_does_not_allow_writes_when_an_author_has_read_only_access() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::Readonly, None)
+        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::Readonly, None)
             .await
             .unwrap();
 
@@ -403,7 +462,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_write_a_file_and_read_it_back() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -435,7 +494,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_overwrite_a_file_with_new_contents_and_preserve_history() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -492,7 +551,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_throws_an_error_when_saving_without_changes() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -506,7 +565,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_throws_an_error_when_saving_with_empty_mutation_and_empty_headers() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -520,7 +579,8 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_get_all_petnames_assigned_to_an_identity() -> Result<()> {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (sphere_context, _) =
+            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 
         let mut db = UcanStore(sphere_context.sphere_context().await?.db().clone());
 

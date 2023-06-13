@@ -109,3 +109,41 @@ public func nsSphereSync(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, 
         handler.contents(error, new_version)
     }
 }
+
+public typealias NsSphereAuthorityAuthorizeHandler = (OpaquePointer?, UnsafeMutablePointer<CChar>?) -> ()
+
+/// See: ns_sphere_authority_authorize
+public func nsSphereAuthorityAuthorize(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, name: UnsafePointer<CChar>!, did: UnsafePointer<CChar>!, handler: @escaping NsSphereAuthorityAuthorizeHandler) {
+    let context = Unmanaged.passRetained(Box(contents: handler)).toOpaque()
+
+    ns_sphere_authority_authorize(noosphere, sphere, name, did, context) {
+        (context, error, authorization) in
+
+        guard let context = context else {
+            return
+        }
+
+        let handler = Unmanaged<Box<NsSphereAuthorityAuthorizeHandler>>.fromOpaque(context).takeRetainedValue()
+
+        handler.contents(error, authorization)
+    }
+}
+
+public typealias NsSphereAuthorityAuthorizationRevokeHandler = (OpaquePointer?) -> ()
+
+/// See: ns_sphere_authority_authorization_revoke
+public func nsSphereAuthorityAuthorizationRevoke(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, mnemonic: UnsafePointer<CChar>!, authorization: UnsafePointer<CChar>!, handler: @escaping NsSphereAuthorityAuthorizationRevokeHandler) {
+    let context = Unmanaged.passRetained(Box(contents: handler)).toOpaque()
+
+    ns_sphere_authority_authorization_revoke(noosphere, sphere, mnemonic, authorization, context) {
+        (context, error) in
+
+        guard let context = context else {
+            return
+        }
+
+        let handler = Unmanaged<Box<NsSphereAuthorityAuthorizationRevokeHandler>>.fromOpaque(context).takeRetainedValue()
+
+        handler.contents(error)
+    }
+}

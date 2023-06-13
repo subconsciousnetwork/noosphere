@@ -77,7 +77,7 @@ You will be able to add a new one after the old one is revoked"#,
     let latest_sphere_cid = db.require_version(&sphere_did).await?;
     let authorization = workspace.authorization().await?;
     let authorization_expiry: u64 = {
-        let ucan = authorization.resolve_ucan(&db).await?;
+        let ucan = authorization.as_ucan(&db).await?;
         *ucan.expires_at()
     };
 

@@ -84,7 +84,7 @@ pub fn ns_sphere_petname_get(
 /// The callback arguments are (in order):
 ///
 ///  1. The context argument provided in the original call to
-///     ns_sphere_content_read
+///     ns_sphere_petnames_assigned_Get
 ///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
 ///  3. An owned pointer to a slice_boxed_char_ptr_t if the call was successful,
 ///     otherwise NULL

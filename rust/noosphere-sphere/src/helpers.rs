@@ -1,11 +1,12 @@
-// #![cfg(any(test, doc, feature = "helpers"))]
-
+//! These helpers are intended for use in documentation examples and tests only.
+//! They are useful for quickly scaffolding common scenarios that would
+//! otherwise be verbosely rubber-stamped in a bunch of places.
 use std::sync::Arc;
 
 use anyhow::Result;
 use noosphere_core::{
     authority::{generate_capability, generate_ed25519_key, Author, SphereAction},
-    data::{ContentType, Did, Link, LinkRecord},
+    data::{ContentType, Did, Link, LinkRecord, Mnemonic},
     view::Sphere,
 };
 use noosphere_storage::{BlockStore, MemoryStorage, SphereDb, TrackingStorage, UcanStore};
@@ -21,7 +22,9 @@ use crate::{
 
 /// Access levels available when simulating a [SphereContext]
 pub enum SimulationAccess {
+    /// Access to the related [SphereContext] is read-only
     Readonly,
+    /// Access to the related [SphereContext] is read+write
     ReadWrite,
 }
 
@@ -33,7 +36,10 @@ pub enum SimulationAccess {
 pub async fn simulated_sphere_context(
     profile: SimulationAccess,
     db: Option<SphereDb<TrackingStorage<MemoryStorage>>>,
-) -> Result<Arc<Mutex<SphereContext<Ed25519KeyMaterial, TrackingStorage<MemoryStorage>>>>> {
+) -> Result<(
+    Arc<Mutex<SphereContext<Ed25519KeyMaterial, TrackingStorage<MemoryStorage>>>>,
+    Mnemonic,
+)> {
     let mut db = match db {
         Some(db) => db,
         None => {
@@ -45,7 +51,7 @@ pub async fn simulated_sphere_context(
     let owner_key = generate_ed25519_key();
     let owner_did = owner_key.get_did().await?;
 
-    let (sphere, proof, _) = Sphere::generate(&owner_did, &mut db).await?;
+    let (sphere, proof, mnemonic) = Sphere::generate(&owner_did, &mut db).await?;
 
     let sphere_identity = sphere.get_identity().await?;
     let author = Author {
@@ -58,9 +64,12 @@ pub async fn simulated_sphere_context(
 
     db.set_version(&sphere_identity, sphere.cid()).await?;
 
-    Ok(Arc::new(Mutex::new(
-        SphereContext::new(sphere_identity, author, db, None).await?,
-    )))
+    Ok((
+        Arc::new(Mutex::new(
+            SphereContext::new(sphere_identity, author, db, None).await?,
+        )),
+        mnemonic,
+    ))
 }
 
 /// Make a valid link record that represents a sphere "in the distance." The
@@ -74,7 +83,7 @@ where
     let mut db = SphereDb::new(&MemoryStorage::default()).await?;
 
     let (sphere, proof, _) = Sphere::generate(&owner_did, &mut db).await?;
-    let ucan_proof = proof.resolve_ucan(&db).await?;
+    let ucan_proof = proof.as_ucan(&db).await?;
 
     let sphere_identity = sphere.get_identity().await?;
 
@@ -150,6 +159,7 @@ where
     Ok(())
 }
 
+/// A type of [HasMutableSphereContext] that uses [TrackingStorage] internally
 pub type TrackedHasMutableSphereContext =
     Arc<Mutex<SphereContext<Ed25519KeyMaterial, TrackingStorage<MemoryStorage>>>>;
 
@@ -159,7 +169,7 @@ pub type TrackedHasMutableSphereContext =
 pub async fn make_sphere_context_with_peer_chain(
     peer_chain: &[String],
 ) -> Result<(TrackedHasMutableSphereContext, Vec<Did>)> {
-    let origin_sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+    let (origin_sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
         .await
         .unwrap();
 
@@ -173,7 +183,7 @@ pub async fn make_sphere_context_with_peer_chain(
     let mut contexts = vec![origin_sphere_context.clone()];
 
     for name in peer_chain.iter() {
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, Some(db.clone()))
                 .await
                 .unwrap();
@@ -212,7 +222,7 @@ pub async fn make_sphere_context_with_peer_chain(
                             .authorization
                             .as_ref()
                             .unwrap()
-                            .resolve_ucan(&db)
+                            .as_ucan(&db)
                             .await
                             .unwrap(),
                     )

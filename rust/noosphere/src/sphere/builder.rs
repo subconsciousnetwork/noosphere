@@ -5,7 +5,7 @@ use cid::Cid;
 
 use noosphere_core::{
     authority::{Author, Authorization},
-    data::Did,
+    data::{Did, Mnemonic},
     view::Sphere,
 };
 
@@ -46,7 +46,7 @@ impl Default for SphereInitialization {
 pub enum SphereContextBuilderArtifacts {
     SphereCreated {
         context: SphereContext<PlatformKeyMaterial, PlatformStorage>,
-        mnemonic: String,
+        mnemonic: Mnemonic,
     },
     SphereOpened(SphereContext<PlatformKeyMaterial, PlatformStorage>),
 }

@@ -180,7 +180,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_only_allows_incremental_replication_of_causally_ordered_revisions() -> Result<()> {
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
         let db = sphere_context.sphere_context().await?.db().clone();
 
@@ -211,7 +211,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_only_allows_incremental_replication_of_revisions_from_same_sphere() -> Result<()> {
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
         let db = sphere_context.sphere_context().await?.db().clone();
 
@@ -226,7 +226,7 @@ mod tests {
         let memo_1 = version_1.load_from(&db).await?;
         let memo_2 = version_2.load_from(&db).await?;
 
-        let mut other_sphere_context =
+        let (mut other_sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, Some(db.clone())).await?;
 
         let other_version_1 = other_sphere_context
@@ -271,7 +271,7 @@ mod tests {
         let to_be_revoked_key = generate_ed25519_key();
         let to_be_revoked_did = to_be_revoked_key.get_did().await?;
 
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
         let db = sphere_context.sphere_context().await?.db().clone();
 
@@ -281,7 +281,7 @@ mod tests {
 
         let author = sphere_context.sphere_context().await?.author().clone();
         let author_key = author.key.clone();
-        let author_ucan = author.require_authorization()?.resolve_ucan(&db).await?;
+        let author_ucan = author.require_authorization()?.as_ucan(&db).await?;
 
         let to_be_revoked_jwt = UcanBuilder::default()
             .issued_by(&author_key)
