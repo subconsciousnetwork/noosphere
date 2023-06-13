@@ -9,6 +9,8 @@ use crate::{internal::SphereContextInternal, HasMutableSphereContext, SpherePetn
 fn validate_petname(petname: &str) -> Result<()> {
     if petname.is_empty() {
         Err(anyhow!("Petname must not be empty."))
+    } else if petname.len() >= 4 && petname.starts_with("did:") {
+        Err(anyhow!("Petname must not be a DID."))
     } else {
         Ok(())
     }
@@ -55,6 +57,12 @@ where
     async fn set_petname(&mut self, name: &str, identity: Option<Did>) -> Result<()> {
         self.assert_write_access().await?;
         validate_petname(name)?;
+
+        if identity.is_some()
+            && self.sphere_context().await?.identity() == identity.as_ref().unwrap()
+        {
+            return Err(anyhow!("Sphere cannot assign itself to a petname."));
+        }
 
         let current_address = self.get_petname(name).await?;
 
@@ -125,6 +133,10 @@ where
                 ));
             }
         };
+
+        if self.sphere_context().await?.identity() == &identity {
+            return Err(anyhow!("Sphere cannot assign itself to a petname."));
+        }
 
         let cid = self
             .sphere_context_mut()
