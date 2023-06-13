@@ -1,6 +1,10 @@
+use anyhow::Result;
 use noosphere_collections::hamt::Hash as HamtHash;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, hash::Hash, ops::Deref};
+use std::{fmt::Display, hash::Hash, ops::Deref, sync::Arc};
+use ucan::crypto::{did::DidParser, KeyMaterial};
+
+use crate::authority::{restore_ed25519_key, SUPPORTED_KEYS};
 
 /// A helper to stamp out trait implementations that promote coherence between
 /// Rust strings and a given wrapper type
@@ -126,6 +130,16 @@ pub struct Did(pub String);
 
 string_coherent!(Did);
 
+impl Did {
+    /// Attempt to interpret the [Did] as a [KeyMaterial] and return the result;
+    /// note that the credential resolved from a [Did] is only capable of
+    /// verification, not signing
+    pub fn to_credential(&self) -> Result<Arc<Box<dyn KeyMaterial>>> {
+        let mut parser = DidParser::new(SUPPORTED_KEYS);
+        parser.parse(self)
+    }
+}
+
 /// A JWT, aka a JSON Web Token, is a specialized string-encoding of a
 /// particular format of JSON and an associated signature, commonly used for
 /// authorization flows on the web, but notably also used by the UCAN spec.
@@ -143,8 +157,19 @@ string_coherent!(Jwt);
 ///
 /// See: <https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki>
 #[repr(transparent)]
-#[derive(Default, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct Mnemonic(pub String);
+
+string_coherent!(Mnemonic);
+
+impl Mnemonic {
+    /// Attempt to interpret the [Did] as a [KeyMaterial] and return the result
+    /// A credential resolved from a [Mnemonic] may be used for _both_ verification
+    /// and signing
+    pub fn to_credential(&self) -> Result<Arc<Box<dyn KeyMaterial>>> {
+        Ok(Arc::new(Box::new(restore_ed25519_key(self)?)))
+    }
+}
 
 #[cfg(test)]
 mod tests {

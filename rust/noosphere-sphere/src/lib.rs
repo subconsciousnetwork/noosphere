@@ -18,7 +18,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<()> {
-//!   let mut sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+//!   let (mut sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 //!
 //!   sphere_context.write("foo", "text/plain", "bar".as_ref(), None).await?;
 //!   sphere_context.save(None).await?;
@@ -38,7 +38,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<()> {
-//!   let mut sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+//!   let (mut sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 //!
 //!   sphere_context.set_petname("cdata", Some("did:key:example".into())).await?;
 //!   sphere_context.save(None).await?;
@@ -48,6 +48,8 @@
 //! ```
 //!
 //!
+
+#![warn(missing_docs)]
 
 #[macro_use]
 extern crate tracing;
@@ -61,6 +63,7 @@ use noosphere_core::authority::Author;
 #[cfg(doc)]
 use noosphere_storage::Storage;
 
+mod authority;
 mod content;
 mod context;
 mod cursor;
@@ -75,6 +78,7 @@ pub mod metadata;
 mod petname;
 mod sync;
 
+pub use authority::*;
 pub use content::*;
 pub use context::*;
 pub use cursor::*;

@@ -38,13 +38,10 @@ where
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 
-    let ucan = gateway_authorization
-        .resolve_ucan(db)
-        .await
-        .map_err(|error| {
-            error!("{:?}", error);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let ucan = gateway_authorization.as_ucan(db).await.map_err(|error| {
+        error!("{:?}", error);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(Json(
         IdentifyResponse::sign(&scope.identity, gateway_key, &ucan)

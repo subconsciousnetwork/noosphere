@@ -14,12 +14,14 @@ use ucan::crypto::KeyMaterial;
 
 use super::SphereContext;
 
+#[allow(missing_docs)]
 #[cfg(not(target_arch = "wasm32"))]
 pub trait HasConditionalSendSync: Send + Sync {}
 
 #[cfg(not(target_arch = "wasm32"))]
 impl<S> HasConditionalSendSync for S where S: Send + Sync {}
 
+#[allow(missing_docs)]
 #[cfg(target_arch = "wasm32")]
 pub trait HasConditionalSendSync {}
 
@@ -39,6 +41,7 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
+    /// The type of the internal read-only [SphereContext]
     type SphereContext: Deref<Target = SphereContext<K, S>> + HasConditionalSendSync;
 
     /// Get the [SphereContext] that is made available by this container.
@@ -77,6 +80,7 @@ where
     K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
+    /// The type of the internal mutable [SphereContext]
     type MutableSphereContext: Deref<Target = SphereContext<K, S>>
         + DerefMut<Target = SphereContext<K, S>>
         + HasConditionalSendSync;

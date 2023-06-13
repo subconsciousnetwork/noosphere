@@ -525,7 +525,7 @@ mod tests {
     #[tokio::test]
     async fn it_publishes_to_the_name_system() -> Result<()> {
         let ipfs_url: Url = "http://127.0.0.1:5000".parse()?;
-        let sphere = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (sphere, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
         let record: LinkRecord = {
             let context = sphere.lock().await;
             let identity: &str = context.identity().into();

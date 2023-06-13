@@ -671,7 +671,7 @@ mod tests {
         let mut ucan_store = UcanStore(db.clone());
 
         let (sphere, proof, _) = Sphere::generate(&owner_did, &mut db).await?;
-        let ucan = proof.resolve_ucan(&db).await?;
+        let ucan = proof.as_ucan(&db).await?;
 
         let sphere_identity = sphere.get_identity().await?;
 

@@ -8,6 +8,7 @@ use crate::{HasMutableSphereContext, SyncError, SyncRecovery};
 
 use crate::GatewaySyncStrategy;
 
+/// Implementors of [SphereSync] are able to sychronize with a Noosphere gateway
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 pub trait SphereSync<K, S>

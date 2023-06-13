@@ -349,7 +349,7 @@ where
         let authorization = context
             .author()
             .require_authorization()?
-            .resolve_ucan(context.db())
+            .as_ucan(context.db())
             .await?;
 
         let name_record = Jwt(UcanBuilder::default()
