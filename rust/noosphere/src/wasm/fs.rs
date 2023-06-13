@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use crate::{
-    platform::{PlatformKeyMaterial, PlatformStorage},
-    wasm::SphereFile,
-};
+use crate::{platform::PlatformStorage, wasm::SphereFile};
 use js_sys::{Array, Function};
 use noosphere_sphere::{
     HasMutableSphereContext, SphereContentRead, SphereContentWrite, SphereContext, SphereCursor,
@@ -21,11 +18,7 @@ use wasm_bindgen::prelude::*;
 /// or raw bytes.
 pub struct SphereFs {
     #[wasm_bindgen(skip)]
-    pub inner: SphereCursor<
-        Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>,
-        PlatformKeyMaterial,
-        PlatformStorage,
-    >,
+    pub inner: SphereCursor<Arc<Mutex<SphereContext<PlatformStorage>>>, PlatformStorage>,
 }
 
 #[wasm_bindgen]
@@ -114,7 +107,7 @@ impl SphereFs {
     /// after the callback has been invoked once for each entry in the sphere's
     /// namespace.
     pub async fn stream(&self, callback: Function) -> Result<(), String> {
-        let stream = SphereWalker::from(self.inner.clone()).into_content_stream();
+        let stream = SphereWalker::from(&self.inner).into_content_stream();
         let this = JsValue::null();
 
         tokio::pin!(stream);

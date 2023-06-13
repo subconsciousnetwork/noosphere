@@ -1,13 +1,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use noosphere_storage::Storage;
-use ucan::crypto::KeyMaterial;
 
+/// Implementors are able to traverse from one sphere to the next via
+/// the address book entries found in those spheres
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait SphereReplicaRead<K, S>: Sized
+pub trait SphereReplicaRead<S>: Sized
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
     /// Accepts a linear sequence of petnames and attempts to recursively

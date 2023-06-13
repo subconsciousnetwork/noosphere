@@ -6,7 +6,6 @@ use noosphere_sphere::{HasSphereContext, SphereContentRead, SphereCursor};
 use noosphere_storage::Storage;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
-use ucan::crypto::KeyMaterial;
 
 use crate::{
     file_to_html_stream, sphere_to_html_document_stream, HtmlOutput, StaticHtmlTransform,
@@ -18,10 +17,9 @@ static DEFAULT_STYLES: &[u8] = include_bytes!("./static/styles.css");
 /// Given a sphere [Did], [SphereDb] and a [WriteTarget], produce rendered HTML
 /// output up to and including the complete historical revisions of the
 /// slug-named content of the sphere.
-pub async fn sphere_into_html<C, K, S, W>(sphere_context: C, write_target: &W) -> Result<()>
+pub async fn sphere_into_html<C, S, W>(sphere_context: C, write_target: &W) -> Result<()>
 where
-    C: HasSphereContext<K, S> + 'static,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S> + 'static,
     S: Storage + 'static,
     W: WriteTarget + 'static,
 {
@@ -180,7 +178,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_writes_a_file_from_the_sphere_to_the_target_as_html() {
-        let context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(context);
@@ -249,7 +247,7 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_symlinks_a_file_slug_to_the_latest_file_version() {
-        let context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(context);

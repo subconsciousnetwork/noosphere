@@ -517,6 +517,88 @@ final class NoosphereTests: XCTestCase {
         ns_free(noosphere)
     }
     
+    func testAuthorizeKeyAndRevokeAnAuthorization() throws {
+        let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
+
+        ns_key_create(noosphere, "bob", nil)
+
+        let sphere_receipt = ns_sphere_create(noosphere, "bob", nil)
+
+        let sphere_identity_ptr = ns_sphere_receipt_identity(sphere_receipt, nil)
+        let sphere_mnemonic_ptr = ns_sphere_receipt_mnemonic(sphere_receipt, nil)
+        
+        let sphere = ns_sphere_open(noosphere, sphere_identity_ptr, nil)
+        
+        let expectation = self.expectation(description: "File contents are read")
+
+        nsSphereAuthorityAuthorize(noosphere, sphere, "alice", "did:key:alice") {
+            (error, authorization_ptr) in
+            
+            if error != nil {
+                let error_message_ptr = ns_error_message_get(error)
+                let error_message = String.init(cString: error_message_ptr!)
+
+                print(error_message)
+
+                ns_string_free(error_message_ptr)
+                ns_error_free(error)
+                return
+            }
+            
+            let authorization = String.init(cString: authorization_ptr!)
+            print("Authorization:", authorization)
+            
+            ns_sphere_save(noosphere, sphere, nil, nil)
+            
+            nsSphereAuthorityEscalate(noosphere, sphere, sphere_mnemonic_ptr) {
+                (error, root_sphere) in
+                
+                if error != nil {
+                    let error_message_ptr = ns_error_message_get(error)
+                    let error_message = String.init(cString: error_message_ptr!)
+
+                    print(error_message)
+
+                    ns_string_free(error_message_ptr)
+                    ns_error_free(error)
+                    return
+                }
+                
+                print("Escalated authority to root")
+                
+                nsSphereAuthorityAuthorizationRevoke(noosphere, root_sphere, authorization_ptr) {
+                    (error) in
+
+                    if error != nil {
+                        let error_message_ptr = ns_error_message_get(error)
+                        let error_message = String.init(cString: error_message_ptr!)
+
+                        print(error_message)
+
+                        ns_string_free(error_message_ptr)
+                        ns_error_free(error)
+                        return
+                    }
+                    
+                    print("Authorization revoked!")
+                    
+                    ns_string_free(authorization_ptr)
+                    ns_sphere_free(root_sphere)
+                    
+                    expectation.fulfill()
+                }
+            }
+        }
+        
+        self.waitForExpectations(timeout: 5)
+        
+        ns_string_free(sphere_mnemonic_ptr)
+        ns_string_free(sphere_identity_ptr)
+        ns_sphere_receipt_free(sphere_receipt)
+        ns_sphere_free(sphere)
+        ns_free(noosphere)
+    }
+    
     func testSettingAndGettingAPetname() throws {
         let noosphere = ns_initialize("/tmp/foo", "/tmp/bar", nil, nil)
         

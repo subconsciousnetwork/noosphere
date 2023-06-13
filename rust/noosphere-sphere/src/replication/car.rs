@@ -12,6 +12,9 @@ use tokio_util::{
     sync::PollSender,
 };
 
+/// Takes a list of roots and a stream of blocks (pairs of [Cid] and
+/// corresponding [Vec<u8>]), and produces an async byte stream that yields a
+/// valid [CARv1](https://ipld.io/specs/transport/car/carv1/)
 pub fn car_stream<S>(
     mut roots: Vec<Cid>,
     block_stream: S,

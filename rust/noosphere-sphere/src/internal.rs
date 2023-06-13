@@ -6,7 +6,6 @@ use futures_util::TryStreamExt;
 use noosphere_storage::{BlockStore, Storage};
 use std::str::FromStr;
 use tokio_util::io::StreamReader;
-use ucan::crypto::KeyMaterial;
 
 use cid::Cid;
 use noosphere_core::{
@@ -18,9 +17,8 @@ use noosphere_core::{
 /// the fact that all trait methods are implicitly public implementation
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub(crate) trait SphereContextInternal<K, S>
+pub(crate) trait SphereContextInternal<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
     /// Returns an error result if the configured author of the [SphereContext]
@@ -37,10 +35,9 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<C, K, S> SphereContextInternal<K, S> for C
+impl<C, S> SphereContextInternal<S> for C
 where
-    C: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S>,
     S: Storage + 'static,
 {
     async fn assert_write_access(&self) -> Result<()> {

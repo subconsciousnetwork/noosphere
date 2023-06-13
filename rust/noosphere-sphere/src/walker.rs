@@ -1,12 +1,11 @@
 use anyhow::Result;
-use noosphere_core::data::{IdentityIpld, Link, MapOperation, MemoIpld};
+use noosphere_core::data::{Did, IdentityIpld, Jwt, Link, MapOperation, MemoIpld};
 use std::{collections::BTreeSet, marker::PhantomData};
 
 use async_stream::try_stream;
 use noosphere_storage::Storage;
 use tokio::io::AsyncRead;
 use tokio_stream::{Stream, StreamExt};
-use ucan::crypto::KeyMaterial;
 
 use crate::{
     content::{SphereContentRead, SphereFile},
@@ -18,39 +17,55 @@ use crate::{
 /// [HasSphereContext] into an async [Stream] over sphere content, allowing
 /// incremental iteration over both the breadth of content at any version, or
 /// the depth of changes over a range of history.
-pub struct SphereWalker<C, K, S>
+pub struct SphereWalker<'a, C, S>
 where
-    C: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S>,
     S: Storage + 'static,
 {
-    has_sphere_context: C,
-    key: PhantomData<K>,
+    has_sphere_context: &'a C,
     storage: PhantomData<S>,
 }
 
-impl<C, K, S> From<C> for SphereWalker<C, K, S>
+impl<'a, C, S> From<&'a C> for SphereWalker<'a, C, S>
 where
-    C: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S>,
     S: Storage + 'static,
 {
-    fn from(has_sphere_context: C) -> Self {
+    fn from(has_sphere_context: &'a C) -> Self {
         SphereWalker {
             has_sphere_context,
-            key: Default::default(),
             storage: Default::default(),
         }
     }
 }
 
-impl<C, K, S> SphereWalker<C, K, S>
+impl<'a, C, S> SphereWalker<'a, C, S>
 where
-    C: SpherePetnameRead<K, S> + HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: SpherePetnameRead<S> + HasSphereContext<S>,
     S: Storage + 'static,
 {
-    // Get a stream that yields every petname in the namespace along with its
+    /// Get a stream that yields a link to every authorization to access the
+    /// sphere along with its corresponding [DelegationIpld]. Note that since a
+    /// revocation may be issued without necessarily removing its revoked
+    /// delegation, this will yield all authorizations regardless of revocation
+    /// status.
+    pub fn authorization_stream(
+        &self,
+    ) -> impl Stream<Item = Result<(String, Did, Link<Jwt>)>> + '_ {
+        try_stream! {
+            let sphere = self.has_sphere_context.to_sphere().await?;
+            let delegations = sphere.get_authority().await?.get_delegations().await?;
+            let stream = delegations.into_stream().await?;
+
+            for await entry in stream {
+                let (link, delegation) = entry?;
+                let ucan = delegation.resolve_ucan(sphere.store()).await?;
+                yield (delegation.name, Did(ucan.audience().to_string()), link);
+            }
+        }
+    }
+
+    /// Get a stream that yields every petname in the namespace along with its
     /// corresponding [AddressIpld]. This is useful for iterating over sphere
     /// petnames incrementally without having to load the entire index into
     /// memory at once.
@@ -71,10 +86,10 @@ where
     /// revision of the backing sphere, up to but excluding an optional `since`
     /// CID parameter. To stream the entire history, pass `None` as the
     /// parameter.
-    pub fn petname_change_stream<'a>(
-        &'a self,
+    pub fn petname_change_stream<'b>(
+        &'b self,
         since: Option<&'a Link<MemoIpld>>,
-    ) -> impl Stream<Item = Result<(Link<MemoIpld>, BTreeSet<String>)>> + 'a {
+    ) -> impl Stream<Item = Result<(Link<MemoIpld>, BTreeSet<String>)>> + 'b {
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
             let since = since.cloned();
@@ -95,6 +110,40 @@ where
                 yield (cid, changed_petnames);
             }
         }
+    }
+
+    /// Get a [BTreeSet] whose members are all the [Link<Jwt>]s to
+    /// authorizations that enable sphere access as of this version of the
+    /// sphere. Note that the full space of authoriztions may be very large; for
+    /// a more space-efficient approach, use
+    /// [SphereWalker::authorization_stream] to incrementally access all
+    /// authorizations in the sphere.
+    ///
+    /// This method is forgiving of missing or corrupted data, and will yield an
+    /// incomplete set of authorizations in the case that some or all names are
+    /// not able to be accessed.
+    pub async fn list_authorizations(&self) -> Result<BTreeSet<Link<Jwt>>> {
+        let sphere_identity = self.has_sphere_context.identity().await?;
+        let authorization_stream = self.authorization_stream();
+
+        tokio::pin!(authorization_stream);
+
+        Ok(authorization_stream
+            .fold(BTreeSet::new(), |mut delegations, another_delegation| {
+                match another_delegation {
+                    Ok((_, _, delegation)) => {
+                        delegations.insert(delegation);
+                    }
+                    Err(error) => {
+                        warn!(
+                            "Could not read a petname from {}: {}",
+                            sphere_identity, error
+                        )
+                    }
+                };
+                delegations
+            })
+            .await)
     }
 
     /// Get a [BTreeSet] whose members are all the petnames that have addresses
@@ -167,10 +216,9 @@ where
     }
 }
 
-impl<C, K, S> SphereWalker<C, K, S>
+impl<'a, C, S> SphereWalker<'a, C, S>
 where
-    C: SphereContentRead<K, S> + HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: SphereContentRead<S> + HasSphereContext<S>,
     S: Storage + 'static,
 {
     /// Same as [SphereWalker::content_stream], but consumes the [SphereWalker].
@@ -178,7 +226,7 @@ where
     /// a reference to [SphereWalker] for a static lifetime.
     pub fn into_content_stream(
         self,
-    ) -> impl Stream<Item = Result<(String, SphereFile<impl AsyncRead>)>> {
+    ) -> impl Stream<Item = Result<(String, SphereFile<impl AsyncRead>)>> + 'a {
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
             let content = sphere.get_content().await?;
@@ -217,10 +265,10 @@ where
     /// Get a stream that yields the set of slugs that changed at each revision
     /// of the backing sphere, up to but excluding an optional CID. To stream
     /// the entire history, pass `None` as the parameter.
-    pub fn content_change_stream<'a>(
-        &'a self,
-        since: Option<&'a Link<MemoIpld>>,
-    ) -> impl Stream<Item = Result<(Link<MemoIpld>, BTreeSet<String>)>> + 'a {
+    pub fn content_change_stream<'b>(
+        &'b self,
+        since: Option<&'b Link<MemoIpld>>,
+    ) -> impl Stream<Item = Result<(Link<MemoIpld>, BTreeSet<String>)>> + 'b {
         try_stream! {
             let sphere = self.has_sphere_context.to_sphere().await?;
             let since = since.cloned();
@@ -312,9 +360,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use std::collections::BTreeSet;
 
-    use noosphere_core::data::ContentType;
+    use noosphere_core::data::{ContentType, Did};
     use tokio::io::AsyncReadExt;
     use tokio_stream::StreamExt;
 
@@ -326,12 +375,12 @@ mod tests {
 
     use super::SphereWalker;
     use crate::helpers::{simulated_sphere_context, SimulationAccess};
-    use crate::{HasMutableSphereContext, SphereContentWrite, SphereCursor};
+    use crate::{HasMutableSphereContext, SphereAuthorityWrite, SphereContentWrite, SphereCursor};
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_be_initialized_with_a_context_or_a_cursor() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context.clone());
@@ -354,8 +403,8 @@ mod tests {
             cursor.save(None).await.unwrap();
         }
 
-        let walker_cursor = SphereWalker::from(cursor);
-        let walker_context = SphereWalker::from(sphere_context);
+        let walker_cursor = SphereWalker::from(&cursor);
+        let walker_context = SphereWalker::from(&sphere_context);
 
         let slugs_cursor = walker_cursor.list_slugs().await.unwrap();
         let slugs_context = walker_context.list_slugs().await.unwrap();
@@ -367,7 +416,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_list_all_slugs_currently_in_a_sphere() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -390,7 +439,8 @@ mod tests {
             cursor.save(None).await.unwrap();
         }
 
-        let walker = SphereWalker::from(cursor.clone());
+        let walker_cursor = cursor.clone();
+        let walker = SphereWalker::from(&walker_cursor);
         let slugs = walker.list_slugs().await.unwrap();
 
         assert_eq!(slugs.len(), 5);
@@ -405,8 +455,32 @@ mod tests {
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_list_all_authorizations_currently_in_a_sphere() -> Result<()> {
+        let (sphere_context, _) =
+            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+
+        let mut cursor = SphereCursor::latest(sphere_context);
+        let authorizations_to_add = 10;
+
+        for i in 0..authorizations_to_add {
+            cursor
+                .authorize(&format!("foo{}", i), &Did(format!("did:key:foo{}", i)))
+                .await?;
+        }
+
+        cursor.save(None).await?;
+
+        let authorizations = SphereWalker::from(&cursor).list_authorizations().await?;
+
+        assert_eq!(authorizations.len(), authorizations_to_add + 1);
+
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_stream_the_whole_index() {
-        let sphere_context = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -428,7 +502,7 @@ mod tests {
         }
 
         let mut actual = BTreeSet::new();
-        let walker = SphereWalker::from(cursor);
+        let walker = SphereWalker::from(&cursor);
         let stream = walker.content_stream();
 
         tokio::pin!(stream);

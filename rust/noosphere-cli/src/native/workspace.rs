@@ -37,7 +37,7 @@ use tempfile::TempDir;
 const SPHERE_DIRECTORY: &str = ".sphere";
 const NOOSPHERE_DIRECTORY: &str = ".noosphere";
 
-pub type CliSphereContext = SphereContext<Ed25519KeyMaterial, NativeStorage>;
+pub type CliSphereContext = SphereContext<NativeStorage>;
 
 /// A delta manifest of changes to the local content space
 #[derive(Default)]

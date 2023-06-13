@@ -19,6 +19,9 @@ use crate::metadata::GATEWAY_URL;
 #[cfg(doc)]
 use crate::has::HasSphereContext;
 
+/// The type of any [KeyMaterial] that is used within a [SphereContext]
+pub type SphereContextKey = Arc<Box<dyn KeyMaterial>>;
+
 /// A [SphereContext] is an accessor construct over locally replicated sphere
 /// data. It embodies both the storage layer that contains the sphere's data
 /// as the information needed to verify a user's intended level of access to
@@ -28,24 +31,22 @@ use crate::has::HasSphereContext;
 ///
 /// All interactions that pertain to a sphere, including reading or writing
 /// its contents and syncing with a gateway, flow through the [SphereContext].
-pub struct SphereContext<K, S>
+pub struct SphereContext<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
     sphere_identity: Did,
     origin_sphere_identity: Did,
-    author: Author<K>,
+    author: Author<SphereContextKey>,
     access: OnceCell<Access>,
     db: SphereDb<S>,
     did_parser: DidParser,
-    client: OnceCell<Arc<Client<K, SphereDb<S>>>>,
+    client: OnceCell<Arc<Client<SphereContextKey, SphereDb<S>>>>,
     mutation: SphereMutation,
 }
 
-impl<K, S> Clone for SphereContext<K, S>
+impl<S> Clone for SphereContext<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
     fn clone(&self) -> Self {
@@ -62,14 +63,19 @@ where
     }
 }
 
-impl<K, S> SphereContext<K, S>
+impl<S> SphereContext<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
+    /// Instantiate a new [SphereContext] given a sphere [Did], an [Author], a
+    /// [SphereDb] and an optional origin sphere [Did]. The origin sphere [Did]
+    /// is intended to signify whether the [SphereContext] is a local sphere, or
+    /// a global sphere that is being visited by a local author. In most cases,
+    /// a [SphereContext] with _some_ value set as the origin sphere [Did] will
+    /// be read-only.
     pub async fn new(
         sphere_identity: Did,
-        author: Author<K>,
+        author: Author<SphereContextKey>,
         db: SphereDb<S>,
         origin_sphere_identity: Option<Did>,
     ) -> Result<Self> {
@@ -89,6 +95,7 @@ where
         })
     }
 
+    /// Clone this [SphereContext], setting the sphere identity to a peer's [Did]
     pub async fn to_visitor(&self, peer_identity: &Did) -> Result<Self> {
         self.db().require_version(peer_identity).await?;
 
@@ -101,13 +108,21 @@ where
         .await
     }
 
+    /// Clone this [SphereContext], replacing the [Author] with the provided one
+    pub async fn with_author(&self, author: &Author<SphereContextKey>) -> Result<SphereContext<S>> {
+        SphereContext::new(
+            self.sphere_identity.clone(),
+            author.clone(),
+            self.db.clone(),
+            Some(self.origin_sphere_identity.clone()),
+        )
+        .await
+    }
+
     /// Given a [Did] of a sphere, produce a [SphereContext] backed by the same credentials and
     /// storage primitives as this one, but that accesses the sphere referred to by the provided
     /// [Did].
-    pub async fn traverse_by_identity(
-        &self,
-        _sphere_identity: &Did,
-    ) -> Result<SphereContext<K, S>> {
+    pub async fn traverse_by_identity(&self, _sphere_identity: &Did) -> Result<SphereContext<S>> {
         unimplemented!()
     }
 
@@ -129,7 +144,7 @@ where
     }
 
     /// The [Author] who is currently accessing the sphere
-    pub fn author(&self) -> &Author<K> {
+    pub fn author(&self) -> &Author<SphereContextKey> {
         &self.author
     }
 
@@ -179,10 +194,14 @@ where
         &mut self.db
     }
 
+    /// Get a read-only reference to the underlying [SphereMutation] that this
+    /// [SphereContext] is tracking
     pub fn mutation(&self) -> &SphereMutation {
         &self.mutation
     }
 
+    /// Get a mutable reference to the underlying [SphereMutation] that this
+    /// [SphereContext] is tracking
     pub fn mutation_mut(&mut self) -> &mut SphereMutation {
         &mut self.mutation
     }
@@ -202,7 +221,7 @@ where
     /// for one has been configured). This will initialize a [Client] if one is
     /// not already intialized, and will fail if the [Client] is unable to
     /// verify the identity of the gateway or otherwise connect to it.
-    pub async fn client(&self) -> Result<Arc<Client<K, SphereDb<S>>>> {
+    pub async fn client(&self) -> Result<Arc<Client<SphereContextKey, SphereDb<S>>>> {
         let client = self
             .client
             .get_or_try_init::<anyhow::Error, _, _>(|| async {
@@ -261,7 +280,7 @@ mod tests {
         let valid_names: &[&str] = &["j@__/_大", "/"];
         let invalid_names: &[&str] = &[""];
 
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 
         for invalid_name in invalid_names {
@@ -288,7 +307,7 @@ mod tests {
         let valid_names: &[&str] = &["j@__/_大"];
         let invalid_names: &[&str] = &["", "did:key:foo"];
 
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
         let mut db = sphere_context.sphere_context().await?.db().clone();
         let (other_identity, link_record, _) = make_valid_link_record(&mut db).await?;
@@ -324,7 +343,7 @@ mod tests {
     async fn it_disallows_adding_self_as_petname() -> Result<()> {
         initialize_tracing(None);
 
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
         let db = sphere_context.sphere_context().await?.db().clone();
         let sphere_identity = sphere_context.identity().await?;
@@ -337,12 +356,7 @@ mod tests {
                     .issued_by(&author.key)
                     .for_audience(&sphere_identity)
                     .witnessed_by(
-                        &author
-                            .authorization
-                            .as_ref()
-                            .unwrap()
-                            .resolve_ucan(&db)
-                            .await?,
+                        &author.authorization.as_ref().unwrap().as_ucan(&db).await?,
                         None,
                     )
                     .claiming_capability(&generate_capability(

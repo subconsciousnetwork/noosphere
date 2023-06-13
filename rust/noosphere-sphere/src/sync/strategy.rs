@@ -9,7 +9,7 @@ use noosphere_core::{
 };
 use noosphere_storage::{KeyValueStore, SphereDb, Storage};
 use tokio_stream::StreamExt;
-use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
+use ucan::builder::UcanBuilder;
 
 use crate::{
     metadata::COUNTERPART, HasMutableSphereContext, SpherePetnameRead, SpherePetnameWrite,
@@ -33,43 +33,38 @@ type CounterpartHistory<S> = Vec<Result<(Link<MemoIpld>, Sphere<SphereDb<S>>)>>;
 /// on the counterpart sphere's reckoning of the authoritative lineage of the
 /// user's sphere. Finally, after the rebase, the reconciled local lineage is
 /// pushed to the gateway.
-pub struct GatewaySyncStrategy<C, K, S>
+pub struct GatewaySyncStrategy<C, S>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     has_context_type: PhantomData<C>,
-    key_type: PhantomData<K>,
     store_type: PhantomData<S>,
 }
 
-impl<C, K, S> Default for GatewaySyncStrategy<C, K, S>
+impl<C, S> Default for GatewaySyncStrategy<C, S>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     fn default() -> Self {
         Self {
             has_context_type: Default::default(),
-            key_type: Default::default(),
             store_type: Default::default(),
         }
     }
 }
 
-impl<C, K, S> GatewaySyncStrategy<C, K, S>
+impl<C, S> GatewaySyncStrategy<C, S>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     /// Synchronize a local sphere's data with the data in a gateway, and rollback
     /// if there is an error.
     pub async fn sync(&self, context: &mut C) -> Result<Link<MemoIpld>, SyncError>
     where
-        C: HasMutableSphereContext<K, S>,
+        C: HasMutableSphereContext<S>,
     {
         let (local_sphere_version, counterpart_sphere_identity, counterpart_sphere_version) =
             self.handshake(context).await?;
@@ -344,7 +339,7 @@ where
         let authorization = context
             .author()
             .require_authorization()?
-            .resolve_ucan(context.db())
+            .as_ucan(context.db())
             .await?;
 
         let name_record = Jwt(UcanBuilder::default()

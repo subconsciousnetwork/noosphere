@@ -5,17 +5,15 @@ use noosphere_core::data::{ContentType, Header};
 use noosphere_core::view::Sphere;
 use noosphere_sphere::{HasSphereContext, SphereFile};
 use noosphere_storage::{BlockStore, Storage};
-use ucan::crypto::KeyMaterial;
 
 /// Given a [Transform] and a [Sphere], produce a stream that yields the file
 /// content as an HTML document
-pub fn sphere_to_html_document_stream<C, K, S, T>(
+pub fn sphere_to_html_document_stream<C, S, T>(
     context: C,
     transform: T,
 ) -> impl Stream<Item = String>
 where
-    C: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S>,
     S: Storage + 'static,
     T: Transform,
 {

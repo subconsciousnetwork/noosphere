@@ -1,8 +1,6 @@
 use anyhow::Result;
 use noosphere_storage::Storage;
 
-use ucan::crypto::KeyMaterial;
-
 use crate::HasSphereContext;
 use async_trait::async_trait;
 
@@ -12,9 +10,8 @@ use crate::{internal::SphereContextInternal, AsyncFileBody, SphereFile};
 /// A blanket implementation is provided for anything that implements [HasSphereContext].
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait SphereContentRead<K, S>
+pub trait SphereContentRead<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
     /// Read a file that is associated with a given slug at the revision of the
@@ -32,10 +29,9 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<C, K, S> SphereContentRead<K, S> for C
+impl<C, S> SphereContentRead<S> for C
 where
-    C: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S>,
     S: Storage + 'static,
 {
     async fn read(&self, slug: &str) -> Result<Option<SphereFile<Box<dyn AsyncFileBody>>>> {

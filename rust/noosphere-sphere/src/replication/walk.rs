@@ -7,6 +7,7 @@ use noosphere_storage::BlockStore;
 use std::ops::Fn;
 use tokio_stream::StreamExt;
 
+/// Given a [VersionedMap], visit its changelog and all of its underlying entries
 pub async fn walk_versioned_map_elements<K, V, S>(
     versioned_map: VersionedMap<K, V, S>,
 ) -> Result<()>
@@ -22,6 +23,9 @@ where
     Ok(())
 }
 
+/// Given a [VersionedMap] and [BlockStore], visit the [VersionedMap]'s
+/// changelog and all of its underlying entries, invoking a callback for each
+/// entry
 pub async fn walk_versioned_map_elements_and<K, V, S, F, Fut>(
     versioned_map: VersionedMap<K, V, S>,
     store: S,
@@ -43,6 +47,9 @@ where
     Ok(())
 }
 
+/// Given a [VersionedMap] and [BlockStore], visit the [VersionedMap]'s
+/// changelog; then, invoke the provided callback with each entry associated
+/// with an 'add' operation in the changelog
 pub async fn walk_versioned_map_changes_and<K, V, S, F, Fut>(
     versioned_map: VersionedMap<K, V, S>,
     store: S,

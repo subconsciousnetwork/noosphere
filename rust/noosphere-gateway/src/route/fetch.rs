@@ -14,21 +14,19 @@ use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_sphere::{car_stream, memo_history_stream, HasSphereContext};
 use noosphere_storage::{BlockStoreRetry, SphereDb, Storage};
 use tokio_stream::{Stream, StreamExt};
-use ucan::crypto::KeyMaterial;
 
 use crate::{authority::GatewayAuthority, GatewayScope};
 
 #[instrument(level = "debug", skip(authority, scope, sphere_context, ipfs_client))]
-pub async fn fetch_route<C, K, S>(
-    authority: GatewayAuthority<K>,
+pub async fn fetch_route<C, S>(
+    authority: GatewayAuthority,
     Query(FetchParameters { since }): Query<FetchParameters>,
     Extension(scope): Extension<GatewayScope>,
     Extension(ipfs_client): Extension<KuboClient>,
     Extension(sphere_context): Extension<C>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, std::io::Error>>>, StatusCode>
 where
-    C: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone,
+    C: HasSphereContext<S>,
     S: Storage + 'static,
 {
     authority.try_authorize(&generate_capability(
