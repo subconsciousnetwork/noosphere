@@ -146,7 +146,8 @@ where
             .await?;
 
         // TODO: Verify that a record for an existing address is actually newer than the old one
-        // TODO: Validate the record as a UCAN
+
+        record.validate(self.sphere_context().await?.db()).await?;
 
         debug!(
             "Adopting '{}' ({}), resolving to {}...",
