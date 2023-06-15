@@ -67,11 +67,10 @@ where
     }
 
     /// Determine the level of access that the author has to a given sphere
-    pub async fn access_to<S: Storage>(
-        &self,
-        sphere_identity: &Did,
-        db: &SphereDb<S>,
-    ) -> Result<Access> {
+    pub async fn access_to<S>(&self, sphere_identity: &Did, db: &SphereDb<S>) -> Result<Access>
+    where
+        S: Storage,
+    {
         let author_did = Did(self.key.get_did().await?);
 
         // Check if this author _is_ the root sphere authority (e.g., when performing surgery on
@@ -119,6 +118,37 @@ where
         }
 
         Ok(Access::ReadOnly)
+    }
+
+    /// Get that DID that corresponds to the underlying credential of this [Author]
+    pub async fn did(&self) -> Result<Did> {
+        Ok(Did(self.key.get_did().await?))
+    }
+
+    /// Returns true if this author is in the delegation chain of authority for
+    /// the given [Authorization], otherwise false.
+    // BEFORE MERGE: Test this
+    pub async fn is_authorizer_of<S>(
+        &self,
+        authorization: &Authorization,
+        db: &SphereDb<S>,
+    ) -> Result<bool>
+    where
+        S: Storage,
+    {
+        let proof_chain = authorization.as_proof_chain(db).await?;
+        let mut links_to_check = vec![&proof_chain];
+        let author_did = self.did().await?;
+
+        while let Some(link) = links_to_check.pop() {
+            if link.ucan().issuer() == author_did {
+                return Ok(true);
+            }
+
+            links_to_check.extend(link.proofs().iter());
+        }
+
+        Ok(false)
     }
 }
 

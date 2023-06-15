@@ -13,7 +13,7 @@ use tokio::{io::AsyncReadExt, sync::Mutex};
 use crate::{
     error::NoosphereError,
     ffi::{NsError, NsHeaders, NsNoosphere, TryOrInitialize},
-    platform::{PlatformKeyMaterial, PlatformSphereChannel, PlatformStorage},
+    platform::{PlatformSphereChannel, PlatformStorage},
 };
 
 use noosphere_sphere::{
@@ -27,23 +27,15 @@ use noosphere_sphere::{
 ///
 /// An opaque struct representing a sphere.
 pub struct NsSphere {
-    inner: PlatformSphereChannel,
+    pub inner: PlatformSphereChannel,
 }
 
 impl NsSphere {
-    pub fn inner(
-        &self,
-    ) -> &SphereCursor<
-        Arc<SphereContext<PlatformKeyMaterial, PlatformStorage>>,
-        PlatformKeyMaterial,
-        PlatformStorage,
-    > {
+    pub fn inner(&self) -> &SphereCursor<Arc<SphereContext<PlatformStorage>>, PlatformStorage> {
         self.inner.immutable()
     }
 
-    pub fn inner_mut(
-        &mut self,
-    ) -> &mut Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>> {
+    pub fn inner_mut(&mut self) -> &mut Arc<Mutex<SphereContext<PlatformStorage>>> {
         self.inner.mutable()
     }
 
@@ -83,6 +75,33 @@ impl NsSphereFile {
 /// identity (which implies that no such sphere was ever created or joined on
 /// this device).
 pub fn ns_sphere_open(
+    noosphere: &NsNoosphere,
+    sphere_identity: char_p::Ref<'_>,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<repr_c::Box<NsSphere>> {
+    error_out.try_or_initialize(|| {
+        let fs = noosphere.async_runtime().block_on(async {
+            let sphere_channel = noosphere
+                .inner()
+                .get_sphere_channel(&Did(sphere_identity.to_str().into()))
+                .await?;
+
+            Ok(Box::new(NsSphere {
+                inner: sphere_channel,
+            })
+            .into()) as Result<_, anyhow::Error>
+        })?;
+
+        Ok(fs)
+    })
+}
+
+#[ffi_export]
+/// @memberof ns_sphere_t
+///
+/// Initialize an ns_sphere_t instance.
+///
+pub fn ns_sphere_open_as_root(
     noosphere: &NsNoosphere,
     sphere_identity: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
@@ -481,9 +500,7 @@ pub fn ns_sphere_content_list(
 ) -> c_slice::Box<char_p::Box> {
     let possible_output = error_out.try_or_initialize(|| {
         noosphere.async_runtime().block_on(async {
-            let slug_set = SphereWalker::from(sphere.inner().clone())
-                .list_slugs()
-                .await?;
+            let slug_set = SphereWalker::from(sphere.inner()).list_slugs().await?;
             let mut all_slugs: Vec<char_p::Box> = Vec::new();
 
             for slug in slug_set.into_iter() {
@@ -534,7 +551,7 @@ pub fn ns_sphere_content_changes(
                 None => None,
             };
 
-            let changed_slug_set = SphereWalker::from(sphere.inner().clone())
+            let changed_slug_set = SphereWalker::from(sphere.inner())
                 .content_changes(since.as_ref())
                 .await?;
             let mut changed_slugs: Vec<char_p::Box> = Vec::new();

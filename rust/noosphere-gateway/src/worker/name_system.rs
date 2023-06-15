@@ -30,7 +30,6 @@ use tokio::{
     task::JoinHandle,
 };
 use tokio_stream::{Stream, StreamExt};
-use ucan::crypto::KeyMaterial;
 use url::Url;
 
 const PERIODIC_PUBLISH_INTERVAL_SECONDS: u64 = 5 * 60;
@@ -89,13 +88,12 @@ pub enum NameSystemJob<C> {
     Publish { context: C, record: LinkRecord },
 }
 
-pub fn start_name_system<C, K, S>(
+pub fn start_name_system<C, S>(
     configuration: NameSystemConfiguration,
     local_spheres: Vec<C>,
 ) -> (UnboundedSender<NameSystemJob<C>>, JoinHandle<Result<()>>)
 where
-    C: HasMutableSphereContext<K, S> + 'static,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
 {
     let (tx, rx) = unbounded_channel();
@@ -118,12 +116,9 @@ where
 /// Run once on gateway start and every PERIODIC_PUBLISH_INTERVAL_SECONDS,
 /// republish all stored link records in gateway spheres that map to
 /// counterpart managed spheres.
-async fn periodic_publisher_task<C, K, S>(
-    tx: UnboundedSender<NameSystemJob<C>>,
-    local_spheres: Vec<C>,
-) where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+async fn periodic_publisher_task<C, S>(tx: UnboundedSender<NameSystemJob<C>>, local_spheres: Vec<C>)
+where
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     loop {
@@ -136,13 +131,12 @@ async fn periodic_publisher_task<C, K, S>(
     }
 }
 
-async fn periodic_publish_record<C, K, S>(
+async fn periodic_publish_record<C, S>(
     tx: &UnboundedSender<NameSystemJob<C>>,
     local_sphere: &C,
 ) -> Result<()>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     match get_counterpart_record(local_sphere).await {
@@ -162,12 +156,9 @@ where
     Ok(())
 }
 
-async fn periodic_resolver_task<C, K, S>(
-    tx: UnboundedSender<NameSystemJob<C>>,
-    local_spheres: Vec<C>,
-) where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+async fn periodic_resolver_task<C, S>(tx: UnboundedSender<NameSystemJob<C>>, local_spheres: Vec<C>)
+where
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     for sphere in local_spheres.iter().cycle() {
@@ -184,13 +175,12 @@ async fn periodic_resolver_task<C, K, S>(
     }
 }
 
-async fn name_system_task<C, K, S>(
+async fn name_system_task<C, S>(
     configuration: NameSystemConfiguration,
     mut receiver: UnboundedReceiver<NameSystemJob<C>>,
 ) -> Result<()>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     info!(
@@ -215,14 +205,13 @@ where
     Ok(())
 }
 
-async fn process_job<C, K, S, I, O, F>(
+async fn process_job<C, S, I, O, F>(
     job: NameSystemJob<C>,
     with_client: &mut TryOrReset<I, O, F>,
     ipfs_api: &Url,
 ) -> Result<()>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
     I: Fn() -> F,
     O: NameResolver + 'static,
@@ -329,15 +318,14 @@ where
 
 /// Consumes a stream of name / address tuples, resolving them one at a time
 /// and updating the provided [SphereContext] with the latest resolved values
-async fn resolve_all<C, K, S, N>(
+async fn resolve_all<C, S, N>(
     client: Arc<dyn NameResolver>,
     mut context: C,
     stream: N,
     ipfs_api: &Url,
 ) -> Result<()>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
     N: Stream<Item = Result<(String, IdentityIpld)>>,
 {
@@ -447,10 +435,9 @@ impl<H> OnDemandNameResolver<H> {
     }
 }
 
-async fn set_counterpart_record<C, K, S>(context: C, record: &LinkRecord) -> Result<()>
+async fn set_counterpart_record<C, S>(context: C, record: &LinkRecord) -> Result<()>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     debug!("Setting counterpart record...");
@@ -474,10 +461,9 @@ where
     Ok(())
 }
 
-async fn get_counterpart_record<C, K, S>(context: &C) -> Result<Option<LinkRecord>>
+async fn get_counterpart_record<C, S>(context: &C) -> Result<Option<LinkRecord>>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     debug!("Getting counterpart record...");

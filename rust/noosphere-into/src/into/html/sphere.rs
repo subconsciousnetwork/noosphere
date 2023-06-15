@@ -6,7 +6,6 @@ use noosphere_sphere::{HasSphereContext, SphereContentRead, SphereCursor};
 use noosphere_storage::Storage;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
-use ucan::crypto::KeyMaterial;
 
 use crate::{
     file_to_html_stream, sphere_to_html_document_stream, HtmlOutput, StaticHtmlTransform,
@@ -18,10 +17,9 @@ static DEFAULT_STYLES: &[u8] = include_bytes!("./static/styles.css");
 /// Given a sphere [Did], [SphereDb] and a [WriteTarget], produce rendered HTML
 /// output up to and including the complete historical revisions of the
 /// slug-named content of the sphere.
-pub async fn sphere_into_html<C, K, S, W>(sphere_context: C, write_target: &W) -> Result<()>
+pub async fn sphere_into_html<C, S, W>(sphere_context: C, write_target: &W) -> Result<()>
 where
-    C: HasSphereContext<K, S> + 'static,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S> + 'static,
     S: Storage + 'static,
     W: WriteTarget + 'static,
 {

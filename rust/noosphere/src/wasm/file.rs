@@ -12,14 +12,11 @@ use js_sys::{Function, Promise, Uint8Array};
 use noosphere_sphere::{
     AsyncFileBody, HasSphereContext, SphereContext, SphereCursor, SphereFile as SphereFileImpl,
 };
-use tokio::{
-    io::{AsyncRead, AsyncReadExt},
-    sync::Mutex,
-};
+use tokio::{io::AsyncReadExt, sync::Mutex};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
-use crate::platform::{PlatformKeyMaterial, PlatformStorage};
+use crate::platform::PlatformStorage;
 
 /// A `SphereFile` contains metadata about a file, and accessors that enable
 /// the user to defer reading the file's content until such time as it is
@@ -30,11 +27,7 @@ pub struct SphereFile {
     pub inner: SphereFileImpl<Pin<Box<dyn AsyncFileBody>>>,
 
     #[wasm_bindgen(skip)]
-    pub cursor: SphereCursor<
-        Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>,
-        PlatformKeyMaterial,
-        PlatformStorage,
-    >,
+    pub cursor: SphereCursor<Arc<Mutex<SphereContext<PlatformStorage>>>, PlatformStorage>,
 }
 
 #[wasm_bindgen]
@@ -132,14 +125,14 @@ impl SphereFile {
 /// A [JavaScriptTransform] is a [Transform] implementation that is suitable
 /// for converting sphere content using JavaScript and DOM-aware APIs.
 #[derive(Clone)]
-pub struct JavaScriptTransform<R: HasSphereContext<PlatformKeyMaterial, PlatformStorage>> {
+pub struct JavaScriptTransform<R: HasSphereContext<PlatformStorage>> {
     resolver: JavaScriptResolver,
-    transcluder: SphereContentTranscluder<R, PlatformKeyMaterial, PlatformStorage>,
+    transcluder: SphereContentTranscluder<R, PlatformStorage>,
 }
 
 impl<R> JavaScriptTransform<R>
 where
-    R: HasSphereContext<PlatformKeyMaterial, PlatformStorage>,
+    R: HasSphereContext<PlatformStorage>,
 {
     pub fn new(callback: Function, context: R) -> Self {
         JavaScriptTransform {
@@ -151,10 +144,10 @@ where
 
 impl<R> Transform for JavaScriptTransform<R>
 where
-    R: HasSphereContext<PlatformKeyMaterial, PlatformStorage>,
+    R: HasSphereContext<PlatformStorage>,
 {
     type Resolver = JavaScriptResolver;
-    type Transcluder = SphereContentTranscluder<R, PlatformKeyMaterial, PlatformStorage>;
+    type Transcluder = SphereContentTranscluder<R, PlatformStorage>;
 
     fn resolver(&self) -> &Self::Resolver {
         &self.resolver

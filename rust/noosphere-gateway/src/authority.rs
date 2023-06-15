@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -14,7 +14,7 @@ use noosphere_sphere::SphereContext;
 use noosphere_storage::NativeStorage;
 
 use tokio::sync::Mutex;
-use ucan::{capability::Capability, chain::ProofChain, crypto::KeyMaterial, store::UcanJwtStore};
+use ucan::{capability::Capability, chain::ProofChain, store::UcanJwtStore};
 
 use super::GatewayScope;
 
@@ -23,19 +23,12 @@ use super::GatewayScope;
 /// represented by a UCAN. Any request handler can use a GatewayAuthority
 /// to test if a required capability is satisfied by the authorization
 /// presented by the maker of the request.
-pub struct GatewayAuthority<K>
-where
-    K: KeyMaterial + Clone + 'static,
-{
+pub struct GatewayAuthority {
     proof: ProofChain,
     scope: GatewayScope,
-    key_type: PhantomData<K>,
 }
 
-impl<K> GatewayAuthority<K>
-where
-    K: KeyMaterial + Clone + 'static,
-{
+impl GatewayAuthority {
     pub fn try_authorize(
         &self,
         capability: &Capability<SphereReference, SphereAction>,
@@ -59,17 +52,16 @@ where
 }
 
 #[async_trait]
-impl<S, K> FromRequestParts<S> for GatewayAuthority<K>
+impl<S> FromRequestParts<S> for GatewayAuthority
 where
     S: Send + Sync,
-    K: KeyMaterial + Clone + 'static,
 {
     type Rejection = StatusCode;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let sphere_context = parts
             .extensions
-            .get::<Arc<Mutex<SphereContext<K, NativeStorage>>>>()
+            .get::<Arc<Mutex<SphereContext<NativeStorage>>>>()
             .ok_or_else(|| {
                 error!("Could not find DidParser in extensions");
                 StatusCode::INTERNAL_SERVER_ERROR
@@ -149,7 +141,6 @@ where
         Ok(GatewayAuthority {
             scope: gateway_scope.clone(),
             proof: proof_chain,
-            key_type: PhantomData::default(),
         })
     }
 }

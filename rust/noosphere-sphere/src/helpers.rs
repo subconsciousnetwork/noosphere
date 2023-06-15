@@ -13,11 +13,11 @@ use noosphere_storage::{BlockStore, MemoryStorage, SphereDb, TrackingStorage, Uc
 use serde_json::json;
 use tokio::{io::AsyncReadExt, sync::Mutex};
 use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
-use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 use crate::{
     walk_versioned_map_elements, walk_versioned_map_elements_and, HasMutableSphereContext,
-    HasSphereContext, SphereContentRead, SphereContentWrite, SphereContext, SpherePetnameWrite,
+    HasSphereContext, SphereContentRead, SphereContentWrite, SphereContext, SphereContextKey,
+    SpherePetnameWrite,
 };
 
 /// Access levels available when simulating a [SphereContext]
@@ -37,7 +37,7 @@ pub async fn simulated_sphere_context(
     profile: SimulationAccess,
     db: Option<SphereDb<TrackingStorage<MemoryStorage>>>,
 ) -> Result<(
-    Arc<Mutex<SphereContext<Ed25519KeyMaterial, TrackingStorage<MemoryStorage>>>>,
+    Arc<Mutex<SphereContext<TrackingStorage<MemoryStorage>>>>,
     Mnemonic,
 )> {
     let mut db = match db {
@@ -48,7 +48,7 @@ pub async fn simulated_sphere_context(
         }
     };
 
-    let owner_key = generate_ed25519_key();
+    let owner_key: SphereContextKey = Arc::new(Box::new(generate_ed25519_key()));
     let owner_did = owner_key.get_did().await?;
 
     let (sphere, proof, mnemonic) = Sphere::generate(&owner_did, &mut db).await?;
@@ -160,8 +160,7 @@ where
 }
 
 /// A type of [HasMutableSphereContext] that uses [TrackingStorage] internally
-pub type TrackedHasMutableSphereContext =
-    Arc<Mutex<SphereContext<Ed25519KeyMaterial, TrackingStorage<MemoryStorage>>>>;
+pub type TrackedHasMutableSphereContext = Arc<Mutex<SphereContext<TrackingStorage<MemoryStorage>>>>;
 
 /// Create a series of spheres where each sphere has the next as resolved
 /// entry in its address book; return a [HasMutableSphereContext] for the

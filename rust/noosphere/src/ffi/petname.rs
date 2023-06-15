@@ -212,9 +212,7 @@ pub fn ns_sphere_petname_list(
 ) -> c_slice::Box<char_p::Box> {
     let possible_output = error_out.try_or_initialize(|| {
         noosphere.async_runtime().block_on(async {
-            let petname_set = SphereWalker::from(sphere.inner().clone())
-                .list_petnames()
-                .await?;
+            let petname_set = SphereWalker::from(sphere.inner()).list_petnames().await?;
             let mut all_petnames: Vec<char_p::Box> = Vec::new();
 
             for petname in petname_set.into_iter() {
@@ -270,7 +268,7 @@ pub fn ns_sphere_petname_changes(
                 None => None,
             };
 
-            let changed_petname_set = SphereWalker::from(sphere.inner().clone())
+            let changed_petname_set = SphereWalker::from(sphere.inner())
                 .petname_changes(since.as_ref())
                 .await?;
             let mut changed_petnames: Vec<char_p::Box> = Vec::new();

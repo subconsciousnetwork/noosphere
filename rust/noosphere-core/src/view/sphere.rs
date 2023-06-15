@@ -848,7 +848,13 @@ impl<S: BlockStore> Sphere<S> {
         Ok(())
     }
 
-    // Validate this sphere revision's signature and proof chain
+    /// Validate this sphere revision's signature and proof chain
+    // TODO(#421): Allow this to be done at a specific "now" time, to cover the
+    // case when we are verifying a historical revision with a possibly expired
+    // credential
+    //
+    // TODO(#422): This also needs to take revocations into account, probably by
+    // calling to `Sphere::verify_authorization`
     pub async fn verify_signature(&self) -> Result<()> {
         let memo = self.to_memo().await?;
 

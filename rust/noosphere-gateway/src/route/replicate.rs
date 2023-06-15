@@ -21,7 +21,6 @@ use noosphere_sphere::{
 };
 use noosphere_storage::{BlockStore, BlockStoreRetry, Storage};
 use tokio_stream::Stream;
-use ucan::crypto::KeyMaterial;
 
 use crate::{authority::GatewayAuthority, GatewayScope};
 
@@ -35,8 +34,8 @@ pub type ReplicationCarStreamBody =
 /// streamed by to the requesting client. Invoker must have authorization to
 /// fetch from the gateway.
 #[instrument(level = "debug", skip(authority, scope, sphere_context,))]
-pub async fn replicate_route<C, K, S>(
-    authority: GatewayAuthority<K>,
+pub async fn replicate_route<C, S>(
+    authority: GatewayAuthority,
     // NOTE: Cannot go from string to CID via serde
     Path(memo_version): Path<String>,
     Query(ReplicateParameters { since }): Query<ReplicateParameters>,
@@ -45,8 +44,7 @@ pub async fn replicate_route<C, K, S>(
     Extension(sphere_context): Extension<C>,
 ) -> Result<ReplicationCarStreamBody, StatusCode>
 where
-    C: HasMutableSphereContext<K, S> + 'static,
-    K: KeyMaterial + Clone,
+    C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
 {
     debug!("Invoking replicate route...");
@@ -173,7 +171,7 @@ mod tests {
     };
     use noosphere_sphere::{
         helpers::{simulated_sphere_context, SimulationAccess},
-        HasMutableSphereContext, HasSphereContext, SphereContext, SphereCursor,
+        HasMutableSphereContext, HasSphereContext, SphereContext, SphereContextKey, SphereCursor,
     };
     use tokio::sync::Mutex;
     use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
@@ -268,7 +266,7 @@ mod tests {
     #[tokio::test]
     #[ignore = "TODO(#407)"]
     async fn it_detects_forked_lineages_of_a_sphere_by_revoked_authors() -> Result<()> {
-        let to_be_revoked_key = generate_ed25519_key();
+        let to_be_revoked_key: SphereContextKey = Arc::new(Box::new(generate_ed25519_key()));
         let to_be_revoked_did = to_be_revoked_key.get_did().await?;
 
         let (mut sphere_context, _) =

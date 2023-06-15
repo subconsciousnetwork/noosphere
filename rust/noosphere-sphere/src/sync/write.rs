@@ -2,7 +2,6 @@ use anyhow::Result;
 use async_trait::async_trait;
 use noosphere_core::data::{Link, MemoIpld};
 use noosphere_storage::Storage;
-use ucan::crypto::KeyMaterial;
 
 use crate::{HasMutableSphereContext, SyncError, SyncRecovery};
 
@@ -11,9 +10,8 @@ use crate::GatewaySyncStrategy;
 /// Implementors of [SphereSync] are able to sychronize with a Noosphere gateway
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait SphereSync<K, S>
+pub trait SphereSync<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
     /// If a gateway URL has been configured, attempt to synchronize local
@@ -26,10 +24,9 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<C, K, S> SphereSync<K, S> for C
+impl<C, S> SphereSync<S> for C
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     #[instrument(level = "debug", skip(self))]

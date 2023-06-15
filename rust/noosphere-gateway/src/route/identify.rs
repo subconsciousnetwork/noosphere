@@ -4,16 +4,14 @@ use noosphere_api::data::IdentifyResponse;
 use noosphere_core::authority::{generate_capability, SphereAction};
 use noosphere_sphere::HasSphereContext;
 use noosphere_storage::Storage;
-use ucan::crypto::KeyMaterial;
 
-pub async fn identify_route<C, K, S>(
+pub async fn identify_route<C, S>(
     Extension(scope): Extension<GatewayScope>,
     Extension(sphere_context): Extension<C>,
-    authority: GatewayAuthority<K>,
+    authority: GatewayAuthority,
 ) -> Result<impl IntoResponse, StatusCode>
 where
-    C: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone,
+    C: HasSphereContext<S>,
     S: Storage,
 {
     debug!("Invoking identify route...");

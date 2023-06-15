@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use noosphere_core::data::{Did, IdentityIpld, LinkRecord};
 use noosphere_storage::Storage;
-use ucan::{crypto::KeyMaterial, store::UcanJwtStore};
+use ucan::store::UcanJwtStore;
 
 use crate::{internal::SphereContextInternal, HasMutableSphereContext, SpherePetnameRead};
 
@@ -21,9 +21,8 @@ fn validate_petname(petname: &str) -> Result<()> {
 /// implements [HasMutableSphereContext]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait SpherePetnameWrite<K, S>: SpherePetnameRead<K, S>
+pub trait SpherePetnameWrite<S>: SpherePetnameRead<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
     /// Configure a petname, by assigning some [Did] to it or none. By assigning
@@ -49,10 +48,9 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<C, K, S> SpherePetnameWrite<K, S> for C
+impl<C, S> SpherePetnameWrite<S> for C
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     async fn set_petname(&mut self, name: &str, identity: Option<Did>) -> Result<()> {

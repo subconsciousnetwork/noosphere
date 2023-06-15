@@ -15,7 +15,6 @@ use noosphere_storage::Storage;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_stream::StreamExt;
 use ucan::capability::{Capability, Resource, With};
-use ucan::crypto::KeyMaterial;
 
 use crate::{
     authority::GatewayAuthority,
@@ -36,8 +35,8 @@ use crate::{
         request_body
     )
 )]
-pub async fn push_route<C, K, S>(
-    authority: GatewayAuthority<K>,
+pub async fn push_route<C, S>(
+    authority: GatewayAuthority,
     Extension(sphere_context): Extension<C>,
     Extension(gateway_scope): Extension<GatewayScope>,
     Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<C>>>,
@@ -45,8 +44,7 @@ pub async fn push_route<C, K, S>(
     Cbor(request_body): Cbor<PushBody>,
 ) -> Result<Cbor<PushResponse>, StatusCode>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     debug!("Invoking push route...");
@@ -72,17 +70,15 @@ where
         syndication_tx,
         name_system_tx,
         request_body,
-        key_type: PhantomData,
         storage_type: PhantomData,
     };
 
     Ok(Cbor(gateway_push_routine.invoke().await?))
 }
 
-pub struct GatewayPushRoutine<C, K, S>
+pub struct GatewayPushRoutine<C, S>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     sphere_context: C,
@@ -90,14 +86,12 @@ where
     syndication_tx: UnboundedSender<SyndicationJob<C>>,
     name_system_tx: UnboundedSender<NameSystemJob<C>>,
     request_body: PushBody,
-    key_type: PhantomData<K>,
     storage_type: PhantomData<S>,
 }
 
-impl<C, K, S> GatewayPushRoutine<C, K, S>
+impl<C, S> GatewayPushRoutine<C, S>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     pub async fn invoke(mut self) -> Result<PushResponse, PushError> {

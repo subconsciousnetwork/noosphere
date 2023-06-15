@@ -19,7 +19,6 @@ use tokio::{
     task::JoinHandle,
 };
 use tokio_stream::StreamExt;
-use ucan::crypto::KeyMaterial;
 use url::Url;
 
 use noosphere_car::{CarHeader, CarWriter};
@@ -50,12 +49,11 @@ pub struct SyndicationCheckpoint {
 /// Start a Tokio task that waits for [SyndicationJob] messages and then
 /// attempts to syndicate to the configured IPFS RPC. Currently only Kubo IPFS
 /// backends are supported.
-pub fn start_ipfs_syndication<C, K, S>(
+pub fn start_ipfs_syndication<C, S>(
     ipfs_api: Url,
 ) -> (UnboundedSender<SyndicationJob<C>>, JoinHandle<Result<()>>)
 where
-    C: HasMutableSphereContext<K, S> + 'static,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
 {
     let (tx, rx) = unbounded_channel();
@@ -63,13 +61,12 @@ where
     (tx, tokio::task::spawn(ipfs_syndication_task(ipfs_api, rx)))
 }
 
-async fn ipfs_syndication_task<C, K, S>(
+async fn ipfs_syndication_task<C, S>(
     ipfs_api: Url,
     mut receiver: UnboundedReceiver<SyndicationJob<C>>,
 ) -> Result<()>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     debug!("Syndicating sphere revisions to IPFS API at {}", ipfs_api);
@@ -84,14 +81,13 @@ where
     Ok(())
 }
 
-async fn process_job<C, K, S>(
+async fn process_job<C, S>(
     job: SyndicationJob<C>,
     kubo_client: Arc<KuboClient>,
     ipfs_api: &Url,
 ) -> Result<()>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     let SyndicationJob { revision, context } = job;

@@ -531,7 +531,7 @@ final class NoosphereTests: XCTestCase {
         
         let expectation = self.expectation(description: "File contents are read")
 
-        nsSphereAuthorityAuthorize(noosphere, sphere, name: "alice", did: "did:key:alice") {
+        nsSphereAuthorityAuthorize(noosphere, sphere, "alice", "did:key:alice") {
             (error, authorization_ptr) in
             
             if error != nil {
@@ -546,12 +546,12 @@ final class NoosphereTests: XCTestCase {
             }
             
             let authorization = String.init(cString: authorization_ptr!)
-            print(authorization)
+            print("Authorization:", authorization)
             
             ns_sphere_save(noosphere, sphere, nil, nil)
             
-            nsSphereAuthorityAuthorizationRevoke(noosphere, sphere, mnemonic: sphere_mnemonic_ptr, authorization: authorization_ptr) {
-                (error) in
+            nsSphereAuthorityEscalate(noosphere, sphere, sphere_mnemonic_ptr) {
+                (error, root_sphere) in
                 
                 if error != nil {
                     let error_message_ptr = ns_error_message_get(error)
@@ -564,11 +564,29 @@ final class NoosphereTests: XCTestCase {
                     return
                 }
                 
-                ns_string_free(authorization_ptr)
+                print("Escalated authority to root")
                 
-                print("Authorization revoked!")
-                
-                expectation.fulfill()
+                nsSphereAuthorityAuthorizationRevoke(noosphere, root_sphere, authorization_ptr) {
+                    (error) in
+
+                    if error != nil {
+                        let error_message_ptr = ns_error_message_get(error)
+                        let error_message = String.init(cString: error_message_ptr!)
+
+                        print(error_message)
+
+                        ns_string_free(error_message_ptr)
+                        ns_error_free(error)
+                        return
+                    }
+                    
+                    print("Authorization revoked!")
+                    
+                    ns_string_free(authorization_ptr)
+                    ns_sphere_free(root_sphere)
+                    
+                    expectation.fulfill()
+                }
             }
         }
         

@@ -22,9 +22,8 @@ use ucan::{
 /// and revoking prior authorizations.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait SphereAuthorityWrite<K, S>: SphereAuthorityRead<K, S>
+pub trait SphereAuthorityWrite<S>: SphereAuthorityRead<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
     /// Authorize another key by its [Did], associating the authorization with a
@@ -33,9 +32,10 @@ where
 
     /// Revoke a previously granted authorization.
     ///
-    /// Note that correctly revoking an authorization requires signing with the
-    /// root sphere credential, so generally can only be performed on a type
-    /// that implements [SphereAuthorityEscalate].
+    /// Note that correctly revoking an authorization requires signing with a credential
+    /// that is in the chain of authority that ultimately granted the authorization being
+    /// revoked. Attempting to revoke a credential with any credential that isn't in that
+    /// chain of authority will fail.
     async fn revoke_authorization(&mut self, authorization: &Authorization) -> Result<()>;
 
     /// Recover authority by revoking all previously delegated authorizations
@@ -50,16 +50,15 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<C, K, S> SphereAuthorityWrite<K, S> for C
+impl<C, S> SphereAuthorityWrite<S> for C
 where
-    C: HasSphereContext<K, S> + HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S> + HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
-    // TODO: We allow optional human-readable names for authorizations, but this
-    // will bear the consequence of leaking personal information about the user
-    // (e.g., a list of their authorized devices). We should encrypt these
-    // names so that they are only readable by the user themselves.
+    // TODO(#423): We allow optional human-readable names for authorizations,
+    // but this will bear the consequence of leaking personal information about
+    // the user (e.g., a list of their authorized devices). We should encrypt
+    // these names so that they are only readable by the user themselves.
     async fn authorize(&mut self, name: &str, identity: &Did) -> Result<Authorization> {
         self.assert_write_access().await?;
 
@@ -114,12 +113,18 @@ where
         self.assert_write_access().await?;
 
         let mut sphere_context = self.sphere_context_mut().await?;
-        let author_did = Did(sphere_context.author().key.get_did().await?);
-        let sphere_identity = sphere_context.identity().clone();
 
-        if author_did != sphere_identity {
+        if !sphere_context
+            .author()
+            .is_authorizer_of(authorization, sphere_context.db())
+            .await?
+        {
+            let author_did = sphere_context.author().did().await?;
+
             return Err(anyhow!(
-                "Only the root sphere credential can be used to revoke an authorization"
+                "{} cannot revoke authorization {} (not a delegating authority)",
+                author_did,
+                authorization
             ));
         }
 
@@ -150,6 +155,8 @@ where
             .mutation_mut()
             .revocations_mut()
             .set(&authorization_cid, &revocation);
+
+        // TODO(#424): Recursively remove any sub-delegations here (and revoke them?)
 
         Ok(())
     }
@@ -220,7 +227,7 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use noosphere_core::authority::{ed25519_key_to_mnemonic, generate_ed25519_key, Author};
+    use noosphere_core::authority::{generate_ed25519_key, Author};
     use noosphere_core::data::Did;
 
     use tokio::sync::Mutex;
@@ -233,8 +240,8 @@ mod tests {
 
     use crate::helpers::{simulated_sphere_context, SimulationAccess};
     use crate::{
-        HasMutableSphereContext, HasSphereContext, SphereAuthorityEscalate, SphereAuthorityRead,
-        SphereAuthorityWrite,
+        HasMutableSphereContext, HasSphereContext, SphereAuthorityRead, SphereAuthorityWrite,
+        SphereContextKey,
     };
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
@@ -263,7 +270,7 @@ mod tests {
         let (mut sphere_context, mnemonic) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 
-        let other_key = generate_ed25519_key();
+        let other_key: SphereContextKey = Arc::new(Box::new(generate_ed25519_key()));
         let other_did = Did(other_key.get_did().await?);
 
         let other_authorization = sphere_context.authorize("other", &other_did).await?;
@@ -288,14 +295,12 @@ mod tests {
             .await?;
         sphere_context_with_other_credential.save(None).await?;
 
-        sphere_context
-            .with_root_authority(&mnemonic, move |mut root_sphere_context| async move {
-                root_sphere_context
-                    .revoke_authorization(&other_authorization)
-                    .await?;
-                Ok(Some(root_sphere_context.save(None).await?))
-            })
+        let mut root_sphere_context = sphere_context.escalate_authority(&mnemonic).await?;
+
+        root_sphere_context
+            .revoke_authorization(&other_authorization)
             .await?;
+        root_sphere_context.save(None).await?;
 
         assert!(sphere_context
             .verify_authorization(&third_authorization)
@@ -317,17 +322,12 @@ mod tests {
         let other_authorization = sphere_context.authorize("other", &other_did).await?;
         sphere_context.save(None).await?;
 
-        sphere_context
-            .with_root_authority(&mnemonic, |mut root_sphere_context| {
-                let other_authorization = other_authorization.clone();
-                async move {
-                    root_sphere_context
-                        .revoke_authorization(&other_authorization)
-                        .await?;
-                    Ok(Some(root_sphere_context.save(None).await?))
-                }
-            })
+        let mut root_sphere_context = sphere_context.escalate_authority(&mnemonic).await?;
+
+        root_sphere_context
+            .revoke_authorization(&other_authorization)
             .await?;
+        root_sphere_context.save(None).await?;
 
         assert!(sphere_context
             .verify_authorization(&other_authorization)
@@ -354,17 +354,12 @@ mod tests {
         let next_owner_key = generate_ed25519_key();
         let next_owner_did = Did(next_owner_key.get_did().await?);
 
-        sphere_context
-            .with_root_authority(&mnemonic, |mut root_sphere_context| {
-                let next_owner_did = next_owner_did.clone();
-                async move {
-                    root_sphere_context
-                        .recover_authority(&next_owner_did)
-                        .await?;
-                    Ok(Some(root_sphere_context.save(None).await?))
-                }
-            })
+        let mut root_sphere_context = sphere_context.escalate_authority(&mnemonic).await?;
+
+        root_sphere_context
+            .recover_authority(&next_owner_did)
             .await?;
+        root_sphere_context.save(None).await?;
 
         assert!(sphere_context
             .verify_authorization(&other_authorization)
@@ -384,26 +379,6 @@ mod tests {
                     .unwrap(),
             )
             .await?;
-
-        Ok(())
-    }
-
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
-    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    async fn it_wont_escalate_authority_if_the_mnemonic_is_wrong() -> Result<()> {
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
-
-        let other_key = generate_ed25519_key();
-        let incorrect_mnemonic = ed25519_key_to_mnemonic(&other_key)?;
-
-        assert!(sphere_context
-            .with_root_authority(&incorrect_mnemonic, |_| async {
-                assert!(false, "Called back with incorrect mnemonic");
-                Ok(None)
-            })
-            .await
-            .is_err());
 
         Ok(())
     }

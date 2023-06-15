@@ -11,6 +11,7 @@ pub trait AsyncFileBody: AsyncRead + Unpin + Send {}
 impl<S> AsyncFileBody for S where S: AsyncRead + Unpin + Send {}
 
 #[cfg(target_arch = "wasm32")]
+/// A type that may be used as the contents field in a [SphereFile]
 pub trait AsyncFileBody: AsyncRead + Unpin {}
 
 #[cfg(target_arch = "wasm32")]

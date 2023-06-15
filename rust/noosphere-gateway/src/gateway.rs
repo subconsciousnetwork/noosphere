@@ -9,7 +9,6 @@ use noosphere_storage::Storage;
 use std::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use ucan::crypto::KeyMaterial;
 use url::Url;
 
 use noosphere_api::route::Route as GatewayRoute;
@@ -32,7 +31,7 @@ pub struct GatewayScope {
     pub counterpart: Did,
 }
 
-pub async fn start_gateway<C, K, S>(
+pub async fn start_gateway<C, S>(
     listener: TcpListener,
     gateway_scope: GatewayScope,
     sphere_context: C,
@@ -41,8 +40,7 @@ pub async fn start_gateway<C, K, S>(
     cors_origin: Option<Url>,
 ) -> Result<()>
 where
-    C: HasMutableSphereContext<K, S> + 'static,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
 {
     initialize_tracing(None);
@@ -74,8 +72,8 @@ where
 
     let ipfs_client = KuboClient::new(&ipfs_api)?;
 
-    let (syndication_tx, syndication_task) = start_ipfs_syndication::<C, K, S>(ipfs_api.clone());
-    let (name_system_tx, name_system_task) = start_name_system::<C, K, S>(
+    let (syndication_tx, syndication_task) = start_ipfs_syndication::<C, S>(ipfs_api.clone());
+    let (name_system_tx, name_system_task) = start_name_system::<C, S>(
         NameSystemConfiguration {
             connection_type: NameSystemConnectionType::Remote(name_resolver_api),
             ipfs_api,
@@ -87,17 +85,14 @@ where
         .route(&GatewayRoute::Did.to_string(), get(did_route))
         .route(
             &GatewayRoute::Replicate(None).to_string(),
-            get(replicate_route::<C, K, S>),
+            get(replicate_route::<C, S>),
         )
         .route(
             &GatewayRoute::Identify.to_string(),
-            get(identify_route::<C, K, S>),
+            get(identify_route::<C, S>),
         )
-        .route(&GatewayRoute::Push.to_string(), put(push_route::<C, K, S>))
-        .route(
-            &GatewayRoute::Fetch.to_string(),
-            get(fetch_route::<C, K, S>),
-        )
+        .route(&GatewayRoute::Push.to_string(), put(push_route::<C, S>))
+        .route(&GatewayRoute::Fetch.to_string(), get(fetch_route::<C, S>))
         .layer(Extension(sphere_context.clone()))
         .layer(Extension(gateway_scope.clone()))
         .layer(Extension(ipfs_client))

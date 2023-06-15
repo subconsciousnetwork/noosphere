@@ -8,32 +8,27 @@ use noosphere_sphere::{HasSphereContext, SphereContentRead};
 use noosphere_storage::Storage;
 use subtext::{block::Block, primitive::Entity, Peer};
 use tokio_stream::StreamExt;
-use ucan::crypto::KeyMaterial;
 
 /// A [Transcluder] implementation that uses [HasSphereContext] to resolve the content
 /// being transcluded.
 #[derive(Clone)]
-pub struct SphereContentTranscluder<R, K, S>
+pub struct SphereContentTranscluder<R, S>
 where
-    R: HasSphereContext<K, S> + Clone,
-    K: KeyMaterial + Clone + 'static,
+    R: HasSphereContext<S> + Clone,
     S: Storage + 'static,
 {
     content: R,
-    key_type: PhantomData<K>,
     storage_type: PhantomData<S>,
 }
 
-impl<R, K, S> SphereContentTranscluder<R, K, S>
+impl<R, S> SphereContentTranscluder<R, S>
 where
-    R: HasSphereContext<K, S> + Clone,
-    K: KeyMaterial + Clone + 'static,
+    R: HasSphereContext<S> + Clone,
     S: Storage + 'static,
 {
     pub fn new(content: R) -> Self {
         SphereContentTranscluder {
             content,
-            key_type: PhantomData,
             storage_type: PhantomData,
         }
     }
@@ -41,11 +36,10 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<R, K, S> Transcluder for SphereContentTranscluder<R, K, S>
+impl<R, S> Transcluder for SphereContentTranscluder<R, S>
 where
-    R: HasSphereContext<K, S> + Clone,
+    R: HasSphereContext<S> + Clone,
     S: Storage + 'static,
-    K: KeyMaterial + Clone + 'static,
 {
     async fn transclude(&self, link: &ResolvedLink) -> Result<Option<Transclude>> {
         match link {

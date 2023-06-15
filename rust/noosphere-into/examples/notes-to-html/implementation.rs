@@ -1,7 +1,9 @@
 use anyhow::{anyhow, Result};
 use axum::{http::StatusCode, response::IntoResponse, routing::get_service};
 use noosphere_into::{sphere_into_html, NativeFs};
-use noosphere_sphere::{HasMutableSphereContext, SphereContentWrite, SphereContext, SphereCursor};
+use noosphere_sphere::{
+    HasMutableSphereContext, SphereContentWrite, SphereContext, SphereContextKey, SphereCursor,
+};
 use std::{ffi::OsStr, net::SocketAddr, path::Path, sync::Arc};
 use tempfile::TempDir;
 use tokio::{
@@ -27,7 +29,7 @@ pub async fn main() -> Result<()> {
     let storage_provider = MemoryStorage::default();
     let mut db = SphereDb::new(&storage_provider).await.unwrap();
 
-    let owner_key = generate_ed25519_key();
+    let owner_key: SphereContextKey = Arc::new(Box::new(generate_ed25519_key()));
     let owner_did = owner_key.get_did().await?;
 
     let (sphere, proof, _) = Sphere::generate(&owner_did, &mut db).await?;

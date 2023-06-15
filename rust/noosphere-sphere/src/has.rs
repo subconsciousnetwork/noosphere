@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use noosphere_core::{
+    authority::Author,
     data::{Did, Link, MemoIpld},
     view::Sphere,
 };
@@ -10,7 +11,8 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::{Mutex, OwnedMutexGuard};
-use ucan::crypto::KeyMaterial;
+
+use crate::SphereContextKey;
 
 use super::SphereContext;
 
@@ -36,13 +38,12 @@ impl<S> HasConditionalSendSync for S {}
 /// content and petnames.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait HasSphereContext<K, S>: Clone + HasConditionalSendSync
+pub trait HasSphereContext<S>: Clone + HasConditionalSendSync
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
     /// The type of the internal read-only [SphereContext]
-    type SphereContext: Deref<Target = SphereContext<K, S>> + HasConditionalSendSync;
+    type SphereContext: Deref<Target = SphereContext<S>> + HasConditionalSendSync;
 
     /// Get the [SphereContext] that is made available by this container.
     async fn sphere_context(&self) -> Result<Self::SphereContext>;
@@ -65,6 +66,15 @@ where
         let version = self.version().await?;
         Ok(Sphere::at(&version, self.sphere_context().await?.db()))
     }
+
+    /// Create a new [SphereContext] via [SphereContext::with_author] and wrap it in the same
+    /// [HasSphereContext] implementation, returning the result
+    async fn with_author(&self, author: &Author<SphereContextKey>) -> Result<Self> {
+        Ok(Self::wrap(self.sphere_context().await?.with_author(author).await?).await)
+    }
+
+    /// Wrap a given [SphereContext] in this [HasSphereContext]
+    async fn wrap(sphere_context: SphereContext<S>) -> Self;
 }
 
 /// Any container that can provide mutable access to a [SphereContext] should
@@ -75,14 +85,13 @@ where
 /// aspects of a sphere.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait HasMutableSphereContext<K, S>: HasSphereContext<K, S> + HasConditionalSendSync
+pub trait HasMutableSphereContext<S>: HasSphereContext<S> + HasConditionalSendSync
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
     /// The type of the internal mutable [SphereContext]
-    type MutableSphereContext: Deref<Target = SphereContext<K, S>>
-        + DerefMut<Target = SphereContext<K, S>>
+    type MutableSphereContext: Deref<Target = SphereContext<S>>
+        + DerefMut<Target = SphereContext<S>>
         + HasConditionalSendSync;
 
     /// Get a mutable reference to the [SphereContext] that is wrapped by this
@@ -136,39 +145,26 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<K, S> HasSphereContext<K, S> for Arc<Mutex<SphereContext<K, S>>>
+impl<S> HasSphereContext<S> for Arc<Mutex<SphereContext<S>>>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    type SphereContext = OwnedMutexGuard<SphereContext<K, S>>;
+    type SphereContext = OwnedMutexGuard<SphereContext<S>>;
 
     async fn sphere_context(&self) -> Result<Self::SphereContext> {
         Ok(self.clone().lock_owned().await)
     }
-}
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<K, S, T> HasSphereContext<K, S> for &T
-where
-    T: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
-    S: Storage + 'static,
-{
-    type SphereContext = T::SphereContext;
-
-    async fn sphere_context(&self) -> Result<Self::SphereContext> {
-        (*self).sphere_context().await
+    async fn wrap(sphere_context: SphereContext<S>) -> Self {
+        Arc::new(Mutex::new(sphere_context))
     }
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<K, S, T> HasSphereContext<K, S> for Box<T>
+impl<S, T> HasSphereContext<S> for Box<T>
 where
-    T: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    T: HasSphereContext<S>,
     S: Storage + 'static,
 {
     type SphereContext = T::SphereContext;
@@ -176,30 +172,36 @@ where
     async fn sphere_context(&self) -> Result<Self::SphereContext> {
         T::sphere_context(self).await
     }
-}
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<K, S> HasSphereContext<K, S> for Arc<SphereContext<K, S>>
-where
-    K: KeyMaterial + Clone + 'static,
-    S: Storage,
-{
-    type SphereContext = Arc<SphereContext<K, S>>;
-
-    async fn sphere_context(&self) -> Result<Self::SphereContext> {
-        Ok(self.clone())
+    async fn wrap(sphere_context: SphereContext<S>) -> Self {
+        Box::new(T::wrap(sphere_context).await)
     }
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<K, S> HasMutableSphereContext<K, S> for Arc<Mutex<SphereContext<K, S>>>
+impl<S> HasSphereContext<S> for Arc<SphereContext<S>>
 where
-    K: KeyMaterial + Clone + 'static,
+    S: Storage,
+{
+    type SphereContext = Arc<SphereContext<S>>;
+
+    async fn sphere_context(&self) -> Result<Self::SphereContext> {
+        Ok(self.clone())
+    }
+
+    async fn wrap(sphere_context: SphereContext<S>) -> Self {
+        Arc::new(sphere_context)
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<S> HasMutableSphereContext<S> for Arc<Mutex<SphereContext<S>>>
+where
     S: Storage + 'static,
 {
-    type MutableSphereContext = OwnedMutexGuard<SphereContext<K, S>>;
+    type MutableSphereContext = OwnedMutexGuard<SphereContext<S>>;
 
     async fn sphere_context_mut(&mut self) -> Result<Self::MutableSphereContext> {
         self.sphere_context().await
@@ -208,10 +210,9 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<K, S, T> HasMutableSphereContext<K, S> for Box<T>
+impl<S, T> HasMutableSphereContext<S> for Box<T>
 where
-    T: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    T: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     type MutableSphereContext = T::MutableSphereContext;

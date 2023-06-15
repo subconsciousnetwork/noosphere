@@ -1,14 +1,15 @@
-use anyhow::Result;
+use std::sync::Arc;
+
+use anyhow::{anyhow, Result};
 use noosphere_core::{
-    authority::Authorization,
-    data::{Did, Link},
+    authority::{Author, Authorization},
+    data::{Did, Link, Mnemonic},
 };
 use noosphere_storage::Storage;
 
 use tokio_stream::StreamExt;
-use ucan::crypto::KeyMaterial;
 
-use crate::HasSphereContext;
+use crate::{HasSphereContext, SphereContextKey};
 use async_trait::async_trait;
 
 /// Anything that can read the authority section from a sphere should implement
@@ -16,10 +17,10 @@ use async_trait::async_trait;
 /// that implements [HasSphereContext].
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait SphereAuthorityRead<K, S>
+pub trait SphereAuthorityRead<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
+    Self: Sized,
 {
     /// For a given [Authorization], checks that the authorization and all of its
     /// ancester proofs are valid and have not been revoked
@@ -27,14 +28,18 @@ where
 
     /// Look up an authorization by a [Did].
     async fn get_authorization(&self, did: &Did) -> Result<Option<Authorization>>;
+
+    /// Derive a root sphere key from a mnemonic and return a version of this
+    /// [SphereAuthorityRead] whose inner [SphereContext]'s [Author] is using
+    /// that root sphere key.
+    async fn escalate_authority(&self, mnemonic: &Mnemonic) -> Result<Self>;
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<C, K, S> SphereAuthorityRead<K, S> for C
+impl<C, S> SphereAuthorityRead<S> for C
 where
-    C: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S>,
     S: Storage + 'static,
 {
     async fn verify_authorization(&self, authorization: &Authorization) -> Result<()> {
@@ -62,6 +67,31 @@ where
         }
 
         Ok(None)
+    }
+
+    async fn escalate_authority(&self, mnemonic: &Mnemonic) -> Result<Self> {
+        let root_key: SphereContextKey = Arc::new(Box::new(mnemonic.to_credential()?));
+        let root_author = Author {
+            key: root_key,
+            authorization: None,
+        };
+
+        let root_identity = root_author.did().await?;
+        let sphere_identity = self.identity().await?;
+
+        if sphere_identity != root_identity {
+            return Err(anyhow!(
+                "Provided mnemonic did not produce the expected credential"
+            ));
+        }
+
+        Ok(Self::wrap(
+            self.sphere_context()
+                .await?
+                .with_author(&root_author)
+                .await?,
+        )
+        .await)
     }
 }
 

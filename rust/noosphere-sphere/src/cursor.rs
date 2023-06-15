@@ -2,20 +2,13 @@ use anyhow::Result;
 use async_trait::async_trait;
 use noosphere_api::data::ReplicateParameters;
 use noosphere_core::{
-    authority::Author,
-    data::{Link, MemoIpld, Mnemonic},
+    data::{Link, MemoIpld},
     view::{Sphere, Timeline},
 };
 use noosphere_storage::{BlockStore, Storage};
-use std::future::Future;
-use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
-use ucan::crypto::KeyMaterial;
 
-use crate::{
-    HasMutableSphereContext, HasSphereContext, SphereAuthorityEscalate, SphereAuthoritySend,
-    SphereContext, SphereReplicaRead,
-};
+use crate::{HasMutableSphereContext, HasSphereContext, SphereContext, SphereReplicaRead};
 use std::{marker::PhantomData, sync::Arc};
 
 /// A [SphereCursor] is a structure that enables reading from and writing to a
@@ -27,22 +20,19 @@ use std::{marker::PhantomData, sync::Arc};
 /// implementor of [HasSphereContext] and mount it to a specific version of the
 /// sphere.
 #[derive(Clone)]
-pub struct SphereCursor<C, K, S>
+pub struct SphereCursor<C, S>
 where
-    C: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S>,
     S: Storage + 'static,
 {
     has_sphere_context: C,
-    key: PhantomData<K>,
     storage: PhantomData<S>,
     sphere_version: Option<Link<MemoIpld>>,
 }
 
-impl<C, K, S> SphereCursor<C, K, S>
+impl<C, S> SphereCursor<C, S>
 where
-    C: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S>,
     S: Storage + 'static,
 {
     /// Consume the [SphereCursor] and return its wrapped [HasSphereContext]
@@ -55,7 +45,6 @@ where
     pub fn mounted_at(has_sphere_context: C, sphere_version: &Link<MemoIpld>) -> Self {
         SphereCursor {
             has_sphere_context,
-            key: PhantomData,
             storage: PhantomData,
             sphere_version: Some(sphere_version.clone()),
         }
@@ -109,7 +98,6 @@ where
     pub fn latest(has_sphere_context: C) -> Self {
         SphereCursor {
             has_sphere_context,
-            key: PhantomData,
             storage: PhantomData,
             sphere_version: None,
         }
@@ -135,10 +123,9 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<C, K, S> HasMutableSphereContext<K, S> for SphereCursor<C, K, S>
+impl<C, S> HasMutableSphereContext<S> for SphereCursor<C, S>
 where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage,
 {
     type MutableSphereContext = C::MutableSphereContext;
@@ -163,10 +150,9 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<C, K, S> HasSphereContext<K, S> for SphereCursor<C, K, S>
+impl<C, S> HasSphereContext<S> for SphereCursor<C, S>
 where
-    C: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S>,
     S: Storage + 'static,
 {
     type SphereContext = C::SphereContext;
@@ -181,13 +167,16 @@ where
             None => self.has_sphere_context.version().await,
         }
     }
+
+    async fn wrap(sphere_context: SphereContext<S>) -> Self {
+        SphereCursor::latest(C::wrap(sphere_context).await)
+    }
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<K, S> SphereReplicaRead<K, S> for SphereCursor<Arc<SphereContext<K, S>>, K, S>
+impl<S> SphereReplicaRead<S> for SphereCursor<Arc<SphereContext<S>>, S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
     async fn traverse_by_petnames(&self, petname_path: &[String]) -> Result<Option<Self>> {
@@ -277,52 +266,6 @@ where
             Arc::new(peer_sphere_context),
             peer_sphere.cid(),
         )))
-    }
-}
-
-/// The type of the [HasMutableSphereContext] provided when writing to a [SphereCursor] with
-/// escalated authority
-pub type EscalatedSphereCursor<K, S> = SphereCursor<Arc<Mutex<SphereContext<K, S>>>, K, S>;
-
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<C, K, S>
-    SphereAuthorityEscalate<
-        EscalatedSphereCursor<Arc<Box<dyn KeyMaterial>>, S>,
-        Arc<Box<dyn KeyMaterial>>,
-        S,
-    > for SphereCursor<C, K, S>
-where
-    C: HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
-    S: Storage + 'static,
-{
-    async fn with_root_authority<F, Fut>(&mut self, mnemonic: &Mnemonic, callback: F) -> Result<()>
-    where
-        Fut: Future<Output = Result<Option<Link<MemoIpld>>>> + SphereAuthoritySend,
-        F: FnOnce(EscalatedSphereCursor<Arc<Box<dyn KeyMaterial>>, S>) -> Fut + SphereAuthoritySend,
-    {
-        let sphere_context = self.sphere_context_mut().await?;
-        let root_sphere_author = Author {
-            key: mnemonic.to_credential()?,
-            authorization: None,
-        };
-
-        let mut cursor = SphereCursor::latest(Arc::new(Mutex::new(
-            sphere_context.with_author(&root_sphere_author).await?,
-        )));
-
-        if let Some(version) = self.sphere_version.as_ref() {
-            cursor.mount_at(version).await?;
-        }
-
-        let maybe_new_version = callback(cursor).await?;
-
-        if self.sphere_version.is_some() && maybe_new_version.is_some() {
-            self.sphere_version = maybe_new_version;
-        }
-
-        Ok(())
     }
 }
 

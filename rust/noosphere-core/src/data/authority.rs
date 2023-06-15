@@ -47,7 +47,7 @@ impl AuthorityIpld {
 /// sphere. The name of the delegation is for display purposes only, and helps
 /// the user identify the client device or application that the delegation is
 /// intended for.
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Serialize, Deserialize, Hash)]
 pub struct DelegationIpld {
     pub name: String,
     pub jwt: Cid,

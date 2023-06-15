@@ -19,6 +19,9 @@ use crate::metadata::GATEWAY_URL;
 #[cfg(doc)]
 use crate::has::HasSphereContext;
 
+/// The type of any [KeyMaterial] that is used within a [SphereContext]
+pub type SphereContextKey = Arc<Box<dyn KeyMaterial>>;
+
 /// A [SphereContext] is an accessor construct over locally replicated sphere
 /// data. It embodies both the storage layer that contains the sphere's data
 /// as the information needed to verify a user's intended level of access to
@@ -28,24 +31,22 @@ use crate::has::HasSphereContext;
 ///
 /// All interactions that pertain to a sphere, including reading or writing
 /// its contents and syncing with a gateway, flow through the [SphereContext].
-pub struct SphereContext<K, S>
+pub struct SphereContext<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
     sphere_identity: Did,
     origin_sphere_identity: Did,
-    author: Author<K>,
+    author: Author<SphereContextKey>,
     access: OnceCell<Access>,
     db: SphereDb<S>,
     did_parser: DidParser,
-    client: OnceCell<Arc<Client<K, SphereDb<S>>>>,
+    client: OnceCell<Arc<Client<SphereContextKey, SphereDb<S>>>>,
     mutation: SphereMutation,
 }
 
-impl<K, S> Clone for SphereContext<K, S>
+impl<S> Clone for SphereContext<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
     fn clone(&self) -> Self {
@@ -62,9 +63,8 @@ where
     }
 }
 
-impl<K, S> SphereContext<K, S>
+impl<S> SphereContext<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage,
 {
     /// Instantiate a new [SphereContext] given a sphere [Did], an [Author], a
@@ -75,7 +75,7 @@ where
     /// be read-only.
     pub async fn new(
         sphere_identity: Did,
-        author: Author<K>,
+        author: Author<SphereContextKey>,
         db: SphereDb<S>,
         origin_sphere_identity: Option<Did>,
     ) -> Result<Self> {
@@ -109,10 +109,7 @@ where
     }
 
     /// Clone this [SphereContext], replacing the [Author] with the provided one
-    pub async fn with_author<J>(&self, author: &Author<J>) -> Result<SphereContext<J, S>>
-    where
-        J: KeyMaterial + Clone + 'static,
-    {
+    pub async fn with_author(&self, author: &Author<SphereContextKey>) -> Result<SphereContext<S>> {
         SphereContext::new(
             self.sphere_identity.clone(),
             author.clone(),
@@ -125,10 +122,7 @@ where
     /// Given a [Did] of a sphere, produce a [SphereContext] backed by the same credentials and
     /// storage primitives as this one, but that accesses the sphere referred to by the provided
     /// [Did].
-    pub async fn traverse_by_identity(
-        &self,
-        _sphere_identity: &Did,
-    ) -> Result<SphereContext<K, S>> {
+    pub async fn traverse_by_identity(&self, _sphere_identity: &Did) -> Result<SphereContext<S>> {
         unimplemented!()
     }
 
@@ -150,7 +144,7 @@ where
     }
 
     /// The [Author] who is currently accessing the sphere
-    pub fn author(&self) -> &Author<K> {
+    pub fn author(&self) -> &Author<SphereContextKey> {
         &self.author
     }
 
@@ -227,7 +221,7 @@ where
     /// for one has been configured). This will initialize a [Client] if one is
     /// not already intialized, and will fail if the [Client] is unable to
     /// verify the identity of the gateway or otherwise connect to it.
-    pub async fn client(&self) -> Result<Arc<Client<K, SphereDb<S>>>> {
+    pub async fn client(&self) -> Result<Arc<Client<SphereContextKey, SphereDb<S>>>> {
         let client = self
             .client
             .get_or_try_init::<anyhow::Error, _, _>(|| async {
