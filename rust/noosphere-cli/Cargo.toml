@@ -22,6 +22,7 @@ test_kubo = []
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+tracing-subscriber = { workspace = true }
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls", "stream"] }
 noosphere-ns = { version = "0.9.4", path = "../noosphere-ns" }
 
@@ -40,8 +41,8 @@ iroh-car = { workspace = true }
 
 url = { workspace = true, features = ["serde"] }
 whoami = "^1"
+directories = { workspace = true }
 home = "~0.5"
-pathdiff = "~0.2"
 mime_guess = "^2"
 witty-phrase-generator = "~0.2"
 globset = "~0.4"
@@ -56,6 +57,9 @@ noosphere = { version = "0.13.1", path = "../noosphere" }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
 cid = { workspace = true }
+symlink = { workspace = true }
+pathdiff = { workspace = true }
+ignore = { workspace = true }
 subtext = "0.3.2"
 
 serde = { workspace = true }

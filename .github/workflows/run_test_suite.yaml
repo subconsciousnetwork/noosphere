@@ -94,7 +94,7 @@ jobs:
           ipfs_version: v0.17.0
           run_daemon: true
       - name: 'Run Rust native target tests'
-        run: cargo test --features test_kubo,headers
+        run: RUST_LOG=cli=debug NOOSPHERE_LOG=deafening cargo test --features test_kubo,headers
   run-test-suite-linux-c:
     runs-on: ubuntu-latest
     steps:

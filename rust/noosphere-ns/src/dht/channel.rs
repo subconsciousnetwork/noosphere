@@ -172,10 +172,7 @@ mod tests {
         });
 
         let res = client.send_request_async(Request::Ping()).await?;
-        assert!(match res {
-            Ok(Response::Pong()) => true,
-            _ => false,
-        });
+        matches!(res, Ok(Response::Pong()));
 
         for n in 0..10 {
             client.send_request(Request::SetFlag(n))?;

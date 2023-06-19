@@ -1,18 +1,12 @@
-use crate::native::workspace::Workspace;
+use crate::native::{content::Content, workspace::Workspace};
 use anyhow::{anyhow, Result};
 use noosphere_sphere::{SphereSync, SyncRecovery};
-use noosphere_storage::MemoryStore;
 
 pub async fn sync(workspace: &Workspace) -> Result<()> {
     workspace.ensure_sphere_initialized()?;
 
-    let mut memory_store = MemoryStore::default();
-
-    match workspace
-        .get_file_content_changes(&mut memory_store)
-        .await?
-    {
-        Some((_, content_changes)) if !content_changes.is_empty() => {
+    match Content::read_changes(workspace).await? {
+        Some((_, content_changes, _)) if !content_changes.is_empty() => {
             return Err(anyhow!(
                 "You have unsaved local changes; save or revert them before syncing!"
             ));
