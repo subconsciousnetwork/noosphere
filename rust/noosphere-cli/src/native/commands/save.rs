@@ -3,26 +3,23 @@ use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_core::data::Header;
 use noosphere_sphere::{HasMutableSphereContext, SphereContentWrite, SphereCursor};
-use noosphere_storage::{BlockStore, MemoryStore};
+use noosphere_storage::BlockStore;
 
-use crate::native::workspace::{FileReference, Workspace};
+use crate::native::{
+    content::{Content, FileReference},
+    workspace::Workspace,
+};
 
 /// TODO(#105): We may want to change this to take an optional list of paths to
 /// consider, and allow the user to rely on their shell for glob filtering
 pub async fn save(workspace: &Workspace) -> Result<()> {
     workspace.ensure_sphere_initialized()?;
 
-    let mut memory_store = MemoryStore::default();
     let mut db = workspace.db().await?;
 
-    let (content, content_changes) = match workspace
-        .get_file_content_changes(&mut memory_store)
-        .await?
-    {
-        Some((content, content_changes)) if !content_changes.is_empty() => {
-            (content, content_changes)
-        }
-        _ => {
+    let (content, content_changes, memory_store) = match Content::read_changes(workspace).await? {
+        Some(changes) => changes,
+        None => {
             return Err(anyhow!("No changes to save"));
         }
     };
@@ -65,6 +62,8 @@ pub async fn save(workspace: &Workspace) -> Result<()> {
     }
 
     let cid = SphereCursor::latest(sphere_context).save(None).await?;
+
+    workspace.render().await?;
 
     info!("Save complete!\nThe latest sphere revision is {cid}");
     Ok(())

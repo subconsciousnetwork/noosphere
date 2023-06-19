@@ -30,8 +30,11 @@ where
         authorization: &Authorization,
     ) -> Result<(), NoosphereError>;
 
-    /// Look up an authorization by a [Did].
+    /// Look up an [Authorization] by a [Did].
     async fn get_authorization(&self, did: &Did) -> Result<Option<Authorization>>;
+
+    /// Look up all [Authorization]s with the specified name
+    async fn get_authorizations_by_name(&self, name: &str) -> Result<Vec<Authorization>>;
 
     /// Derive a root sphere key from a mnemonic and return a version of this
     /// [SphereAuthorityRead] whose inner [SphereContext]'s [Author] is using
@@ -74,6 +77,24 @@ where
         }
 
         Ok(None)
+    }
+
+    async fn get_authorizations_by_name(&self, name: &str) -> Result<Vec<Authorization>> {
+        let sphere = self.to_sphere().await?;
+        let authority = sphere.get_authority().await?;
+        let delegations = authority.get_delegations().await?;
+        let delegations_stream = delegations.into_stream().await?;
+        let mut authorizations = Vec::new();
+
+        tokio::pin!(delegations_stream);
+
+        while let Some((link, delegation)) = delegations_stream.try_next().await? {
+            if delegation.name == name {
+                authorizations.push(Authorization::Cid(link.into()));
+            }
+        }
+
+        Ok(authorizations)
     }
 
     async fn escalate_authority(&self, mnemonic: &Mnemonic) -> Result<Self> {

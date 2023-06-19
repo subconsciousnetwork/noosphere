@@ -113,7 +113,10 @@ pub async fn post_record(
     name_system
         .put_record(record, query.quorum)
         .await
-        .map_err(move |error| JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+        .map_err(move |error| {
+            warn!("Error: {}", error);
+            JsonErr(StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+        })?;
     Ok(Json(()))
 }
 

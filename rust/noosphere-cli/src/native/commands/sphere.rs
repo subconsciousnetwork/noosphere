@@ -1,31 +1,45 @@
-use std::str::FromStr;
+use std::{path::Path, str::FromStr, sync::Arc};
 
-use crate::native::workspace::Workspace;
+use crate::native::{paths::SpherePaths, workspace::Workspace};
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere::{key::KeyStorage, sphere::SphereContextBuilder};
+use noosphere::{
+    key::KeyStorage,
+    sphere::{SphereContextBuilder, SphereContextBuilderArtifacts},
+};
 use noosphere_core::{authority::Authorization, data::Did};
-use noosphere_sphere::SphereContext;
+use noosphere_sphere::{
+    HasMutableSphereContext, HasSphereContext, SphereContext, SphereSync, SyncRecovery,
+};
 
+use tokio::sync::Mutex;
 use ucan::crypto::KeyMaterial;
+use url::Url;
 
-pub async fn sphere_create(owner_key: &str, workspace: &Workspace) -> Result<()> {
+pub async fn sphere_create(owner_key: &str, workspace: &mut Workspace) -> Result<()> {
     workspace.ensure_sphere_uninitialized()?;
 
-    let sphere_context_artifacts = SphereContextBuilder::default()
-        .create_sphere()
-        .at_storage_path(workspace.root_directory())
-        .reading_keys_from(workspace.key_storage().clone())
-        .using_key(owner_key)
-        .build()
-        .await?;
+    let sphere_paths = SpherePaths::intialize(workspace.working_directory()).await?;
 
-    let mnemonic = sphere_context_artifacts.require_mnemonic()?.to_string();
-    let sphere_context: SphereContext<_> = sphere_context_artifacts.into();
-    let sphere_identity = sphere_context.identity();
+    // NOTE: It's important that the sphere context is built inside this block
+    // so that the database lock can be dropped before we try to initialize the
+    // workspace later on; otherwise we may race and occassionally fail to open
+    // the database later.
+    {
+        let sphere_context_artifacts = SphereContextBuilder::default()
+            .create_sphere()
+            .at_storage_path(sphere_paths.root())
+            .reading_keys_from(workspace.key_storage().clone())
+            .using_key(owner_key)
+            .build()
+            .await?;
 
-    info!(
-        r#"A new sphere has been created in {:?}
+        let mnemonic = sphere_context_artifacts.require_mnemonic()?.to_string();
+        let sphere_context: SphereContext<_> = sphere_context_artifacts.into();
+        let sphere_identity = sphere_context.identity();
+
+        info!(
+            r#"A new sphere has been created in {:?}
 Its identity is {}
 Your key {:?} is considered its owner
 The owner of a sphere can authorize other keys to write to it
@@ -36,11 +50,14 @@ IMPORTANT: Write down the following sequence of words...
 
 ...and keep it somewhere safe!
 You will be asked to enter them if you ever need to transfer ownership of the sphere to a different key."#,
-        workspace.root_directory(),
-        sphere_identity,
-        owner_key,
-        mnemonic
-    );
+            sphere_paths.root(),
+            sphere_identity,
+            owner_key,
+            mnemonic
+        );
+    }
+
+    workspace.initialize(sphere_paths)?;
 
     Ok(())
 }
@@ -49,7 +66,8 @@ pub async fn sphere_join(
     local_key: &str,
     authorization: Option<String>,
     sphere_identity: &Did,
-    workspace: &Workspace,
+    gateway_url: &Url,
+    workspace: &mut Workspace,
 ) -> Result<()> {
     workspace.ensure_sphere_uninitialized()?;
     info!("Joining sphere {sphere_identity}...");
@@ -87,15 +105,34 @@ Type or paste the code here and press enter:"#
     let cid = Cid::from_str(cid_string.trim())
         .map_err(|_| anyhow!("Could not parse the authorization identity as a CID"))?;
 
-    SphereContextBuilder::default()
-        .join_sphere(sphere_identity)
-        .at_storage_path(workspace.root_directory())
-        .reading_keys_from(workspace.key_storage().clone())
-        .using_key(local_key)
-        .authorized_by(Some(&Authorization::Cid(cid)))
-        .build()
-        .await?;
+    let sphere_paths = SpherePaths::intialize(workspace.working_directory()).await?;
 
+    {
+        let mut sphere_context = Arc::new(Mutex::new(
+            match SphereContextBuilder::default()
+                .join_sphere(sphere_identity)
+                .at_storage_path(sphere_paths.root())
+                .reading_keys_from(workspace.key_storage().clone())
+                .using_key(local_key)
+                .authorized_by(Some(&Authorization::Cid(cid)))
+                .build()
+                .await?
+            {
+                SphereContextBuilderArtifacts::SphereCreated { context, .. } => context,
+                SphereContextBuilderArtifacts::SphereOpened(context) => context,
+            },
+        ));
+
+        sphere_context
+            .sphere_context_mut()
+            .await?
+            .configure_gateway_url(Some(gateway_url))
+            .await?;
+        sphere_context.sync(SyncRecovery::None).await?;
+    }
+
+    workspace.initialize(sphere_paths)?;
+    workspace.render().await?;
     // TODO(#103): Recovery path if the auth needs to change for some reason
 
     info!(

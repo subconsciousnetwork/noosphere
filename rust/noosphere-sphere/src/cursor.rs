@@ -174,8 +174,9 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<S> SphereReplicaRead<S> for SphereCursor<Arc<SphereContext<S>>, S>
+impl<C, S> SphereReplicaRead<S> for SphereCursor<C, S>
 where
+    C: HasSphereContext<S>,
     S: Storage + 'static,
 {
     async fn traverse_by_petnames(&self, petname_path: &[String]) -> Result<Option<Self>> {
@@ -262,7 +263,7 @@ where
             .await?;
 
         Ok(Some(SphereCursor::mounted_at(
-            Arc::new(peer_sphere_context),
+            C::wrap(peer_sphere_context).await,
             peer_sphere.cid(),
         )))
     }

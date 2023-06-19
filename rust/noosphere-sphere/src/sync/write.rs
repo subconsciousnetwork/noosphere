@@ -31,6 +31,8 @@ where
 {
     #[instrument(level = "debug", skip(self))]
     async fn sync(&mut self, recovery: SyncRecovery) -> Result<Link<MemoIpld>, SyncError> {
+        debug!("Attempting to sync...");
+
         let sync_strategy = GatewaySyncStrategy::default();
 
         let version = match recovery {

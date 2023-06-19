@@ -1,38 +1,31 @@
-use std::{convert::TryFrom, str::FromStr};
+use std::{collections::BTreeMap, convert::TryFrom};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere_core::{
-    authority::{generate_capability, SphereAbility},
-    data::{DelegationIpld, Link, RevocationIpld},
-    view::{Sphere, SphereMutation},
+use noosphere_core::data::{Did, Jwt, Link};
+use noosphere_sphere::{
+    HasMutableSphereContext, HasSphereContext, SphereAuthorityRead, SphereAuthorityWrite,
+    SphereWalker,
 };
 use serde_json::{json, Value};
-use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore, Ucan};
+use ucan::{store::UcanJwtStore, Ucan};
 
 use tokio_stream::StreamExt;
 
 use crate::native::workspace::Workspace;
 
-pub async fn auth_add(did: &str, name: Option<String>, workspace: &Workspace) -> Result<Cid> {
+pub async fn auth_add(did: &Did, name: Option<String>, workspace: &Workspace) -> Result<Cid> {
     workspace.ensure_sphere_initialized()?;
-    let sphere_did = workspace.sphere_identity().await?;
-    let mut db = workspace.db().await?;
 
-    let latest_sphere_cid = db.require_version(&sphere_did).await?;
-    let sphere = Sphere::at(&latest_sphere_cid.into(), &db);
+    let mut sphere_context = workspace.sphere_context().await?;
 
-    let authority = sphere.get_authority().await?;
-    let delegations = authority.get_delegations().await?;
-    let mut delegations_stream = delegations.stream().await?;
+    let current_authorization = sphere_context.get_authorization(did).await?;
 
-    while let Some((Link { cid, .. }, delegation)) = delegations_stream.try_next().await? {
-        let ucan = delegation.resolve_ucan(&db).await?;
-        let authorized_did = ucan.audience();
+    if let Some(authorization) = current_authorization {
+        let cid = Cid::try_from(authorization)?;
 
-        if authorized_did == did {
-            return Err(anyhow!(
-                r#"{} is already authorized to access the sphere
+        return Err(anyhow!(
+            r#"{} is already authorized to access the sphere
 Here is the identity of the authorization:
 
   {}
@@ -42,11 +35,10 @@ If you want to change it to something new, revoke the current one first:
   orb auth revoke {}
 
 You will be able to add a new one after the old one is revoked"#,
-                did,
-                cid,
-                delegation.name
-            ));
-        }
+            did,
+            cid,
+            cid
+        ));
     }
 
     let name = match name {
@@ -66,50 +58,10 @@ You will be able to add a new one after the old one is revoked"#,
         }
     };
 
-    let my_key = workspace.key().await?;
-    let my_did = my_key.get_did().await?;
-    let latest_sphere_cid = db.require_version(&sphere_did).await?;
-    let authorization = workspace.authorization().await?;
-    let authorization_expiry: Option<u64> = {
-        let ucan = authorization.as_ucan(&db).await?;
-        ucan.expires_at().to_owned()
-    };
+    let new_authorization = sphere_context.authorize(&name, &did).await?;
+    let new_authorization_cid = Cid::try_from(new_authorization)?;
 
-    let mut builder = UcanBuilder::default()
-        .issued_by(&my_key)
-        .for_audience(did)
-        .claiming_capability(&generate_capability(&sphere_did, SphereAbility::Authorize))
-        .with_nonce();
-
-    // TODO(ucan-wg/rs-ucan#114): Clean this up when
-    // `UcanBuilder::with_expiration` accepts `Option<u64>`
-    if let Some(exp) = authorization_expiry {
-        builder = builder.with_expiration(exp);
-    }
-
-    // TODO(ucan-wg/rs-ucan#32): Clean this up when we can use a CID as an authorization
-    // .witnessed_by(&authorization)
-    let mut signable = builder.build()?;
-    signable
-        .proofs
-        .push(Cid::try_from(&authorization)?.to_string());
-
-    let jwt = signable.sign().await?.encode()?;
-
-    let delegation = DelegationIpld::register(&name, &jwt, &db).await?;
-
-    let sphere = Sphere::at(&latest_sphere_cid.into(), &db);
-
-    let mut mutation = SphereMutation::new(&my_did);
-
-    mutation
-        .delegations_mut()
-        .set(&Link::new(delegation.jwt), &delegation);
-
-    let mut revision = sphere.apply_mutation(&mutation).await?;
-    let version_cid = revision.sign(&my_key, Some(&authorization)).await?;
-
-    db.set_version(&sphere_did, &version_cid).await?;
+    sphere_context.save(None).await?;
 
     info!(
         r#"Successfully authorized {did} to access your sphere.
@@ -120,63 +72,187 @@ IMPORTANT: You MUST sync to enable your gateway to recognize the authorization:
 
 This is the authorization's identity:
 
-  {}
+  {new_authorization_cid}
   
-Use this identity when joining the sphere on the other client"#,
-        delegation.jwt
+Use this identity when joining the sphere on the other client"#
     );
 
-    Ok(delegation.jwt)
+    Ok(new_authorization_cid)
 }
 
-pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {
-    let sphere_did = workspace.sphere_identity().await?;
-    let db = workspace.db().await?;
+pub async fn auth_list(tree: bool, as_json: bool, workspace: &Workspace) -> Result<()> {
+    let sphere_context = workspace.sphere_context().await?;
+    let sphere_identity = sphere_context.identity().await?;
+    let db = sphere_context.lock().await.db().clone();
 
-    let latest_sphere_cid = db
-        .get_version(&sphere_did)
-        .await?
-        .ok_or_else(|| anyhow!("Sphere version pointer is missing or corrupted"))?;
+    let walker = SphereWalker::from(&sphere_context);
 
-    let sphere = Sphere::at(&latest_sphere_cid.into(), &db);
+    let authorization_stream = walker.authorization_stream();
 
-    let authorization = sphere.get_authority().await?;
+    tokio::pin!(authorization_stream);
 
-    let allowed_ucans = authorization.get_delegations().await?;
-
-    let mut authorizations: Vec<(String, String, Cid)> = Vec::new();
-    let mut delegation_stream = allowed_ucans.stream().await?;
+    let mut authorization_meta: BTreeMap<Link<Jwt>, (String, Did, Jwt)> = BTreeMap::default();
     let mut max_name_length: usize = 7;
 
-    while let Some(Ok((_, delegation))) = delegation_stream.next().await {
-        let jwt = db.require_token(&delegation.jwt).await?;
-        let ucan = Ucan::from_str(&jwt)?;
-        let name = delegation.name.clone();
-
+    while let Some((name, identity, link)) = authorization_stream.try_next().await? {
+        let jwt = Jwt(db.require_token(&link).await?);
         max_name_length = max_name_length.max(name.len());
-        authorizations.push((
-            delegation.name.clone(),
-            ucan.audience().into(),
-            delegation.jwt,
-        ));
+        authorization_meta.insert(link.clone(), (name, identity, jwt));
     }
 
-    if as_json {
-        let authorizations: Vec<Value> = authorizations
-            .into_iter()
-            .map(|(name, did, cid)| {
-                json!({
-                    "name": name,
-                    "did": did,
-                    "cid": cid.to_string()
-                })
-            })
-            .collect();
-        info!("{}", serde_json::to_string_pretty(&json!(authorizations))?);
+    if tree {
+        let mut authorization_roots = Vec::<Link<Jwt>>::new();
+        let mut authorization_hierarchy: BTreeMap<Link<Jwt>, Vec<Link<Jwt>>> = BTreeMap::default();
+
+        for (link, (_name, _identity, jwt)) in authorization_meta.iter() {
+            let ucan = Ucan::try_from(jwt.as_str())?;
+
+            // TODO: Maybe only consider Noosphere-related proofs here
+            // TODO: Maybe filter on proofs that specifically refer to the current sphere
+            let proofs = ucan
+                .proofs()
+                .clone()
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|cid| Cid::try_from(cid.as_str()).ok().map(|cid| Link::from(cid)))
+                .collect::<Vec<Link<Jwt>>>();
+
+            if Did::from(ucan.issuer()) == sphere_identity {
+                // TODO: Such an authorization ought not have any topical proofs,
+                // but perhaps we should verify that
+                authorization_roots.push(link.clone())
+            } else {
+                for proof in proofs {
+                    let items = match authorization_hierarchy.get_mut(&proof) {
+                        Some(items) => items,
+                        None => {
+                            authorization_hierarchy.insert(proof.clone(), Vec::new());
+                            authorization_hierarchy.get_mut(&proof).ok_or_else(|| {
+                                anyhow!(
+                                    "Could not access list of child authorizations for {}",
+                                    &proof
+                                )
+                            })?
+                        }
+                    };
+                    items.push(link.clone());
+                }
+            }
+        }
+
+        if as_json {
+            let mut hierarchy = BTreeMap::new();
+            for (proof, children) in authorization_hierarchy {
+                hierarchy.insert(
+                    proof.to_string(),
+                    children
+                        .iter()
+                        .map(|child| child.to_string())
+                        .collect::<Vec<String>>(),
+                );
+            }
+            let mut meta = BTreeMap::new();
+            for (link, (name, id, token)) in authorization_meta {
+                meta.insert(
+                    link.to_string(),
+                    json!({
+                        "name": name,
+                        "id": id,
+                        "token": token
+                    }),
+                );
+            }
+
+            let roots = authorization_roots
+                .into_iter()
+                .map(|root| root.to_string())
+                .collect::<Vec<String>>();
+
+            info!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "sphere": sphere_identity,
+                    "roots": roots,
+                    "hierarchy": hierarchy,
+                    "meta": meta
+                }))?
+            );
+        } else {
+            info!(" ⌀ Sphere");
+            info!(" │ {sphere_identity}");
+            info!(" │");
+
+            fn draw_branch(
+                mut items: Vec<Link<Jwt>>,
+                mut indentation: Vec<bool>,
+                hierarchy: &BTreeMap<Link<Jwt>, Vec<Link<Jwt>>>,
+                meta: &BTreeMap<Link<Jwt>, (String, Did, Jwt)>,
+            ) {
+                let prefix = indentation
+                    .iter()
+                    .enumerate()
+                    .map(|(index, is_last)| match is_last {
+                        false if index == 0 => "│",
+                        false => "   │ ",
+                        true if index == 0 => " ",
+                        true => "    ",
+                    })
+                    .collect::<String>();
+
+                while let Some(link) = items.pop() {
+                    let is_last = items.len() == 0;
+
+                    if let Some((name, id, _token)) = meta.get(&link) {
+                        let (branch_char, trunk_char) = match is_last {
+                            true => ('└', ' '),
+                            false => ('├', '│'),
+                        };
+
+                        info!("{prefix}{}── {}", branch_char, name);
+                        info!("{prefix}{}   {}", trunk_char, id);
+
+                        if let Some(children) = hierarchy.get(&link) {
+                            info!("{prefix}{}   │", trunk_char);
+                            indentation.push(is_last);
+                            draw_branch(children.clone(), indentation.clone(), hierarchy, meta);
+                        } else {
+                            info!("{prefix}{}", trunk_char);
+                        }
+                    }
+                }
+            }
+
+            while let Some(root) = authorization_roots.pop() {
+                let items = vec![root];
+                let indentation = vec![authorization_roots.len() == 0];
+
+                draw_branch(
+                    items,
+                    indentation,
+                    &authorization_hierarchy,
+                    &authorization_meta,
+                );
+            }
+        }
     } else {
-        info!("{:1$}  AUTHORIZED KEY", "NAME", max_name_length);
-        for (name, did, _) in authorizations {
-            info!("{name:max_name_length$}  {did}");
+        if as_json {
+            let authorizations: Vec<Value> = authorization_meta
+                .into_iter()
+                .map(|(link, (name, did, token))| {
+                    json!({
+                        "name": name,
+                        "id": did,
+                        "link": link.to_string(),
+                        "token": token
+                    })
+                })
+                .collect();
+            info!("{}", serde_json::to_string_pretty(&json!(authorizations))?);
+        } else {
+            info!("{:1$}  AUTHORIZED KEY", "NAME", max_name_length);
+            for (_, (name, did, _)) in authorization_meta {
+                info!("{name:max_name_length$}  {did}");
+            }
         }
     }
 
@@ -185,48 +261,19 @@ pub async fn auth_list(as_json: bool, workspace: &Workspace) -> Result<()> {
 
 pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
     workspace.ensure_sphere_initialized()?;
-    let sphere_did = workspace.sphere_identity().await?;
-    let mut db = workspace.db().await?;
 
-    let latest_sphere_cid = db
-        .get_version(&sphere_did)
-        .await?
-        .ok_or_else(|| anyhow!("Sphere version pointer is missing or corrupted"))?;
+    let mut sphere_context = workspace.sphere_context().await?;
+    let authorizations = sphere_context.get_authorizations_by_name(name).await?;
 
-    let my_key = workspace.key().await?;
-    let my_did = my_key.get_did().await?;
-
-    let sphere = Sphere::at(&latest_sphere_cid.into(), &db);
-
-    let authority = sphere.get_authority().await?;
-
-    let delegations = authority.get_delegations().await?;
-
-    let mut delegation_stream = delegations.stream().await?;
-
-    while let Some(Ok((Link { cid, .. }, delegation))) = delegation_stream.next().await {
-        if delegation.name == name {
-            let revocation = RevocationIpld::revoke(cid, &my_key).await?;
-
-            let mut mutation = SphereMutation::new(&my_did);
-
-            let key = Link::new(*cid);
-
-            mutation.delegations_mut().remove(&key);
-            mutation.revocations_mut().set(&key, &revocation);
-
-            let mut revision = sphere.apply_mutation(&mutation).await?;
-            let ucan = workspace.authorization().await?;
-
-            let sphere_cid = revision.sign(&my_key, Some(&ucan)).await?;
-
-            db.set_version(&sphere_did, &sphere_cid).await?;
-
-            info!("The authorization named {name:?} has been revoked");
-
-            return Ok(());
-        }
+    if authorizations.len() == 0 {
+        return Err(anyhow!("There is no authorization named {:?}", name));
     }
 
-    Err(anyhow!("There is no authorization named {:?}", name))
+    for authorization in authorizations.iter() {
+        sphere_context.revoke_authorization(authorization).await?;
+    }
+
+    sphere_context.save(None).await?;
+
+    Ok(())
 }
