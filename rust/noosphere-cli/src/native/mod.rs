@@ -1,4 +1,7 @@
 pub mod commands;
+pub mod extension;
+pub mod paths;
+pub mod render;
 pub mod workspace;
 
 use anyhow::Result;
