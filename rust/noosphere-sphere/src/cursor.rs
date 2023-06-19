@@ -9,7 +9,7 @@ use noosphere_storage::{BlockStore, Storage};
 use tokio_stream::StreamExt;
 
 use crate::{HasMutableSphereContext, HasSphereContext, SphereContext, SphereReplicaRead};
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 /// A [SphereCursor] is a structure that enables reading from and writing to a
 /// [SphereContext] at specific versions of the associated sphere's history.
@@ -174,28 +174,34 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<S> SphereReplicaRead<S> for SphereCursor<Arc<SphereContext<S>>, S>
+impl<C, S> SphereReplicaRead<S> for SphereCursor<C, S>
 where
+    C: HasSphereContext<S>,
     S: Storage + 'static,
 {
+    #[instrument(level = "debug", skip(self))]
     async fn traverse_by_petnames(&self, petname_path: &[String]) -> Result<Option<Self>> {
+        debug!("Traversing by petname...");
+
         let replicate = {
-            let sphere_context = self.sphere_context().await?;
+            let cursor = self.clone();
 
             move |version: Link<MemoIpld>, since: Option<Link<MemoIpld>>| {
-                let sphere_context = sphere_context.clone();
+                let cursor = cursor.clone();
+
                 async move {
-                    let client = sphere_context.client().await?;
                     let replicate_parameters = since.as_ref().map(|since| ReplicateParameters {
                         since: Some(since.clone()),
                     });
+                    let (mut db, client) = {
+                        let sphere_context = cursor.sphere_context().await?;
+                        (sphere_context.db().clone(), sphere_context.client().await?)
+                    };
                     let stream = client
                         .replicate(&version, replicate_parameters.as_ref())
                         .await?;
 
                     tokio::pin!(stream);
-
-                    let mut db = sphere_context.db().clone();
 
                     while let Some((cid, block)) = stream.try_next().await? {
                         db.put_block(&cid, &block).await?;
@@ -262,7 +268,7 @@ where
             .await?;
 
         Ok(Some(SphereCursor::mounted_at(
-            Arc::new(peer_sphere_context),
+            C::wrap(peer_sphere_context).await,
             peer_sphere.cid(),
         )))
     }

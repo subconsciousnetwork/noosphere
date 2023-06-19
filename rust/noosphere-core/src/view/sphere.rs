@@ -93,6 +93,7 @@ where
     /// [Did] identity. If the local data for the sphere being traversed to is
     /// not available, an attempt will be made to replicate the data from a
     /// Noosphere Gateway.
+    #[instrument(level = "debug", skip(self, replicate))]
     pub async fn traverse_by_petname<F, Fut>(
         &self,
         petname: &str,

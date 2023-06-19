@@ -1,10 +1,9 @@
 use std::collections::BTreeMap;
 
-use crate::native::Workspace;
+use crate::native::{content::Content, Workspace};
 use anyhow::Result;
 use noosphere_core::data::ContentType;
 use noosphere_sphere::{HasSphereContext, SphereCursor};
-use noosphere_storage::MemoryStore;
 
 pub fn status_section(
     name: &str,
@@ -43,16 +42,11 @@ pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
     info!("The latest (saved) version of your sphere is {cid}");
     info!("Here is a summary of the current changes to sphere content:\n");
 
-    let mut memory_store = MemoryStore::default();
-
-    let (_, changes) = match workspace
-        .get_file_content_changes(&mut memory_store)
-        .await?
-    {
-        Some((content, content_changes)) if !content_changes.is_empty() => {
-            (content, content_changes)
-        }
-        _ => {
+    // TODO: No need to pack new blocks into a memory store at this step; maybe
+    // [Content::read_changes] can be optimized for this path
+    let (_, content_changes, _) = match Content::read_changes(workspace).await? {
+        Some(changes) => changes,
+        None => {
             info!("No new changes to sphere content!");
             return Ok(());
         }
@@ -65,7 +59,7 @@ pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
 
     status_section(
         "Updated",
-        &changes.updated,
+        &content_changes.updated,
         &mut content,
         &mut max_name_length,
         &mut max_content_type_length,
@@ -73,7 +67,7 @@ pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
 
     status_section(
         "New",
-        &changes.new,
+        &content_changes.new,
         &mut content,
         &mut max_name_length,
         &mut max_content_type_length,
@@ -81,7 +75,7 @@ pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
 
     status_section(
         "Removed",
-        &changes.removed,
+        &content_changes.removed,
         &mut content,
         &mut max_name_length,
         &mut max_content_type_length,

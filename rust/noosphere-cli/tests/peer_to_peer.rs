@@ -6,7 +6,7 @@ extern crate tracing;
 mod helpers;
 use anyhow::Result;
 use helpers::{start_name_system_server, wait, SpherePair};
-use noosphere_core::data::ContentType;
+use noosphere_core::data::{ContentType, Did};
 use noosphere_core::tracing::initialize_tracing;
 use noosphere_ns::{server::HttpClient, NameResolver};
 use noosphere_sphere::{
@@ -363,6 +363,10 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
 
     pair_1
         .spawn(|mut ctx| async move {
+            // Set and sync a new petname to "force" name resolution in the gateway
+            ctx.set_petname("foo", Some(Did("did:key:foo".into())))
+                .await?;
+            ctx.save(None).await?;
             ctx.sync(SyncRecovery::Retry(3)).await?;
             wait(1).await;
             ctx.sync(SyncRecovery::Retry(3)).await?;
@@ -450,6 +454,10 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
         // sphere_2 updates with sphere_3's initial content
         pair_2
             .spawn(move |mut ctx| async move {
+                // Set and sync a new petname to "force" name resolution in the gateway
+                ctx.set_petname("foo", Some(Did("did:key:foo".into())))
+                    .await?;
+                ctx.save(None).await?;
                 ctx.sync(SyncRecovery::Retry(3)).await?;
                 wait(1).await;
                 ctx.sync(SyncRecovery::Retry(3)).await?;

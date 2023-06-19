@@ -149,9 +149,8 @@ mod tests {
         });
 
         let _ = again
-            .invoke(|_| async move {
-                assert!(false, "First initialization should not have succeeded");
-                Ok(())
+            .invoke::<_, (), _>(|_| async move {
+                unreachable!("First initialization should not have succeeded");
             })
             .await;
 

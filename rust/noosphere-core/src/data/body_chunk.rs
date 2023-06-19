@@ -1,12 +1,12 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use fastcdc::ronomon::FastCDC;
+use fastcdc::v2020::FastCDC;
 use libipld_cbor::DagCborCodec;
 use serde::{Deserialize, Serialize};
 
 use noosphere_storage::BlockStore;
 
-pub const BODY_CHUNK_MAX_SIZE: usize = 1024 * 64 * 8; // ~.5mb/chunk worst case
+pub const BODY_CHUNK_MAX_SIZE: u32 = 1024 * 1024; // ~1mb/chunk worst case, ~.5mb/chunk average case
 
 /// A body chunk is a simplified flexible byte layout used for linking
 /// chunks of bytes. This is necessary to support cases when body contents
@@ -21,10 +21,11 @@ pub struct BodyChunkIpld {
 }
 
 impl BodyChunkIpld {
+    // TODO(#498): Re-write to address potentially unbounded memory overhead
     pub async fn store_bytes<S: BlockStore>(bytes: &[u8], store: &mut S) -> Result<Cid> {
         let chunks = FastCDC::new(
             bytes,
-            fastcdc::ronomon::MINIMUM_MIN,
+            fastcdc::v2020::MINIMUM_MIN,
             BODY_CHUNK_MAX_SIZE / 2,
             BODY_CHUNK_MAX_SIZE,
         );
@@ -55,6 +56,7 @@ impl BodyChunkIpld {
         next_chunk_cid.ok_or_else(|| anyhow!("No CID; did you try to store zero bytes?"))
     }
 
+    // TODO(#498): Re-write to address potentially unbounded memory overhead
     pub async fn load_all_bytes<S: BlockStore>(&self, store: &S) -> Result<Vec<u8>> {
         let mut all_bytes = self.bytes.clone();
         let mut next_cid = self.next;

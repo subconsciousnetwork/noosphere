@@ -21,17 +21,23 @@ resolver = "2"
 anyhow = { version = "1" }
 axum = { version = "^0.6.18" }
 cid = { version = "0.10" }
+directories = { version = "5" }
+fastcdc = { version = "3.1" }
 gloo-timers = { version = "0.2", features = ["futures"] }
+ignore = { version = "0.4.20" }
 iroh-car = { version = "^0.3.0" }
+js-sys = { version = "^0.3" }
 libipld = { version = "0.16" }
 libipld-core = { version = "0.16" }
 libipld-cbor = { version = "0.16" }
-strum = { version = "0.24" }
-strum_macros = { version = "0.24" }
+pathdiff = { version = "0.2.1" }
+sentry-tracing = { version = "0.31.5" }
 serde = { version = "^1" }
 serde_json = { version = "^1" }
-sentry-tracing = { version = "0.31.5" }
+strum = { version = "0.24" }
+strum_macros = { version = "0.24" }
 subtext = { version = "0.3.4" }
+symlink = { version = "0.1" }
 tempfile = { version = "^3" }
 thiserror = { version = "1" }
 tower = { version = "^0.4.13" }
@@ -41,12 +47,10 @@ tracing-subscriber = { version = "~0.3.16", features = ["env-filter", "tracing-l
 ucan = { version = "0.4.0" }
 ucan-key-support = { version = "0.1.7" }
 void = { version = "1" }
-wnfs-namefilter = { version = "0.1.21" }
-
-js-sys = { version = "^0.3" }
 wasm-bindgen = { version = "^0.2" }
 wasm-bindgen-test = { version = "^0.3" }
 wasm-bindgen-futures = { version = "^0.4" }
+wnfs-namefilter = { version = "0.1.21" }
 
 [profile.release]
 opt-level = 'z'

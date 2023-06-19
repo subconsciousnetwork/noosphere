@@ -289,6 +289,14 @@ where
                         warn!("Updated link record for {name} referred to unexpected sphere; expected {identity}, but record referred to {}; skipping...", address.did);
                         continue;
                     }
+
+                    if context.resolve_petname(&name).await? == link_record.get_link() {
+                        // TODO: Should probably also verify record expiry in case we are dealing
+                        // with a renewed record to the same link
+                        warn!("Resolved link for {name} has not changed; skipping...");
+                        continue;
+                    }
+
                     context.set_petname_record(&name, &link_record).await?;
                 } else {
                     debug!("Not adopting link record for {name}, which is no longer present in the address book")

@@ -389,7 +389,7 @@ mod tests {
 
         let record = from_issuer(&sphere_key, &sphere_identity, &cid_link, None).await?;
 
-        assert_eq!(&Did::from(record.to_sphere_identity()), &sphere_identity);
+        assert_eq!(&record.to_sphere_identity(), &sphere_identity);
         assert_eq!(LinkRecord::get_link(&record), Some(cid_link));
         LinkRecord::validate(&record, &store).await?;
         Ok(())

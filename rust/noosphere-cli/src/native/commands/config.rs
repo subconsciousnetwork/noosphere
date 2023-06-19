@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::OnceCell;
 use url::Url;
 
-use crate::native::{workspace::Workspace, ConfigGetCommand, ConfigSetCommand};
+use crate::native::{cli::ConfigGetCommand, cli::ConfigSetCommand, workspace::Workspace};
 
 pub const COUNTERPART: &str = "counterpart";
 pub const DIFFTOOL: &str = "difftool";
