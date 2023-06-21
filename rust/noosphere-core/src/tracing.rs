@@ -246,6 +246,10 @@ mod inner {
         let noosphere_log_env = std::env::var("NOOSPHERE_LOG").ok();
         let noosphere_log_level_env = std::env::var("NOOSPHERE_LOG_LEVEL").ok();
         let noosphere_log_format_env = std::env::var("NOOSPHERE_LOG_FORMAT").ok();
+        let sentry_tracing_rate = match std::env::var("SENTRY_TRACING_RATE") {
+            Ok(val) => val,
+            Err(_) => 0.1
+        };
 
         let noosphere_log = match noosphere_log_env {
             Some(value) => match value.parse() {
@@ -305,23 +309,44 @@ mod inner {
 
         let subscriber = tracing_subscriber::registry().with(env_filter);
 
+        let _guard = sentry::init(("https://553fd6eda33842ed9f088d0c16a147f1@o4505393671569408.ingest.sentry.io/4505399702126593", sentry::ClientOptions {
+            release: sentry::release_name!(),
+            traces_sample_rate: sentry_tracing_rate,
+            ..sentry::ClientOptions::default()
+        }));
+
+
         match noosphere_log_format {
-            NoosphereLogFormat::Minimal => subscriber
-                .with(
-                    Layer::default().event_format(NoosphereMinimalFormatter::new(
-                        tracing_subscriber::fmt::format()
-                            .without_time()
-                            .with_target(false)
-                            .with_ansi(USE_ANSI_COLORS),
-                    )),
-                )
-                .init(),
-            NoosphereLogFormat::Verbose => subscriber
-                .with(tracing_subscriber::fmt::layer().with_ansi(USE_ANSI_COLORS))
-                .init(),
-            NoosphereLogFormat::Pretty => subscriber
-                .with(Layer::default().pretty().with_ansi(USE_ANSI_COLORS))
-                .init(),
+            NoosphereLogFormat::Minimal => {
+                let subscriber = subscriber
+                    .with(
+                        Layer::default().event_format(NoosphereMinimalFormatter::new(
+                            tracing_subscriber::fmt::format()
+                                .without_time()
+                                .with_target(false)
+                                .with_ansi(USE_ANSI_COLORS),
+                        ))
+                    );
+                subscriber.init();
+            }
+            NoosphereLogFormat::Verbose => {
+                let subscriber = subscriber
+                    .with(tracing_subscriber::fmt::layer().with_ansi(USE_ANSI_COLORS));
+
+                #[cfg(feature="sentry")]
+                let subscriber = subscriber.with(sentry_tracing::layer());
+
+                subscriber.init();
+            }
+            NoosphereLogFormat::Pretty => {
+                let subscriber = subscriber
+                    .with(Layer::default().pretty().with_ansi(USE_ANSI_COLORS));
+
+                #[cfg(feature="sentry")]
+                let subscriber = subscriber.with(sentry_tracing::layer());
+
+                subscriber.init();
+        }
         };
 
         Ok(())
