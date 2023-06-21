@@ -246,10 +246,12 @@ mod inner {
         let noosphere_log_env = std::env::var("NOOSPHERE_LOG").ok();
         let noosphere_log_level_env = std::env::var("NOOSPHERE_LOG_LEVEL").ok();
         let noosphere_log_format_env = std::env::var("NOOSPHERE_LOG_FORMAT").ok();
-        let sentry_tracing_rate = match std::env::var("SENTRY_TRACING_RATE") {
-            Ok(val) => val,
+        #[cfg(feature="sentry")]
+        let sentry_tracing_rate: f32 = match std::env::var("SENTRY_TRACING_RATE") {
+            Ok(val) => val.parse().unwrap(),
             Err(_) => 0.1
         };
+        #[cfg(feature="sentry")]
         let sentry_dsn = std::env::var("SENTRY_DSN").ok();
 
         let noosphere_log = match noosphere_log_env {
