@@ -309,6 +309,7 @@ mod inner {
 
         let subscriber = tracing_subscriber::registry().with(env_filter);
 
+        // This isn't a secret value, just where to send the error reports. We can make this configurable in the future if other folks care.
         let _guard = sentry::init(("https://553fd6eda33842ed9f088d0c16a147f1@o4505393671569408.ingest.sentry.io/4505399702126593", sentry::ClientOptions {
             release: sentry::release_name!(),
             traces_sample_rate: sentry_tracing_rate,
