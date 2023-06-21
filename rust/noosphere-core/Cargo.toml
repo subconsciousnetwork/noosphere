@@ -19,7 +19,6 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [features]
-default = ["sentry"]
 sentry = ["dep:sentry", "dep:sentry-tracing"]
 
 [dependencies]

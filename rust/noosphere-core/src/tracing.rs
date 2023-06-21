@@ -250,6 +250,7 @@ mod inner {
             Ok(val) => val,
             Err(_) => 0.1
         };
+        let sentry_dsn = std::env::var("SENTRY_DSN").ok();
 
         let noosphere_log = match noosphere_log_env {
             Some(value) => match value.parse() {
@@ -309,8 +310,8 @@ mod inner {
 
         let subscriber = tracing_subscriber::registry().with(env_filter);
 
-        // This isn't a secret value, just where to send the error reports. We can make this configurable in the future if other folks care.
-        let _guard = sentry::init(("https://553fd6eda33842ed9f088d0c16a147f1@o4505393671569408.ingest.sentry.io/4505399702126593", sentry::ClientOptions {
+        #[cfg(feature="sentry")]
+        let _guard = sentry::init((sentry_dsn, sentry::ClientOptions {
             release: sentry::release_name!(),
             traces_sample_rate: sentry_tracing_rate,
             ..sentry::ClientOptions::default()
@@ -328,6 +329,10 @@ mod inner {
                                 .with_ansi(USE_ANSI_COLORS),
                         ))
                     );
+
+                #[cfg(feature="sentry")]
+                let subscriber = subscriber.with(sentry_tracing::layer());
+
                 subscriber.init();
             }
             NoosphereLogFormat::Verbose => {
