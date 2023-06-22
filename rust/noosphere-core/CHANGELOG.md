@@ -5,6 +5,13 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-collections bumped from 0.3.1 to 0.3.2
 
+## [0.12.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.12.1...noosphere-core-v0.12.2) (2023-06-22)
+
+
+### Features
+
+* Add support for sentry in `noosphere-core` tracing ([#437](https://github.com/subconsciousnetwork/noosphere/issues/437)) ([3b71541](https://github.com/subconsciousnetwork/noosphere/commit/3b7154150167f5964776c888470662305caefd18))
+
 ## [0.12.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.12.0...noosphere-core-v0.12.1) (2023-06-09)
 
 

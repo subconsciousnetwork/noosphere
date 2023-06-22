@@ -76,6 +76,24 @@
     * noosphere-ns bumped from 0.7.1 to 0.7.2
     * noosphere bumped from 0.10.10 to 0.10.11
 
+## [0.5.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.5.1...noosphere-gateway-v0.5.2) (2023-06-22)
+
+
+### Features
+
+* re-enable checking of publishable timeframe when publishing link records from the gateway. ([#416](https://github.com/subconsciousnetwork/noosphere/issues/416)) ([5f2d8b0](https://github.com/subconsciousnetwork/noosphere/commit/5f2d8b0431a315f52fe276eff11ba2b1d6e209f3))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.5.1 to 0.5.2
+    * noosphere-core bumped from 0.12.1 to 0.12.2
+    * noosphere-ns bumped from 0.8.1 to 0.8.2
+    * noosphere-sphere bumped from 0.6.1 to 0.6.2
+    * noosphere-api bumped from 0.8.1 to 0.8.2
+
 ## [0.5.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.5.0...noosphere-gateway-v0.5.1) (2023-06-09)
 
 
