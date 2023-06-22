@@ -18,6 +18,9 @@ repository = "https://github.com/subconsciousnetwork/noosphere"
 homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
+[features]
+sentry = ["dep:sentry", "dep:sentry-tracing"]
+
 [dependencies]
 tracing = { workspace = true }
 cid = { workspace = true }
@@ -50,6 +53,8 @@ noosphere-collections = { version = "0.6.0", path = "../noosphere-collections" }
 
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
+sentry-tracing = { version = "0.31.5", optional = true }
+sentry = { version = "0.31.5", optional = true, default-features = false, features=["reqwest", "rustls", "backtrace", "contexts", "panic", "anyhow"] }
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
