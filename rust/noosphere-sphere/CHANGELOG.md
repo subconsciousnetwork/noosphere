@@ -18,6 +18,21 @@
     * noosphere-ipfs bumped from 0.4.3 to 0.4.4
     * noosphere-car bumped from 0.1.1 to 0.1.2
 
+## [0.6.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.6.1...noosphere-sphere-v0.6.2) (2023-06-22)
+
+
+### Bug Fixes
+
+* Disallow "did:" as petnames, adding self to address book ([#387](https://github.com/subconsciousnetwork/noosphere/issues/387)) ([77920be](https://github.com/subconsciousnetwork/noosphere/commit/77920be9dfdf0983de920394617a58c2395ad506))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.12.1 to 0.12.2
+    * noosphere-api bumped from 0.8.1 to 0.8.2
+
 ## [0.6.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.6.0...noosphere-sphere-v0.6.1) (2023-06-09)
 
 
