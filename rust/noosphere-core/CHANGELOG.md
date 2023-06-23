@@ -5,6 +5,13 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-collections bumped from 0.3.1 to 0.3.2
 
+## [0.12.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.12.2...noosphere-core-v0.12.3) (2023-06-23)
+
+
+### Bug Fixes
+
+* Remove ineffective Sentry initialization ([200154c](https://github.com/subconsciousnetwork/noosphere/commit/200154cc82c0915a912df455c2e8cb8c619612ac))
+
 ## [0.12.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.12.1...noosphere-core-v0.12.2) (2023-06-22)
 
 
