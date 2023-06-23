@@ -178,7 +178,7 @@ mod inner {
     };
 
     // Mainly we disable this for iOS because it causes XCode
-    // output to be very noisy / difficult to read.
+    // output to be very noisy/difficult to read.
     #[cfg(target_os = "ios")]
     const USE_ANSI_COLORS: bool = false;
     #[cfg(not(target_os = "ios"))]
