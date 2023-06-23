@@ -35,7 +35,7 @@ futures = "^0.3.26"
 async-trait = "~0.1"
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
-tokio = { version = "1.15", features = ["io-util", "io-std", "sync", "macros", "rt", "rt-multi-thread"] }
+tokio = { version = "1.28", features = ["io-util", "io-std", "sync", "macros", "rt", "rt-multi-thread"] }
 noosphere-storage = { version = "0.7.0", path = "../noosphere-storage" }
 noosphere-core = { version = "0.12.2", path = "../noosphere-core" }
 libp2p = { version = "0.51.3", default-features = false, features = [ "ed25519", "identify", "dns", "kad", "macros", "noise", "serde", "tcp", "tokio", "yamux" ] }
