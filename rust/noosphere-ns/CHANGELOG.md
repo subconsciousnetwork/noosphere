@@ -77,6 +77,12 @@
     * noosphere bumped from 0.11.1 to 0.11.2
     * noosphere-ipfs bumped from 0.5.1 to 0.5.2
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.12.2 to 0.12.3
+    * noosphere bumped from 0.11.2 to 0.11.3
+    * noosphere-ipfs bumped from 0.5.2 to 0.5.3
+
 ## [0.8.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.8.0...noosphere-ns-v0.8.1) (2023-06-09)
 
 

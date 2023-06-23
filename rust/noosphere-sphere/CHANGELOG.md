@@ -18,6 +18,11 @@
     * noosphere-ipfs bumped from 0.4.3 to 0.4.4
     * noosphere-car bumped from 0.1.1 to 0.1.2
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.12.2 to 0.12.3
+    * noosphere-api bumped from 0.8.2 to 0.8.3
+
 ## [0.6.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.6.1...noosphere-sphere-v0.6.2) (2023-06-22)
 
 
