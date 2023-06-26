@@ -46,7 +46,7 @@ impl From<Void> for DHTEvent {
 }
 
 #[derive(NetworkBehaviour)]
-#[behaviour(out_event = "DHTEvent", event_process = false)]
+#[behaviour(to_swarm = "DHTEvent", event_process = false)]
 pub struct DhtBehavior {
     pub identify: Identify,
     pub kad: Kademlia<kad::record::store::MemoryStore>,
@@ -54,7 +54,7 @@ pub struct DhtBehavior {
 }
 
 pub type DHTSwarmEvent =
-    SwarmEvent<<DhtBehavior as swarm::NetworkBehaviour>::OutEvent, THandlerErr<DhtBehavior>>;
+    SwarmEvent<<DhtBehavior as swarm::NetworkBehaviour>::ToSwarm, THandlerErr<DhtBehavior>>;
 
 impl DhtBehavior {
     pub fn new(keypair: &Keypair, local_peer_id: &PeerId, config: &DhtConfig) -> Self {

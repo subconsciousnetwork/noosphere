@@ -12,20 +12,23 @@ use libp2p::{
     identity::Keypair,
     kad::{
         self,
-        kbucket::{Distance, NodeStatus},
         record::{store::RecordStore, Key},
-        KademliaEvent, PeerRecord, QueryResult, Quorum, Record,
+        Distance, KademliaEvent, NodeStatus, PeerRecord, QueryResult, Quorum, Record,
     },
     multiaddr::Protocol,
     swarm::{
         dial_opts::{DialOpts, PeerCondition},
         Swarm, SwarmEvent,
     },
-    Multiaddr, PeerId,
+    Multiaddr, PeerId, StreamProtocol,
 };
 use std::{collections::HashMap, time::Duration};
 use std::{fmt, num::NonZeroUsize};
 use tokio;
+
+// libp2p 0.52.0 introduced new ways of handling protocol names
+// that no longer appear to be public members.
+const KAD_PROTOCOL_NAME: StreamProtocol = StreamProtocol::new("/ipfs/kad/1.0.0");
 
 /// The processing component of a [DHTNode]/[DHTProcessor] pair. Consumers
 /// should only interface with a [DHTProcessor] via [DHTNode].
@@ -119,7 +122,7 @@ where
                     self.process_swarm_event(event).await
                 }
                 _ = bootstrap_tick.tick() => self.execute_bootstrap()?,
-                _ = peer_dialing_tick.tick() => self.dial_next_peer(),
+                //_ = peer_dialing_tick.tick() => self.dial_next_peer(),
             }
         }
         Ok(())
@@ -308,14 +311,17 @@ where
             SwarmEvent::IncomingConnection {
                 local_addr: _,
                 send_back_addr: _,
+                connection_id: _,
             } => {}
             SwarmEvent::IncomingConnectionError {
                 local_addr: _,
                 send_back_addr: _,
+                connection_id: _,
                 error: _,
             } => {}
             SwarmEvent::OutgoingConnectionError {
                 peer_id: _,
+                connection_id: _,
                 error: _,
             } => {}
             SwarmEvent::ExpiredListenAddr {
@@ -331,7 +337,10 @@ where
                 listener_id: _,
                 error: _,
             } => {}
-            SwarmEvent::Dialing(_) => {}
+            SwarmEvent::Dialing {
+                peer_id: _,
+                connection_id: _,
+            } => {}
             _ => {}
         }
     }
@@ -491,11 +500,7 @@ where
 
     fn process_identify_event(&mut self, event: IdentifyEvent) {
         if let IdentifyEvent::Received { peer_id, info } = event {
-            if info
-                .protocols
-                .iter()
-                .any(|p| p.as_bytes() == kad::protocol::DEFAULT_PROTO_NAME)
-            {
+            if info.protocols.iter().any(|p| p == &KAD_PROTOCOL_NAME) {
                 for addr in &info.listen_addrs {
                     self.swarm
                         .behaviour_mut()
@@ -568,7 +573,7 @@ where
     fn get_external_addresses(&mut self) -> Vec<Multiaddr> {
         self.swarm
             .external_addresses()
-            .map(|addr_record| addr_record.addr.to_owned())
+            .map(|addr_record| addr_record.to_owned())
             .collect::<Vec<Multiaddr>>()
     }
 
@@ -576,8 +581,7 @@ where
     async fn add_peers(&mut self, peers: &[libp2p::Multiaddr]) -> Result<(), DhtError> {
         for multiaddress in peers {
             let mut addr = multiaddress.to_owned();
-            if let Some(libp2p::multiaddr::Protocol::P2p(p2p_hash)) = addr.pop() {
-                let peer_id = PeerId::from_multihash(p2p_hash).unwrap();
+            if let Some(libp2p::multiaddr::Protocol::P2p(peer_id)) = addr.pop() {
                 // Do not add a peer with the same peer id, for example
                 // a set of N bootstrap nodes using a static list of
                 // N addresses/peer IDs.
