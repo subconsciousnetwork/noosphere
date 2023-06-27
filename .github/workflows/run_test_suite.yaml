@@ -30,8 +30,12 @@ jobs:
           sed -i '' -e "s#url: \"[^\"]*\",#path: \"./LibNoosphere.xcframework\"),#" ./Package.swift
           sed -i '' -e "s#checksum: \"[^\"]*\"),##" ./Package.swift
 
-          swift build
-          swift test
+          # Enable malloc debugging features
+          # https://developer.apple.com/library/archive/documentation/Performance/Conceptual/ManagingMemory/Articles/MallocDebug.html
+          export MallocPreScribble=1 
+          export MallocScribble=1 
+          swift build --sanitize=address
+          swift test --sanitize=address
 
   run-test-suite-windows:
     runs-on: windows-latest
