@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_core::{
-    authority::{SphereAction, SphereReference, SPHERE_SEMANTICS},
+    authority::{generate_capability, SphereAbility, SPHERE_SEMANTICS},
     data::{Bundle, Did, Jwt, Link, MemoIpld},
 };
 use noosphere_storage::{base64_decode, base64_encode};
@@ -11,7 +11,6 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 use ucan::{
-    capability::{Capability, Resource, With},
     chain::ProofChain,
     crypto::{did::DidParser, KeyMaterial},
     store::UcanStore,
@@ -227,15 +226,7 @@ impl IdentifyResponse {
             return Err(anyhow!("Wrong audience!"));
         }
 
-        let capability = Capability {
-            with: With::Resource {
-                kind: Resource::Scoped(SphereReference {
-                    did: self.sphere_identity.to_string(),
-                }),
-            },
-            can: SphereAction::Push,
-        };
-
+        let capability = generate_capability(&self.sphere_identity, SphereAbility::Push);
         let capability_infos = proof.reduce_capabilities(&SPHERE_SEMANTICS);
 
         for capability_info in capability_infos {

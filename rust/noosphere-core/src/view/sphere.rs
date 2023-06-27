@@ -8,7 +8,6 @@ use tokio_stream::StreamExt;
 
 use ucan::{
     builder::UcanBuilder,
-    capability::{Capability, Resource, With},
     chain::ProofChain,
     crypto::{did::DidParser, KeyMaterial},
     store::UcanJwtStore,
@@ -18,7 +17,7 @@ use ucan::{
 use crate::{
     authority::{
         ed25519_key_to_mnemonic, generate_capability, generate_ed25519_key, restore_ed25519_key,
-        Authorization, SphereAction, SphereReference, SPHERE_SEMANTICS, SUPPORTED_KEYS,
+        Authorization, SphereAbility, SPHERE_SEMANTICS, SUPPORTED_KEYS,
     },
     data::{
         Bundle, ChangelogIpld, ContentType, DelegationIpld, Did, Header, IdentityIpld, Link,
@@ -620,15 +619,7 @@ impl<S: BlockStore> Sphere<S> {
         memo.headers
             .push((Header::Version.to_string(), Version::V0.to_string()));
 
-        let capability = Capability {
-            with: With::Resource {
-                kind: Resource::Scoped(SphereReference {
-                    did: sphere_did.to_string(),
-                }),
-            },
-            can: SphereAction::Authorize,
-        };
-
+        let capability = generate_capability(&sphere_did, SphereAbility::Authorize);
         let ucan = UcanBuilder::default()
             .issued_by(&sphere_key)
             .for_audience(owner_did)
@@ -702,15 +693,7 @@ impl<S: BlockStore> Sphere<S> {
             }
         };
 
-        let authorize_capability = Capability {
-            with: With::Resource {
-                kind: Resource::Scoped(SphereReference {
-                    did: sphere_did.to_string(),
-                }),
-            },
-            can: SphereAction::Authorize,
-        };
-
+        let authorize_capability = generate_capability(&sphere_did, SphereAbility::Authorize);
         let mut proof_is_valid = false;
 
         for info in proof_chain.reduce_capabilities(&SPHERE_SEMANTICS) {
@@ -824,16 +807,16 @@ impl<S: BlockStore> Sphere<S> {
 
             // Check the proof's provenance and that it enables the signer to sign
             let now_time = if let Some(nbf) = ucan.not_before() {
-                nbf.to_owned()
+                Some(nbf.to_owned())
             } else {
-                ucan.expires_at() - 1
+                ucan.expires_at().as_ref().map(|exp| exp - 1)
             };
 
             let ucan_store = UcanStore(self.store.clone());
-            let proof =
-                ProofChain::from_ucan(ucan, Some(now_time), &mut did_parser, &ucan_store).await?;
+            let proof = ProofChain::from_ucan(ucan, now_time, &mut did_parser, &ucan_store).await?;
 
-            let desired_capability = generate_capability(&sphere_ipld.identity, SphereAction::Push);
+            let desired_capability =
+                generate_capability(&sphere_ipld.identity, SphereAbility::Push);
 
             for capability_info in proof.reduce_capabilities(&SPHERE_SEMANTICS) {
                 let capability = capability_info.capability;
@@ -924,7 +907,6 @@ mod tests {
     use tokio_stream::StreamExt;
     use ucan::{
         builder::UcanBuilder,
-        capability::{Capability, Resource, With},
         crypto::{did::DidParser, KeyMaterial},
     };
 
@@ -934,15 +916,15 @@ mod tests {
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
+    use super::*;
     use crate::{
         authority::{
-            ed25519_key_to_mnemonic, generate_ed25519_key, Authorization, SphereAction,
-            SphereReference, SUPPORTED_KEYS,
+            ed25519_key_to_mnemonic, generate_ed25519_key, Authorization, SphereAbility,
+            SUPPORTED_KEYS,
         },
         data::{Bundle, DelegationIpld, IdentityIpld, Link, MemoIpld, RevocationIpld},
         view::{Sphere, SphereMutation, Timeline},
     };
-
     use noosphere_storage::{BlockStore, MemoryStore, Store, UcanStore};
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
@@ -1114,16 +1096,12 @@ mod tests {
             UcanBuilder::default()
                 .issued_by(&owner_key)
                 .for_audience(&next_owner_did)
-                .claiming_capability(&Capability {
-                    with: With::Resource {
-                        kind: Resource::Scoped(SphereReference {
-                            did: sphere.get_identity().await.unwrap().to_string(),
-                        }),
-                    },
-                    can: SphereAction::Publish,
-                })
-                .witnessed_by(&ucan)
-                .with_expiration(*ucan.expires_at())
+                .claiming_capability(&generate_capability(
+                    &sphere.get_identity().await.unwrap().to_string(),
+                    SphereAbility::Publish,
+                ))
+                .witnessed_by(&ucan, None)
+                .with_expiration(ucan.expires_at().unwrap())
                 .build()
                 .unwrap()
                 .sign()

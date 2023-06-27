@@ -1,7 +1,7 @@
 use crate::{authority::GatewayAuthority, GatewayScope};
 use axum::{http::StatusCode, response::IntoResponse, Extension, Json};
 use noosphere_api::data::IdentifyResponse;
-use noosphere_core::authority::{generate_capability, SphereAction};
+use noosphere_core::authority::{generate_capability, SphereAbility};
 use noosphere_sphere::HasSphereContext;
 use noosphere_storage::Storage;
 use ucan::crypto::KeyMaterial;
@@ -20,7 +20,7 @@ where
 
     authority.try_authorize(&generate_capability(
         &scope.counterpart,
-        SphereAction::Fetch,
+        SphereAbility::Fetch,
     ))?;
 
     let sphere_context = sphere_context

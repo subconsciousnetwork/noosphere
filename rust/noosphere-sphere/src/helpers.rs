@@ -4,12 +4,11 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use noosphere_core::{
-    authority::{generate_capability, generate_ed25519_key, Author, SphereAction},
-    data::{ContentType, Did, Link, LinkRecord},
+    authority::{generate_capability, generate_ed25519_key, Author, SphereAbility},
+    data::{ContentType, Did, Link, LinkRecord, LINK_RECORD_FACT_NAME},
     view::Sphere,
 };
 use noosphere_storage::{BlockStore, MemoryStorage, SphereDb, TrackingStorage, UcanStore};
-use serde_json::json;
 use tokio::{io::AsyncReadExt, sync::Mutex};
 use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
@@ -82,15 +81,13 @@ where
         UcanBuilder::default()
             .issued_by(&owner_key)
             .for_audience(&sphere_identity)
-            .witnessed_by(&ucan_proof)
+            .witnessed_by(&ucan_proof, None)
             .claiming_capability(&generate_capability(
                 &sphere_identity,
-                SphereAction::Publish,
+                SphereAbility::Publish,
             ))
             .with_lifetime(120)
-            .with_fact(json!({
-              "link": sphere.cid().to_string()
-            }))
+            .with_fact(LINK_RECORD_FACT_NAME, sphere.cid().to_string())
             .build()?
             .sign()
             .await?,
@@ -215,15 +212,14 @@ pub async fn make_sphere_context_with_peer_chain(
                             .resolve_ucan(&db)
                             .await
                             .unwrap(),
+                        None,
                     )
                     .claiming_capability(&generate_capability(
                         &next_identity,
-                        SphereAction::Publish,
+                        SphereAbility::Publish,
                     ))
                     .with_lifetime(120)
-                    .with_fact(json!({
-                    "link": version.to_string()
-                    }))
+                    .with_fact(LINK_RECORD_FACT_NAME, version.to_string())
                     .build()
                     .unwrap()
                     .sign()

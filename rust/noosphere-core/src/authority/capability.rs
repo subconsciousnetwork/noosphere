@@ -1,9 +1,12 @@
 use anyhow::{anyhow, Result};
-use ucan::capability::{Action, Capability, CapabilitySemantics, Resource, Scope, With};
+use serde_json::json;
+use ucan::capability::{
+    Ability, CapabilitySemantics, CapabilityView, Resource, ResourceUri, Scope,
+};
 use url::Url;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
-pub enum SphereAction {
+pub enum SphereAbility {
     /// May read information about a sphere from a counterpart
     Fetch,
     /// May push an updated sphere lineage to a counterpart
@@ -14,29 +17,29 @@ pub enum SphereAction {
     Authorize,
 }
 
-impl Action for SphereAction {}
+impl Ability for SphereAbility {}
 
-impl ToString for SphereAction {
+impl ToString for SphereAbility {
     fn to_string(&self) -> String {
         match self {
-            SphereAction::Authorize => "sphere/authorize",
-            SphereAction::Publish => "sphere/publish",
-            SphereAction::Push => "sphere/push",
-            SphereAction::Fetch => "sphere/fetch",
+            SphereAbility::Authorize => "sphere/authorize",
+            SphereAbility::Publish => "sphere/publish",
+            SphereAbility::Push => "sphere/push",
+            SphereAbility::Fetch => "sphere/fetch",
         }
         .into()
     }
 }
 
-impl TryFrom<String> for SphereAction {
+impl TryFrom<String> for SphereAbility {
     type Error = anyhow::Error;
 
     fn try_from(value: String) -> Result<Self> {
         Ok(match value.as_str() {
-            "sphere/authorize" => SphereAction::Authorize,
-            "sphere/publish" => SphereAction::Publish,
-            "sphere/push" => SphereAction::Push,
-            "sphere/fetch" => SphereAction::Fetch,
+            "sphere/authorize" => SphereAbility::Authorize,
+            "sphere/publish" => SphereAbility::Publish,
+            "sphere/push" => SphereAbility::Push,
+            "sphere/fetch" => SphereAbility::Fetch,
             _ => return Err(anyhow!("Unrecognized action: {:?}", value)),
         })
     }
@@ -77,37 +80,40 @@ impl TryFrom<Url> for SphereReference {
 
 pub struct SphereSemantics {}
 
-impl CapabilitySemantics<SphereReference, SphereAction> for SphereSemantics {}
+impl CapabilitySemantics<SphereReference, SphereAbility> for SphereSemantics {}
 
 pub const SPHERE_SEMANTICS: SphereSemantics = SphereSemantics {};
 
 /// Generates a [Capability] struct representing permissions in a [LinkRecord].
 ///
 /// ```
-/// use noosphere_core::{authority::{generate_capability, SphereAction, SphereReference}};
-/// use ucan::capability::{Capability, Resource, With};
+/// use noosphere_core::{authority::{generate_capability, SphereAbility, SphereReference}};
+/// use ucan::capability::{CapabilityView, ResourceUri, Resource};
+/// use serde_json::json;
 ///
 /// let identity = "did:key:z6MkoE19WHXJzpLqkxbGP7uXdJX38sWZNUWwyjcuCmjhPpUP";
-/// let expected_capability = Capability {
-///     with: With::Resource {
-///         kind: Resource::Scoped(SphereReference {
+/// let expected_capability = CapabilityView {
+///     resource: Resource::Resource {
+///         kind: ResourceUri::Scoped(SphereReference {
 ///            did: identity.to_owned(),
 ///         }),
 ///     },
-///     can: SphereAction::Publish,
+///     ability: SphereAbility::Publish,
+///     caveat: json!({}),
 /// };
-/// assert_eq!(generate_capability(&identity, SphereAction::Publish), expected_capability);
+/// assert_eq!(generate_capability(&identity, SphereAbility::Publish), expected_capability);
 /// ```
 pub fn generate_capability(
     identity: &str,
-    action: SphereAction,
-) -> Capability<SphereReference, SphereAction> {
-    Capability {
-        with: With::Resource {
-            kind: Resource::Scoped(SphereReference {
+    ability: SphereAbility,
+) -> CapabilityView<SphereReference, SphereAbility> {
+    CapabilityView {
+        resource: Resource::Resource {
+            kind: ResourceUri::Scoped(SphereReference {
                 did: identity.to_owned(),
             }),
         },
-        can: action,
+        ability,
+        caveat: json!({}),
     }
 }

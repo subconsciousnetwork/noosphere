@@ -6,7 +6,7 @@ use axum::{http::StatusCode, Extension};
 
 use noosphere_api::data::{PushBody, PushError, PushResponse};
 use noosphere_core::{
-    authority::{SphereAction, SphereReference},
+    authority::{generate_capability, SphereAbility},
     data::{Bundle, Link, LinkRecord, MapOperation, MemoIpld},
     view::Sphere,
 };
@@ -14,7 +14,6 @@ use noosphere_sphere::{HasMutableSphereContext, SphereContentWrite, SphereCursor
 use noosphere_storage::Storage;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_stream::StreamExt;
-use ucan::capability::{Capability, Resource, With};
 use ucan::crypto::KeyMaterial;
 
 use crate::{
@@ -57,14 +56,10 @@ where
         return Err(StatusCode::FORBIDDEN);
     }
 
-    authority.try_authorize(&Capability {
-        with: With::Resource {
-            kind: Resource::Scoped(SphereReference {
-                did: gateway_scope.counterpart.to_string(),
-            }),
-        },
-        can: SphereAction::Push,
-    })?;
+    authority.try_authorize(&generate_capability(
+        &gateway_scope.counterpart,
+        SphereAbility::Push,
+    ))?;
 
     let gateway_push_routine = GatewayPushRoutine {
         sphere_context,

@@ -237,8 +237,8 @@ mod tests {
     use anyhow::Result;
 
     use noosphere_core::{
-        authority::{generate_capability, SphereAction},
-        data::{ContentType, LinkRecord},
+        authority::{generate_capability, SphereAbility},
+        data::{ContentType, LinkRecord, LINK_RECORD_FACT_NAME},
         tracing::initialize_tracing,
     };
 
@@ -250,7 +250,6 @@ mod tests {
         helpers::{make_valid_link_record, simulated_sphere_context, SimulationAccess},
         HasMutableSphereContext, HasSphereContext, SphereContentWrite, SpherePetnameWrite,
     };
-    use serde_json::json;
 
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
@@ -344,15 +343,14 @@ mod tests {
                             .unwrap()
                             .resolve_ucan(&db)
                             .await?,
+                        None,
                     )
                     .claiming_capability(&generate_capability(
                         &sphere_identity,
-                        SphereAction::Publish,
+                        SphereAbility::Publish,
                     ))
                     .with_lifetime(120)
-                    .with_fact(json!({
-                    "link": version.to_string()
-                    }))
+                    .with_fact(LINK_RECORD_FACT_NAME, version.to_string())
                     .build()?
                     .sign()
                     .await?,

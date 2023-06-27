@@ -3,18 +3,13 @@ use std::{collections::BTreeMap, marker::PhantomData};
 use anyhow::{anyhow, Result};
 use noosphere_api::data::{FetchParameters, PushBody, PushResponse};
 use noosphere_core::{
-    authority::{SphereAction, SphereReference},
-    data::{Did, IdentityIpld, Jwt, Link, MemoIpld},
+    authority::{generate_capability, SphereAbility},
+    data::{Did, IdentityIpld, Jwt, Link, MemoIpld, LINK_RECORD_FACT_NAME},
     view::{Sphere, Timeline},
 };
 use noosphere_storage::{KeyValueStore, SphereDb, Storage};
-use serde_json::json;
 use tokio_stream::StreamExt;
-use ucan::{
-    builder::UcanBuilder,
-    capability::{Capability, Resource, With},
-    crypto::KeyMaterial,
-};
+use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
 use crate::{
     metadata::COUNTERPART, HasMutableSphereContext, SpherePetnameRead, SpherePetnameWrite,
@@ -355,19 +350,13 @@ where
         let name_record = Jwt(UcanBuilder::default()
             .issued_by(&context.author().key)
             .for_audience(local_sphere_identity)
-            .witnessed_by(&authorization)
-            .claiming_capability(&Capability {
-                with: With::Resource {
-                    kind: Resource::Scoped(SphereReference {
-                        did: local_sphere_identity.to_string(),
-                    }),
-                },
-                can: SphereAction::Publish,
-            })
+            .witnessed_by(&authorization, None)
+            .claiming_capability(&generate_capability(
+                local_sphere_identity,
+                SphereAbility::Publish,
+            ))
             .with_lifetime(120)
-            .with_fact(json!({
-              "link": local_sphere_tip.to_string()
-            }))
+            .with_fact(LINK_RECORD_FACT_NAME, local_sphere_tip.to_string())
             .build()?
             .sign()
             .await?

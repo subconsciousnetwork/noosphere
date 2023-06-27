@@ -6,7 +6,7 @@ use axum::{body::StreamBody, extract::Query, http::StatusCode, Extension};
 use bytes::Bytes;
 use noosphere_api::data::FetchParameters;
 use noosphere_core::{
-    authority::{SphereAction, SphereReference},
+    authority::{generate_capability, SphereAbility},
     data::{Link, MemoIpld},
     view::Sphere,
 };
@@ -14,10 +14,7 @@ use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_sphere::{car_stream, memo_history_stream, HasSphereContext};
 use noosphere_storage::{BlockStoreRetry, SphereDb, Storage};
 use tokio_stream::{Stream, StreamExt};
-use ucan::{
-    capability::{Capability, Resource, With},
-    crypto::KeyMaterial,
-};
+use ucan::crypto::KeyMaterial;
 
 use crate::{authority::GatewayAuthority, GatewayScope};
 
@@ -34,14 +31,10 @@ where
     K: KeyMaterial + Clone,
     S: Storage + 'static,
 {
-    authority.try_authorize(&Capability {
-        with: With::Resource {
-            kind: Resource::Scoped(SphereReference {
-                did: scope.counterpart.to_string(),
-            }),
-        },
-        can: SphereAction::Fetch,
-    })?;
+    authority.try_authorize(&generate_capability(
+        &scope.counterpart,
+        SphereAbility::Fetch,
+    ))?;
     let sphere_context = sphere_context.sphere_context().await.map_err(|err| {
         error!("{err}");
         StatusCode::INTERNAL_SERVER_ERROR

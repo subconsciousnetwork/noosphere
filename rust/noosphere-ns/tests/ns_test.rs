@@ -4,8 +4,8 @@
 use anyhow::Result;
 use cid::Cid;
 use noosphere_core::{
-    authority::{generate_capability, generate_ed25519_key, SphereAction},
-    data::Did,
+    authority::{generate_capability, generate_ed25519_key, SphereAbility},
+    data::{Did, LINK_RECORD_FACT_NAME},
     tracing::initialize_tracing,
     view::SPHERE_LIFETIME,
 };
@@ -13,7 +13,6 @@ use noosphere_ns::{helpers::NameSystemNetwork, DhtClient};
 use noosphere_storage::{derive_cid, MemoryStorage, SphereDb};
 
 use libipld_cbor::DagCborCodec;
-use serde_json::json;
 use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore, time::now, Ucan};
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
@@ -35,7 +34,7 @@ impl PseudoSphere {
         let sphere_id = Did(sphere_key.get_did().await?);
 
         // Delegate `sphere_key`'s publishing authority to `owner_key`
-        let delegate_capability = generate_capability(&sphere_id, SphereAction::Publish);
+        let delegate_capability = generate_capability(&sphere_id, SphereAbility::Publish);
         let delegation = UcanBuilder::default()
             .issued_by(&sphere_key)
             .for_audience(&owner_id)
@@ -57,9 +56,12 @@ impl PseudoSphere {
         UcanBuilder::default()
             .issued_by(&self.owner_key)
             .for_audience(&self.sphere_id)
-            .claiming_capability(&generate_capability(&self.sphere_id, SphereAction::Publish))
-            .with_fact(json!({ "link": &cid.to_string() }))
-            .witnessed_by(&self.delegation)
+            .claiming_capability(&generate_capability(
+                &self.sphere_id,
+                SphereAbility::Publish,
+            ))
+            .with_fact(LINK_RECORD_FACT_NAME, cid.to_string())
+            .witnessed_by(&self.delegation, None)
     }
 
     pub async fn write_proofs_to_store<S: UcanJwtStore>(&self, store: &mut S) -> Result<()> {
@@ -90,7 +92,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
     ns_1.put_record(
         sphere_1
             .generate_record(sphere_1_cid_1)
-            .with_expiration(*sphere_1.delegation.expires_at())
+            .with_expiration(sphere_1.delegation.expires_at().unwrap())
             .build()?
             .sign()
             .await?
@@ -120,7 +122,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
     ns_1.put_record(
         sphere_1
             .generate_record(sphere_1_cid_2)
-            .with_expiration(*sphere_1.delegation.expires_at())
+            .with_expiration(sphere_1.delegation.expires_at().unwrap())
             .build()?
             .sign()
             .await?
@@ -143,7 +145,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
     ns_2.put_record(
         sphere_2
             .generate_record(sphere_2_cid_1)
-            .with_expiration(*sphere_2.delegation.expires_at())
+            .with_expiration(sphere_2.delegation.expires_at().unwrap())
             .build()?
             .sign()
             .await?
