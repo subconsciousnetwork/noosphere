@@ -37,6 +37,7 @@ orb sync
 # sync data from a different sphere. Note, you'll need to
 # `orb auth add <did>` from that other sphere.
 orb sphere join <their DID> --local-key `whoami`
+orb sync # pull in their changes
 
 # then follow the onscreen instructions.
 ```
