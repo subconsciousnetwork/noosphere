@@ -28,7 +28,7 @@ orb status
 # persist changes to the sphere
 orb save
 
-# join a gateway, after you've set this identity as the counterpart
+# link your sphere to a gateway by setting this identity as the counterpart
 orb config set gateway-url <gatewayurl>
 
 # sync your changes with the upstream gateway
