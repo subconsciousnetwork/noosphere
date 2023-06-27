@@ -1,0 +1,23 @@
+on:
+  push:
+    branches:
+      - main
+
+name: Build Docs
+
+jobs:
+  build-docs:
+    name: Builds the docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+      - name: install doxygen
+        run: apt install -y doxygen
+      - name: build docs
+        run: ./docs/build.sh
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: ./docs/out
