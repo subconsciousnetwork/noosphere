@@ -12,7 +12,7 @@ use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_api::data::ReplicateParameters;
 use noosphere_core::{
-    authority::{generate_capability, SphereAction},
+    authority::{generate_capability, SphereAbility},
     data::{ContentType, MemoIpld},
 };
 use noosphere_ipfs::{IpfsStore, KuboClient};
@@ -58,7 +58,7 @@ where
 
     authority.try_authorize(&generate_capability(
         &scope.counterpart,
-        SphereAction::Fetch,
+        SphereAbility::Fetch,
     ))?;
 
     let db = sphere_context
@@ -167,7 +167,7 @@ mod tests {
     use anyhow::Result;
     use noosphere_core::{
         authority::{
-            generate_capability, generate_ed25519_key, Author, Authorization, SphereAction,
+            generate_capability, generate_ed25519_key, Author, Authorization, SphereAbility,
         },
         data::{DelegationIpld, RevocationIpld},
     };
@@ -288,9 +288,9 @@ mod tests {
             .for_audience(&to_be_revoked_did)
             .claiming_capability(&generate_capability(
                 &sphere_context.identity().await?,
-                SphereAction::Publish,
+                SphereAbility::Publish,
             ))
-            .witnessed_by(&author_ucan)
+            .witnessed_by(&author_ucan, None)
             .with_lifetime(6000)
             .with_nonce()
             .build()?

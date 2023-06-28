@@ -3,7 +3,7 @@ use libipld_cbor::DagCborCodec;
 use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
 use crate::{
-    authority::{generate_capability, Authorization, SphereAction},
+    authority::{generate_capability, Authorization, SphereAbility},
     data::{
         ChangelogIpld, DelegationIpld, Did, IdentityIpld, Jwt, Link, MapOperation, MemoIpld,
         RevocationIpld, VersionedMapKey, VersionedMapValue,
@@ -49,10 +49,10 @@ impl<S: BlockStore> SphereRevision<S> {
                         .issued_by(credential)
                         .for_audience(&self.sphere_identity)
                         .with_lifetime(120)
-                        .witnessed_by(&witness_ucan)
+                        .witnessed_by(&witness_ucan, None)
                         .claiming_capability(&generate_capability(
                             &self.sphere_identity,
-                            SphereAction::Publish,
+                            SphereAbility::Publish,
                         ))
                         .with_nonce()
                         .build()?

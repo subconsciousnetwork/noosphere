@@ -9,12 +9,14 @@ use axum::{
     TypedHeader,
 };
 use libipld_core::cid::Cid;
-use noosphere_core::authority::{SphereAction, SphereReference, SPHERE_SEMANTICS};
+use noosphere_core::authority::{SphereAbility, SphereReference, SPHERE_SEMANTICS};
 use noosphere_sphere::SphereContext;
 use noosphere_storage::NativeStorage;
 
 use tokio::sync::Mutex;
-use ucan::{capability::Capability, chain::ProofChain, crypto::KeyMaterial, store::UcanJwtStore};
+use ucan::{
+    capability::CapabilityView, chain::ProofChain, crypto::KeyMaterial, store::UcanJwtStore,
+};
 
 use super::GatewayScope;
 
@@ -38,7 +40,7 @@ where
 {
     pub fn try_authorize(
         &self,
-        capability: &Capability<SphereReference, SphereAction>,
+        capability: &CapabilityView<SphereReference, SphereAbility>,
     ) -> Result<(), StatusCode> {
         let capability_infos = self.proof.reduce_capabilities(&SPHERE_SEMANTICS);
 

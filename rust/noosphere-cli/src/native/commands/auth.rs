@@ -3,18 +3,12 @@ use std::{convert::TryFrom, str::FromStr};
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_core::{
-    authority::{SphereAction, SphereReference},
+    authority::{generate_capability, SphereAbility},
     data::{DelegationIpld, Link, RevocationIpld},
     view::{Sphere, SphereMutation},
 };
 use serde_json::{json, Value};
-use ucan::{
-    builder::UcanBuilder,
-    capability::{Capability, Resource, With},
-    crypto::KeyMaterial,
-    store::UcanJwtStore,
-    Ucan,
-};
+use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore, Ucan};
 
 use tokio_stream::StreamExt;
 
@@ -76,28 +70,24 @@ You will be able to add a new one after the old one is revoked"#,
     let my_did = my_key.get_did().await?;
     let latest_sphere_cid = db.require_version(&sphere_did).await?;
     let authorization = workspace.authorization().await?;
-    let authorization_expiry: u64 = {
+    let authorization_expiry: Option<u64> = {
         let ucan = authorization.resolve_ucan(&db).await?;
-        *ucan.expires_at()
+        ucan.expires_at().to_owned()
     };
 
-    let mut signable = UcanBuilder::default()
+    let mut builder = UcanBuilder::default()
         .issued_by(&my_key)
         .for_audience(did)
-        .claiming_capability(&Capability {
-            with: With::Resource {
-                kind: Resource::Scoped(SphereReference {
-                    did: sphere_did.to_string(),
-                }),
-            },
-            can: SphereAction::Authorize,
-        })
-        .with_expiration(authorization_expiry)
-        .with_nonce()
-        // TODO(ucan-wg/rs-ucan#32): Clean this up when we can use a CID as an authorization
-        // .witnessed_by(&authorization)
-        .build()?;
+        .claiming_capability(&generate_capability(&sphere_did, SphereAbility::Authorize))
+        .with_nonce();
+    // TODO(ucan-wg/rs-ucan#32): Clean this up when we can use a CID as an authorization
+    // .witnessed_by(&authorization)
 
+    if let Some(exp) = authorization_expiry {
+        builder = builder.with_expiration(exp);
+    }
+
+    let mut signable = builder.build()?;
     signable
         .proofs
         .push(Cid::try_from(&authorization)?.to_string());

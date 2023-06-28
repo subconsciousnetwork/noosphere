@@ -60,18 +60,13 @@ mod tests {
     use anyhow::Result;
     use ed25519_zebra::{SigningKey as Ed25519PrivateKey, VerificationKey as Ed25519PublicKey};
     use libipld_cbor::DagCborCodec;
-    use ucan::{
-        builder::UcanBuilder,
-        capability::{Capability, Resource, With},
-        crypto::KeyMaterial,
-        store::UcanJwtStore,
-    };
+    use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use crate::{
-        authority::{SphereAction, SphereReference},
+        authority::{generate_capability, SphereAbility},
         data::{ContentType, Did, Header, MemoIpld, SphereIpld},
         view::Sphere,
     };
@@ -105,14 +100,7 @@ mod tests {
             body: sphere_cid,
         };
 
-        let capability: Capability<SphereReference, SphereAction> = Capability {
-            with: With::Resource {
-                kind: Resource::Scoped(SphereReference {
-                    did: identity.to_string(),
-                }),
-            },
-            can: SphereAction::Authorize,
-        };
+        let capability = generate_capability(&identity, SphereAbility::Authorize);
 
         let authorization = UcanBuilder::default()
             .issued_by(&identity_credential)
@@ -161,15 +149,7 @@ mod tests {
             body: sphere_cid,
         };
 
-        let capability: Capability<SphereReference, SphereAction> = Capability {
-            with: With::Resource {
-                kind: Resource::Scoped(SphereReference {
-                    did: identity.to_string(),
-                }),
-            },
-            can: SphereAction::Authorize,
-        };
-
+        let capability = generate_capability(&identity, SphereAbility::Authorize);
         let authorization = UcanBuilder::default()
             .issued_by(&identity_credential)
             .for_audience(&authorized)

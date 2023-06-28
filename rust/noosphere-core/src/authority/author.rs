@@ -1,18 +1,18 @@
 use crate::{
     authority::{
-        generate_ed25519_key, Authorization, SphereAction, SphereReference, SPHERE_SEMANTICS,
-        SUPPORTED_KEYS,
+        generate_ed25519_key, Authorization, SphereAbility, SPHERE_SEMANTICS, SUPPORTED_KEYS,
     },
     data::Did,
 };
 use anyhow::{anyhow, Result};
 use noosphere_storage::{SphereDb, Storage};
 use ucan::{
-    capability::{Capability, Resource, With},
     chain::ProofChain,
     crypto::{did::DidParser, KeyMaterial},
 };
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
+
+use super::generate_capability;
 
 /// The level of access that a given user has to a related resource. Broadly,
 /// a user will always have either read/write access (to their own sphere) or
@@ -79,14 +79,7 @@ where
                 return Ok(Access::ReadOnly);
             }
 
-            let read_write_capability = Capability {
-                with: With::Resource {
-                    kind: Resource::Scoped(SphereReference {
-                        did: sphere_identity.to_string(),
-                    }),
-                },
-                can: SphereAction::Push,
-            };
+            let read_write_capability = generate_capability(sphere_identity, SphereAbility::Push);
             let mut did_parser = DidParser::new(SUPPORTED_KEYS);
             let proof_chain = ProofChain::from_ucan(ucan, None, &mut did_parser, db).await?;
 

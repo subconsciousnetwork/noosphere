@@ -25,8 +25,8 @@ tracing = { version = "0.1" }
 tracing-subscriber = { version = "~0.3.16", features = ["env-filter", "tracing-log"] }
 thiserror = { version = "1" }
 gloo-timers = { version = "0.2", features = ["futures"] }
-ucan = { version = "0.3.2" }
-ucan-key-support = { version = "0.1.6" }
+ucan = { version = "0.4.0" }
+ucan-key-support = { version = "0.1.7" }
 libipld = { version = "0.16" }
 libipld-core = { version = "0.16" }
 libipld-cbor = { version = "0.16" }

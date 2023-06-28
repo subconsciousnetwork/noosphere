@@ -97,13 +97,12 @@ pub mod test {
     use cid::Cid;
     use libp2p::multiaddr::Protocol;
     use noosphere_core::{
-        authority::{generate_capability, generate_ed25519_key, SphereAction},
-        data::Did,
+        authority::{generate_capability, generate_ed25519_key, SphereAbility},
+        data::{Did, LINK_RECORD_FACT_NAME},
         tracing::initialize_tracing,
         view::SPHERE_LIFETIME,
     };
     use noosphere_storage::{MemoryStorage, SphereDb};
-    use serde_json::json;
     use std::sync::Arc;
     use tokio::sync::Mutex;
     use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
@@ -179,9 +178,9 @@ pub mod test {
             .for_audience(&sphere_identity)
             .claiming_capability(&generate_capability(
                 &sphere_identity,
-                SphereAction::Publish,
+                SphereAbility::Publish,
             ))
-            .with_fact(json!({ "link": link.to_string() }))
+            .with_fact(LINK_RECORD_FACT_NAME, link.to_string())
             .with_lifetime(SPHERE_LIFETIME)
             .build()?
             .sign()

@@ -499,10 +499,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use noosphere_core::authority::{generate_capability, SphereAction};
+    use noosphere_core::{
+        authority::{generate_capability, SphereAbility},
+        data::LINK_RECORD_FACT_NAME,
+    };
     use noosphere_ns::helpers::KeyValueNameResolver;
     use noosphere_sphere::helpers::{simulated_sphere_context, SimulationAccess};
-    use serde_json::json;
     use ucan::builder::UcanBuilder;
 
     use super::*;
@@ -517,10 +519,11 @@ mod tests {
             UcanBuilder::default()
                 .issued_by(&context.author().key)
                 .for_audience(identity)
-                .claiming_capability(&generate_capability(identity, SphereAction::Publish))
+                .claiming_capability(&generate_capability(identity, SphereAbility::Publish))
                 .with_lifetime(1000)
                 .with_fact(
-                    json!({ "link": "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i" }),
+                    LINK_RECORD_FACT_NAME,
+                    "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i".to_owned(),
                 )
                 .build()
                 .unwrap()
@@ -536,10 +539,11 @@ mod tests {
             UcanBuilder::default()
                 .issued_by(&context.author().key)
                 .for_audience(identity)
-                .claiming_capability(&generate_capability(identity, SphereAction::Publish))
+                .claiming_capability(&generate_capability(identity, SphereAbility::Publish))
                 .with_expiration(ucan::time::now() - 1000)
                 .with_fact(
-                    json!({ "link": "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i" }),
+                    LINK_RECORD_FACT_NAME,
+                    "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i".to_owned(),
                 )
                 .build()
                 .unwrap()

@@ -1,4 +1,4 @@
-use crate::authority::{generate_capability, SphereAction, SPHERE_SEMANTICS, SUPPORTED_KEYS};
+use crate::authority::{generate_capability, SphereAbility, SPHERE_SEMANTICS, SUPPORTED_KEYS};
 use anyhow::Result;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
@@ -11,6 +11,8 @@ use super::{Did, IdentitiesIpld, Jwt, Link, MemoIpld};
 
 #[cfg(docs)]
 use crate::data::SphereIpld;
+
+pub const LINK_RECORD_FACT_NAME: &str = "link";
 
 /// A subdomain of a [SphereIpld] that pertains to the management and recording of
 /// the petnames associated with the sphere.
@@ -80,16 +82,16 @@ impl LinkRecord {
         // We're interested in the validity of the proof at the time
         // of publishing.
         let now_time = if let Some(nbf) = token.not_before() {
-            nbf.to_owned()
+            Some(nbf.to_owned())
         } else {
-            token.expires_at() - 1
+            token.expires_at().as_ref().map(|exp| exp - 1)
         };
 
         let proof =
-            ProofChain::from_ucan(token.to_owned(), Some(now_time), &mut did_parser, store).await?;
+            ProofChain::from_ucan(token.to_owned(), now_time, &mut did_parser, store).await?;
 
         {
-            let desired_capability = generate_capability(&identity, SphereAction::Publish);
+            let desired_capability = generate_capability(&identity, SphereAbility::Publish);
             let mut has_capability = false;
             for capability_info in proof.reduce_capabilities(&SPHERE_SEMANTICS) {
                 let capability = capability_info.capability;
@@ -132,33 +134,23 @@ impl LinkRecord {
             return None;
         };
 
-        for fact in facts {
-            match fact.as_object() {
-                Some(fields) => match fields.get("link") {
-                    Some(cid_string) => {
-                        match Cid::try_from(cid_string.as_str().unwrap_or_default()) {
-                            Ok(cid) => return Some(cid.into()),
-                            Err(error) => {
-                                warn!(
-                                    "Could not parse '{}' as name record link: {}",
-                                    cid_string, error
-                                );
-                                continue;
-                            }
+        for (name, value) in facts.iter() {
+            if name == LINK_RECORD_FACT_NAME {
+                return match value.as_str() {
+                    Some(link) => match Cid::try_from(link) {
+                        Ok(cid) => Some(cid.into()),
+                        Err(error) => {
+                            warn!("Could not parse '{}' as name record link: {}", link, error);
+                            None
                         }
-                    }
+                    },
                     None => {
-                        warn!("No 'link' field in fact, skipping...");
-                        continue;
+                        warn!("Link record fact value must be a string.");
+                        None
                     }
-                },
-                None => {
-                    warn!("Fact is not an object, skipping...");
-                    continue;
-                }
+                };
             }
         }
-        warn!("No facts contained a link!");
         None
     }
 
@@ -344,7 +336,6 @@ mod tests {
         view::{Sphere, SPHERE_LIFETIME},
     };
     use noosphere_storage::{MemoryStorage, SphereDb, UcanStore};
-    use serde_json::json;
     use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
 
     #[cfg(target_arch = "wasm32")]
@@ -359,20 +350,21 @@ mod tests {
         link: &Cid,
         proofs: Option<&Vec<Ucan>>,
     ) -> Result<LinkRecord, anyhow::Error> {
-        let capability = generate_capability(sphere_id, SphereAction::Publish);
-        let fact = json!({ "link": link.to_string() });
+        let capability = generate_capability(sphere_id, SphereAbility::Publish);
 
         let mut builder = UcanBuilder::default()
             .issued_by(issuer)
             .for_audience(sphere_id)
             .claiming_capability(&capability)
-            .with_fact(fact);
+            .with_fact(LINK_RECORD_FACT_NAME, link.to_string());
 
         if let Some(proofs) = proofs {
             let mut earliest_expiry: u64 = u64::MAX;
             for token in proofs {
-                earliest_expiry = *token.expires_at().min(&earliest_expiry);
-                builder = builder.witnessed_by(token);
+                if let Some(exp) = token.expires_at() {
+                    earliest_expiry = *exp.min(&earliest_expiry);
+                    builder = builder.witnessed_by(token, None);
+                }
             }
             builder = builder.with_expiration(earliest_expiry);
         } else {
@@ -431,7 +423,7 @@ mod tests {
             .with_lifetime(SPHERE_LIFETIME)
             .claiming_capability(&generate_capability(
                 &sphere_identity,
-                SphereAction::Publish,
+                SphereAbility::Publish,
             ))
             .build()?
             .sign()
@@ -454,10 +446,10 @@ mod tests {
             .for_audience(&sphere_identity)
             .claiming_capability(&generate_capability(
                 &sphere_identity,
-                SphereAction::Publish,
+                SphereAbility::Publish,
             ))
-            .with_fact(json!({ "link": &cid_link.to_string() }))
-            .witnessed_by(&delegate_ucan)
+            .with_fact(LINK_RECORD_FACT_NAME, cid_link.to_string())
+            .witnessed_by(&delegate_ucan, None)
             .with_expiration(ucan::time::now() - 1234)
             .build()?
             .sign()
@@ -486,10 +478,10 @@ mod tests {
                 .for_audience(&sphere_identity)
                 .with_lifetime(1000)
                 .claiming_capability(&generate_capability(
-                    &sphere_identity,
-                    SphereAction::Publish,
+                    sphere_identity.as_str(),
+                    SphereAbility::Publish,
                 ))
-                .with_fact(json!({ "invalid_fact": cid_address }))
+                .with_fact("invalid-fact", cid_address.to_owned())
                 .build()?
                 .sign()
                 .await?
@@ -499,7 +491,7 @@ mod tests {
 
         let capability = generate_capability(
             &Did(generate_ed25519_key().get_did().await?),
-            SphereAction::Publish,
+            SphereAbility::Publish,
         );
         expect_failure(
             "fails when capability resource does not match sphere identity",
@@ -509,7 +501,7 @@ mod tests {
                 .for_audience(&sphere_identity)
                 .with_lifetime(1000)
                 .claiming_capability(&capability)
-                .with_fact(json!({ "link": cid_address.clone() }))
+                .with_fact(LINK_RECORD_FACT_NAME, cid_address.to_owned())
                 .build()?
                 .sign()
                 .await?
@@ -527,9 +519,9 @@ mod tests {
                 .with_lifetime(1000)
                 .claiming_capability(&generate_capability(
                     &sphere_identity,
-                    SphereAction::Publish,
+                    SphereAbility::Publish,
                 ))
-                .with_fact(json!({ "link": cid_address.clone() }))
+                .with_fact(LINK_RECORD_FACT_NAME, cid_address.to_owned())
                 .build()?
                 .sign()
                 .await?
@@ -545,18 +537,17 @@ mod tests {
     async fn test_link_record_convert() -> Result<()> {
         let sphere_key = generate_ed25519_key();
         let identity = Did::from(sphere_key.get_did().await?);
-        let capability = generate_capability(&identity, SphereAction::Publish);
+        let capability = generate_capability(&identity, SphereAbility::Publish);
         let cid_address = "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i";
         let link = Cid::from_str(cid_address)?;
         let maybe_link = Some(link.into());
-        let fact = json!({ "link": cid_address });
 
         let ucan = UcanBuilder::default()
             .issued_by(&sphere_key)
             .for_audience(&identity)
             .with_lifetime(1000)
             .claiming_capability(&capability)
-            .with_fact(fact)
+            .with_fact(LINK_RECORD_FACT_NAME, cid_address.to_owned())
             .build()?
             .sign()
             .await?;
@@ -678,10 +669,10 @@ mod tests {
         let delegated_ucan = UcanBuilder::default()
             .issued_by(&owner_key)
             .for_audience(&delegatee_did)
-            .witnessed_by(&ucan)
+            .witnessed_by(&ucan, None)
             .claiming_capability(&generate_capability(
                 &sphere_identity,
-                SphereAction::Publish,
+                SphereAbility::Publish,
             ))
             .with_lifetime(120)
             .build()?
@@ -691,15 +682,13 @@ mod tests {
         let link_record_ucan = UcanBuilder::default()
             .issued_by(&delegatee_key)
             .for_audience(&sphere_identity)
-            .witnessed_by(&delegated_ucan)
+            .witnessed_by(&delegated_ucan, None)
             .claiming_capability(&generate_capability(
                 &sphere_identity,
-                SphereAction::Publish,
+                SphereAbility::Publish,
             ))
             .with_lifetime(120)
-            .with_fact(json!({
-                "link": sphere.cid().to_string()
-            }))
+            .with_fact(LINK_RECORD_FACT_NAME, sphere.cid().to_string())
             .build()?
             .sign()
             .await?;

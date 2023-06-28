@@ -12,12 +12,11 @@ mod test {
     use anyhow::Result;
     use cid::Cid;
     use noosphere::key::{InsecureKeyStorage, KeyStorage};
-    use noosphere_core::authority::{generate_capability, SphereAction};
-    use noosphere_core::data::{Did, LinkRecord};
+    use noosphere_core::authority::{generate_capability, SphereAbility};
+    use noosphere_core::data::{Did, LinkRecord, LINK_RECORD_FACT_NAME};
     use noosphere_core::view::SPHERE_LIFETIME;
     use noosphere_ns::{Multiaddr, PeerId};
     use serde::Deserialize;
-    use serde_json::json;
     use tokio;
     use tokio::sync::oneshot;
     use ucan::builder::UcanBuilder;
@@ -126,8 +125,8 @@ mod test {
         let ucan = UcanBuilder::default()
             .issued_by(&key_b)
             .for_audience(&id_b)
-            .claiming_capability(&generate_capability(&id_b, SphereAction::Publish))
-            .with_fact(json!({ "link": cid_link.to_string() }))
+            .claiming_capability(&generate_capability(&id_b, SphereAbility::Publish))
+            .with_fact(LINK_RECORD_FACT_NAME, cid_link.to_string())
             .with_lifetime(SPHERE_LIFETIME)
             .build()?
             .sign()

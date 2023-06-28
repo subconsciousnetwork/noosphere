@@ -13,7 +13,7 @@ use libipld_cbor::DagCborCodec;
 use noosphere_car::CarReader;
 
 use noosphere_core::{
-    authority::{Author, SphereAction, SphereReference},
+    authority::{generate_capability, Author, SphereAbility, SphereReference},
     data::{Link, MemoIpld},
 };
 use noosphere_storage::{block_deserialize, block_serialize};
@@ -22,7 +22,7 @@ use tokio_stream::{Stream, StreamExt};
 use tokio_util::io::StreamReader;
 use ucan::{
     builder::UcanBuilder,
-    capability::{Capability, Resource, With},
+    capability::CapabilityView,
     crypto::{did::DidParser, KeyMaterial},
     store::{UcanJwtStore, UcanStore},
     ucan::Ucan,
@@ -82,14 +82,7 @@ where
         let (jwt, ucan_headers) = Self::make_bearer_token(
             &gateway_identity,
             author,
-            &Capability {
-                with: With::Resource {
-                    kind: Resource::Scoped(SphereReference {
-                        did: sphere_identity.to_string(),
-                    }),
-                },
-                can: SphereAction::Fetch,
-            },
+            &generate_capability(sphere_identity, SphereAbility::Fetch),
             &store,
         )
         .await?;
@@ -123,7 +116,7 @@ where
     async fn make_bearer_token(
         gateway_identity: &str,
         author: &Author<K>,
-        capability: &Capability<SphereReference, SphereAction>,
+        capability: &CapabilityView<SphereReference, SphereAbility>,
         store: &S,
     ) -> Result<(String, HeaderMap)> {
         let mut signable = UcanBuilder::default()
@@ -206,14 +199,7 @@ where
 
         debug!("Client replicating {} from {}", memo_version, url);
 
-        let capability = Capability {
-            with: With::Resource {
-                kind: Resource::Scoped(SphereReference {
-                    did: self.sphere_identity.clone(),
-                }),
-            },
-            can: SphereAction::Fetch,
-        };
+        let capability = generate_capability(&self.sphere_identity, SphereAbility::Fetch);
 
         let (token, ucan_headers) = Self::make_bearer_token(
             &self.session.gateway_identity,
@@ -258,15 +244,7 @@ where
 
         debug!("Client fetching blocks from {}", url);
 
-        let capability = Capability {
-            with: With::Resource {
-                kind: Resource::Scoped(SphereReference {
-                    did: self.sphere_identity.clone(),
-                }),
-            },
-            can: SphereAction::Fetch,
-        };
-
+        let capability = generate_capability(&self.sphere_identity, SphereAbility::Fetch);
         let (token, ucan_headers) = Self::make_bearer_token(
             &self.session.gateway_identity,
             &self.author,
@@ -321,15 +299,7 @@ where
             push_body.sphere,
             url
         );
-        let capability = Capability {
-            with: With::Resource {
-                kind: Resource::Scoped(SphereReference {
-                    did: self.sphere_identity.clone(),
-                }),
-            },
-            can: SphereAction::Push,
-        };
-
+        let capability = generate_capability(&self.sphere_identity, SphereAbility::Push);
         let (token, ucan_headers) = Self::make_bearer_token(
             &self.session.gateway_identity,
             &self.author,

@@ -95,6 +95,7 @@ void test_errors() {
   assert(error_message != NULL);
   assert(ns_error_code_get(error) == NS_ERROR_CODE_OTHER);
 
+  ns_error_free(error);
   ns_string_free(error_message);
   ns_free(noosphere);
 }
