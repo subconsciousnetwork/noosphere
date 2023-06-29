@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
-use safer_ffi::prelude::*;
-use tokio::runtime::Runtime as TokioRuntime;
-use url::Url;
-
 use crate::{
+    error::NoosphereError,
     ffi::{NsError, TryOrInitialize},
     noosphere::{NoosphereContext, NoosphereContextConfiguration},
     NoosphereNetwork, NoosphereSecurity, NoosphereStorage,
 };
+use anyhow::{anyhow, Result};
+use safer_ffi::prelude::*;
+use tokio::runtime::Runtime as TokioRuntime;
+use url::Url;
 
 #[derive_ReprC(rename = "ns_noosphere")]
 #[repr(opaque)]
@@ -21,21 +21,21 @@ pub struct NsNoosphere {
 }
 
 impl NsNoosphere {
-    pub fn new(
-        global_storage_path: &str,
-        sphere_storage_path: &str,
-        gateway_api: Option<&Url>,
-    ) -> Result<Self> {
+    pub fn new<S: Into<String>, U: Into<Url>>(
+        global_storage_path: S,
+        sphere_storage_path: S,
+        gateway_api: Option<U>,
+    ) -> Result<Self, NoosphereError> {
         Ok(NsNoosphere {
             inner: NoosphereContext::new(NoosphereContextConfiguration {
                 storage: NoosphereStorage::Scoped {
-                    path: sphere_storage_path.into(),
+                    path: sphere_storage_path.into().into(),
                 },
                 security: NoosphereSecurity::Insecure {
-                    path: global_storage_path.into(),
+                    path: global_storage_path.into().into(),
                 },
                 network: NoosphereNetwork::Http {
-                    gateway_api: gateway_api.cloned(),
+                    gateway_api: gateway_api.map(|u| u.into()),
                     ipfs_gateway_url: None,
                 },
             })?,
@@ -84,7 +84,7 @@ pub fn ns_initialize(
         Ok(Box::new(NsNoosphere::new(
             global_storage_path.to_str(),
             sphere_storage_path.to_str(),
-            gateway_url.as_ref(),
+            gateway_url,
         )?)
         .into())
     })

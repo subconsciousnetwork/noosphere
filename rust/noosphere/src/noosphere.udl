@@ -1,0 +1,17 @@
+[Custom]
+typedef string Url;
+
+[Error]
+enum NoosphereError {
+    "Other",
+    "NetworkOffline",
+    "NoCredentials",
+    "MissingConfiguration"
+};
+
+namespace noosphere {};
+
+interface NsNoosphere {
+    [Throws=NoosphereError]
+    constructor(string global_storage_path, string sphere_storage_path, Url? gateway_api);
+};

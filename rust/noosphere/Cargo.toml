@@ -13,12 +13,17 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [lib]
-crate-type = ["rlib", "staticlib", "cdylib"]
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen/main.rs"
 
 [features]
 default = []
 headers = ["safer-ffi/headers"]
 ipfs-storage = ["noosphere-ipfs"]
+uniffi-bindgen = ["uniffi/cli"]
 
 [dependencies]
 anyhow = "^1"
@@ -44,6 +49,10 @@ noosphere-api = { version = "0.9.1", path = "../noosphere-api" }
 noosphere-ipfs = { version = "0.6.1", path = "../noosphere-ipfs", optional = true }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
+uniffi = { version = "*" }
+
+[build-dependencies]
+uniffi = { version = "*", features = [ "build" ] }
 
 [dev-dependencies]
 libipld-core = { workspace = true }

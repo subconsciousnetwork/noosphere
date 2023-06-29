@@ -7,6 +7,12 @@ impl From<NoosphereError> for repr_c::Box<NsError> {
     }
 }
 
+impl From<std::io::Error> for NoosphereError {
+    fn from(value: std::io::Error) -> Self {
+        NoosphereError::Other(value.into())
+    }
+}
+
 const NOOSPHERE_ERROR_OTHER: u32 = 1;
 const NOOSPHERE_ERROR_NETWORK_OFFLINE: u32 = 2;
 const NOOSPHERE_ERROR_NO_CREDENTIALS: u32 = 3;
