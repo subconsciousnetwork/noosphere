@@ -1,0 +1,347 @@
+body.documentation {
+  display: grid;
+  grid-template-areas:
+    "toolbar toolbar"
+    "drawer content";
+  grid-template-columns: 260px auto;
+}
+
+#toolbar {
+  grid-area: toolbar;
+  padding: 0;
+  display: flex;
+  height: 70px;
+  border-bottom: 1px solid #eee;
+  align-items: stretch;
+  justify-content: space-between;
+  
+  --icon-background-color: var(--dark-primary-color);
+  --icon-background-image: linear-gradient(1turn, oklch(70% 0.20 8) 0%, oklch(47% 0.19 319) 40% 29%, oklch(20% 0.15 319) 100% 100%);
+}
+
+#toolbar .buttons.menu {
+  display: none;
+}
+
+.buttons button {
+  border: none;
+  outline: none;
+  cursor: pointer;
+  background: unset;
+  display: block;
+}
+
+.buttons {
+  display: flex;
+  align-items: stretch;
+}
+
+.buttons > a, .buttons > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5em;
+}
+
+#toolbar > .logo {
+  align-self: flex-end;
+}
+
+#toolbar > .logo > img {
+  height: 62px;
+  vertical-align: bottom;
+}
+
+.buttons .icon:last-child {
+  padding-right: 1em;
+}
+
+.buttons .icon:after {
+  content: '';
+  background-color: var(--icon-background-color);
+  background-image: var(--icon-background-image);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  
+  background-size: 200%;
+  transition: background-position 0.3s;
+  
+  background-position-y: 26px;
+  background-repeat: no-repeat;
+  
+}
+
+.buttons .icon:hover:after {
+  background-position-y: 0px;
+}
+
+
+.buttons .icon.substack:after {
+  width: 23px;
+  height: 26px;
+  -webkit-mask-image: url(../images/substack-icon.svg);
+  mask-image: url(../images/substack-icon.svg);
+}
+
+.buttons .icon.discord:after {
+  width: 34px;
+  height: 26px;
+  -webkit-mask-image: url(../images/discord-icon.svg);
+  mask-image: url(../images/discord-icon.svg);
+}
+
+.buttons .icon.github:after {
+  width: 26px;
+  height: 26px;
+  -webkit-mask-image: url(../images/github-icon.svg);
+  mask-image: url(../images/github-icon.svg);
+}
+
+.buttons .icon.hamburger:after {
+  width: 26px;
+  height: 26px;
+  -webkit-mask-image: url(../images/hamburger-icon.svg);
+  mask-image: url(../images/hamburger-icon.svg);
+}
+
+#drawer {
+  display: flex;
+  flex-direction: column;
+  grid-area: drawer;
+  width: 260px;
+  background-color: #fff;
+  transition: transform 0.3s;
+}
+
+#drawer > header {
+  height: 70px;
+  background-image: radial-gradient(
+    farthest-corner circle at 250% 150%, 
+    oklch(70% 0.20 8) 0%, oklch(47% 0.19 319) 100%
+  );
+  background-image: radial-gradient(
+    farthest-corner circle at 250% 150% in oklab, 
+    oklch(70% 0.20 8) 0%, oklch(47% 0.19 319) 100%
+  );
+  
+  display: none;
+  align-items: stretch;
+  justify-content: space-between;
+  
+  --icon-background-color: var(--light-primary-color);
+  --icon-background-image: linear-gradient(
+    180deg in oklab, 
+    oklch(80% 0.50 187 / 0%) 0%, 70%, oklch(80% 0.50 187 / 75%) 100%
+  );
+}
+
+#drawer > header > img {
+  margin: 21px 10px;
+}
+
+nav {
+  overflow: auto;
+  padding: 1em 1em 1em 2em;
+  width: 100%;
+}
+
+nav ol {
+  margin: 0;
+  padding: 0;
+}
+
+nav ol > li {
+  display: block;
+}
+
+nav details > ol > li {
+  display: flex;
+}
+
+nav details > ol > li:not(:last-child) > a {
+  padding-bottom: 0.25em;
+}
+
+nav details > ol > li > a {
+  color: var(--dark-primary-color);
+  font-weight: 400;
+  text-decoration: none;
+  display: block;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+}
+
+a:not(.icon)[href][target="_blank"]:after {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -.25em;
+  background-color: currentColor;
+  -webkit-mask-image: url(../images/squiggle-icon.svg);
+  mask-image: url(../images/squiggle-icon.svg);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  margin-left: 0.25em;
+}
+
+a:not([href]) {
+  color: var(--dark-tertiary-color);
+}
+
+a:not([href]):after {
+  content: 'Coming soon';
+  display: inline-block;
+  border-bottom: 3px solid var(--dark-secondary-color);
+  color: var(--light-primary-color);
+  text-transform: lowercase;
+  font-variant: small-caps;
+  font-weight: 600;
+  margin-left: 0.5em;
+  line-height: 1em;
+  background-color: var(--dark-secondary-color);
+  white-space: nowrap;
+}
+
+a.active {
+  font-weight: bold;
+}
+
+nav details > ol > li > a[href]:hover {
+  text-decoration: underline;
+}
+
+nav details > ol > li > a:not([href]) {
+  color: var(--dark-tertiary-color);
+}
+
+nav details > ol > li > a:not([href]) > span {
+  max-width: 7.5em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+
+
+nav details > summary {
+  display: flex;
+  position: relative;
+  flex-direction: row;
+  list-style: none;
+  line-height: 2em;
+  align-items: center;
+  cursor: pointer;
+  
+  text-transform: lowercase;
+  font-variant: small-caps;
+  font-weight: 500;
+  
+  color: var(--dark-tertiary-color);
+}
+
+nav details > summary:before {
+  content: '';
+  display: block;
+  position: absolute;
+  width: 0; 
+  height: 0; 
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 4px solid currentColor;
+  left: -15px;
+  top: 13px;
+  
+  transition: transform 0.3s;
+}
+
+nav details > summary > .marker {
+  display: block;
+  position: absolute;
+  left: -1em;
+  transition: transform 0.3s;
+}
+
+nav details[open] > summary:before {
+  transform: translateY(0px) rotate(90deg);
+}
+
+#content {
+  padding: 1em;
+}
+
+h1, h2, h3 {
+  font-weight: 500;
+  margin: 0 0 0.25em;
+  color: var(--dark-tertiary-color);
+  border-bottom: 1px dotted var(--dark-tertiary-color);
+
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+h1 > a, h2 > a, h3 > a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1 {
+  font-size: 1.75em;
+}
+
+p > img {
+  width: 100%;
+  max-width: 640px;
+}
+
+p:has(img:first-child:last-child) {
+  text-indent: 0;
+  text-align: center;
+}
+
+@media (max-width: 540px) {
+  body.documentation {
+    grid-template-areas: "toolbar" "content";
+    grid-template-columns: auto;
+  }
+
+  #toolbar .buttons.outbound {
+    display: none;
+  }
+  
+  #toolbar .buttons.menu {
+      display: inherit;
+  }
+  
+  #drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    transform: translateX(-100%);
+    height: 100%;
+    z-index: 1;
+  }
+  
+  #drawer > header {
+    display: flex;
+  }
+  
+  .open-drawer #drawer {
+    transform: translateX(0);
+  }
+  
+  .open-drawer #menu:before {
+    content: '';
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--dark-primary-color);
+    opacity: 0.15;
+    z-index: 1;
+  }
+}

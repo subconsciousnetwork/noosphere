@@ -10,6 +10,9 @@ The Noosphere TypeScript workspace includes the sources of the following NPM pac
   as Web Assembly).
 - **[`@subconsciousnetwork/sphere-viewer`](./packages/sphere-viewer)**: a simple web app
   that implements read-only access to Noosphere using `@subconsciousnetwork/orb` as a dependency.
+- **[`@subconsciousnetwork/noosphere-guide`](./packages/noosphere-guide)**: an
+  [11ty][eleventy]-based static website generator that produces the Noosphere
+  documentation website.
 
 ## Environment Setup
 
@@ -62,7 +65,8 @@ To run TypeScript tests in headless Chrome:
 npm run test
 ```
 
-And, to start a server to see [Sphere Viewer](./packages/sphere-viewer) in a browser:
+And, to start servers that make both [Sphere Viewer](./packages/sphere-viewer)
+and the [Noosphere Guide](./packages/noosphere-guide) available in web browsers:
 
 ```sh
 npm run serve
@@ -80,3 +84,4 @@ If you only care about a single package, most commands will work if you run them
 [install-nvm]: https://github.com/nvm-sh/nvm/blob/master/README.md#installing-and-updating
 [npm-scripts]: https://docs.npmjs.com/cli/v6/using-npm/scripts
 [wireit]: https://github.com/google/wireit
+[eleventy]: https://www.11ty.dev/

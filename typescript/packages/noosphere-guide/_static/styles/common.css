@@ -1,0 +1,50 @@
+html {
+  --serif: "EB Garamond", serif;
+  --sans-serif: 'IBM Plex Sans', sans-serif;
+
+  --light-primary-color: oklch(99% 0.085 319);
+  --light-secondary-color: oklch(98% 0.01 319);
+  --dark-primary-color: oklch(20% 0.15 319);
+  --dark-secondary-color: oklch(47% 0.19 319);
+  --dark-tertiary-color: oklch(60% 0.05 319);
+
+  --text-color-light: var(--light-primary-color);
+  --text-color-dark: var(--dark-primary-color);
+  --text-color-anchor: var(--dark-secondary-color);
+}
+
+html,
+body { 
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--sans-serif);
+  color: var(--text-color-dark);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+p {
+  text-indent: 1em;
+}
+
+b {
+  font-weight: 500;
+}
+
+a {
+  font-weight: 500;
+  color: var(--text-color-anchor);
+}
+
+blockquote {
+  color: oklch(50% 0.15 319);
+  background: var(--light-secondary-color);
+  font-style: italic;
+  padding: 1em;
+  margin: 0;
+}

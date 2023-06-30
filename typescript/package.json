@@ -22,18 +22,21 @@
     "build": {
       "dependencies": [
         "./packages/orb:build",
-        "./packages/sphere-viewer:build"
+        "./packages/sphere-viewer:build",
+        "./packages/noosphere-guide:build"
       ]
     },
     "serve": {
       "dependencies": [
-        "./packages/sphere-viewer:serve"
+        "./packages/sphere-viewer:serve",
+        "./packages/noosphere-guide:serve"
       ]
     },
     "clean": {
       "dependencies": [
         "./packages/orb:clean",
-        "./packages/sphere-viewer:clean"
+        "./packages/sphere-viewer:clean",
+        "./packages/noosphere-guide:clean"
       ]
     },
     "test": {
