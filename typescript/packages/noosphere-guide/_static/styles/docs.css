@@ -79,29 +79,29 @@ body.documentation {
 .buttons .icon.substack:after {
   width: 23px;
   height: 26px;
-  -webkit-mask-image: url(/_static/images/substack-icon.svg);
-  mask-image: url(/_static/images/substack-icon.svg);
+  -webkit-mask-image: url(../images/substack-icon.svg);
+  mask-image: url(../images/substack-icon.svg);
 }
 
 .buttons .icon.discord:after {
   width: 34px;
   height: 26px;
-  -webkit-mask-image: url(/_static/images/discord-icon.svg);
-  mask-image: url(/_static/images/discord-icon.svg);
+  -webkit-mask-image: url(../images/discord-icon.svg);
+  mask-image: url(../images/discord-icon.svg);
 }
 
 .buttons .icon.github:after {
   width: 26px;
   height: 26px;
-  -webkit-mask-image: url(/_static/images/github-icon.svg);
-  mask-image: url(/_static/images/github-icon.svg);
+  -webkit-mask-image: url(../images/github-icon.svg);
+  mask-image: url(../images/github-icon.svg);
 }
 
 .buttons .icon.hamburger:after {
   width: 26px;
   height: 26px;
-  -webkit-mask-image: url(/_static/images/hamburger-icon.svg);
-  mask-image: url(/_static/images/hamburger-icon.svg);
+  -webkit-mask-image: url(../images/hamburger-icon.svg);
+  mask-image: url(../images/hamburger-icon.svg);
 }
 
 #drawer {
@@ -175,8 +175,8 @@ a:not(.icon)[href][target="_blank"]:after {
   height: 1em;
   vertical-align: -.25em;
   background-color: currentColor;
-  -webkit-mask-image: url(/_static/images/squiggle-icon.svg);
-  mask-image: url(/_static/images/squiggle-icon.svg);
+  -webkit-mask-image: url(../images/squiggle-icon.svg);
+  mask-image: url(../images/squiggle-icon.svg);
   -webkit-mask-size: contain;
   mask-size: contain;
   margin-left: 0.25em;

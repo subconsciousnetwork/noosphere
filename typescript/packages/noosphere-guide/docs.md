@@ -24,7 +24,7 @@ protocol:
 In other words: **Noosphere enables [hyperlinks][wiki-hyperlinks].** Hyperlinks
 in Noosphere typically look like this:
 
-![Slashlink example](/_static/images/content/slashlink-example.svg)
+![Slashlink example](../_static/images/content/slashlink-example.svg)
 
 ## Principles
 

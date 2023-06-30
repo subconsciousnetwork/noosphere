@@ -195,18 +195,18 @@ footer > p {
   
 }
 .icon.database {
-  -webkit-mask-image: url(/_static/images/database-icon.svg);
-  mask-image: url(/_static/images/database-icon.svg);
+  -webkit-mask-image: url(../images/database-icon.svg);
+  mask-image: url(../images/database-icon.svg);
 }
 
 .icon.earth {
-  -webkit-mask-image: url(/_static/images/earth-icon.svg);
-  mask-image: url(/_static/images/earth-icon.svg);
+  -webkit-mask-image: url(../images/earth-icon.svg);
+  mask-image: url(../images/earth-icon.svg);
 }
 
 .icon.droplet {
-  -webkit-mask-image: url(/_static/images/droplet-icon.svg);
-  mask-image: url(/_static/images/droplet-icon.svg);
+  -webkit-mask-image: url(../images/droplet-icon.svg);
+  mask-image: url(../images/droplet-icon.svg);
 }
 
 @media (max-width: 640px) {
