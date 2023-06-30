@@ -26,6 +26,7 @@ jobs:
           cd ./typescript
           npm ci
           npm run build
+          touch ./typescript/packages/noosphere-guide/_site/.nojekyll
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
