@@ -21,7 +21,6 @@ use noosphere_sphere::{
 };
 use noosphere_storage::{BlockStore, BlockStoreRetry, Storage};
 use tokio_stream::Stream;
-use ucan::crypto::KeyMaterial;
 
 use crate::{authority::GatewayAuthority, GatewayScope};
 
@@ -35,8 +34,8 @@ pub type ReplicationCarStreamBody =
 /// streamed by to the requesting client. Invoker must have authorization to
 /// fetch from the gateway.
 #[instrument(level = "debug", skip(authority, scope, sphere_context,))]
-pub async fn replicate_route<C, K, S>(
-    authority: GatewayAuthority<K>,
+pub async fn replicate_route<C, S>(
+    authority: GatewayAuthority,
     // NOTE: Cannot go from string to CID via serde
     Path(memo_version): Path<String>,
     Query(ReplicateParameters { since }): Query<ReplicateParameters>,
@@ -45,8 +44,7 @@ pub async fn replicate_route<C, K, S>(
     Extension(sphere_context): Extension<C>,
 ) -> Result<ReplicationCarStreamBody, StatusCode>
 where
-    C: HasMutableSphereContext<K, S> + 'static,
-    K: KeyMaterial + Clone,
+    C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
 {
     debug!("Invoking replicate route...");
@@ -173,14 +171,14 @@ mod tests {
     };
     use noosphere_sphere::{
         helpers::{simulated_sphere_context, SimulationAccess},
-        HasMutableSphereContext, HasSphereContext, SphereContext, SphereCursor,
+        HasMutableSphereContext, HasSphereContext, SphereContext, SphereContextKey, SphereCursor,
     };
     use tokio::sync::Mutex;
     use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
     #[tokio::test]
     async fn it_only_allows_incremental_replication_of_causally_ordered_revisions() -> Result<()> {
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
         let db = sphere_context.sphere_context().await?.db().clone();
 
@@ -211,7 +209,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_only_allows_incremental_replication_of_revisions_from_same_sphere() -> Result<()> {
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
         let db = sphere_context.sphere_context().await?.db().clone();
 
@@ -226,7 +224,7 @@ mod tests {
         let memo_1 = version_1.load_from(&db).await?;
         let memo_2 = version_2.load_from(&db).await?;
 
-        let mut other_sphere_context =
+        let (mut other_sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, Some(db.clone())).await?;
 
         let other_version_1 = other_sphere_context
@@ -268,10 +266,10 @@ mod tests {
     #[tokio::test]
     #[ignore = "TODO(#407)"]
     async fn it_detects_forked_lineages_of_a_sphere_by_revoked_authors() -> Result<()> {
-        let to_be_revoked_key = generate_ed25519_key();
+        let to_be_revoked_key: SphereContextKey = Arc::new(Box::new(generate_ed25519_key()));
         let to_be_revoked_did = to_be_revoked_key.get_did().await?;
 
-        let mut sphere_context =
+        let (mut sphere_context, _) =
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
         let db = sphere_context.sphere_context().await?.db().clone();
 
@@ -281,7 +279,7 @@ mod tests {
 
         let author = sphere_context.sphere_context().await?.author().clone();
         let author_key = author.key.clone();
-        let author_ucan = author.require_authorization()?.resolve_ucan(&db).await?;
+        let author_ucan = author.require_authorization()?.as_ucan(&db).await?;
 
         let to_be_revoked_jwt = UcanBuilder::default()
             .issued_by(&author_key)

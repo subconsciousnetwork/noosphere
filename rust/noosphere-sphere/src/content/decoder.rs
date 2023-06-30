@@ -10,6 +10,8 @@ use tokio_stream::Stream;
 pub struct BodyChunkDecoder<'a, 'b, S: BlockStore>(pub &'a Cid, pub &'b S);
 
 impl<'a, 'b, S: BlockStore> BodyChunkDecoder<'a, 'b, S> {
+    /// Consume the [BodyChunkDecoder] and return an async [Stream] of bytes
+    /// representing the raw body contents
     pub fn stream(self) -> impl Stream<Item = Result<Bytes, std::io::Error>> + Unpin {
         let mut next = Some(*self.0);
         let store = self.1.clone();

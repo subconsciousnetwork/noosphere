@@ -1,6 +1,5 @@
 use noosphere_sphere::HasSphereContext;
 use noosphere_storage::Storage;
-use ucan::crypto::KeyMaterial;
 
 use crate::{Resolver, SphereContentTranscluder, StaticHtmlResolver, Transcluder};
 
@@ -18,20 +17,18 @@ pub trait Transform: Clone {
 /// A [Transform] that is suitable for converting Noosphere content to
 /// HTML for a basic state website generator.
 #[derive(Clone)]
-pub struct StaticHtmlTransform<R, K, S>
+pub struct StaticHtmlTransform<R, S>
 where
-    R: HasSphereContext<K, S> + Clone,
-    K: KeyMaterial + Clone + 'static,
+    R: HasSphereContext<S> + Clone,
     S: Storage + 'static,
 {
     pub resolver: StaticHtmlResolver,
-    pub transcluder: SphereContentTranscluder<R, K, S>,
+    pub transcluder: SphereContentTranscluder<R, S>,
 }
 
-impl<R, K, S> StaticHtmlTransform<R, K, S>
+impl<R, S> StaticHtmlTransform<R, S>
 where
-    R: HasSphereContext<K, S> + Clone,
-    K: KeyMaterial + Clone + 'static,
+    R: HasSphereContext<S> + Clone,
     S: Storage + 'static,
 {
     pub fn new(content: R) -> Self {
@@ -42,15 +39,14 @@ where
     }
 }
 
-impl<R, K, S> Transform for StaticHtmlTransform<R, K, S>
+impl<R, S> Transform for StaticHtmlTransform<R, S>
 where
-    R: HasSphereContext<K, S> + Clone,
-    K: KeyMaterial + Clone + 'static,
+    R: HasSphereContext<S> + Clone,
     S: Storage + 'static,
 {
     type Resolver = StaticHtmlResolver;
 
-    type Transcluder = SphereContentTranscluder<R, K, S>;
+    type Transcluder = SphereContentTranscluder<R, S>;
 
     fn resolver(&self) -> &Self::Resolver {
         &self.resolver

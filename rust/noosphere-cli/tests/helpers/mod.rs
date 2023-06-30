@@ -2,7 +2,6 @@ use anyhow::Result;
 use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_storage::{BlockStoreRetry, MemoryStore, NativeStorage, UcanStore};
 use std::{net::TcpListener, sync::Arc, time::Duration};
-use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 use noosphere_cli::native::{
     commands::{config::config_set, key::key_create, sphere::sphere_create},
@@ -192,18 +191,14 @@ impl SpherePair {
     }
 
     /// Returns a [SphereContext] for the client sphere.
-    pub async fn sphere_context(
-        &self,
-    ) -> Result<Arc<Mutex<SphereContext<Ed25519KeyMaterial, NativeStorage>>>> {
+    pub async fn sphere_context(&self) -> Result<Arc<Mutex<SphereContext<NativeStorage>>>> {
         self.client.workspace.sphere_context().await
     }
 
     pub async fn spawn<T, F, Fut>(&self, f: F) -> Result<T>
     where
         T: Send + 'static,
-        F: FnOnce(Arc<Mutex<SphereContext<Ed25519KeyMaterial, NativeStorage>>>) -> Fut
-            + Send
-            + 'static,
+        F: FnOnce(Arc<Mutex<SphereContext<NativeStorage>>>) -> Fut + Send + 'static,
         Fut: std::future::Future<Output = Result<T>> + Send + 'static,
     {
         let context = self.sphere_context().await?;

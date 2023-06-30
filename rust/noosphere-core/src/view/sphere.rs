@@ -21,7 +21,7 @@ use crate::{
     },
     data::{
         Bundle, ChangelogIpld, ContentType, DelegationIpld, Did, Header, IdentityIpld, Link,
-        MapOperation, MemoIpld, RevocationIpld, SphereIpld, TryBundle, Version,
+        MapOperation, MemoIpld, Mnemonic, RevocationIpld, SphereIpld, TryBundle, Version,
     },
     view::{Content, SphereMutation, SphereRevision, Timeline},
 };
@@ -224,6 +224,10 @@ impl<S: BlockStore> Sphere<S> {
 
     pub fn store(&self) -> &S {
         &self.store
+    }
+
+    pub fn store_mut(&mut self) -> &mut S {
+        &mut self.store
     }
 
     /// Get the CID that points to the sphere's wrapping memo that corresponds
@@ -604,7 +608,7 @@ impl<S: BlockStore> Sphere<S> {
     pub async fn generate(
         owner_did: &str,
         store: &mut S,
-    ) -> Result<(Sphere<S>, Authorization, String)> {
+    ) -> Result<(Sphere<S>, Authorization, Mnemonic)> {
         let sphere_key = generate_ed25519_key();
         let mnemonic = ed25519_key_to_mnemonic(&sphere_key)?;
         let sphere_did = Did(sphere_key.get_did().await?);
@@ -656,6 +660,7 @@ impl<S: BlockStore> Sphere<S> {
     /// Change ownership of the sphere, producing a new UCAN authorization for
     /// the new owner and registering a revocation of the previous owner's
     /// authorization within the sphere.
+    #[deprecated(note = "Use SphereAuthorityWrite::recover_authority instead")]
     pub async fn change_owner(
         &self,
         mnemonic: &str,
@@ -774,7 +779,65 @@ impl<S: BlockStore> Sphere<S> {
         }
     }
 
-    // Validate this sphere revision's signature and proof chain
+    /// Verify that a given authorization is a valid with regards to operating
+    /// on this [Sphere]; it is issued by the sphere (or appropriately
+    /// delegated), and it has not been revoked.
+    pub async fn verify_authorization(&self, authorization: &Authorization) -> Result<()> {
+        let proof_chain = authorization
+            .as_proof_chain(&UcanStore(self.store.clone()))
+            .await?;
+
+        let authority = self.get_authority().await?;
+        let delegations = authority.get_delegations().await?;
+        let revocations = authority.get_revocations().await?;
+        let sphere_identity = self.get_identity().await?;
+        let sphere_credential = sphere_identity.to_credential()?;
+
+        let mut remaining_links = vec![&proof_chain];
+
+        while let Some(chain_link) = remaining_links.pop() {
+            let link = Link::from(chain_link.ucan().to_cid(cid::multihash::Code::Blake3_256)?);
+
+            if delegations.get(&link).await?.is_none() {
+                return Err(anyhow!(
+                    "Authorization {} not found in sphere authority",
+                    link
+                ));
+            }
+
+            if let Some(revocation) = revocations.get(&link).await? {
+                // NOTE: The implication here is that only the sphere itself can
+                // issue revocations The follow-on implicationis that a user
+                // must provide the sphere mnemonic in order to issue a
+                // revocation
+                if revocation.iss != sphere_identity {
+                    warn!("Revocation for {} had an invalid issuer; expected {}, but found {}; skipping...", link, sphere_identity, revocation.iss);
+                    continue;
+                }
+
+                if let Err(error) = revocation.verify(&sphere_credential).await {
+                    warn!("Unverifiable revocation: {}", error);
+                    continue;
+                }
+
+                return Err(anyhow!("Authorization revoked by {}", link));
+            }
+
+            for proof in chain_link.proofs() {
+                remaining_links.push(proof);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate this sphere revision's signature and proof chain
+    // TODO(#421): Allow this to be done at a specific "now" time, to cover the
+    // case when we are verifying a historical revision with a possibly expired
+    // credential
+    //
+    // TODO(#422): This also needs to take revocations into account, probably by
+    // calling to `Sphere::verify_authorization`
     pub async fn verify_signature(&self) -> Result<()> {
         let memo = self.to_memo().await?;
 
@@ -902,13 +965,11 @@ impl<S: BlockStore> Sphere<S> {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use cid::Cid;
     use libipld_cbor::DagCborCodec;
     use tokio_stream::StreamExt;
-    use ucan::{
-        builder::UcanBuilder,
-        crypto::{did::DidParser, KeyMaterial},
-    };
+    use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -918,12 +979,9 @@ mod tests {
 
     use super::*;
     use crate::{
-        authority::{
-            ed25519_key_to_mnemonic, generate_ed25519_key, Authorization, SphereAbility,
-            SUPPORTED_KEYS,
-        },
+        authority::{generate_ed25519_key, Authorization, SphereAbility},
         data::{Bundle, DelegationIpld, IdentityIpld, Link, MemoIpld, RevocationIpld},
-        view::{Sphere, SphereMutation, Timeline},
+        view::{Sphere, SphereMutation, Timeline, SPHERE_LIFETIME},
     };
     use noosphere_storage::{BlockStore, MemoryStore, Store, UcanStore};
 
@@ -968,158 +1026,6 @@ mod tests {
                 jwt: ucan_jwt_cid
             })
         );
-    }
-
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
-    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    async fn it_may_authorize_a_different_key_after_being_created() {
-        let mut store = MemoryStore::default();
-
-        let (sphere, authorization, mnemonic) = {
-            let owner_key = generate_ed25519_key();
-            let owner_did = owner_key.get_did().await.unwrap();
-            Sphere::generate(&owner_did, &mut store).await.unwrap()
-        };
-
-        let next_owner_key = generate_ed25519_key();
-        let next_owner_did = next_owner_key.get_did().await.unwrap();
-
-        let mut did_parser = DidParser::new(SUPPORTED_KEYS);
-        let (_, new_authorization) = sphere
-            .change_owner(&mnemonic, &next_owner_did, &authorization, &mut did_parser)
-            .await
-            .unwrap();
-
-        let ucan_store = UcanStore(store);
-        let ucan = authorization.resolve_ucan(&ucan_store).await.unwrap();
-        let new_ucan = new_authorization.resolve_ucan(&ucan_store).await.unwrap();
-
-        assert_ne!(ucan.audience(), new_ucan.audience());
-    }
-
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
-    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    async fn it_delegates_to_a_new_owner_and_revokes_the_old_delegation() {
-        let mut store = MemoryStore::default();
-        let owner_key = generate_ed25519_key();
-        let owner_did = owner_key.get_did().await.unwrap();
-
-        let (sphere, original_authorization, mnemonic) =
-            { Sphere::generate(&owner_did, &mut store).await.unwrap() };
-
-        let sphere_identity = sphere.get_identity().await.unwrap();
-
-        let next_owner_key = generate_ed25519_key();
-        let next_owner_did = next_owner_key.get_did().await.unwrap();
-
-        let mut did_parser = DidParser::new(SUPPORTED_KEYS);
-        let (sphere, new_authorization) = sphere
-            .change_owner(
-                &mnemonic,
-                &next_owner_did,
-                &original_authorization,
-                &mut did_parser,
-            )
-            .await
-            .unwrap();
-
-        let original_jwt_cid = Cid::try_from(&original_authorization).unwrap();
-        let new_jwt_cid = Cid::try_from(&new_authorization).unwrap();
-
-        let authority = sphere.get_authority().await.unwrap();
-
-        let delegations = authority.get_delegations().await.unwrap();
-        let revocations = authority.get_revocations().await.unwrap();
-
-        let new_delegation = delegations.get(&Link::new(new_jwt_cid)).await.unwrap();
-        let new_revocation = revocations.get(&Link::new(original_jwt_cid)).await.unwrap();
-
-        assert_eq!(
-            new_delegation,
-            Some(&DelegationIpld {
-                name: "(OWNER)".into(),
-                jwt: new_jwt_cid
-            })
-        );
-
-        assert!(new_revocation.is_some());
-
-        let new_revocation = new_revocation.unwrap();
-
-        assert_eq!(new_revocation.iss, sphere.get_identity().await.unwrap());
-        assert_eq!(new_revocation.revoke, original_jwt_cid.to_string());
-
-        let sphere_key = did_parser.parse(&sphere_identity).unwrap();
-
-        new_revocation.verify(&sphere_key).await.unwrap();
-    }
-
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
-    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    async fn it_wont_authorize_a_different_key_if_the_mnemonic_is_wrong() {
-        let mut store = MemoryStore::default();
-
-        let (sphere, ucan, _) = {
-            let owner_key = generate_ed25519_key();
-            let owner_did = owner_key.get_did().await.unwrap();
-            Sphere::generate(&owner_did, &mut store).await.unwrap()
-        };
-
-        let next_owner_key = generate_ed25519_key();
-        let next_owner_did = next_owner_key.get_did().await.unwrap();
-        let incorrect_mnemonic = ed25519_key_to_mnemonic(&next_owner_key).unwrap();
-
-        let mut did_parser = DidParser::new(SUPPORTED_KEYS);
-        let authorize_result = sphere
-            .change_owner(&incorrect_mnemonic, &next_owner_did, &ucan, &mut did_parser)
-            .await;
-
-        assert!(authorize_result.is_err());
-    }
-
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
-    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    async fn it_wont_authorize_a_different_key_if_the_proof_does_not_authorize_it() {
-        let mut store = MemoryStore::default();
-
-        let owner_key = generate_ed25519_key();
-        let owner_did = owner_key.get_did().await.unwrap();
-        let (sphere, authorization, mnemonic) =
-            Sphere::generate(&owner_did, &mut store).await.unwrap();
-
-        let next_owner_key = generate_ed25519_key();
-        let next_owner_did = next_owner_key.get_did().await.unwrap();
-
-        let ucan = authorization.resolve_ucan(&UcanStore(store)).await.unwrap();
-
-        let insufficient_authorization = Authorization::Ucan(
-            UcanBuilder::default()
-                .issued_by(&owner_key)
-                .for_audience(&next_owner_did)
-                .claiming_capability(&generate_capability(
-                    &sphere.get_identity().await.unwrap().to_string(),
-                    SphereAbility::Publish,
-                ))
-                .witnessed_by(&ucan, None)
-                .with_expiration(ucan.expires_at().unwrap())
-                .build()
-                .unwrap()
-                .sign()
-                .await
-                .unwrap(),
-        );
-
-        let mut did_parser = DidParser::new(SUPPORTED_KEYS);
-        let authorize_result = sphere
-            .change_owner(
-                &mnemonic,
-                &next_owner_did,
-                &insufficient_authorization,
-                &mut did_parser,
-            )
-            .await;
-
-        assert!(authorize_result.is_err());
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
@@ -1350,6 +1256,54 @@ mod tests {
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_verify_an_authorization_to_write_to_a_sphere() -> Result<()> {
+        let mut store = MemoryStore::default();
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await?;
+
+        let (sphere, authorization, _) = Sphere::generate(&owner_did, &mut store).await?;
+
+        sphere.verify_authorization(&authorization).await?;
+
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_wont_verify_an_invalid_authorization_to_write_to_a_sphere() -> Result<()> {
+        let mut store = MemoryStore::default();
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await?;
+
+        let other_key = generate_ed25519_key();
+        let other_did = other_key.get_did().await?;
+
+        let (sphere, _, _) = Sphere::generate(&owner_did, &mut store).await?;
+
+        let invalid_authorization = Authorization::Ucan(
+            UcanBuilder::default()
+                .issued_by(&owner_key)
+                .for_audience(&other_did)
+                .with_lifetime(SPHERE_LIFETIME)
+                .claiming_capability(&generate_capability(&other_did, SphereAbility::Publish))
+                .build()?
+                .sign()
+                .await?,
+        );
+
+        assert!(
+            sphere
+                .verify_authorization(&invalid_authorization)
+                .await
+                .is_err(),
+            "Authorization is invalid (authorizor has no authority over resource)"
+        );
+
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_hydrate_revisions_of_names_changes() {
         let mut store = MemoryStore::default();
         let owner_key = generate_ed25519_key();
@@ -1453,7 +1407,7 @@ mod tests {
             Sphere::generate(&owner_did, &mut store).await.unwrap();
 
         let ucan = authorization
-            .resolve_ucan(&UcanStore(store.clone()))
+            .as_ucan(&UcanStore(store.clone()))
             .await
             .unwrap();
 

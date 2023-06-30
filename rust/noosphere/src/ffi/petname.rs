@@ -84,7 +84,7 @@ pub fn ns_sphere_petname_get(
 /// The callback arguments are (in order):
 ///
 ///  1. The context argument provided in the original call to
-///     ns_sphere_content_read
+///     ns_sphere_petnames_assigned_get
 ///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
 ///  3. An owned pointer to a slice_boxed_char_ptr_t if the call was successful,
 ///     otherwise NULL
@@ -212,9 +212,7 @@ pub fn ns_sphere_petname_list(
 ) -> c_slice::Box<char_p::Box> {
     let possible_output = error_out.try_or_initialize(|| {
         noosphere.async_runtime().block_on(async {
-            let petname_set = SphereWalker::from(sphere.inner().clone())
-                .list_petnames()
-                .await?;
+            let petname_set = SphereWalker::from(sphere.inner()).list_petnames().await?;
             let mut all_petnames: Vec<char_p::Box> = Vec::new();
 
             for petname in petname_set.into_iter() {
@@ -270,7 +268,7 @@ pub fn ns_sphere_petname_changes(
                 None => None,
             };
 
-            let changed_petname_set = SphereWalker::from(sphere.inner().clone())
+            let changed_petname_set = SphereWalker::from(sphere.inner())
                 .petname_changes(since.as_ref())
                 .await?;
             let mut changed_petnames: Vec<char_p::Box> = Vec::new();

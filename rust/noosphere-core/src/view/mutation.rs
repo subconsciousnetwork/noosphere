@@ -41,7 +41,7 @@ impl<S: BlockStore> SphereRevision<S> {
         let proof = match authorization {
             Some(authorization) => {
                 let witness_ucan = authorization
-                    .resolve_ucan(&UcanStore(self.store.clone()))
+                    .as_ucan(&UcanStore(self.store.clone()))
                     .await?;
 
                 Some(

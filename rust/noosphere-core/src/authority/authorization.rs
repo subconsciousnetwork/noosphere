@@ -4,13 +4,15 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_core::{ipld::Ipld, raw::RawCodec};
 use noosphere_storage::block_encode;
-use ucan::{store::UcanJwtStore, Ucan};
+use ucan::{chain::ProofChain, crypto::did::DidParser, store::UcanJwtStore, Ucan};
 
 #[cfg(doc)]
 use ucan::ipld::UcanIpld;
 
 #[cfg(doc)]
 use crate::data::Jwt;
+
+use super::SUPPORTED_KEYS;
 
 /// An [Authorization] is a wrapper around something that can be resolved into
 /// a [Ucan]. Typically this is a [Cid], but it may also be something like a
@@ -29,11 +31,23 @@ pub enum Authorization {
 }
 
 impl Authorization {
-    pub async fn resolve_ucan<S: UcanJwtStore>(&self, store: &S) -> Result<Ucan> {
+    pub async fn as_ucan<S: UcanJwtStore>(&self, store: &S) -> Result<Ucan> {
         match self {
             Authorization::Ucan(ucan) => Ok(ucan.clone()),
             Authorization::Cid(cid) => Ucan::from_str(&store.require_token(cid).await?),
         }
+    }
+
+    pub async fn as_proof_chain<S: UcanJwtStore>(&self, store: &S) -> Result<ProofChain> {
+        let mut did_parser = DidParser::new(SUPPORTED_KEYS);
+        Ok(match self {
+            Authorization::Ucan(ucan) => {
+                ProofChain::from_ucan(ucan.clone(), None, &mut did_parser, store).await?
+            }
+            Authorization::Cid(cid) => {
+                ProofChain::from_cid(cid, None, &mut did_parser, store).await?
+            }
+        })
     }
 }
 

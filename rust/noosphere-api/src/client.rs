@@ -132,7 +132,7 @@ where
         let authorization = author.require_authorization()?;
         let authorization_cid = Cid::try_from(authorization)?;
 
-        match authorization.resolve_ucan(store).await {
+        match authorization.as_ucan(store).await {
             Ok(ucan) => {
                 if let Some(ucan_proofs) = ucan.proofs() {
                     // TODO(ucan-wg/rs-ucan#37): We should integrate a helper for this kind of stuff into rs-ucan

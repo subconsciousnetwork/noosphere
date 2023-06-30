@@ -154,17 +154,8 @@ use crate::sphere::SphereChannel;
 // NOTE: We may someday define the 3rd and 4th terms of this type differently on
 // web, where `Arc` and `Mutex` are currently overkill for our needs and may be
 // substituted for `Rc` and `RwLock`, respectively.
-pub type PlatformSphereContext = SphereCursor<
-    Arc<SphereContext<PlatformKeyMaterial, PlatformStorage>>,
-    PlatformKeyMaterial,
-    PlatformStorage,
->;
-pub type PlatformMutableSphereContext =
-    Arc<Mutex<SphereContext<PlatformKeyMaterial, PlatformStorage>>>;
+pub type PlatformSphereContext = SphereCursor<Arc<SphereContext<PlatformStorage>>, PlatformStorage>;
+pub type PlatformMutableSphereContext = Arc<Mutex<SphereContext<PlatformStorage>>>;
 
-pub type PlatformSphereChannel = SphereChannel<
-    PlatformKeyMaterial,
-    PlatformStorage,
-    PlatformSphereContext,
-    PlatformMutableSphereContext,
->;
+pub type PlatformSphereChannel =
+    SphereChannel<PlatformStorage, PlatformSphereContext, PlatformMutableSphereContext>;

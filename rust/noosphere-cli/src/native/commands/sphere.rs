@@ -21,7 +21,7 @@ pub async fn sphere_create(owner_key: &str, workspace: &Workspace) -> Result<()>
         .await?;
 
     let mnemonic = sphere_context_artifacts.require_mnemonic()?.to_string();
-    let sphere_context: SphereContext<_, _> = sphere_context_artifacts.into();
+    let sphere_context: SphereContext<_> = sphere_context_artifacts.into();
     let sphere_identity = sphere_context.identity();
 
     info!(

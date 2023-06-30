@@ -3,7 +3,6 @@ use std::{marker::PhantomData, sync::Arc};
 use noosphere_sphere::{HasMutableSphereContext, HasSphereContext, SphereContext, SphereCursor};
 use noosphere_storage::Storage;
 use tokio::sync::Mutex;
-use ucan::crypto::KeyMaterial;
 
 /// A [SphereChannel] provides duplex access to a given sphere, where one side
 /// is read-only/immutable, and the other side is read-write/mutable. This
@@ -13,31 +12,27 @@ use ucan::crypto::KeyMaterial;
 /// you read from the immutable side while concurrently writing to the mutable
 /// side, the result of your read will subject to the race outcome.
 #[derive(Clone)]
-pub struct SphereChannel<K, S, Ci, Cm>
+pub struct SphereChannel<S, Ci, Cm>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage,
-    Ci: HasSphereContext<K, S>,
-    Cm: HasMutableSphereContext<K, S>,
+    Ci: HasSphereContext<S>,
+    Cm: HasMutableSphereContext<S>,
 {
     immutable: Ci,
     mutable: Cm,
-    key_marker: PhantomData<K>,
     storage_marker: PhantomData<S>,
 }
 
-impl<K, S, Ci, Cm> SphereChannel<K, S, Ci, Cm>
+impl<S, Ci, Cm> SphereChannel<S, Ci, Cm>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage,
-    Ci: HasSphereContext<K, S>,
-    Cm: HasMutableSphereContext<K, S>,
+    Ci: HasSphereContext<S>,
+    Cm: HasMutableSphereContext<S>,
 {
     pub fn new(immutable: Ci, mutable: Cm) -> Self {
         Self {
             immutable,
             mutable,
-            key_marker: PhantomData,
             storage_marker: PhantomData,
         }
     }
@@ -53,29 +48,22 @@ where
     }
 }
 
-impl<K, S> From<SphereContext<K, S>>
-    for SphereChannel<K, S, Arc<SphereContext<K, S>>, Arc<Mutex<SphereContext<K, S>>>>
+impl<S> From<SphereContext<S>>
+    for SphereChannel<S, Arc<SphereContext<S>>, Arc<Mutex<SphereContext<S>>>>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    fn from(value: SphereContext<K, S>) -> Self {
+    fn from(value: SphereContext<S>) -> Self {
         SphereChannel::new(Arc::new(value.clone()), Arc::new(Mutex::new(value)))
     }
 }
 
-impl<K, S> From<SphereCursor<Arc<SphereContext<K, S>>, K, S>>
-    for SphereChannel<
-        K,
-        S,
-        SphereCursor<Arc<SphereContext<K, S>>, K, S>,
-        Arc<Mutex<SphereContext<K, S>>>,
-    >
+impl<S> From<SphereCursor<Arc<SphereContext<S>>, S>>
+    for SphereChannel<S, SphereCursor<Arc<SphereContext<S>>, S>, Arc<Mutex<SphereContext<S>>>>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
-    fn from(value: SphereCursor<Arc<SphereContext<K, S>>, K, S>) -> Self {
+    fn from(value: SphereCursor<Arc<SphereContext<S>>, S>) -> Self {
         let mutable = Arc::new(Mutex::new(value.clone().to_inner().as_ref().clone()));
 
         SphereChannel::new(value, mutable)

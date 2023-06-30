@@ -1,5 +1,6 @@
+use crate::data::Mnemonic;
 use anyhow::{anyhow, Result};
-use bip39::{Language, Mnemonic};
+use bip39::{Language, Mnemonic as BipMnemonic};
 use ed25519_zebra::{SigningKey as Ed25519PrivateKey, VerificationKey as Ed25519PublicKey};
 use ucan::crypto::did::KeyConstructorSlice;
 use ucan_key_support::{
@@ -20,21 +21,21 @@ pub fn generate_ed25519_key() -> Ed25519KeyMaterial {
 }
 
 pub fn restore_ed25519_key(mnemonic: &str) -> Result<Ed25519KeyMaterial> {
-    let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)?;
+    let mnemonic = BipMnemonic::from_phrase(mnemonic, Language::English)?;
     let private_key = Ed25519PrivateKey::try_from(mnemonic.entropy())?;
     let public_key = Ed25519PublicKey::try_from(&private_key)?;
 
     Ok(Ed25519KeyMaterial(public_key, Some(private_key)))
 }
 
-pub fn ed25519_key_to_mnemonic(key_material: &Ed25519KeyMaterial) -> Result<String> {
+pub fn ed25519_key_to_mnemonic(key_material: &Ed25519KeyMaterial) -> Result<Mnemonic> {
     let private_key = &key_material.1.ok_or_else(|| {
         anyhow!(
             "A mnemonic can only be generated for the key material if a private key is configured"
         )
     })?;
-    let mnemonic = Mnemonic::from_entropy(private_key.as_ref(), Language::English)?;
-    Ok(mnemonic.into_phrase())
+    let mnemonic = BipMnemonic::from_entropy(private_key.as_ref(), Language::English)?;
+    Ok(Mnemonic(mnemonic.into_phrase()))
 }
 
 pub const ED25519_KEYPAIR_LENGTH: usize = 64;

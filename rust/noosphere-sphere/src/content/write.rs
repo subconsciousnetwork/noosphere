@@ -5,7 +5,6 @@ use noosphere_core::data::{BodyChunkIpld, Header, Link, MemoIpld};
 use noosphere_storage::{BlockStore, Storage};
 
 use tokio::io::AsyncReadExt;
-use ucan::crypto::KeyMaterial;
 
 use crate::{internal::SphereContextInternal, HasMutableSphereContext, HasSphereContext};
 use async_trait::async_trait;
@@ -25,9 +24,8 @@ fn validate_slug(slug: &str) -> Result<()> {
 /// implements [HasMutableSphereContext].
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait SphereContentWrite<K, S>: SphereContentRead<K, S>
+pub trait SphereContentWrite<S>: SphereContentRead<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
     /// Like link, this takes a [Link<MemoIpld>] that should be associated
@@ -73,10 +71,9 @@ where
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<C, K, S> SphereContentWrite<K, S> for C
+impl<C, S> SphereContentWrite<S> for C
 where
-    C: HasSphereContext<K, S> + HasMutableSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S> + HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     async fn link_raw(&mut self, slug: &str, cid: &Link<MemoIpld>) -> Result<()> {

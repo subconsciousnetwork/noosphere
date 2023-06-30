@@ -71,7 +71,7 @@ You will be able to add a new one after the old one is revoked"#,
     let latest_sphere_cid = db.require_version(&sphere_did).await?;
     let authorization = workspace.authorization().await?;
     let authorization_expiry: Option<u64> = {
-        let ucan = authorization.resolve_ucan(&db).await?;
+        let ucan = authorization.as_ucan(&db).await?;
         ucan.expires_at().to_owned()
     };
 
@@ -80,13 +80,15 @@ You will be able to add a new one after the old one is revoked"#,
         .for_audience(did)
         .claiming_capability(&generate_capability(&sphere_did, SphereAbility::Authorize))
         .with_nonce();
-    // TODO(ucan-wg/rs-ucan#32): Clean this up when we can use a CID as an authorization
-    // .witnessed_by(&authorization)
 
+    // TODO(ucan-wg/rs-ucan#114): Clean this up when
+    // `UcanBuilder::with_expiration` accepts `Option<u64>`
     if let Some(exp) = authorization_expiry {
         builder = builder.with_expiration(exp);
     }
 
+    // TODO(ucan-wg/rs-ucan#32): Clean this up when we can use a CID as an authorization
+    // .witnessed_by(&authorization)
     let mut signable = builder.build()?;
     signable
         .proofs

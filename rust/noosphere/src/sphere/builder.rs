@@ -1,11 +1,14 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
 
 use noosphere_core::{
     authority::{Author, Authorization},
-    data::Did,
+    data::{Did, Mnemonic},
     view::Sphere,
 };
 
@@ -18,12 +21,12 @@ use url::Url;
 
 use noosphere_sphere::{
     metadata::{AUTHORIZATION, IDENTITY, USER_KEY_NAME},
-    SphereContext,
+    SphereContext, SphereContextKey,
 };
 
 use crate::{
     key::KeyStorage,
-    platform::{PlatformKeyMaterial, PlatformKeyStorage, PlatformStorage},
+    platform::{PlatformKeyStorage, PlatformStorage},
     storage::StorageLayout,
 };
 
@@ -45,10 +48,10 @@ impl Default for SphereInitialization {
 /// are possible.
 pub enum SphereContextBuilderArtifacts {
     SphereCreated {
-        context: SphereContext<PlatformKeyMaterial, PlatformStorage>,
-        mnemonic: String,
+        context: SphereContext<PlatformStorage>,
+        mnemonic: Mnemonic,
     },
-    SphereOpened(SphereContext<PlatformKeyMaterial, PlatformStorage>),
+    SphereOpened(SphereContext<PlatformStorage>),
 }
 
 impl SphereContextBuilderArtifacts {
@@ -62,7 +65,7 @@ impl SphereContextBuilderArtifacts {
     }
 }
 
-impl From<SphereContextBuilderArtifacts> for SphereContext<PlatformKeyMaterial, PlatformStorage> {
+impl From<SphereContextBuilderArtifacts> for SphereContext<PlatformStorage> {
     fn from(artifacts: SphereContextBuilderArtifacts) -> Self {
         match artifacts {
             SphereContextBuilderArtifacts::SphereCreated { context, .. } => context,
@@ -181,7 +184,8 @@ impl SphereContextBuilder {
                     warn!("Creating a new sphere; the configured authorization will be ignored!");
                 }
 
-                let owner_key = key_storage.require_key(key_name).await?;
+                let owner_key: SphereContextKey =
+                    Arc::new(Box::new(key_storage.require_key(key_name).await?));
                 let owner_did = owner_key.get_did().await?;
 
                 let mut memory_store = MemoryStore::default();
@@ -237,7 +241,9 @@ impl SphereContextBuilder {
                     .as_ref()
                     .ok_or_else(|| anyhow!("No key name configured!"))?;
 
-                let user_key = key_storage.require_key(key_name).await?;
+                let user_key: SphereContextKey =
+                    Arc::new(Box::new(key_storage.require_key(key_name).await?));
+
                 let mut db = generate_db(
                     storage_path,
                     self.scoped_storage_layout,
@@ -290,10 +296,12 @@ impl SphereContextBuilder {
                 let authorization = db.get_key(AUTHORIZATION).await?.map(Authorization::Cid);
 
                 let author = match self.key_storage {
-                    Some(key_storage) => Author {
-                        key: key_storage.require_key(&user_key_name).await?,
-                        authorization,
-                    },
+                    Some(key_storage) => {
+                        let key: SphereContextKey =
+                            Arc::new(Box::new(key_storage.require_key(&user_key_name).await?));
+
+                        Author { key, authorization }
+                    }
                     _ => return Err(anyhow!("Unable to resolve sphere author")),
                 };
 
@@ -386,11 +394,11 @@ mod tests {
 
             artifacts.require_mnemonic().unwrap();
 
-            let sphere_context: SphereContext<_, _> = artifacts.into();
+            let sphere_context: SphereContext<_> = artifacts.into();
             sphere_context.identity().clone()
         };
 
-        let context: SphereContext<_, _> = SphereContextBuilder::default()
+        let context: SphereContext<_> = SphereContextBuilder::default()
             .open_sphere(None)
             .at_storage_path(&storage_path)
             .reading_keys_from(key_storage)
@@ -425,11 +433,11 @@ mod tests {
 
             artifacts.require_mnemonic().unwrap();
 
-            let sphere_context: SphereContext<_, _> = artifacts.into();
+            let sphere_context: SphereContext<_> = artifacts.into();
             sphere_context.identity().clone()
         };
 
-        let context: SphereContext<_, _> = SphereContextBuilder::default()
+        let context: SphereContext<_> = SphereContextBuilder::default()
             .open_sphere(Some(&sphere_identity))
             .using_scoped_storage_layout()
             .at_storage_path(&storage_path)
@@ -462,7 +470,7 @@ mod tests {
             .await
             .unwrap();
 
-        let context: SphereContext<_, _> = artifacts.into();
+        let context: SphereContext<_> = artifacts.into();
 
         assert_eq!(context.identity().as_str(), "did:key:foo");
 

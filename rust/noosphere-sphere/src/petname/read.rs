@@ -6,7 +6,6 @@ use cid::Cid;
 use futures_util::TryStreamExt;
 use noosphere_core::data::{Did, Link, MemoIpld};
 use noosphere_storage::{KeyValueStore, Storage};
-use ucan::crypto::KeyMaterial;
 
 use crate::{HasSphereContext, SphereWalker};
 
@@ -15,9 +14,8 @@ use crate::{HasSphereContext, SphereWalker};
 /// that implements [HasSphereContext].
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait SpherePetnameRead<K, S>
+pub trait SpherePetnameRead<S>
 where
-    K: KeyMaterial + Clone + 'static,
     S: Storage + 'static,
 {
     /// Get the [Did] that is assigned to a petname, if any
@@ -48,10 +46,9 @@ fn sphere_checkpoint_cache_key(origin: &Did, origin_version: &Cid) -> String {
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<C, K, S> SpherePetnameRead<K, S> for C
+impl<C, S> SpherePetnameRead<S> for C
 where
-    C: HasSphereContext<K, S>,
-    K: KeyMaterial + Clone + 'static,
+    C: HasSphereContext<S>,
     S: Storage + 'static,
 {
     #[instrument(skip(self))]
