@@ -55,22 +55,6 @@ to those who come from a traditional web development background. Refer to the
 [technical design foundations](/docs/foundations) section for a more detailed
 exploration of this topic.
 
-<!-- The technical pillars that Noosphere builds upon include:
-
-- [Public key infrastructure](https://en.wikipedia.org/wiki/Public_key_infrastructure)
-- [Content addressing](https://en.wikipedia.org/wiki/Content-addressable_storage)
-- [Immutable data](https://en.wikipedia.org/wiki/Immutable_object)
-- [P2P routing and discovery](https://en.wikipedia.org/wiki/Peer-to-peer)
-- [End-to-end encryption](https://en.wikipedia.org/wiki/End-to-end_encryption)
-
-Above this substructure, Noosphere gives users:
-
-- Entry to a zero-trust, **decentralized network** of self-sovereign nodes
-- **Human-readable names** for peers and their public content
-- **Local-first authoring** and offline-available content with conflict-free synchronization
-- A complete, space-efficient **revision history** for any content
-- Coherence and **compatibility with the hypertext web**
- -->
 
 [subconscious-discord]: https://discord.gg/wyHPzGraBh
 [noosphere-github]: https://github.com/subconsciousnetwork/noosphere
