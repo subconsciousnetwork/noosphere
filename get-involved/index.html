@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1,user-scalable=yes">
+    <title>Noosphere Protocol</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin"/>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,200;0,400;0,500;1,200;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap"
+      rel="stylesheet"/>
+    <link rel="stylesheet" href="../_static/styles/common.css">
+    <link rel="stylesheet" href="../_static/styles/docs.css">
+  </head>
+  <body class="documentation">
+    <section id="toolbar">
+      <a class="logo" href="../">
+        <img src="../_static/images/noosphere-full-logo-light.svg">
+      </a>
+      <div class="buttons outbound">
+        <a class="icon substack" href="https://subconscious.substack.com/" target="_blank" rel="noopener"></a>
+        <a class="icon discord" href="https://discord.gg/wyHPzGraBh" target="_blank" rel="noopener"></a>
+        <a class="icon github" href="https://github.com/subconsciousnetwork/noosphere" target="_blank" rel="noopener"></a>
+      </div>
+      <div class="buttons menu">
+        <button id="menu" class="hamburger icon"></button>
+      </div>
+    </section>
+    <section id="drawer">
+      <header>
+        <img class="logo" height="28" src="../_static/images/noosphere-small-logo-desaturated.svg">
+        <div class="buttons">
+          <a class="icon substack" href="https://subconscious.substack.com/" target="_blank" rel="noopener"></a>
+          <a class="icon discord" href="https://discord.gg/wyHPzGraBh" target="_blank" rel="noopener"></a>
+          <a class="icon github" href="https://github.com/subconsciousnetwork/noosphere" target="_blank" rel="noopener"></a>
+        </div>
+      </header>
+      <nav>
+        <ol>
+          <li>
+            <details open="open">
+              <summary>
+                <span>Introduction</span>
+              </summary>
+              <ol>
+                <li><a href="../docs"><span>What is Noosphere?</span></a></li>
+                <li><a href="../get-started"><span>Get started</span></a></li>
+                <li><a href="./" class="active"><span>Get involved</span></a></li>
+              </ol>
+            </details>
+          </li>
+          <li>
+            <details open="open">
+              <summary>
+                <span>Examples</span>
+              </summary>
+              <ol>
+                <li><a><span>Hello, Noosphere</span></a></li>
+                <li><a><span>Write &amp; read content</span></a></li>
+                <li><a><span>Connect a gateway</span></a></li>
+                <li><a><span>Add another device</span></a></li>
+                <li><a><span>Follow another user</span></a></li>
+                <li><a><span>Traverse the graph</span></a></li>
+              </ol>
+            </details>
+          </li>
+          <li>
+            <details open="open">
+              <summary>
+                <span>Technical Design</span>
+              </summary>
+              <ol>
+                <li><a><span>Foundations</span></a></li>
+                <li><a><span>Cryptographic authority</span></a></li>
+                <li><a><span>Data structures</span></a></li>
+                <li><a><span>Encoding &amp; decoding</span></a></li>
+                <li><a><span>Content types</span></a></li>
+                <li><a><span>Name system</span></a></li>
+                <li><a><span>Protocol comparison</span></a></li>
+              </ol>
+            </details>
+          </li>
+          <li>
+            <details open="open">
+              <summary>
+                <span>Language References</span>
+              </summary>
+              <ol>
+                <li><a href="https://docs.rs/noosphere/" target="_blank"><span>Rust</span></a></li>
+                <li><a target="_blank"><span>C</span></a></li>
+                <li><a target="_blank"><span>Swift</span></a></li>
+                <li><a target="_blank"><span>TypeScript</span></a></li>
+                <li><a target="_blank"><span>Python</span></a></li>
+              </ol>
+            </details>
+          </li>
+          <li>
+            <details open="open">
+              <summary>
+                <span>Tools</span>
+              </summary>
+              <ol>
+                <li><a target="_blank"><span>Orb CLI</span></a></li>
+                <li><a target="_blank"><span>Sphere Viewer</span></a></li>
+                <li><a href="https://ucan.xyz/validator/" target="_blank"><span>UCAN Validator</span></a></li>
+                <li><a href="https://cid.ipfs.tech/" target="_blank"><span>CID Inspector</span></a></li>
+              </ol>
+            </details>
+          </li>
+        </ol>
+      </nav>
+    </section>
+    <section id="content">
+      <h1 id="get-involved">Get involved <a class="header-anchor" href="#get-involved">
+      <span aria-label="Jump to heading">#</span>
+    </a></h1>
+
+      <!-- <article> <h1> Noosphere Explainer </h1> <p> Noosphere is a massively-multiplayer knowledge graph. The technical
+      pillars that Noosphere builds upon are: </p> <ul> <li> <a
+      href="https://en.wikipedia.org/wiki/Public_key_infrastructure" target="_blank">Public key infrastructure</a> </li> <li>
+      <a href="https://en.wikipedia.org/wiki/Content-addressable_storage" target="_blank">Content addressed storage</a> </li>
+      <li> <a href="https://en.wikipedia.org/wiki/Immutable_object" target="_blank">Immutable data</a> </li> <li> <a
+      href="https://en.wikipedia.org/wiki/Peer-to-peer" target="_blank">P2P routing and discovery</a> </li> </ul> </article>
+      -->
+    </section>
+    <script type="module">
+      menu.onclick = () => document
+        .body
+        .classList
+        .toggle("open-drawer");
+    </script>
+  </body>
+</html>
