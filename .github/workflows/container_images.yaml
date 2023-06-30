@@ -17,6 +17,7 @@ name: 'Container images'
 jobs:
   determine-image-tags:
     name: 'Determine image tags'
+    if: ${{ github.actor != 'dependabot[bot]' }}
     outputs:
       tags: ${{ steps.determine-image-tags.outputs.tags }}
       concurrency: ${{ steps.determine-image-tags.outputs.concurrency }}
