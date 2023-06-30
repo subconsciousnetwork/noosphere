@@ -116,6 +116,10 @@ body.documentation {
 #drawer > header {
   height: 70px;
   background-image: radial-gradient(
+    farthest-corner circle at 250% 150%, 
+    oklch(70% 0.20 8) 0%, oklch(47% 0.19 319) 100%
+  );
+  background-image: radial-gradient(
     farthest-corner circle at 250% 150% in oklab, 
     oklch(70% 0.20 8) 0%, oklch(47% 0.19 319) 100%
   );
