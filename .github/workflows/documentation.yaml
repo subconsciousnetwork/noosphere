@@ -23,6 +23,7 @@ jobs:
           cargo install toml-cli
           WASM_BINDGEN_VERSION=`toml get ./Cargo.lock . | jq '.package | map(select(.name == "wasm-bindgen"))[0].version' | xargs echo`
           cargo install wasm-bindgen-cli --vers "$WASM_BINDGEN_VERSION"
+          cargo install wasm-opt --locked
       - name: 'Setup Node.js'
         uses: actions/setup-node@v3
         with:
