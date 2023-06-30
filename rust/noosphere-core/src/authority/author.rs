@@ -127,7 +127,6 @@ where
 
     /// Returns true if this author is in the delegation chain of authority for
     /// the given [Authorization], otherwise false.
-    // BEFORE MERGE: Test this
     pub async fn is_authorizer_of<S>(
         &self,
         authorization: &Authorization,
@@ -156,9 +155,13 @@ where
 mod tests {
     use anyhow::Result;
     use noosphere_storage::{MemoryStorage, SphereDb};
-    use ucan::crypto::KeyMaterial;
+    use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
 
-    use crate::{authority::generate_ed25519_key, data::Did, view::Sphere};
+    use crate::{
+        authority::{generate_capability, generate_ed25519_key, Authorization, SphereAbility},
+        data::Did,
+        view::Sphere,
+    };
 
     use super::{Access, Author};
 
@@ -241,6 +244,86 @@ mod tests {
             .unwrap();
 
         assert_eq!(access, Access::ReadWrite);
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_can_find_itself_in_an_authorization_lineage() -> Result<()> {
+        let owner_key = generate_ed25519_key();
+        let owner_did = Did(owner_key.get_did().await.unwrap());
+        let mut db = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+
+        let (sphere, authorization, _) = Sphere::generate(&owner_did, &mut db).await.unwrap();
+
+        let next_key = generate_ed25519_key();
+        let next_did = Did(next_key.get_did().await.unwrap());
+
+        let final_did = Did("did:key:foo".into());
+
+        let authorization_ucan = authorization.as_ucan(&db).await?;
+
+        let capability =
+            generate_capability(&sphere.get_identity().await?, SphereAbility::Authorize);
+        let next_ucan = UcanBuilder::default()
+            .issued_by(&owner_key)
+            .for_audience(&next_did)
+            .with_lifetime(100)
+            .claiming_capability(&capability)
+            .witnessed_by(&authorization_ucan, None)
+            .build()?
+            .sign()
+            .await?;
+
+        let final_ucan = UcanBuilder::default()
+            .issued_by(&next_key)
+            .for_audience(&final_did)
+            .with_lifetime(100)
+            .claiming_capability(&capability)
+            .witnessed_by(&next_ucan, None)
+            .build()?
+            .sign()
+            .await?;
+
+        db.write_token(&next_ucan.encode()?).await?;
+        db.write_token(&final_ucan.encode()?).await?;
+
+        let author = Author {
+            key: owner_key,
+            authorization: Some(authorization.clone()),
+        };
+
+        let next_authorization = Authorization::Ucan(next_ucan);
+        let final_authorization = Authorization::Ucan(final_ucan);
+
+        assert!(author.is_authorizer_of(&next_authorization, &db).await?);
+        assert!(author.is_authorizer_of(&final_authorization, &db).await?);
+
+        let next_author = Author {
+            key: next_key,
+            authorization: Some(next_authorization),
+        };
+
+        assert!(!next_author.is_authorizer_of(&authorization, &db).await?);
+
+        let unrelated_key = generate_ed25519_key();
+
+        let unrelated_author = Author {
+            key: unrelated_key,
+            authorization: None,
+        };
+
+        assert!(
+            !unrelated_author
+                .is_authorizer_of(&authorization, &db)
+                .await?
+        );
+        assert!(
+            !unrelated_author
+                .is_authorizer_of(&final_authorization, &db)
+                .await?
+        );
+
         Ok(())
     }
 }

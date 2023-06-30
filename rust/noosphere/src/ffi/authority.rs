@@ -75,7 +75,7 @@ pub fn ns_sphere_authority_authorize(
 /// The callback arguments are (in order):
 ///
 ///  1. The context argument provided in the original call to
-///     ns_sphere_authority_authorize
+///     ns_sphere_authority_authorization_revoke
 ///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
 pub fn ns_sphere_authority_authorization_revoke(
     noosphere: &NsNoosphere,
@@ -119,7 +119,7 @@ pub fn ns_sphere_authority_authorization_revoke(
 /// The callback arguments are (in order):
 ///
 ///  1. The context argument provided in the original call to
-///     ns_sphere_authority_authorize
+///     ns_sphere_authority_authorizations_list
 ///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
 ///  3. An owned pointer to a slice_boxed_char_ptr_t
 pub fn ns_sphere_authority_authorizations_list(
@@ -178,7 +178,7 @@ pub fn ns_sphere_authority_authorizations_list(
 /// The callback arguments are (in order):
 ///
 ///  1. The context argument provided in the original call to
-///     ns_sphere_authority_authorize
+///     ns_sphere_authority_authorization_name
 ///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
 ///  3. An owned pointer to constant string (the name of the authorization) if
 ///     the call was successful, otherwise NULL
@@ -235,7 +235,7 @@ pub fn ns_sphere_authority_authorization_name(
 /// The callback arguments are (in order):
 ///
 ///  1. The context argument provided in the original call to
-///     ns_sphere_authority_authorize
+///     ns_sphere_authority_authorization_identity
 ///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
 ///  3. An owned pointer to constant string (the authorized DID) if the call
 ///     was successful, otherwise NULL
@@ -292,7 +292,7 @@ pub fn ns_sphere_authority_authorization_identity(
 /// The callback arguments are (in order):
 ///
 ///  1. The context argument provided in the original call to
-///     ns_sphere_authority_authorize
+///     ns_sphere_authority_escalate
 ///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
 ///  3. An owned pointer to an ns_sphere_t with the root sphere credential,
 ///     otherwise NULL

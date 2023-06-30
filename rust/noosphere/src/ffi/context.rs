@@ -99,33 +99,6 @@ pub fn ns_sphere_open(
 #[ffi_export]
 /// @memberof ns_sphere_t
 ///
-/// Initialize an ns_sphere_t instance.
-///
-pub fn ns_sphere_open_as_root(
-    noosphere: &NsNoosphere,
-    sphere_identity: char_p::Ref<'_>,
-    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
-) -> Option<repr_c::Box<NsSphere>> {
-    error_out.try_or_initialize(|| {
-        let fs = noosphere.async_runtime().block_on(async {
-            let sphere_channel = noosphere
-                .inner()
-                .get_sphere_channel(&Did(sphere_identity.to_str().into()))
-                .await?;
-
-            Ok(Box::new(NsSphere {
-                inner: sphere_channel,
-            })
-            .into()) as Result<_, anyhow::Error>
-        })?;
-
-        Ok(fs)
-    })
-}
-
-#[ffi_export]
-/// @memberof ns_sphere_t
-///
 /// Deallocate an ns_sphere_t instance.
 pub fn ns_sphere_free(sphere: repr_c::Box<NsSphere>) {
     drop(sphere)

@@ -55,7 +55,6 @@ where
     /// effects in the distance, the cursor will still point to the same version
     /// it referred to when it was created.
     pub async fn mounted(has_sphere_context: C) -> Result<Self> {
-        // let sphere_version = has_sphere_context.sphere_context().await?.head().await?;
         let mut cursor = Self::latest(has_sphere_context);
         cursor.mount().await?;
         Ok(cursor)

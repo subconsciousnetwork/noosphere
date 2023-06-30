@@ -1291,10 +1291,13 @@ mod tests {
                 .await?,
         );
 
-        assert!(sphere
-            .verify_authorization(&invalid_authorization)
-            .await
-            .is_err());
+        assert!(
+            sphere
+                .verify_authorization(&invalid_authorization)
+                .await
+                .is_err(),
+            "Authorization is invalid (authorizor has no authority over resource)"
+        );
 
         Ok(())
     }
