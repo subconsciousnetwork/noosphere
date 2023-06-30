@@ -17,6 +17,7 @@ jobs:
       - name: 'Setup Rust'
         run: |
           curl -sSf https://sh.rustup.rs | sh -s -- -y
+          rustup target add wasm32-unknown-unknown
       - name: 'Setup Node.js'
         uses: actions/setup-node@v3
         with:
