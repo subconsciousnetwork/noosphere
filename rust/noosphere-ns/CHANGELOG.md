@@ -83,6 +83,26 @@
     * noosphere bumped from 0.11.2 to 0.11.3
     * noosphere-ipfs bumped from 0.5.2 to 0.5.3
 
+## [0.9.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.8.3...noosphere-ns-v0.9.0) (2023-07-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* Update to `rs-ucan` 0.4.0, implementing UCAN 0.10ish. ([#449](https://github.com/subconsciousnetwork/noosphere/issues/449))
+
+### Features
+
+* Update to `rs-ucan` 0.4.0, implementing UCAN 0.10ish. ([#449](https://github.com/subconsciousnetwork/noosphere/issues/449)) ([8b806c5](https://github.com/subconsciousnetwork/noosphere/commit/8b806c5462b5601a5f8417a6a20769b76b57ee6a))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.12.3 to 0.13.0
+    * noosphere bumped from 0.11.3 to 0.12.0
+    * noosphere-ipfs bumped from 0.5.3 to 0.6.0
+
 ## [0.8.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.8.0...noosphere-ns-v0.8.1) (2023-06-09)
 
 

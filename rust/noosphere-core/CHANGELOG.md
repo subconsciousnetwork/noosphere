@@ -5,6 +5,19 @@
     * noosphere-storage bumped from 0.4.1 to 0.4.2
     * noosphere-collections bumped from 0.3.1 to 0.3.2
 
+## [0.13.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.12.3...noosphere-core-v0.13.0) (2023-07-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* Authorize and revoke APIs ([#420](https://github.com/subconsciousnetwork/noosphere/issues/420))
+* Update to `rs-ucan` 0.4.0, implementing UCAN 0.10ish. ([#449](https://github.com/subconsciousnetwork/noosphere/issues/449))
+
+### Features
+
+* Authorize and revoke APIs ([#420](https://github.com/subconsciousnetwork/noosphere/issues/420)) ([73f016e](https://github.com/subconsciousnetwork/noosphere/commit/73f016e12448c46f95ae7683d91fd6422a925555))
+* Update to `rs-ucan` 0.4.0, implementing UCAN 0.10ish. ([#449](https://github.com/subconsciousnetwork/noosphere/issues/449)) ([8b806c5](https://github.com/subconsciousnetwork/noosphere/commit/8b806c5462b5601a5f8417a6a20769b76b57ee6a))
+
 ## [0.12.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.12.2...noosphere-core-v0.12.3) (2023-06-23)
 
 

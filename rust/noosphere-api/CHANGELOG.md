@@ -64,6 +64,26 @@
   * dependencies
     * noosphere-core bumped from 0.12.2 to 0.12.3
 
+## [0.9.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.8.3...noosphere-api-v0.9.0) (2023-07-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* Authorize and revoke APIs ([#420](https://github.com/subconsciousnetwork/noosphere/issues/420))
+* Update to `rs-ucan` 0.4.0, implementing UCAN 0.10ish. ([#449](https://github.com/subconsciousnetwork/noosphere/issues/449))
+
+### Features
+
+* Authorize and revoke APIs ([#420](https://github.com/subconsciousnetwork/noosphere/issues/420)) ([73f016e](https://github.com/subconsciousnetwork/noosphere/commit/73f016e12448c46f95ae7683d91fd6422a925555))
+* Update to `rs-ucan` 0.4.0, implementing UCAN 0.10ish. ([#449](https://github.com/subconsciousnetwork/noosphere/issues/449)) ([8b806c5](https://github.com/subconsciousnetwork/noosphere/commit/8b806c5462b5601a5f8417a6a20769b76b57ee6a))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.12.3 to 0.13.0
+
 ## [0.8.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.7.9...noosphere-api-v0.8.0) (2023-06-08)
 
 
