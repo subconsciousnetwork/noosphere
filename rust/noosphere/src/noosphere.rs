@@ -1,3 +1,5 @@
+//! A high-level, batteries-included API for Noosphere embedders
+
 use anyhow::{anyhow, Result};
 use noosphere_core::{authority::Authorization, data::Did};
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
