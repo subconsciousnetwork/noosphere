@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.7.0...noosphere-storage-v0.8.0) (2023-07-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* Update to `rs-ucan` 0.4.0, implementing UCAN 0.10ish. ([#449](https://github.com/subconsciousnetwork/noosphere/issues/449))
+
+### Features
+
+* Featureful documentation ([5fe8470](https://github.com/subconsciousnetwork/noosphere/commit/5fe8470f63c668cb2516303d73db28d7ace98c0e))
+* Update to `rs-ucan` 0.4.0, implementing UCAN 0.10ish. ([#449](https://github.com/subconsciousnetwork/noosphere/issues/449)) ([8b806c5](https://github.com/subconsciousnetwork/noosphere/commit/8b806c5462b5601a5f8417a6a20769b76b57ee6a))
+
 ## [0.7.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.6.3...noosphere-storage-v0.7.0) (2023-06-08)
 
 
