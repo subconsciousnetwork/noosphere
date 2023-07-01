@@ -1,6 +1,7 @@
 //! This crate contains generic interfaces and concrete implementations to
 //! support a common API for data persistance in Noosphere on many different
-//! platforms.
+//! platforms. Current platforms include native targets (via disk-persisted K/V
+//! store) and web browsers (via IndexedDB).
 
 #[macro_use]
 extern crate tracing;
