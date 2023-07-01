@@ -66,6 +66,25 @@
     * noosphere-ipfs bumped from 0.5.2 to 0.5.3
     * noosphere-into bumped from 0.9.2 to 0.9.3
 
+## [0.12.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.12.0...noosphere-v0.12.1) (2023-07-01)
+
+
+### Features
+
+* Featureful documentation ([78afa44](https://github.com/subconsciousnetwork/noosphere/commit/78afa4423ac797cc7eb6a0544d972049480fe153))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.13.0 to 0.13.1
+    * noosphere-sphere bumped from 0.7.0 to 0.7.1
+    * noosphere-storage bumped from 0.7.0 to 0.7.1
+    * noosphere-api bumped from 0.9.0 to 0.9.1
+    * noosphere-ipfs bumped from 0.6.0 to 0.6.1
+    * noosphere-into bumped from 0.10.0 to 0.10.1
+
 ## [0.12.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.11.3...noosphere-v0.12.0) (2023-07-01)
 
 

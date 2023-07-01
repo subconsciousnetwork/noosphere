@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.7.0...noosphere-storage-v0.7.1) (2023-07-01)
+
+
+### Features
+
+* Featureful documentation ([78afa44](https://github.com/subconsciousnetwork/noosphere/commit/78afa4423ac797cc7eb6a0544d972049480fe153))
+
 ## [0.7.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.6.3...noosphere-storage-v0.7.0) (2023-06-08)
 
 
