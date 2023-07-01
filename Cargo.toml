@@ -33,7 +33,7 @@ libipld-cbor = { version = "0.16" }
 cid = { version = "0.10" }
 multihash = { version = "0.18" }
 void = { version = "1" }
-wnfs-namefilter = { version = "0.1.20" }
+wnfs-namefilter = { version = "0.1.21" }
 strum = { version = "0.24" }
 strum_macros = { version = "0.24" }
 serde = { version = "^1" }

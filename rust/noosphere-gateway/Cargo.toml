@@ -33,7 +33,7 @@ tower-http = { version = "~0.3", features = ["cors", "trace"] }
 async-trait = "~0.1"
 async-stream = "~0.3"
 tracing = { workspace = true }
-wnfs-namefilter = { version = "0.1.19" }
+wnfs-namefilter = { version = "0.1.21" }
 
 url = { version = "^2", features = [ "serde" ] }
 mime_guess = "^2"

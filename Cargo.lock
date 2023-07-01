@@ -6707,9 +6707,9 @@ dependencies = [
 
 [[package]]
 name = "wnfs-common"
-version = "0.1.20"
+version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b597038ccffb005b16c042571e4849a81956b97a3ab13bac7304db19b84e41c1"
+checksum = "6e6ff16e3e7612fef07ac581454145a74a3c564f6b38a71487a270d662a63eb8"
 dependencies = [
  "anyhow",
  "async-once-cell 0.4.4",
@@ -6726,9 +6726,9 @@ dependencies = [
 
 [[package]]
 name = "wnfs-namefilter"
-version = "0.1.20"
+version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8edeb3b612bd49db3cd21b9bab66aeda2eb420905029b4d2e6ec6844c076611"
+checksum = "b7b3c8f19557eccf4fc3369197d525d7618d1585ed1f37ee210cbc6bb4b4cab6"
 dependencies = [
  "anyhow",
  "async-once-cell 0.4.4",
