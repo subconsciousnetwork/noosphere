@@ -474,9 +474,9 @@ dependencies = [
 
 [[package]]
 name = "async-utf8-decoder"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f8d79572efc18d364aa0398afa49570a4d488632a7664fd22204b15af7b2780"
+checksum = "8165b02d9c6c0f0bb1facf98ffeb30fcf8f43167214c8aa20f38479feffbd491"
 dependencies = [
  "futures-core",
  "futures-io",
