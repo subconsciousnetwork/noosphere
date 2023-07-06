@@ -107,7 +107,7 @@ mod inner {
     use noosphere_storage::NativeStorage;
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
-    use crate::key::InsecureKeyStorage;
+    use crate::implementation::InsecureKeyStorage;
 
     pub type PlatformKeyMaterial = Ed25519KeyMaterial;
     pub type PlatformKeyStorage = InsecureKeyStorage;
@@ -149,7 +149,7 @@ pub use inner::*;
 use noosphere_sphere::{SphereContext, SphereCursor};
 use tokio::sync::Mutex;
 
-use crate::sphere::SphereChannel;
+use crate::implementation::SphereChannel;
 
 // NOTE: We may someday define the 3rd and 4th terms of this type differently on
 // web, where `Arc` and `Mutex` are currently overkill for our needs and may be

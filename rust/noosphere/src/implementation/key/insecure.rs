@@ -12,7 +12,7 @@ use tokio::fs;
 use ucan::crypto::KeyMaterial;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
-use crate::platform::PlatformKeyMaterial;
+use crate::implementation::PlatformKeyMaterial;
 
 use super::KeyStorage;
 
@@ -122,7 +122,7 @@ impl KeyStorage<Ed25519KeyMaterial> for InsecureKeyStorage {
 
 #[cfg(test)]
 mod tests {
-    use crate::key::KeyStorage;
+    use crate::implementation::KeyStorage;
 
     use super::InsecureKeyStorage;
     use tempfile::TempDir;

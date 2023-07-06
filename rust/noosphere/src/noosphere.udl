@@ -11,7 +11,21 @@ enum NoosphereError {
 
 namespace noosphere {};
 
+interface NoosphereContext {
+    constructor(string global_storage_path, string sphere_storage_path, string? gateway_url);
+    [Throws=NoosphereError]
+    void create_key(string key_name);
+    [Throws=NoosphereError]
+    boolean has_key(string key_name);
+};
+
+/*
+
 interface NsNoosphere {
     [Throws=NoosphereError]
     constructor(string global_storage_path, string sphere_storage_path, Url? gateway_api);
+    
 };
+
+
+*/

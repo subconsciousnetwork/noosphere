@@ -7,9 +7,8 @@ use noosphere_sphere::{HasSphereContext, SphereSync, SyncRecovery};
 use safer_ffi::char_p::InvalidNulTerminator;
 use safer_ffi::prelude::*;
 
-use crate::error::NoosphereError;
 use crate::ffi::{NsError, NsNoosphere, NsSphere, TryOrInitialize};
-use crate::sphere::SphereReceipt;
+use crate::implementation::{NoosphereError, SphereReceipt};
 
 #[derive_ReprC(rename = "ns_sphere_receipt")]
 #[repr(opaque)]

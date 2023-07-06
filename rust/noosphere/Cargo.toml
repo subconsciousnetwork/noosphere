@@ -18,12 +18,12 @@ crate-type = ["lib", "staticlib", "cdylib"]
 [[bin]]
 name = "uniffi-bindgen"
 path = "src/bin/uniffi-bindgen/main.rs"
+required-features = ["uniffi/cli"]
 
 [features]
 default = []
 headers = ["safer-ffi/headers"]
 ipfs-storage = ["noosphere-ipfs"]
-uniffi-bindgen = ["uniffi/cli"]
 
 [dependencies]
 anyhow = "^1"

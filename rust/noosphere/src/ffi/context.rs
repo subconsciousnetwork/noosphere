@@ -11,9 +11,8 @@ use subtext::{Peer, Slashlink};
 use tokio::{io::AsyncReadExt, sync::Mutex};
 
 use crate::{
-    error::NoosphereError,
     ffi::{NsError, NsHeaders, NsNoosphere, TryOrInitialize},
-    platform::{PlatformSphereChannel, PlatformStorage},
+    implementation::{NoosphereError, PlatformSphereChannel, PlatformStorage},
 };
 
 use noosphere_sphere::{

@@ -8,10 +8,9 @@ use noosphere_sphere::{SphereContext, SphereCursor};
 use tokio::sync::Mutex;
 use url::Url;
 
-use crate::{
-    key::KeyStorage,
-    platform::{PlatformKeyStorage, PlatformSphereChannel},
-    sphere::{SphereChannel, SphereContextBuilder, SphereReceipt},
+use crate::implementation::{
+    KeyStorage, PlatformKeyStorage, PlatformSphereChannel, SphereChannel, SphereContextBuilder,
+    SphereReceipt,
 };
 
 /// An enum describing different storage stragies that may be interesting

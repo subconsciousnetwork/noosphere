@@ -1,27 +1,35 @@
 #[macro_use]
 extern crate tracing;
 
-pub mod error;
+pub mod implementation;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod bindings;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod ffi;
-
 #[cfg(target_arch = "wasm32")]
 pub mod wasm;
 
-pub mod key;
+// Uniffi Bindings
+// Here we declare custom types/converters (e.g. `Url`), and
+// we must import all exported types, as they must be in the
+// crate's top-level lib, along with the scaffolding.
 
-mod noosphere;
-pub use crate::noosphere::*;
+#[cfg(not(target_arch = "wasm32"))]
+uniffi::include_scaffolding!("noosphere");
 
-pub mod platform;
-pub mod sphere;
-pub mod storage;
+/// Exported Uniffi types
+#[cfg(not(target_arch = "wasm32"))]
+use crate::bindings::NoosphereContext;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::bindings::SphereReceipt;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::implementation::NoosphereError;
 
-// We need to import types used in the uniffi
-use crate::error::NoosphereError;
-use crate::ffi::NsNoosphere;
+/// Custom Uniffi types and converters
+#[cfg(not(target_arch = "wasm32"))]
 use url::Url;
-
+#[cfg(not(target_arch = "wasm32"))]
 impl crate::UniffiCustomTypeConverter for Url {
     type Builtin = String;
 
@@ -33,6 +41,3 @@ impl crate::UniffiCustomTypeConverter for Url {
         obj.into()
     }
 }
-
-#[cfg(not(target_arch = "wasm32"))]
-uniffi::include_scaffolding!("noosphere");

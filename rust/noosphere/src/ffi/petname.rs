@@ -10,8 +10,8 @@ use noosphere_sphere::{SpherePetnameRead, SpherePetnameWrite, SphereWalker};
 use safer_ffi::{char_p::InvalidNulTerminator, prelude::*};
 
 use crate::{
-    error::NoosphereError,
     ffi::{NsError, TryOrInitialize},
+    implementation::NoosphereError,
 };
 
 use super::{NsNoosphere, NsSphere};

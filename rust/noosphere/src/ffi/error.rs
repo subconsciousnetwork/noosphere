@@ -1,15 +1,9 @@
-use crate::error::NoosphereError;
+use crate::implementation::NoosphereError;
 use safer_ffi::prelude::*;
 
 impl From<NoosphereError> for repr_c::Box<NsError> {
     fn from(error: NoosphereError) -> Self {
         Box::new(NsError { inner: error }).into()
-    }
-}
-
-impl From<std::io::Error> for NoosphereError {
-    fn from(value: std::io::Error) -> Self {
-        NoosphereError::Other(value.into())
     }
 }
 

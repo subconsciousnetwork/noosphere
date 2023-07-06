@@ -24,11 +24,7 @@ use noosphere_sphere::{
     SphereContext, SphereContextKey,
 };
 
-use crate::{
-    key::KeyStorage,
-    platform::{PlatformKeyStorage, PlatformStorage},
-    storage::StorageLayout,
-};
+use crate::implementation::{KeyStorage, PlatformKeyStorage, PlatformStorage, StorageLayout};
 
 enum SphereInitialization {
     Create,
@@ -368,7 +364,7 @@ mod tests {
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use crate::{key::KeyStorage, platform::make_temporary_platform_primitives};
+    use crate::implementation::{make_temporary_platform_primitives, KeyStorage};
     use noosphere_sphere::SphereContext;
 
     #[cfg(target_arch = "wasm32")]

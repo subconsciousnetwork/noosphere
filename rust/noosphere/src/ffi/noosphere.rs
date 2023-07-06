@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use crate::{
-    error::NoosphereError,
     ffi::{NsError, TryOrInitialize},
-    noosphere::{NoosphereContext, NoosphereContextConfiguration},
-    NoosphereNetwork, NoosphereSecurity, NoosphereStorage,
+    implementation::{
+        NoosphereContext, NoosphereContextConfiguration, NoosphereError, NoosphereNetwork,
+        NoosphereSecurity, NoosphereStorage,
+    },
 };
 use anyhow::{anyhow, Result};
 use safer_ffi::prelude::*;

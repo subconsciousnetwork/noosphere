@@ -9,8 +9,8 @@ use safer_ffi::{char_p::InvalidNulTerminator, prelude::*};
 use std::ffi::c_void;
 
 use crate::{
-    error::NoosphereError,
     ffi::{NsError, NsNoosphere, NsSphere},
+    implementation::NoosphereError,
 };
 
 #[ffi_export]
