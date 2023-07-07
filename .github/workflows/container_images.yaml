@@ -15,62 +15,9 @@ on:
 name: 'Container images'
 
 jobs:
-  determine-image-tags:
-    name: 'Determine image tags'
-    if: ${{ github.actor != 'dependabot[bot]' }}
-    outputs:
-      tags: ${{ steps.determine-image-tags.outputs.tags }}
-      concurrency: ${{ steps.determine-image-tags.outputs.concurrency }}
-    runs-on: ubuntu-latest
-    steps:
-      - id: determine-image-tags
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          PR_NUMBER: ${{ github.event.number }}
-          CUSTOM_TAG: ${{ inputs.image-tag }}
-        run: |
-          concurrency="docker-build"
-
-          tags=()
-
-          if [[ "$EVENT_NAME" == "pull_request" ]]; then
-            tags+=("pr-$PR_NUMBER")
-            concurrency="$concurrency-pr-$PR_NUMBER"
-          fi
-
-          if [[ "$EVENT_NAME" == "push" ]]; then
-            tags+=("latest")
-            concurrency="$concurrency-latest"
-          fi
-
-          if [[ "$CUSTOM_TAG" != "" ]]; then
-            tags+=("$CUSTOM_TAG")
-            concurrency="$concurrency-$CUSTOM_TAG"
-          fi
-
-          concurrency="$concurrency-$GITHUB_SHA"
-          tags+=("${GITHUB_SHA:0:6}")
-
-          tags_out=""
-
-          for tag in "${tags[@]}"; do
-            if [ -z "$tags_out" ]; then
-              tags_out="\"$tag\""
-            else
-              tags_out="$tags_out,\"$tag\""
-            fi
-          done
-
-          echo "TAGS: $tags_out"
-          echo "CONCURRENCY: $concurrency"
-
-          echo "tags=[$tags_out]" >> $GITHUB_OUTPUT
-          echo "concurrency=\"$concurrency\"" >> $GITHUB_OUTPUT
-
   build-and-push:
     name: 'Build and push'
     runs-on: ubuntu-latest
-    needs: ['determine-image-tags']
     # It would be ideal to run container build jobs sequentially, but the
     # current behavior of Github Workflow "concurrency" prevents this from
     # being viable because it cancels any pending jobs instead of queuing
@@ -94,7 +41,6 @@ jobs:
             file: 'images/orb/Dockerfile'
           - name: 'orb-ns'
             file: 'images/orb-ns/Dockerfile'
-        tag: ${{ fromJSON(needs.determine-image-tags.outputs.tags) }}
     steps:
       - uses: actions/checkout@v3
       - name: Set up Docker Buildx
@@ -118,22 +64,23 @@ jobs:
           registry: 'us-central1-docker.pkg.dev'
           username: 'oauth2accesstoken'
           password: '${{ steps.authenticate.outputs.access_token }}'
-      - name: Build and push container images
-        uses: docker/build-push-action@v4
-        with:
-          file: ${{ matrix.image.file }}
-          context: .
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          push: true
-          tags: 'us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/subconscious/${{ matrix.image.name }}:${{matrix.tag}}'
-
       - name: 'Log Docker in to GitHub Container Registry'
         uses: 'docker/login-action@v2.1.0'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/subconscious/${{ matrix.image.name }}
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
+          tags: |
+            type=ref,event=pr
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
       - name: Build and push container images
         uses: docker/build-push-action@v4
         with:
@@ -142,4 +89,4 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           push: true
-          tags: 'ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}:${{matrix.tag}}'
+          tags: ${{ steps.meta.outputs.tags }}
