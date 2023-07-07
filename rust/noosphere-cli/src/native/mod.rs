@@ -96,7 +96,11 @@ pub enum OrbCommand {
 
     /// Show details about files in the sphere directory that have changed since
     /// the last time the sphere was saved
-    Status,
+    Status {
+        /// Output a single attribute of the status
+        #[clap(short, long, default_value="")]
+        attr: String,
+    },
 
     /// If a difftool is configured, show a diff between files on disk and saved versions in the sphere
     Diff {
@@ -305,7 +309,7 @@ pub async fn main() -> Result<()> {
                 sphere_join(&local_key, authorization, &id, &workspace).await?;
             }
         },
-        OrbCommand::Status => status(&workspace).await?,
+        OrbCommand::Status { attr } => status(attr, &workspace).await?,
         OrbCommand::Diff { paths: _, base: _ } => todo!(),
         OrbCommand::Save => save(&workspace).await?,
         OrbCommand::Sync => sync(&workspace).await?,
