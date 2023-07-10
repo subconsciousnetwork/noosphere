@@ -96,13 +96,11 @@ jobs:
           brew: protobuf cmake
       - name: 'Generate the header'
         run: |
-          cd rust/noosphere/include/noosphere
-          cargo run --example generate_header --features headers --locked
-          cd -
+          ./scripts/generate-headers.sh
       - uses: actions/upload-artifact@v3
         with:
           name: include
-          path: rust/noosphere/include
+          path: target/headers/include
 
   # Generate Apple "universal" libraries for Noosphere for supported targets
   noosphere-apple-lipo:
