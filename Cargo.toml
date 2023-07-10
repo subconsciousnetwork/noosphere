@@ -22,7 +22,7 @@ anyhow = { version = "1" }
 subtext = { version = "0.3.4" }
 tempfile = { version = "^3" }
 tracing = { version = "0.1" }
-tracing-subscriber = { version = "~0.3.16", features = ["env-filter", "tracing-log"] }
+tracing-subscriber = { version = "~0.3.16", features = ["env-filter", "tracing-log", "json"] }
 thiserror = { version = "1" }
 gloo-timers = { version = "0.2", features = ["futures"] }
 ucan = { version = "0.4.0" }
