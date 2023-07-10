@@ -15,7 +15,7 @@
   "dependencies": {
     "@reduxjs/toolkit": "^1.9.5",
     "@subconsciousnetwork/orb": "*",
-    "@web/dev-server": "^0.2.3",
+    "@web/dev-server": "^0.2.5",
     "lit": "^2.7.6",
     "lit-redux-watch": "^0.3.8",
     "reselect": "^4.1.7",
