@@ -178,6 +178,13 @@
   * dev-dependencies
     * noosphere-ns bumped from 0.9.0 to 0.9.1
 
+## [0.12.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.12.1...noosphere-cli-v0.12.2) (2023-07-10)
+
+
+### Features
+
+* `orb status --id` displays only the DID of the sphere ([#452](https://github.com/subconsciousnetwork/noosphere/issues/452)) ([9e3051c](https://github.com/subconsciousnetwork/noosphere/commit/9e3051cdfecc6b63c7f5844aad7d87325ca380bb))
+
 ## [0.12.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.11.3...noosphere-cli-v0.12.0) (2023-07-01)
 
 
