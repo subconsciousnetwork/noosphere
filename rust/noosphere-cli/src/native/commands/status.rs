@@ -25,18 +25,15 @@ pub fn status_section(
     }
 }
 
-pub async fn status(attr: String, workspace: &Workspace) -> Result<()> {
+pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
     workspace.ensure_sphere_initialized()?;
 
     let identity = workspace.sphere_identity().await?;
 
-    if attr == "id" {
+    if only_id {
         info!("{identity}");
         return Ok(());
-    } else if !attr.is_empty() {
-        error!("Unknown attribute requested: {attr}")
     }
-
 
     info!("This sphere's identity is {identity}");
     info!("Here is a summary of the current changes to sphere content:\n");
