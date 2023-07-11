@@ -99,6 +99,9 @@ pub enum NoosphereLogFormat {
     /// where the log originated.
     #[strum(serialize = "pretty")]
     Pretty,
+    /// Structured, json-oriented logs which are well suited for automated log aggregation.
+    #[strum(serialize = "structured")]
+    Structured,
 }
 
 impl Default for NoosphereLogFormat {
@@ -333,6 +336,15 @@ mod inner {
             NoosphereLogFormat::Pretty => {
                 let subscriber =
                     subscriber.with(Layer::default().pretty().with_ansi(USE_ANSI_COLORS));
+
+                #[cfg(feature = "sentry")]
+                let subscriber = subscriber.with(sentry_tracing::layer());
+
+                subscriber.init();
+            }
+            NoosphereLogFormat::Structured => {
+                let subscriber =
+                    subscriber.with(Layer::default().json().with_ansi(USE_ANSI_COLORS));
 
                 #[cfg(feature = "sentry")]
                 let subscriber = subscriber.with(sentry_tracing::layer());
