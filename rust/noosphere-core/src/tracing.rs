@@ -2,6 +2,11 @@
 //! NOTE: [initialize_tracing] should only ever be called in tests or binaries;
 //! a library should only concern itself with instrumentation and logging.
 use strum_macros::{Display, EnumString};
+use opentelemetry::sdk::export::trace::stdout;
+use opentelemetry::runtime;
+use tracing_opentelemetry;
+use opentelemetry_gcloud_trace;
+use futures::executor;
 
 /// The crates that are considered when evaluating [NoosphereLog] and
 /// [NoosphereLogLevel] as directive configuration.
@@ -306,7 +311,15 @@ mod inner {
             env_filter = env_filter.add_directive(directive)
         }
 
-        let subscriber = tracing_subscriber::registry().with(env_filter);
+        let tracer = futures::executor::block_on(opentelemetry_gcloud_trace::GcpCloudTraceExporterBuilder::new("GCP ID @@@".to_string())
+            .install_batch(opentelemetry::runtime::Tokio));
+
+        let otel = tracing_opentelemetry::layer().with_tracer(tracer);
+        let subscriber = tracing_subscriber::registry()
+            .with(env_filter)
+            .with(otel)
+            .try_init()?;
+        let subscriber = subscriber.with(otel);
 
         match noosphere_log_format {
             NoosphereLogFormat::Minimal => {
