@@ -3,7 +3,7 @@ use async_stream::try_stream;
 use bytes::Bytes;
 use cid::Cid;
 use futures_util::sink::SinkExt;
-use noosphere_car::{CarHeader, CarWriter};
+use iroh_car::{CarHeader, CarWriter};
 use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 use tokio::sync::mpsc::channel;
 use tokio_stream::Stream;

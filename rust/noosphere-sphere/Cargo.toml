@@ -19,13 +19,13 @@ helpers = []
 [dependencies]
 anyhow = { workspace = true }
 cid = { workspace = true }
+iroh-car = { workspace = true }
 url = { version = "^2", features = ["serde"] }
 tracing = { workspace = true }
 
 noosphere-core = { version = "0.13.1", path = "../noosphere-core" }
 noosphere-storage = { version = "0.7.1", path = "../noosphere-storage" }
 noosphere-api = { version = "0.9.1", path = "../noosphere-api" }
-noosphere-car = { version = "0.2.0", path = "../noosphere-car" }
 
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }

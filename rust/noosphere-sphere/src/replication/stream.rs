@@ -232,8 +232,8 @@ mod tests {
     use anyhow::Result;
     use std::collections::BTreeSet;
 
+    use iroh_car::CarReader;
     use libipld_cbor::DagCborCodec;
-    use noosphere_car::CarReader;
     use noosphere_core::{
         data::{BodyChunkIpld, ContentType, MemoIpld},
         tracing::initialize_tracing,

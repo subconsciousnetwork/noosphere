@@ -21,7 +21,7 @@ use tokio::{
 use tokio_stream::StreamExt;
 use url::Url;
 
-use noosphere_car::{CarHeader, CarWriter};
+use iroh_car::{CarHeader, CarWriter};
 use wnfs_namefilter::BloomFilter;
 
 /// A [SyndicationJob] is a request to syndicate the blocks of a _counterpart_

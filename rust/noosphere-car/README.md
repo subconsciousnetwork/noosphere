@@ -1,6 +1,9 @@
-![API Stability: Alpha](https://img.shields.io/badge/API%20Stability-Alpha-red)
+![API Stability: Alpha](https://img.shields.io/badge/API%20Stability-Deprecated-red)
 
 # Noosphere CAR
+
+:warning: **noosphere-car** is **deprecated**. :warning:
+Please use [iroh-car](https://github.com/n0-computer/iroh-car).
 
 [CAR file](https://ipld.io/specs/transport/car/) support for Noosphere. "CAR" stands
 for Content Addressable aRchives. A CAR file typically contains a serialized

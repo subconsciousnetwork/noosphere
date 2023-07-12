@@ -9,8 +9,8 @@ use crate::{
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use iroh_car::CarReader;
 use libipld_cbor::DagCborCodec;
-use noosphere_car::CarReader;
 
 use noosphere_core::{
     authority::{generate_capability, Author, SphereAbility, SphereReference},

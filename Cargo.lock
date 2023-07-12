@@ -2451,6 +2451,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12b6ee2129af8d4fb011108c73d99a1b83a85977f23b82460c0ae2e25bb4b57f"
 
 [[package]]
+name = "iroh-car"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a291220adb48738bdea587156c5f44ca5ec4ad31fdeb8fb88fda1dcd7886a24"
+dependencies = [
+ "anyhow",
+ "cid 0.10.1",
+ "futures",
+ "libipld",
+ "thiserror",
+ "tokio",
+ "unsigned-varint 0.7.1",
+]
+
+[[package]]
 name = "is-terminal"
 version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3461,9 +3476,9 @@ version = "0.9.1"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
+ "iroh-car",
  "libipld-cbor",
  "libipld-core",
- "noosphere-car",
  "noosphere-core",
  "noosphere-storage",
  "reqwest",
@@ -3507,12 +3522,12 @@ dependencies = [
  "clap",
  "globset",
  "home",
+ "iroh-car",
  "libipld-cbor",
  "libipld-core",
  "mime_guess",
  "noosphere",
  "noosphere-api",
- "noosphere-car",
  "noosphere-core",
  "noosphere-gateway",
  "noosphere-ipfs",
@@ -3616,11 +3631,11 @@ dependencies = [
  "axum 0.6.18",
  "bytes",
  "cid 0.10.1",
+ "iroh-car",
  "libipld-cbor",
  "libipld-core",
  "mime_guess",
  "noosphere-api",
- "noosphere-car",
  "noosphere-core",
  "noosphere-ipfs",
  "noosphere-ns",
@@ -3687,9 +3702,9 @@ dependencies = [
  "hyper",
  "hyper-multipart-rfc7578",
  "ipfs-api-prelude",
+ "iroh-car",
  "libipld-cbor",
  "libipld-core",
- "noosphere-car",
  "noosphere-core",
  "noosphere-storage",
  "rand 0.8.5",
@@ -3747,10 +3762,10 @@ dependencies = [
  "bytes",
  "cid 0.10.1",
  "futures-util",
+ "iroh-car",
  "libipld-cbor",
  "libipld-core",
  "noosphere-api",
- "noosphere-car",
  "noosphere-core",
  "noosphere-storage",
  "serde",
