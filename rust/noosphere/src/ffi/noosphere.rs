@@ -1,15 +1,28 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
-use safer_ffi::prelude::*;
-use tokio::runtime::Runtime as TokioRuntime;
-use url::Url;
-
 use crate::{
     ffi::{NsError, TryOrInitialize},
     noosphere::{NoosphereContext, NoosphereContextConfiguration},
     NoosphereNetwork, NoosphereSecurity, NoosphereStorage,
 };
+use anyhow::{anyhow, Result};
+use pkg_version::*;
+use safer_ffi::prelude::*;
+use tokio::runtime::Runtime as TokioRuntime;
+use url::Url;
+
+#[ffi_export]
+#[allow(unused)]
+/// Noosphere's major version.
+const NOOSPHERE_VERSION_MAJOR: u32 = pkg_version_major!();
+#[ffi_export]
+#[allow(unused)]
+/// Noosphere's minor version.
+const NOOSPHERE_VERSION_MINOR: u32 = pkg_version_minor!();
+#[ffi_export]
+#[allow(unused)]
+/// Noosphere's patch version.
+const NOOSPHERE_VERSION_PATCH: u32 = pkg_version_patch!();
 
 #[derive_ReprC(rename = "ns_noosphere")]
 #[repr(opaque)]

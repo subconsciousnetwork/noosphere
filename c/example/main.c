@@ -102,6 +102,8 @@ void test_errors() {
 
 int main() {
   setbuf(stdout, NULL);
+  printf("Testing Noosphere %d.%d.%d\n", NOOSPHERE_VERSION_MAJOR,
+         NOOSPHERE_VERSION_MINOR, NOOSPHERE_VERSION_PATCH);
   test_noosphere();
   test_errors();
 
