@@ -3,6 +3,10 @@ import XCTest
 import SwiftNoosphere
 
 final class NoosphereTests: XCTestCase {
+    func testVersion() throws {
+        print("Noosphere Version ", NOOSPHERE_VERSION_MAJOR, ".", NOOSPHERE_VERSION_MINOR, ".", NOOSPHERE_VERSION_PATCH)
+    }
+    
     func testInitializeNoosphereThenWriteAFileThenSaveThenReadItBack() throws {
         // This is a basic integration test to ensure that file writing and
         // reading from swift works as intended
