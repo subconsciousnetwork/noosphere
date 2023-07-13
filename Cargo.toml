@@ -19,26 +19,27 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = { version = "1" }
-subtext = { version = "0.3.4" }
-tempfile = { version = "^3" }
-tracing = { version = "0.1" }
-tracing-subscriber = { version = "~0.3.16", features = ["env-filter", "tracing-log", "json"] }
-thiserror = { version = "1" }
+cid = { version = "0.10" }
 gloo-timers = { version = "0.2", features = ["futures"] }
-ucan = { version = "0.4.0" }
-ucan-key-support = { version = "0.1.7" }
+iroh-car = { version = "^0.3.0" }
 libipld = { version = "0.16" }
 libipld-core = { version = "0.16" }
 libipld-cbor = { version = "0.16" }
-cid = { version = "0.10" }
 multihash = { version = "0.18" }
-void = { version = "1" }
-wnfs-namefilter = { version = "0.1.21" }
 strum = { version = "0.24" }
 strum_macros = { version = "0.24" }
 serde = { version = "^1" }
 serde_json = { version = "^1" }
 sentry-tracing = { version = "0.31.5" }
+subtext = { version = "0.3.4" }
+tempfile = { version = "^3" }
+thiserror = { version = "1" }
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "~0.3.16", features = ["env-filter", "tracing-log", "json"] }
+ucan = { version = "0.4.0" }
+ucan-key-support = { version = "0.1.7" }
+void = { version = "1" }
+wnfs-namefilter = { version = "0.1.21" }
 
 js-sys = { version = "^0.3" }
 wasm-bindgen = { version = "^0.2" }

@@ -51,7 +51,7 @@ ipfs-api-prelude = "~0.5"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 rand = "~0.8"
+iroh-car = { workspace = true }
 libipld-cbor = { workspace = true }
 noosphere-storage = { version = "0.7.1", path = "../noosphere-storage" }
-noosphere-car = { version = "0.2.0", path = "../noosphere-car" }
 noosphere-core = { version = "0.13.1", path = "../noosphere-core" }

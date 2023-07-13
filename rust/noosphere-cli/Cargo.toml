@@ -36,7 +36,7 @@ tower = "~0.4"
 tower-http = { version = "~0.3", features = ["cors", "trace"] }
 async-trait = "~0.1"
 tracing = { workspace = true }
-noosphere-car = { version = "0.2.0", path = "../noosphere-car" }
+iroh-car = { workspace = true }
 
 url = { version = "^2", features = [ "serde" ] }
 whoami = "^1"
