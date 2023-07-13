@@ -44,7 +44,7 @@ void = { workspace = true }
 # noosphere_ns::bin
 noosphere = { version = "0.12.1", path = "../noosphere", optional = true }
 noosphere-ipfs = { version = "0.6.1", path = "../noosphere-ipfs", optional = true }
-clap = { version = "^4.1", features = ["derive"], optional = true }
+clap = { version = "^4.3", features = ["derive"], optional = true }
 home = { version = "~0.5", optional = true }
 toml = { version = "~0.5", optional = true }
 
