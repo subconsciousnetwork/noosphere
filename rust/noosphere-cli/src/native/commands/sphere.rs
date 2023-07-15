@@ -46,7 +46,7 @@ You will be asked to enter them if you ever need to transfer ownership of the sp
 }
 
 pub async fn sphere_join(
-    local_key: &str,
+    pet_name: &str,
     authorization: Option<String>,
     sphere_identity: &Did,
     workspace: &Workspace,
@@ -55,8 +55,8 @@ pub async fn sphere_join(
     info!("Joining sphere {sphere_identity}...");
 
     let did = {
-        let local_key = workspace.key_storage().require_key(local_key).await?;
-        local_key.get_did().await?
+        let pet_name = workspace.key_storage().require_key(pet_name).await?;
+        pet_name.get_did().await?
     };
 
     let cid_string = match authorization {
@@ -91,7 +91,7 @@ Type or paste the code here and press enter:"#
         .join_sphere(sphere_identity)
         .at_storage_path(workspace.root_directory())
         .reading_keys_from(workspace.key_storage().clone())
-        .using_key(local_key)
+        .using_key(pet_name)
         .authorized_by(Some(&Authorization::Cid(cid)))
         .build()
         .await?;

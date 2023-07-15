@@ -223,7 +223,7 @@ pub enum SphereCommand {
     Join {
         /// The pet name of a key to use when requesting access to the sphere
         #[clap(short = 'k', long)]
-        local_key: String,
+        pet_name: String,
 
         /// The identity of the authorization that allows the specified key
         /// to join the sphere (if already known)
@@ -297,7 +297,7 @@ pub async fn main() -> Result<()> {
                 sphere_create(&owner_key, &workspace).await?;
             }
             SphereCommand::Join {
-                local_key,
+                pet_name,
                 authorization,
                 id,
                 path,
@@ -306,7 +306,7 @@ pub async fn main() -> Result<()> {
                     workspace = Workspace::new(&current_working_directory.join(path), None)?;
                 }
 
-                sphere_join(&local_key, authorization, &id, &workspace).await?;
+                sphere_join(&pet_name, authorization, &id, &workspace).await?;
             }
         },
         OrbCommand::Status { id } => status(id, &workspace).await?,
