@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use crate::native::Workspace;
 use anyhow::Result;
 use noosphere_core::data::ContentType;
+use noosphere_sphere::{HasSphereContext, SphereCursor};
 use noosphere_storage::MemoryStore;
 
 pub fn status_section(
@@ -36,6 +37,10 @@ pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
     }
 
     info!("This sphere's identity is {identity}");
+
+    let sphere_context = workspace.sphere_context().await?;
+    let cid = SphereCursor::latest(sphere_context).version().await?;
+    info!("The latest (saved) version of your sphere is {cid}");
     info!("Here is a summary of the current changes to sphere content:\n");
 
     let mut memory_store = MemoryStore::default();
