@@ -51,6 +51,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+UNAME=$(uname -m)
+if [[ $UNAME == "aarch64" ]]; then
+  HOST_PLATFORM="aarch64-apple-darwin"
+  OTHER_PLATFORM="x86_64-apple-darwin"
+elif [[ $UNAME == "x86_64" ]]; then
+  HOST_PLATFORM="x86_64-apple-darwin"
+  OTHER_PLATFORM="aarch64-apple-darwin"
+else
+  echo "Unknown host platform: $UNAME"
+  exit 1
+fi
+
 if [[ ! -n ${OUT} ]]; then
   OUT="$PROJECT_DIR/target/framework/$PROFILE/LibNoosphere.xcframework"
 fi
@@ -59,12 +71,12 @@ rm -rf "$OUT"
 
 $SCRIPT_DIR/generate-headers.sh
 
-TARGETS=("x86_64-apple-darwin")
+TARGETS=($HOST_PLATFORM)
 if [[ $LITE -eq 0 ]]; then
+  TARGETS+=($OTHER_PLATFORM)
   TARGETS+=("aarch64-apple-ios")
   TARGETS+=("x86_64-apple-ios")
   TARGETS+=("aarch64-apple-ios-sim")
-  TARGETS+=("aarch64-apple-darwin")
 fi
 
 for TARGET in "${TARGETS[@]}"; do
@@ -73,7 +85,7 @@ for TARGET in "${TARGETS[@]}"; do
 done
 
 if [[ $LITE -eq 0 ]]; then
-  mkdir -p ./target/{macos-universal,simulator-universal}
+  mkdir -p ./target/{macos-universal,simulator-universal}/$PROFILE
 
   lipo -create \
     "./target/x86_64-apple-darwin/$PROFILE/libnoosphere.a" \
@@ -95,7 +107,7 @@ if [[ $LITE -eq 0 ]]; then
     -output "$OUT"
 else
   xcodebuild -create-xcframework \
-    -library "./target/x86_64-apple-darwin/$PROFILE/libnoosphere.a" \
+    -library "./target/$HOST_PLATFORM/$PROFILE/libnoosphere.a" \
     -headers ./target/headers/include/ \
     -output "$OUT"
 fi
