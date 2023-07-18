@@ -86,15 +86,15 @@ pub struct Schema {
 }
 
 impl Schema {
-    pub fn new(
+    pub fn new<Params: WasmParams, Return: WasmReturn>(
         imports: (),
-        exports: Vec<ExportedFunction<dyn WasmParams, dyn WasmReturn>>,
+        exports: Vec<ExportedFunction<Params, Return>>,
     ) -> Self {
         Schema { imports, exports }
     }
 }
 
-pub struct ExportedFunction<Params: WasmParams + ?Sized, Return: WasmReturn + ?Sized> {
+pub struct ExportedFunction<Params: WasmParams, Return: WasmReturn> {
     name: String,
     _marker: std::marker::PhantomData<Params>,
     _marker2: std::marker::PhantomData<Return>,

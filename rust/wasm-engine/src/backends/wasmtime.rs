@@ -73,18 +73,19 @@ impl Backend for WasmtimeBackend {
         let mut store = instance
             .store
             .lock()
-            .map_err(|_| Error::Other("could not acquire mutex".into()))?;
+            .map_err(|_| Error::from("could not acquire mutex"))?;
         let func = instance
             .internals
             .get_func(store.deref_mut(), name)
-            .ok_or_else(|| String::from("No function with that name."))?;
+            .ok_or_else(|| Error::from("No function with that name."))?;
         let args: Vec<wasmtime::Val> = args.into();
         let mut results: Vec<wasmtime::Val> = vec![wasmtime::Val::I32(0)];
         println!("ARGS! {:#?}", args);
         func.call(store.deref_mut(), &args, &mut results)
             .map_err(|e| {
                 println!("ERROR {:#?}", e);
-            });
+                <String as Into<Error>>::into(e.to_string())
+            })?;
         println!("CALL! {:#?}", results);
         results.reverse();
         Ok(results.pop().unwrap().into())
