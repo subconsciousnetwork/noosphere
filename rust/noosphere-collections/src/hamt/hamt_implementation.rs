@@ -172,7 +172,7 @@ where
     /// ```
     pub async fn set(&mut self, key: K, value: V) -> Result<Option<V>> {
         self.root
-            .set(key, value, self.store.borrow(), self.bit_width, true)
+            .set(key, value, &self.store, self.bit_width, true)
             .await
             .map(|(r, _)| r)
     }
@@ -210,7 +210,7 @@ where
         V: PartialEq,
     {
         self.root
-            .set(key, value, self.store.borrow(), self.bit_width, false)
+            .set(key, value, &self.store, self.bit_width, false)
             .await
             .map(|(_, set)| set)
     }
@@ -243,11 +243,7 @@ where
         Q: Hash + Eq + TargetConditionalSendSync,
         V: DeserializeOwned,
     {
-        match self
-            .root
-            .get(k, self.store.borrow(), self.bit_width)
-            .await?
-        {
+        match self.root.get(k, &self.store, self.bit_width).await? {
             Some(v) => Ok(Some(v)),
             None => Ok(None),
         }
@@ -282,7 +278,7 @@ where
     {
         Ok(self
             .root
-            .get(k, self.store.borrow(), self.bit_width)
+            .get(k, &self.store, self.bit_width)
             .await?
             .is_some())
     }
@@ -314,9 +310,7 @@ where
         K: Borrow<Q>,
         Q: Hash + Eq + TargetConditionalSendSync,
     {
-        self.root
-            .remove_entry(k, self.store.borrow(), self.bit_width)
-            .await
+        self.root.remove_entry(k, &self.store, self.bit_width).await
     }
 
     /// Flush root and return Cid for hamt
