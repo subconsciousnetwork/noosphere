@@ -805,13 +805,13 @@ impl<S: BlockStore> Sphere<S> {
                 ));
             }
 
+            let ucan_issuer = chain_link.ucan().issuer();
+
             if let Some(revocation) = revocations.get(&link).await? {
-                // NOTE: The implication here is that only the sphere itself can
-                // issue revocations The follow-on implicationis that a user
-                // must provide the sphere mnemonic in order to issue a
-                // revocation
-                if revocation.iss != sphere_identity {
-                    warn!("Revocation for {} had an invalid issuer; expected {}, but found {}; skipping...", link, sphere_identity, revocation.iss);
+                // NOTE: The implication here is that only the sphere itself or
+                // the direct issuer may issue revocations
+                if revocation.iss != sphere_identity || revocation.iss != ucan_issuer {
+                    warn!("Revocation for {} had an invalid issuer; expected {} or {}, but found {}; skipping...", link, ucan_issuer, sphere_identity, revocation.iss);
                     continue;
                 }
 

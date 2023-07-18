@@ -16,6 +16,49 @@ use crate::{
 #[ffi_export]
 /// @memberof ns_sphere_t
 ///
+/// For a given authorization CID (given as a base64-encoded string), checks
+/// that the authorization and all of it ancester proofs are valid and have not
+/// been revoked.
+///
+/// The callback arguments are (in order):
+///
+///  1. The context argument provided in the original call to
+///     ns_sphere_authority_authorization_verify
+///  2. An owned pointer to an ns_error_t if there was an error (if the
+///     authorization is invalid, there will be an error), otherwise NULL
+pub fn ns_sphere_authority_authorization_verify(
+    noosphere: &NsNoosphere,
+    sphere: &mut NsSphere,
+    cid: char_p::Ref<'_>,
+    context: Option<repr_c::Box<c_void>>,
+    callback: extern "C" fn(Option<repr_c::Box<c_void>>, Option<repr_c::Box<NsError>>),
+) {
+    let sphere = sphere.inner().clone();
+    let cid = cid.to_string();
+    let async_runtime = noosphere.async_runtime();
+
+    noosphere.async_runtime().spawn(async move {
+        let result = async {
+            let cid = Cid::try_from(cid.as_str())?;
+            let authorization = Authorization::Cid(cid);
+            sphere.verify_authorization(&authorization).await?;
+
+            Ok(()) as Result<_, anyhow::Error>
+        }
+        .await;
+
+        match result {
+            Ok(_) => async_runtime.spawn_blocking(move || callback(context, None)),
+            Err(error) => async_runtime.spawn_blocking(move || {
+                callback(context, Some(NoosphereError::from(error).into()))
+            }),
+        }
+    });
+}
+
+#[ffi_export]
+/// @memberof ns_sphere_t
+///
 /// Authorize another key to manipulate this sphere, given a display name for
 /// the authorization and the DID of the key to be authorized.
 ///

@@ -110,6 +110,25 @@ public func nsSphereSync(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, 
     }
 }
 
+public typealias NsSphereAuthorityAuthorizationVerifyHandler = (OpaquePointer?) -> ()
+
+/// See: ns_sphere_authority_authorization_verify
+public func nsSphereAuthorityAuthorizationVerify(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, _ cid: UnsafePointer<CChar>!, handler: @escaping NsSphereAuthorityAuthorizationVerifyHandler) {
+    let context = Unmanaged.passRetained(Box(contents: handler)).toOpaque()
+
+    ns_sphere_authority_authorization_verify(noosphere, sphere, cid, context) {
+        (context, error) in
+
+        guard let context = context else {
+            return
+        }
+
+        let handler = Unmanaged<Box<NsSphereAuthorityAuthorizationVerifyHandler>>.fromOpaque(context).takeRetainedValue()
+
+        handler.contents(error)
+    }
+}
+
 public typealias NsSphereAuthorityEscalateHandler = (OpaquePointer?, OpaquePointer?) -> ()
 
 /// See: ns_sphere_authority_escalate
