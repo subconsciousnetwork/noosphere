@@ -1,4 +1,10 @@
 mod backend;
-mod backends;
+pub mod backends;
 mod engine;
-pub use engine::WasmEngine;
+mod errors;
+mod schema;
+
+pub use backend::Backend;
+pub use engine::{Engine, Instance};
+pub use errors::*;
+pub use schema::*;

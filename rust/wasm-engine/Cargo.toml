@@ -9,13 +9,16 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "^1"
-thiserror = { workspace = true }
 cid = { workspace = true }
+thiserror = { workspace = true }
 wasmtime = { version = "^10.0.1", optional = true }
-wasm3 = { version = "^0.3.1", optional = true }
+wasm3 = { version = "^0.3.1", optional = true, features = ["build-bindgen"] }
+
+[dev-dependencies]
+wat = { version = "^1.0.67" }
 
 [features]
 default = []
-wasmtime = ["wasmtime"]
-wasm3 = ["wasm3"]
+wasmtime = ["dep:wasmtime"]
+wasm3 = ["dep:wasm3"]
 

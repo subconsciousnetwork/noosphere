@@ -1,65 +1,68 @@
-use anyhow::Result;
+#![cfg(feature = "wasm3")]
+use crate::{Backend, Error, Result};
 use wasm3;
 
-struct WasmEngine {
+pub struct ModuleWrapper {
+    internals: wasm3::ParsedModule,
+}
+
+pub struct Wasm3Backend {
     env: wasm3::Environment,
     runtime: wasm3::Runtime,
-    store: wasmtime::Store,
-    modules: HashMap<String, wasmtime::Module>,
 }
 
-impl WasmEngine {
-    pub fn new() -> Self {
-      let engine = wasmtime::Engine::default();
-      let linker = wasmtime::Linker::new(&engine);
-      let mut store = wasmtime::Store::new(
-        &engine,
-        MyState {
-            name: "hello, world!".to_string(),
-            count: 0,
-        },
-    );
+impl Wasm3Backend {
+    pub fn new() -> Result<Self> {
+        let env = wasm3::Environment::new()?;
+        let runtime = env.create_runtime(1024)?;
 
-        WasmEngine {
-            engine,
-            linker,
-            store,
-            modules: Default::default(),
-        }
-    }
-
-    pub fn load_from_source(&self, name: &str, source: &str) -> Result<()> {
-        unimplemented!();
-    }
-
-    pub fn load_from_file(&self, name: &str, file: &str) -> Result<()> {
-        let module = wasmtime::Module::from_file(&self.engine, file)?;
-        self.modules.set(name, module);
-        Ok(())
-    }
-
-    pub fn instantiate(&self, name: &str) -> Result<()> {
-        let module = self.modules.get(name)
-        self.linker.instantiate(self.store, )
-        Ok(())
+        Ok(Wasm3Backend { env, runtime })
     }
 }
-    
-    let hello_func =
-        wasmtime::Func::wrap(&mut store, |mut caller: wasmtime::Caller<'_, MyState>| {
-            println!("Calling back...");
-            println!("> {}", caller.data().name);
-            caller.data_mut().count += 1;
-        });
 
-    let imports = [hello_func.into()];
-    let instance = wasmtime::Instance::new(&mut store, &module, &imports)?;
+impl Backend for Wasm3Backend {
+    type Instance<'a> = wasm3::Module<'a>;
 
-    println!("Extracting export...");
-    let run = instance.get_typed_func::<(), ()>(&mut store, "run")?;
+    fn instantiate<'a>(
+        &'a self,
+        bytes: impl AsRef<[u8]>,
+        schema: &Schema,
+    ) -> Result<Self::Instance<'a>> {
+        let instance = self.runtime.parse_and_load_module(bytes.as_ref())?;
+        Ok(instance)
+    }
 
-    println!("Calling export...");
-    run.call(&mut store, ())?;
+    fn call<'a>(
+        &'a self,
+        instance: &Self::Instance<'a>,
+        name: &str,
+        args: WasmArgs,
+    ) -> Result<WasmValue> {
+    }
+}
+/*
+let hello_func =
+    wasmtime::Func::wrap(&mut store, |mut caller: wasmtime::Caller<'_, MyState>| {
+        println!("Calling back...");
+        println!("> {}", caller.data().name);
+        caller.data_mut().count += 1;
+    });
 
-    println!("Done.");
-    Ok(())
+let imports = [hello_func.into()];
+let instance = wasmtime::Instance::new(&mut store, &module, &imports)?;
+
+println!("Extracting export...");
+let run = instance.get_typed_func::<(), ()>(&mut store, "run")?;
+
+println!("Calling export...");
+run.call(&mut store, ())?;
+
+println!("Done.");
+Ok(())
+*/
+
+impl From<wasm3::error::Error> for Error {
+    fn from(value: wasm3::error::Error) -> Self {
+        value.to_string().into()
+    }
+}

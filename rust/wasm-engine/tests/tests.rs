@@ -1,48 +1,37 @@
 use anyhow::Result;
-use wasm_engine::WasmEngine;
+use wasm_engine::{Backend, Engine, ExportedFunction, Instance, Schema};
+
+#[cfg(feature = "wasmtime")]
+use wasm_engine::backends::WasmtimeBackend;
+#[cfg(feature = "wasmtime")]
+type SelectedBackend = WasmtimeBackend;
+
+#[cfg(feature = "wasm3")]
+use wasm_engine::backends::Wasm3Backend;
+#[cfg(feature = "wasm3")]
+type SelectedBackend = Wasm3Backend;
 
 #[test]
 fn basic_test() -> Result<()> {
-    let engine = WasmEngine::new();
-    // instantiated modules and other items like host functions. A Store
-    // contains an arbitrary piece of host information, and we use `MyState`
-    // here.
-    println!("Initializing...");
-    let mut store = Store::new(
-        &engine,
-        MyState {
-            name: "hello, world!".to_string(),
-            count: 0,
-        },
-    );
+    pub trait GcdModule {
+        fn gcd(&self, a: i32, b: i32) -> i32;
+    }
 
-    // Our wasm module we'll be instantiating requires one imported function.
-    // the function takes no parameters and returns no results. We create a host
-    // implementation of that function here, and the `caller` parameter here is
-    // used to get access to our original `MyState` value.
-    println!("Creating callback...");
-    let hello_func =
-        wasmtime::Func::wrap(&mut store, |mut caller: wasmtime::Caller<'_, MyState>| {
-            println!("Calling back...");
-            println!("> {}", caller.data().name);
-            caller.data_mut().count += 1;
-        });
+    impl<'a, B: Backend> GcdModule for Instance<'a, B> {
+        fn gcd(&self, a: i32, b: i32) -> i32 {
+            32 //self.call("gcd", (i32))
+        }
+    }
+    let bytes = wat::parse_bytes(include_bytes!("gcd.wat"))?;
+    //let schema = Schema::new((), vec![ExportedFunction::<(i32, i32), i32>::new("gcd")]);
+    let schema = Schema::new((), vec![]);
+    let engine = Engine::new(SelectedBackend::new()?);
+    let instance = Instance::new(&engine, bytes, &schema)?;
 
-    // Once we've got that all set up we can then move to the instantiation
-    // phase, pairing together a compiled module as well as a set of imports.
-    // Note that this is where the wasm `start` function, if any, would run.
-    println!("Instantiating module...");
-    let imports = [hello_func.into()];
-    let instance = wasmtime::Instance::new(&mut store, &module, &imports)?;
+    let result = instance.call("gcd", [16, 24])?;
+    assert_eq!(TryInto::<i32>::try_into(result)?, 8i32);
+    //let run = instance.get_typed_func::<(), ()>(&mut store, "run")?;
+    //run.call(&mut store, ())?;
 
-    // Next we poke around a bit to extract the `run` function from the module.
-    println!("Extracting export...");
-    let run = instance.get_typed_func::<(), ()>(&mut store, "run")?;
-
-    // And last but not least we can call it!
-    println!("Calling export...");
-    run.call(&mut store, ())?;
-
-    println!("Done.");
     Ok(())
 }

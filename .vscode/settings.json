@@ -8,9 +8,13 @@
     ],
     "async-trait": [
       "async_trait"
-    ]
+    ],
   },
   "rust-analyzer.cargo.features": [
-    "test_kubo"
+    "test_kubo",
+    "wasmtime",
+  ],
+  "rust-analyzer.linkedProjects": [
+    "./rust/wasm-engine/Cargo.toml"
   ]
 }
