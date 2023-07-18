@@ -4,6 +4,7 @@ use wasm3;
 
 pub struct ModuleWrapper {
     internals: wasm3::ParsedModule,
+    source: 
 }
 
 pub struct Wasm3Backend {
@@ -22,6 +23,16 @@ impl Wasm3Backend {
 
 impl Backend for Wasm3Backend {
     type Instance<'a> = wasm3::Module<'a>;
+    type Module<'a> = ModuleWrapper<'a>;
+
+    fn load_module<'a>(
+        &'a self,
+        bytes: impl AsRef<[u8]>,
+        schema: &Schema,
+    ) -> Result<Self::Instance<'a>> {
+      let wrapper = ModuleWrapper { source: bytes.as_ref().to_owned() };
+        let module = Module::parse(self.env, bytes.as_ref())?;
+    }
 
     fn instantiate<'a>(
         &'a self,

@@ -22,11 +22,13 @@ fn basic_test() -> Result<()> {
             32 //self.call("gcd", (i32))
         }
     }
+
     let bytes = wat::parse_bytes(include_bytes!("gcd.wat"))?;
     //let schema = Schema::new((), vec![ExportedFunction::<(i32, i32), i32>::new("gcd")]);
     let schema = Schema::new((), vec![]);
     let engine = Engine::new(SelectedBackend::new()?);
-    let instance = Instance::new(&engine, bytes, &schema)?;
+    let module = Module::new(&engine, bytes, &schema)?;
+    let instance = Instance::new(&engine)?;
 
     let result = instance.call("gcd", [16, 24])?;
     assert_eq!(TryInto::<i32>::try_into(result)?, 8i32);

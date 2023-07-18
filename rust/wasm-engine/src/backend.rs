@@ -4,11 +4,17 @@ pub trait Backend {
     type Instance<'a>
     where
         Self: 'a;
-    fn instantiate<'a>(
+    type Module<'a>
+    where
+        Self: 'a;
+
+    fn load_module<'a>(
         &'a self,
         bytes: impl AsRef<[u8]>,
         schema: &Schema,
-    ) -> Result<Self::Instance<'a>>;
+    ) -> Result<Self::Module<'a>>;
+
+    fn instantiate<'a>(&'a self, module: &Self::Module<'a>) -> Result<Self::Instance<'a>>;
 
     fn call<'a>(
         &'a self,

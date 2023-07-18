@@ -9,9 +9,12 @@ use wasmtime;
 
 struct State {}
 
+pub struct ModuleWrapper {
+    internals: wasmtime::Module,
+}
+
 pub struct InstanceWrapper {
     internals: wasmtime::Instance,
-    module: wasmtime::Module,
     store: Mutex<wasmtime::Store<State>>,
 }
 
@@ -27,44 +30,50 @@ impl WasmtimeBackend {
 
         Ok(WasmtimeBackend { engine, linker })
     }
-
-    fn store_function<Params: WasmParams + ?Sized, Return: WasmReturn + ?Sized>(
-        &self,
-        instance: &InstanceWrapper,
-        func: &ExportedFunction<Params, Return>,
-    ) {
-        instance
-            .internals
-            .get_typed_func::<Params, Return>(&mut instance.store, func.name());
-    }
+    /*
+       fn store_function<Params: WasmParams + ?Sized, Return: WasmReturn + ?Sized>(
+           &self,
+           instance: &InstanceWrapper,
+           func: &ExportedFunction<Params, Return>,
+       ) {
+           instance
+               .internals
+               .get_typed_func::<Params, Return>(&mut instance.store, func.name());
+       }
+    */
 }
 
 impl Backend for WasmtimeBackend {
     type Instance<'a> = InstanceWrapper;
+    type Module<'a> = wasmtime::Module;
 
-    fn instantiate<'a>(
+    fn load_module<'a>(
         &'a self,
         bytes: impl AsRef<[u8]>,
         schema: &Schema,
-    ) -> Result<Self::Instance<'a>> {
-        let module = wasmtime::Module::from_binary(&self.engine, bytes.as_ref())
+    ) -> Result<Self::Module<'a>> {
+        let internals = wasmtime::Module::from_binary(&self.engine, bytes.as_ref())
             .map_err(|e| <wasmtime::Error as Into<Error>>::into(e))?;
+
+        for fn_spec in schema.exports {
+            //self.store_function(&instance, &fn_spec)
+        }
+
+        Ok(ModuleWrapper { internals })
+    }
+
+    fn instantiate<'a>(&'a self, module: &Self::Module<'a>) -> Result<Self::Instance<'a>> {
         let mut store = wasmtime::Store::new(&self.engine, State {});
 
         let internals = self
             .linker
-            .instantiate(&mut store, &module)
+            .instantiate(&mut store, &module.internals)
             .map_err(|e| <wasmtime::Error as Into<Error>>::into(e))?;
 
         let instance = InstanceWrapper {
             store: Mutex::new(store),
             internals,
-            module,
         };
-
-        for fn_spec in schema.exports {
-            self.store_function(&instance, &fn_spec)
-        }
 
         Ok(instance)
     }

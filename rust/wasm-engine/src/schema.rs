@@ -3,6 +3,10 @@ use std::marker::PhantomData;
 use crate::Error;
 use anyhow::Result;
 
+pub struct Func<Params, Return> {
+    func: fn(Params) -> Return,
+}
+
 pub enum WasmValue {
     I32(i32),
     I64(i64),
@@ -86,12 +90,15 @@ pub struct Schema {
 }
 
 impl Schema {
-    pub fn new(imports: (), exports: Vec<Box<ExportedFunction<_, _>>>) -> Self {
+    pub fn new(
+        imports: (),
+        exports: Vec<Box<ExportedFunction<dyn WasmParams, dyn WasmReturn>>>,
+    ) -> Self {
         Schema { imports, exports }
     }
 }
 
-pub struct ExportedFunction<Params: WasmParams, Return: WasmReturn> {
+pub struct ExportedFunction<Params, Return> {
     name: String,
     _marker: std::marker::PhantomData<Params>,
     _marker2: std::marker::PhantomData<Return>,
