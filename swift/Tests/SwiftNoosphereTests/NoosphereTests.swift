@@ -569,6 +569,7 @@ final class NoosphereTests: XCTestCase {
                 }
 
                 assert(authorizations!.len == 2)
+                ns_string_array_free(authorizations!)
             
                 nsSphereAuthorityEscalate(noosphere, sphere, sphere_mnemonic_ptr) {
                     (error, root_sphere) in
@@ -620,6 +621,7 @@ final class NoosphereTests: XCTestCase {
 
                             assert(authorizations!.len == 1)
 
+                            ns_string_array_free(authorizations!)
                             ns_string_free(authorization_ptr)
                             ns_sphere_free(root_sphere)
                             
