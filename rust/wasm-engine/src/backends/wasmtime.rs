@@ -28,7 +28,7 @@ impl WasmtimeBackend {
         Ok(WasmtimeBackend { engine, linker })
     }
 
-    /*  fn store_function<Params: WasmParams + ?Sized, Return: WasmReturn + ?Sized>(
+    fn store_function<Params: WasmParams + ?Sized, Return: WasmReturn + ?Sized>(
         &self,
         instance: &InstanceWrapper,
         func: &ExportedFunction<Params, Return>,
@@ -36,7 +36,7 @@ impl WasmtimeBackend {
         instance
             .internals
             .get_typed_func::<Params, Return>(&mut instance.store, func.name());
-    } */
+    }
 }
 
 impl Backend for WasmtimeBackend {
@@ -61,6 +61,11 @@ impl Backend for WasmtimeBackend {
             internals,
             module,
         };
+
+        for fn_spec in schema.exports {
+            self.store_function(&instance, &fn_spec)
+        }
+
         Ok(instance)
     }
 

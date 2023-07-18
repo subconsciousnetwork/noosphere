@@ -82,14 +82,11 @@ struct ImportedFunction<A, R> {
 
 pub struct Schema {
     pub(crate) imports: (),
-    pub(crate) exports: Vec<ExportedFunction<dyn WasmParams, dyn WasmReturn>>,
+    pub(crate) exports: Vec<Box<ExportedFunction<dyn WasmParams, dyn WasmReturn>>>,
 }
 
 impl Schema {
-    pub fn new<Params: WasmParams, Return: WasmReturn>(
-        imports: (),
-        exports: Vec<ExportedFunction<Params, Return>>,
-    ) -> Self {
+    pub fn new(imports: (), exports: Vec<Box<ExportedFunction<_, _>>>) -> Self {
         Schema { imports, exports }
     }
 }
