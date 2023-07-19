@@ -178,6 +178,32 @@
   * dev-dependencies
     * noosphere-ns bumped from 0.9.0 to 0.9.1
 
+## [0.13.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.12.2...noosphere-cli-v0.13.0) (2023-07-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* Replace `noosphere-car` with `iroh-car` throughout the Noosphere crates. ([#492](https://github.com/subconsciousnetwork/noosphere/issues/492))
+
+### Features
+
+* Output the value of the sphere's CID on orb status ([#501](https://github.com/subconsciousnetwork/noosphere/issues/501)) ([a3111c6](https://github.com/subconsciousnetwork/noosphere/commit/a3111c609b308407ef5f766ad51807fcb6ffa847))
+* Replace `noosphere-car` with `iroh-car` throughout the Noosphere crates. ([#492](https://github.com/subconsciousnetwork/noosphere/issues/492)) ([e89d498](https://github.com/subconsciousnetwork/noosphere/commit/e89d49879b3a1d2ce8529e438df7995ae8b4e44f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.6.1 to 0.7.0
+    * noosphere-core bumped from 0.13.1 to 0.13.2
+    * noosphere-sphere bumped from 0.7.1 to 0.8.0
+    * noosphere-api bumped from 0.9.1 to 0.10.0
+    * noosphere-gateway bumped from 0.6.1 to 0.7.0
+    * noosphere bumped from 0.12.1 to 0.12.2
+  * dev-dependencies
+    * noosphere-ns bumped from 0.9.1 to 0.9.2
+
 ## [0.12.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.12.1...noosphere-cli-v0.12.2) (2023-07-10)
 
 

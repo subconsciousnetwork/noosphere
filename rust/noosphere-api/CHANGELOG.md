@@ -69,6 +69,24 @@
     * noosphere-core bumped from 0.13.0 to 0.13.1
     * noosphere-storage bumped from 0.7.0 to 0.7.1
 
+## [0.10.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.9.1...noosphere-api-v0.10.0) (2023-07-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* Replace `noosphere-car` with `iroh-car` throughout the Noosphere crates. ([#492](https://github.com/subconsciousnetwork/noosphere/issues/492))
+
+### Features
+
+* Replace `noosphere-car` with `iroh-car` throughout the Noosphere crates. ([#492](https://github.com/subconsciousnetwork/noosphere/issues/492)) ([e89d498](https://github.com/subconsciousnetwork/noosphere/commit/e89d49879b3a1d2ce8529e438df7995ae8b4e44f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.13.1 to 0.13.2
+
 ## [0.9.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.8.3...noosphere-api-v0.9.0) (2023-07-01)
 
 

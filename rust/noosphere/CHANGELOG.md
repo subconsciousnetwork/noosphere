@@ -66,6 +66,24 @@
     * noosphere-ipfs bumped from 0.5.2 to 0.5.3
     * noosphere-into bumped from 0.9.2 to 0.9.3
 
+## [0.12.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.12.1...noosphere-v0.12.2) (2023-07-19)
+
+
+### Features
+
+* Noosphere version can be read via FFI. Fixes [#477](https://github.com/subconsciousnetwork/noosphere/issues/477) ([#491](https://github.com/subconsciousnetwork/noosphere/issues/491)) ([cfd9937](https://github.com/subconsciousnetwork/noosphere/commit/cfd9937240ac87f8d3436612b3904b89b8bb429e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.13.1 to 0.13.2
+    * noosphere-sphere bumped from 0.7.1 to 0.8.0
+    * noosphere-api bumped from 0.9.1 to 0.10.0
+    * noosphere-ipfs bumped from 0.6.1 to 0.7.0
+    * noosphere-into bumped from 0.10.1 to 0.10.2
+
 ## [0.12.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.12.0...noosphere-v0.12.1) (2023-07-01)
 
 

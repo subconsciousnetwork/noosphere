@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-sphere"
-version = "0.7.1"
+version = "0.8.0"
 edition = "2021"
 description = "High-level access to content, address books and other features of spheres"
 keywords = []
@@ -23,9 +23,9 @@ iroh-car = { workspace = true }
 url = { version = "^2", features = ["serde"] }
 tracing = { workspace = true }
 
-noosphere-core = { version = "0.13.1", path = "../noosphere-core" }
+noosphere-core = { version = "0.13.2", path = "../noosphere-core" }
 noosphere-storage = { version = "0.7.1", path = "../noosphere-storage" }
-noosphere-api = { version = "0.9.1", path = "../noosphere-api" }
+noosphere-api = { version = "0.10.0", path = "../noosphere-api" }
 
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }

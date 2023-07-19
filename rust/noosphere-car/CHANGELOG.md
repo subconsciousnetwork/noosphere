@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-car-v0.2.0...noosphere-car-v0.3.0) (2023-07-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* Replace `noosphere-car` with `iroh-car` throughout the Noosphere crates. ([#492](https://github.com/subconsciousnetwork/noosphere/issues/492))
+
+### Features
+
+* Replace `noosphere-car` with `iroh-car` throughout the Noosphere crates. ([#492](https://github.com/subconsciousnetwork/noosphere/issues/492)) ([e89d498](https://github.com/subconsciousnetwork/noosphere/commit/e89d49879b3a1d2ce8529e438df7995ae8b4e44f))
+
 ## [0.2.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-car-v0.1.2...noosphere-car-v0.2.0) (2023-06-08)
 
 
