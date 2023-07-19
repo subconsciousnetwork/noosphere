@@ -9,10 +9,7 @@ use noosphere_core::data::Did;
 use noosphere_sphere::{SpherePetnameRead, SpherePetnameWrite, SphereWalker};
 use safer_ffi::{char_p::InvalidNulTerminator, prelude::*};
 
-use crate::{
-    error::NoosphereError,
-    ffi::{NsError, TryOrInitialize},
-};
+use crate::ffi::{NsError, TryOrInitialize};
 
 use super::{NsNoosphere, NsSphere};
 
@@ -124,9 +121,8 @@ pub fn ns_sphere_petnames_assigned_get(
             Ok(petnames) => {
                 async_runtime.spawn_blocking(move || callback(context, None, Some(petnames)))
             }
-            Err(error) => async_runtime.spawn_blocking(move || {
-                callback(context, Some(NoosphereError::from(error).into()), None)
-            }),
+            Err(error) => async_runtime
+                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
         };
     });
 }
@@ -189,7 +185,7 @@ pub fn ns_sphere_petname_resolve(
             .block_on(async { sphere.inner().resolve_petname(petname.to_str()).await })?;
         if let Some(version) = version {
             let version_str = version.to_string().try_into().map_err(
-                |error: InvalidNulTerminator<String>| -> NoosphereError { anyhow!(error).into() },
+                |error: InvalidNulTerminator<String>| -> NsError { anyhow!(error).into() },
             )?;
             Ok(Some(version_str))
         } else {

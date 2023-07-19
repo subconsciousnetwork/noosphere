@@ -23,6 +23,7 @@ use crate::{
         Bundle, ChangelogIpld, ContentType, DelegationIpld, Did, Header, IdentityIpld, Link,
         MapOperation, MemoIpld, Mnemonic, RevocationIpld, SphereIpld, TryBundle, Version,
     },
+    error::NoosphereError,
     view::{Content, SphereMutation, SphereRevision, Timeline},
 };
 
@@ -782,7 +783,10 @@ impl<S: BlockStore> Sphere<S> {
     /// Verify that a given authorization is a valid with regards to operating
     /// on this [Sphere]; it is issued by the sphere (or appropriately
     /// delegated), and it has not been revoked.
-    pub async fn verify_authorization(&self, authorization: &Authorization) -> Result<()> {
+    pub async fn verify_authorization(
+        &self,
+        authorization: &Authorization,
+    ) -> Result<(), NoosphereError> {
         let proof_chain = authorization
             .as_proof_chain(&UcanStore(self.store.clone()))
             .await?;
@@ -799,9 +803,9 @@ impl<S: BlockStore> Sphere<S> {
             let link = Link::from(chain_link.ucan().to_cid(cid::multihash::Code::Blake3_256)?);
 
             if delegations.get(&link).await?.is_none() {
-                return Err(anyhow!(
-                    "Authorization {} not found in sphere authority",
-                    link
+                return Err(NoosphereError::InvalidAuthorization(
+                    authorization.clone(),
+                    "Not found in sphere authority".into(),
                 ));
             }
 
@@ -820,7 +824,10 @@ impl<S: BlockStore> Sphere<S> {
                     continue;
                 }
 
-                return Err(anyhow!("Authorization revoked by {}", link));
+                return Err(NoosphereError::InvalidAuthorization(
+                    authorization.clone(),
+                    format!("Revoked by {}", link),
+                ));
             }
 
             for proof in chain_link.proofs() {

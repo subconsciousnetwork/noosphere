@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use noosphere_core::{
     authority::{Author, Authorization},
     data::{Did, Link, Mnemonic},
+    error::NoosphereError,
 };
 use noosphere_storage::Storage;
 
@@ -24,7 +25,10 @@ where
 {
     /// For a given [Authorization], checks that the authorization and all of its
     /// ancester proofs are valid and have not been revoked
-    async fn verify_authorization(&self, authorization: &Authorization) -> Result<()>;
+    async fn verify_authorization(
+        &self,
+        authorization: &Authorization,
+    ) -> Result<(), NoosphereError>;
 
     /// Look up an authorization by a [Did].
     async fn get_authorization(&self, did: &Did) -> Result<Option<Authorization>>;
@@ -42,7 +46,10 @@ where
     C: HasSphereContext<S>,
     S: Storage + 'static,
 {
-    async fn verify_authorization(&self, authorization: &Authorization) -> Result<()> {
+    async fn verify_authorization(
+        &self,
+        authorization: &Authorization,
+    ) -> Result<(), NoosphereError> {
         self.to_sphere()
             .await?
             .verify_authorization(authorization)

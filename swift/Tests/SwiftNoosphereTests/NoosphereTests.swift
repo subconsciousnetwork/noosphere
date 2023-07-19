@@ -635,6 +635,8 @@ final class NoosphereTests: XCTestCase {
                                     (error) in
                                     
                                     assert(error != nil)
+                                    let error_code = ns_error_code_get(error)
+                                    assert(error_code == NS_ERROR_CODE_INVALID_AUTHORIZATION.rawValue)
                                     
                                     ns_string_free(authorization_ptr)
                                     ns_sphere_free(root_sphere)

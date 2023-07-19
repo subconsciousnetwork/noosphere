@@ -7,7 +7,6 @@ use noosphere_sphere::{HasSphereContext, SphereSync, SyncRecovery};
 use safer_ffi::char_p::InvalidNulTerminator;
 use safer_ffi::prelude::*;
 
-use crate::error::NoosphereError;
 use crate::ffi::{NsError, NsNoosphere, NsSphere, TryOrInitialize};
 use crate::sphere::SphereReceipt;
 
@@ -209,9 +208,8 @@ pub fn ns_sphere_sync(
             Ok(cid_string) => {
                 async_runtime.spawn_blocking(move || callback(context, None, Some(cid_string)))
             }
-            Err(error) => async_runtime.spawn_blocking(move || {
-                callback(context, Some(NoosphereError::from(error).into()), None)
-            }),
+            Err(error) => async_runtime
+                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
         };
     });
 }
