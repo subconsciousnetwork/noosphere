@@ -17,6 +17,7 @@ name: 'Container images'
 jobs:
   build-and-push:
     name: 'Build and push'
+    if: ${{ github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     # It would be ideal to run container build jobs sequentially, but the
     # current behavior of Github Workflow "concurrency" prevents this from
