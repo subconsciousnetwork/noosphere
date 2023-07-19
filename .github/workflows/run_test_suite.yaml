@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
       - name: 'Setup Rust'
-        run: | 
+        run: |
           curl -sSf https://sh.rustup.rs | sh -s -- -y
       - name: 'Install environment packages'
         run: |
@@ -63,7 +63,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
       - name: 'Setup Rust'
-        run: | 
+        run: |
           curl -sSf https://sh.rustup.rs | sh -s -- -y
           rustup component add clippy
           rustup component add rustfmt
@@ -82,7 +82,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
       - name: 'Setup Rust'
-        run: | 
+        run: |
           curl -sSf https://sh.rustup.rs | sh -s -- -y
       - name: 'Install environment packages'
         run: |
@@ -101,7 +101,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
       - name: 'Setup Rust'
-        run: | 
+        run: |
           curl -sSf https://sh.rustup.rs | sh -s -- -y
       - name: 'Install environment packages'
         run: |
@@ -119,7 +119,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
       - name: 'Setup Rust'
-        run: | 
+        run: |
           curl -sSf https://sh.rustup.rs | sh -s -- -y
           rustup component add clippy
           rustup component add rustfmt
@@ -136,18 +136,24 @@ jobs:
         shell: bash
       # See: https://github.com/SeleniumHQ/selenium/blob/5d108f9a679634af0bbc387e7e3811bc1565912b/.github/actions/setup-chrome/action.yml
       - name: 'Setup Chrome and chromedriver'
+
         run: |
           wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
           echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee -a /etc/apt/sources.list.d/google-chrome.list
           sudo apt-get update -qqy
           sudo apt-get -qqy install google-chrome-stable
-          CHROME_VERSION=$(google-chrome-stable --version)
-          CHROME_FULL_VERSION=${CHROME_VERSION%%.*}
-          CHROME_MAJOR_VERSION=${CHROME_FULL_VERSION//[!0-9]}
-          sudo rm /etc/apt/sources.list.d/google-chrome.list
-          export CHROMEDRIVER_VERSION=`curl -s https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_MAJOR_VERSION%%.*}`
-          curl -L -O "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
-          unzip chromedriver_linux64.zip && chmod +x chromedriver && sudo mv chromedriver /usr/local/bin
+
+          CHROMEDRIVER_URL=$(curl https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json |
+              jq -r '.channels.Stable.downloads.chromedriver | map(select(.platform == "linux64")) | first.url')
+
+          curl -L -O "$CHROMEDRIVER_URL"
+          unzip chromedriver-linux64.zip
+
+          pushd ./chromedriver-linux64
+          chmod +x chromedriver
+          sudo mv chromedriver /usr/local/bin
+          popd
+
           chromedriver -version
         shell: bash
       - name: 'Run Rust headless browser tests'
@@ -164,7 +170,7 @@ jobs:
       # https://github.com/subconsciousnetwork/noosphere/actions/runs/4682179827/jobs/8295693844
       # - uses: google/wireit@setup-github-actions-caching/v1
       - name: 'Setup Rust'
-        run: | 
+        run: |
           curl -sSf https://sh.rustup.rs | sh -s -- -y
       - uses: actions/setup-node@v3
         with:
@@ -188,13 +194,18 @@ jobs:
           echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee -a /etc/apt/sources.list.d/google-chrome.list
           sudo apt-get update -qqy
           sudo apt-get -qqy install google-chrome-stable
-          CHROME_VERSION=$(google-chrome-stable --version)
-          CHROME_FULL_VERSION=${CHROME_VERSION%%.*}
-          CHROME_MAJOR_VERSION=${CHROME_FULL_VERSION//[!0-9]}
-          sudo rm /etc/apt/sources.list.d/google-chrome.list
-          export CHROMEDRIVER_VERSION=`curl -s https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_MAJOR_VERSION%%.*}`
-          curl -L -O "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
-          unzip chromedriver_linux64.zip && chmod +x chromedriver && sudo mv chromedriver /usr/local/bin
+
+          CHROMEDRIVER_URL=$(curl https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json |
+              jq -r '.channels.Stable.downloads.chromedriver | map(select(.platform == "linux64")) | first.url')
+
+          curl -L -O "$CHROMEDRIVER_URL"
+          unzip chromedriver-linux64.zip
+
+          pushd ./chromedriver-linux64
+          chmod +x chromedriver
+          sudo mv chromedriver /usr/local/bin
+          popd
+
           chromedriver -version
         shell: bash
       - name: 'Install NPM dependencies'
