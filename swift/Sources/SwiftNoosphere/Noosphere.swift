@@ -166,3 +166,22 @@ public func nsSphereAuthorityAuthorizationRevoke(_ noosphere: OpaquePointer!, _ 
         handler.contents(error)
     }
 }
+
+public typealias NsSphereAuthorityAuthorizationsListHandler = (OpaquePointer?, slice_boxed_char_ptr_t?) -> ()
+    
+/// See: ns_sphere_authority_authorizations_list
+public func nsSphereAuthorityAuthorizationsList(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, handler: @escaping NsSphereAuthorityAuthorizationsListHandler) {
+    let context = Unmanaged.passRetained(Box(contents: handler)).toOpaque()
+
+    ns_sphere_authority_authorizations_list(noosphere, sphere, context) {
+        (context, error, authorizations) in
+
+        guard let context = context else {
+            return
+        }
+
+        let handler = Unmanaged<Box<NsSphereAuthorityAuthorizationsListHandler>>.fromOpaque(context).takeRetainedValue()
+
+        handler.contents(error, authorizations)
+    }
+}

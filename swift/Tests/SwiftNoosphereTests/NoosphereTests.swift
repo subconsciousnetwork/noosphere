@@ -553,10 +553,10 @@ final class NoosphereTests: XCTestCase {
             print("Authorization:", authorization)
             
             ns_sphere_save(noosphere, sphere, nil, nil)
-            
-            nsSphereAuthorityEscalate(noosphere, sphere, sphere_mnemonic_ptr) {
-                (error, root_sphere) in
-                
+
+            nsSphereAuthorityAuthorizationsList(noosphere, sphere) {
+                (error, authorizations) in
+
                 if error != nil {
                     let error_message_ptr = ns_error_message_get(error)
                     let error_message = String.init(cString: error_message_ptr!)
@@ -567,12 +567,13 @@ final class NoosphereTests: XCTestCase {
                     ns_error_free(error)
                     return
                 }
-                
-                print("Escalated authority to root")
-                
-                nsSphereAuthorityAuthorizationRevoke(noosphere, root_sphere, authorization_ptr) {
-                    (error) in
 
+                assert(authorizations!.len == 2)
+                ns_string_array_free(authorizations!)
+            
+                nsSphereAuthorityEscalate(noosphere, sphere, sphere_mnemonic_ptr) {
+                    (error, root_sphere) in
+                    
                     if error != nil {
                         let error_message_ptr = ns_error_message_get(error)
                         let error_message = String.init(cString: error_message_ptr!)
@@ -584,12 +585,49 @@ final class NoosphereTests: XCTestCase {
                         return
                     }
                     
-                    print("Authorization revoked!")
+                    print("Escalated authority to root")
                     
-                    ns_string_free(authorization_ptr)
-                    ns_sphere_free(root_sphere)
-                    
-                    expectation.fulfill()
+                    nsSphereAuthorityAuthorizationRevoke(noosphere, root_sphere, authorization_ptr) {
+                        (error) in
+
+                        if error != nil {
+                            let error_message_ptr = ns_error_message_get(error)
+                            let error_message = String.init(cString: error_message_ptr!)
+
+                            print(error_message)
+
+                            ns_string_free(error_message_ptr)
+                            ns_error_free(error)
+                            return
+                        }
+
+                        print("Authorization revoked!")
+
+                        ns_sphere_save(noosphere, root_sphere, nil, nil)
+
+                        nsSphereAuthorityAuthorizationsList(noosphere, root_sphere) {
+                            (error, authorizations) in
+
+                            if error != nil {
+                                let error_message_ptr = ns_error_message_get(error)
+                                let error_message = String.init(cString: error_message_ptr!)
+
+                                print(error_message)
+
+                                ns_string_free(error_message_ptr)
+                                ns_error_free(error)
+                                return
+                            }
+
+                            assert(authorizations!.len == 1)
+
+                            ns_string_array_free(authorizations!)
+                            ns_string_free(authorization_ptr)
+                            ns_sphere_free(root_sphere)
+                            
+                            expectation.fulfill()
+                        }
+                    }
                 }
             }
         }
