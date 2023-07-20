@@ -29,6 +29,25 @@
     * noosphere-storage bumped from 0.7.0 to 0.7.1
     * noosphere-api bumped from 0.9.0 to 0.9.1
 
+## [0.9.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.8.0...noosphere-sphere-v0.9.0) (2023-07-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* C FFI to verify authorizations ([#510](https://github.com/subconsciousnetwork/noosphere/issues/510))
+
+### Features
+
+* C FFI to verify authorizations ([#510](https://github.com/subconsciousnetwork/noosphere/issues/510)) ([ed092fc](https://github.com/subconsciousnetwork/noosphere/commit/ed092fc303f89ca4737f5e67681e2ede8189304d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.13.2 to 0.14.0
+    * noosphere-api bumped from 0.10.0 to 0.11.0
+
 ## [0.8.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.7.1...noosphere-sphere-v0.8.0) (2023-07-19)
 
 
