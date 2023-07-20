@@ -30,14 +30,13 @@ binaries for multiple platforms.
 * Generate [universal binaries] using [lipo] from the static libraries
 * Generate [multiplatform framework bundle] from the universal binaries (`LibNoosphere.xcframework`)
 
-To generate a framework only including `x86_64-apple-darwin`, from the project root, run:
+Running `./scripts/build-framework.sh` will generate headers, static libraries for appropriate architectures, and combine them into a universal binary. To generate a framework only including the host platform (either x86_64-apple-darwin or aarch64-apple-darwin), from the project root, run:
 
 ```sh
 ./scripts/build-framework.sh --lite
 ```
 
 A framework should be created at `./target/framework/debug/LibNoosphere.xcframework`.
-
 
 Generating a multiplatform framework (including universal binaries for macOS, iOS simulator, and aarch64-apple-ios) requires building for 5 different platforms so may take some time. For a multiplatform framework, we probably want to use release optimizations, so also set `--release`. From the project root, run:
 

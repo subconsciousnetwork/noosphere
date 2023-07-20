@@ -19,10 +19,10 @@
     "test": "wireit"
   },
   "dependencies": {
-    "@web/dev-server": "^0.2.3",
-    "esbuild": "^0.18.11",
+    "@web/dev-server": "^0.3.0",
+    "esbuild": "^0.18.15",
     "typescript": "~5.1.6",
-    "wireit": "^0.9.5"
+    "wireit": "^0.10.0"
   },
   "wireit": {
     "build": {
@@ -71,6 +71,6 @@
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",
     "@web/dev-server-esbuild": "^0.4.1",
-    "@web/test-runner": "^0.16.1"
+    "@web/test-runner": "^0.17.0"
   }
 }
