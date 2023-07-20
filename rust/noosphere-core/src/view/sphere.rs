@@ -23,6 +23,7 @@ use crate::{
         Bundle, ChangelogIpld, ContentType, DelegationIpld, Did, Header, IdentityIpld, Link,
         MapOperation, MemoIpld, Mnemonic, RevocationIpld, SphereIpld, TryBundle, Version,
     },
+    error::NoosphereError,
     view::{Content, SphereMutation, SphereRevision, Timeline},
 };
 
@@ -782,7 +783,10 @@ impl<S: BlockStore> Sphere<S> {
     /// Verify that a given authorization is a valid with regards to operating
     /// on this [Sphere]; it is issued by the sphere (or appropriately
     /// delegated), and it has not been revoked.
-    pub async fn verify_authorization(&self, authorization: &Authorization) -> Result<()> {
+    pub async fn verify_authorization(
+        &self,
+        authorization: &Authorization,
+    ) -> Result<(), NoosphereError> {
         let proof_chain = authorization
             .as_proof_chain(&UcanStore(self.store.clone()))
             .await?;
@@ -799,19 +803,19 @@ impl<S: BlockStore> Sphere<S> {
             let link = Link::from(chain_link.ucan().to_cid(cid::multihash::Code::Blake3_256)?);
 
             if delegations.get(&link).await?.is_none() {
-                return Err(anyhow!(
-                    "Authorization {} not found in sphere authority",
-                    link
+                return Err(NoosphereError::InvalidAuthorization(
+                    authorization.clone(),
+                    "Not found in sphere authority".into(),
                 ));
             }
 
+            let ucan_issuer = chain_link.ucan().issuer();
+
             if let Some(revocation) = revocations.get(&link).await? {
-                // NOTE: The implication here is that only the sphere itself can
-                // issue revocations The follow-on implicationis that a user
-                // must provide the sphere mnemonic in order to issue a
-                // revocation
-                if revocation.iss != sphere_identity {
-                    warn!("Revocation for {} had an invalid issuer; expected {}, but found {}; skipping...", link, sphere_identity, revocation.iss);
+                // NOTE: The implication here is that only the sphere itself or
+                // the direct issuer may issue revocations
+                if revocation.iss != sphere_identity || revocation.iss != ucan_issuer {
+                    warn!("Revocation for {} had an invalid issuer; expected {} or {}, but found {}; skipping...", link, ucan_issuer, sphere_identity, revocation.iss);
                     continue;
                 }
 
@@ -820,7 +824,10 @@ impl<S: BlockStore> Sphere<S> {
                     continue;
                 }
 
-                return Err(anyhow!("Authorization revoked by {}", link));
+                return Err(NoosphereError::InvalidAuthorization(
+                    authorization.clone(),
+                    format!("Revoked by {}", link),
+                ));
             }
 
             for proof in chain_link.proofs() {

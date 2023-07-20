@@ -3,15 +3,55 @@ use cid::Cid;
 use noosphere_core::{
     authority::Authorization,
     data::{Did, Jwt, Link, Mnemonic},
+    error::NoosphereError,
 };
 use noosphere_sphere::{HasSphereContext, SphereAuthorityRead, SphereAuthorityWrite, SphereWalker};
 use safer_ffi::{char_p::InvalidNulTerminator, prelude::*};
 use std::ffi::c_void;
 
-use crate::{
-    error::NoosphereError,
-    ffi::{NsError, NsNoosphere, NsSphere},
-};
+use crate::ffi::{NsError, NsNoosphere, NsSphere};
+
+#[ffi_export]
+/// @memberof ns_sphere_t
+///
+/// For a given authorization CID (given as a base64-encoded string), checks
+/// that the authorization and all of its ancester proofs are valid and have not
+/// been revoked.
+///
+/// The callback arguments are (in order):
+///
+///  1. The context argument provided in the original call to
+///     ns_sphere_authority_authorization_verify
+///  2. An owned pointer to an ns_error_t if there was an error (if the
+///     authorization is invalid, there will be an error), otherwise NULL
+pub fn ns_sphere_authority_authorization_verify(
+    noosphere: &NsNoosphere,
+    sphere: &mut NsSphere,
+    cid: char_p::Ref<'_>,
+    context: Option<repr_c::Box<c_void>>,
+    callback: extern "C" fn(Option<repr_c::Box<c_void>>, Option<repr_c::Box<NsError>>),
+) {
+    let sphere = sphere.inner().clone();
+    let cid = cid.to_string();
+    let async_runtime = noosphere.async_runtime();
+
+    noosphere.async_runtime().spawn(async move {
+        let result = async {
+            let cid = Cid::try_from(cid.as_str()).map_err(|error| anyhow!(error))?;
+            let authorization = Authorization::Cid(cid);
+            sphere.verify_authorization(&authorization).await?;
+
+            Ok(()) as Result<_, NoosphereError>
+        }
+        .await;
+
+        match result {
+            Ok(_) => async_runtime.spawn_blocking(move || callback(context, None)),
+            Err(error) => async_runtime
+                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()))),
+        };
+    });
+}
 
 #[ffi_export]
 /// @memberof ns_sphere_t
@@ -59,9 +99,8 @@ pub fn ns_sphere_authority_authorize(
             Ok(authorization) => {
                 async_runtime.spawn_blocking(move || callback(context, None, Some(authorization)))
             }
-            Err(error) => async_runtime.spawn_blocking(move || {
-                callback(context, Some(NoosphereError::from(error).into()), None)
-            }),
+            Err(error) => async_runtime
+                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
         };
     });
 }
@@ -100,9 +139,8 @@ pub fn ns_sphere_authority_authorization_revoke(
 
         match result {
             Ok(_) => async_runtime.spawn_blocking(move || callback(context, None)),
-            Err(error) => async_runtime.spawn_blocking(move || {
-                callback(context, Some(NoosphereError::from(error).into()))
-            }),
+            Err(error) => async_runtime
+                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()))),
         };
     });
 }
@@ -162,7 +200,7 @@ pub fn ns_sphere_authority_authorizations_list(
             Err(error) => async_runtime.spawn_blocking(move || {
                 callback(
                     context,
-                    Some(NoosphereError::from(error).into()),
+                    Some(NsError::from(error).into()),
                     Vec::new().into_boxed_slice().into(),
                 )
             }),
@@ -220,9 +258,8 @@ pub fn ns_sphere_authority_authorization_name(
 
         match result {
             Ok(name) => async_runtime.spawn_blocking(move || callback(context, None, Some(name))),
-            Err(error) => async_runtime.spawn_blocking(move || {
-                callback(context, Some(NoosphereError::from(error).into()), None)
-            }),
+            Err(error) => async_runtime
+                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
         };
     });
 }
@@ -272,9 +309,8 @@ pub fn ns_sphere_authority_authorization_identity(
             Ok(identity) => {
                 async_runtime.spawn_blocking(move || callback(context, None, Some(identity)))
             }
-            Err(error) => async_runtime.spawn_blocking(move || {
-                callback(context, Some(NoosphereError::from(error).into()), None)
-            }),
+            Err(error) => async_runtime
+                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
         };
     });
 }
@@ -327,9 +363,8 @@ pub fn ns_sphere_authority_escalate(
             Ok(sphere) => {
                 async_runtime.spawn_blocking(move || callback(context, None, Some(sphere)))
             }
-            Err(error) => async_runtime.spawn_blocking(move || {
-                callback(context, Some(NoosphereError::from(error).into()), None)
-            }),
+            Err(error) => async_runtime
+                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
         };
     });
 }

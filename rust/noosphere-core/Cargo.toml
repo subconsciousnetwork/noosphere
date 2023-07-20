@@ -33,6 +33,7 @@ async-stream = "~0.3"
 # NOTE: async-once-cell 0.4.0 shipped unstable feature usage
 async-once-cell = "~0.3"
 anyhow = "^1"
+thiserror = { workspace = true }
 fastcdc = "3"
 futures = "~0.3"
 serde = { workspace = true }

@@ -11,7 +11,6 @@ use subtext::{Peer, Slashlink};
 use tokio::{io::AsyncReadExt, sync::Mutex};
 
 use crate::{
-    error::NoosphereError,
     ffi::{NsError, NsHeaders, NsNoosphere, TryOrInitialize},
     platform::{PlatformSphereChannel, PlatformStorage},
 };
@@ -174,9 +173,8 @@ pub fn ns_sphere_traverse_by_petname(
             Ok(maybe_sphere) => {
                 async_runtime.spawn_blocking(move || callback(context, None, maybe_sphere))
             }
-            Err(error) => async_runtime.spawn_blocking(move || {
-                callback(context, Some(NoosphereError::from(error).into()), None)
-            }),
+            Err(error) => async_runtime
+                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
         };
     });
 }
@@ -299,9 +297,8 @@ pub fn ns_sphere_content_read(
             Ok(maybe_file) => {
                 async_runtime.spawn_blocking(move || callback(context, None, maybe_file))
             }
-            Err(error) => async_runtime.spawn_blocking(move || {
-                callback(context, Some(NoosphereError::from(error).into()), None)
-            }),
+            Err(error) => async_runtime
+                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
         };
     });
 }
@@ -604,9 +601,8 @@ pub fn ns_sphere_file_contents_read(
             Ok(maybe_bytes) => {
                 async_runtime.spawn_blocking(move || callback(context, None, Some(maybe_bytes)))
             }
-            Err(error) => async_runtime.spawn_blocking(move || {
-                callback(context, Some(NoosphereError::from(error).into()), None)
-            }),
+            Err(error) => async_runtime
+                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
         };
     });
 }

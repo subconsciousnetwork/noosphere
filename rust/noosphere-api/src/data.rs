@@ -5,6 +5,7 @@ use cid::Cid;
 use noosphere_core::{
     authority::{generate_capability, SphereAbility, SPHERE_SEMANTICS},
     data::{Bundle, Did, Jwt, Link, MemoIpld},
+    error::NoosphereError,
 };
 use noosphere_storage::{base64_decode, base64_encode};
 use reqwest::StatusCode;
@@ -137,6 +138,12 @@ pub enum PushError {
     UpToDate,
     #[error("Internal error")]
     Internal(anyhow::Error),
+}
+
+impl From<NoosphereError> for PushError {
+    fn from(error: NoosphereError) -> Self {
+        error.into()
+    }
 }
 
 impl From<anyhow::Error> for PushError {

@@ -1,4 +1,4 @@
-use noosphere_api::data::PushError;
+use crate::authority::Authorization;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -14,16 +14,13 @@ pub enum NoosphereError {
 
     #[error("Missing configuration: {0}")]
     MissingConfiguration(&'static str),
+
+    #[error("The provided authorization {0} is invalid: {1}")]
+    InvalidAuthorization(Authorization, String),
 }
 
 impl From<anyhow::Error> for NoosphereError {
     fn from(error: anyhow::Error) -> Self {
         NoosphereError::Other(error)
-    }
-}
-
-impl From<NoosphereError> for PushError {
-    fn from(error: NoosphereError) -> Self {
-        error.into()
     }
 }

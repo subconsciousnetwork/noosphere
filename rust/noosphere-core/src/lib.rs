@@ -5,4 +5,5 @@ pub mod authority;
 pub mod data;
 pub mod view;
 
+pub mod error;
 pub mod tracing;

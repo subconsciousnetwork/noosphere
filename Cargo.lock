@@ -3610,6 +3610,7 @@ dependencies = [
  "serde_json",
  "strum",
  "strum_macros 0.24.3",
+ "thiserror",
  "tiny-bip39",
  "tokio",
  "tokio-stream",

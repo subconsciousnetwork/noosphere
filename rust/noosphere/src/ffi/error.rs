@@ -1,9 +1,21 @@
-use crate::error::NoosphereError;
+use noosphere_core::error::NoosphereError;
 use safer_ffi::prelude::*;
 
-impl From<NoosphereError> for repr_c::Box<NsError> {
-    fn from(error: NoosphereError) -> Self {
-        Box::new(NsError { inner: error }).into()
+impl From<NoosphereError> for NsError {
+    fn from(value: NoosphereError) -> Self {
+        NsError { inner: value }
+    }
+}
+
+impl From<NsError> for repr_c::Box<NsError> {
+    fn from(error: NsError) -> Self {
+        Box::new(error).into()
+    }
+}
+
+impl From<anyhow::Error> for NsError {
+    fn from(value: anyhow::Error) -> Self {
+        NsError::from(NoosphereError::from(value))
     }
 }
 
@@ -11,6 +23,7 @@ const NOOSPHERE_ERROR_OTHER: u32 = 1;
 const NOOSPHERE_ERROR_NETWORK_OFFLINE: u32 = 2;
 const NOOSPHERE_ERROR_NO_CREDENTIALS: u32 = 3;
 const NOOSPHERE_ERROR_MISSING_CONFIGURATION: u32 = 4;
+const NOOSPHERE_ERROR_INVALID_AUTHORIZATION: u32 = 5;
 
 #[ffi_export]
 #[derive_ReprC(rename = "ns_error_code")]
@@ -21,6 +34,7 @@ pub enum NsErrorCode {
     NetworkOffline = NOOSPHERE_ERROR_NETWORK_OFFLINE,
     NoCredentials = NOOSPHERE_ERROR_NO_CREDENTIALS,
     MissingConfiguration = NOOSPHERE_ERROR_MISSING_CONFIGURATION,
+    InvalidAuthorization = NOOSPHERE_ERROR_INVALID_AUTHORIZATION,
 }
 
 impl From<u32> for NsErrorCode {
@@ -30,6 +44,7 @@ impl From<u32> for NsErrorCode {
             NOOSPHERE_ERROR_NETWORK_OFFLINE => NsErrorCode::NetworkOffline,
             NOOSPHERE_ERROR_NO_CREDENTIALS => NsErrorCode::NoCredentials,
             NOOSPHERE_ERROR_MISSING_CONFIGURATION => NsErrorCode::MissingConfiguration,
+            NOOSPHERE_ERROR_INVALID_AUTHORIZATION => NsErrorCode::InvalidAuthorization,
             _ => NsErrorCode::Other,
         }
     }
@@ -42,6 +57,7 @@ impl From<&NoosphereError> for NsErrorCode {
             NoosphereError::NetworkOffline => NsErrorCode::NetworkOffline,
             NoosphereError::NoCredentials => NsErrorCode::NoCredentials,
             NoosphereError::MissingConfiguration(_) => NsErrorCode::MissingConfiguration,
+            NoosphereError::InvalidAuthorization(_, _) => NsErrorCode::InvalidAuthorization,
         }
     }
 }
@@ -109,7 +125,7 @@ where
 }
 
 impl TryOrInitialize<repr_c::Box<NsError>> for Option<Out<'_, repr_c::Box<NsError>>> {
-    type InnerError = NoosphereError;
+    type InnerError = NsError;
 
     fn late_initialize(self, error: repr_c::Box<NsError>) {
         if let Some(out_error) = self {
