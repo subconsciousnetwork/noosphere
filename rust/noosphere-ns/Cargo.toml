@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-ns"
-version = "0.9.2"
+version = "0.9.3"
 edition = "2021"
 description = "A P2P name system for Noosphere"
 keywords = [
@@ -37,13 +37,13 @@ ucan = { workspace = true }
 ucan-key-support = { workspace = true }
 tokio = { version = "1.28", features = ["io-util", "io-std", "sync", "macros", "rt", "rt-multi-thread"] }
 noosphere-storage = { version = "0.7.1", path = "../noosphere-storage" }
-noosphere-core = { version = "0.13.2", path = "../noosphere-core" }
+noosphere-core = { version = "0.14.0", path = "../noosphere-core" }
 libp2p = { version = "0.51.3", default-features = false, features = [ "ed25519", "identify", "dns", "kad", "macros", "noise", "serde", "tcp", "tokio", "yamux" ] }
 void = { workspace = true }
 
 # noosphere_ns::bin
-noosphere = { version = "0.12.2", path = "../noosphere", optional = true }
-noosphere-ipfs = { version = "0.7.0", path = "../noosphere-ipfs", optional = true }
+noosphere = { version = "0.13.0", path = "../noosphere", optional = true }
+noosphere-ipfs = { version = "0.7.1", path = "../noosphere-ipfs", optional = true }
 clap = { version = "^4.1", features = ["derive"], optional = true }
 home = { version = "~0.5", optional = true }
 toml = { version = "~0.5", optional = true }
