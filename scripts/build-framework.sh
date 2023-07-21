@@ -52,7 +52,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 UNAME=$(uname -m)
-if [[ $UNAME == "aarch64" ]]; then
+if [[ $UNAME == "aarch64" || $UNAME == "arm64" ]]; then
   HOST_PLATFORM="aarch64-apple-darwin"
   OTHER_PLATFORM="x86_64-apple-darwin"
 elif [[ $UNAME == "x86_64" ]]; then

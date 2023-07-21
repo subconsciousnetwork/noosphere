@@ -24,7 +24,7 @@ cli((CLI))
 noosphere --> api
 noosphere --> core
 noosphere --> storage
-noosphere --> ipfs 
+noosphere --> ipfs
 noosphere --> sphere
 noosphere -. wasm .-> into
 noosphere -. dev .-> sphere
@@ -32,12 +32,12 @@ noosphere -. dev .-> sphere
 api --> core
 api --> storage
 
-cli --> api 
+cli --> api
 cli --> core
 cli --> gateway
 cli --> ipfs
-cli --> noosphere 
-cli --> storage 
+cli --> noosphere
+cli --> storage
 cli --> sphere
 
 collections --> storage
@@ -49,15 +49,15 @@ gateway --> api
 gateway --> core
 gateway --> ipfs
 gateway --> noosphere
-gateway --> ns 
-gateway --> sphere 
+gateway --> ns
+gateway --> sphere
 gateway --> storage
 
 into --> core
 into --> storage
 into --> sphere
 
-ipfs -. !wasm .-> core 
+ipfs -. !wasm .-> core
 ipfs --> storage
 
 ns --> storage
@@ -65,8 +65,8 @@ ns --> core
 ns --> noosphere
 
 sphere --> core
-sphere --> storage 
-sphere --> api 
+sphere --> storage
+sphere --> api
 
 ```
 
@@ -77,14 +77,14 @@ sphere --> api
 Several platform-specific dependencies must be installed on your platform,
 and are needed to build Noosphere:
 
-* [OpenSSL]
-* [Protobuf Compiler]
-* [Cmake]
+- [OpenSSL]
+- [Protobuf Compiler]
+- [Cmake]
 
 Additional dependencies needed to build the WASM artifact:
 
-* [jq]
-* [binaryen]
+- [jq]
+- [binaryen]
 
 #### Linux (apt)
 
@@ -103,7 +103,7 @@ brew install openssl protobuf cmake jq binaryen
 **Importantly:** you need an up-to-date Rust toolchain. The most reliable way to
 ensure you have this is to follow the instructions on https://rustup.rs/
 
-*Minimum supported rustc version: 1.65.0*
+_Minimum supported rustc version: 1.70.0_
 
 If you wish to compile for targets other than your local platform target, you
 can use rustup to get other targets easily. For example:

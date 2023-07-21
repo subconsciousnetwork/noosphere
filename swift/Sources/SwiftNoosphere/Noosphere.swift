@@ -204,3 +204,41 @@ public func nsSphereAuthorityAuthorizationsList(_ noosphere: OpaquePointer!, _ s
         handler.contents(error, authorizations)
     }
 }
+
+public typealias NsSphereAuthorityAuthorizationNameHandler = (OpaquePointer?, UnsafeMutablePointer<CChar>?) -> ()
+    
+/// See: ns_sphere_authority_authorization_name
+public func nsSphereAuthorityAuthorizationName(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, _ authorization: UnsafePointer<CChar>!, handler: @escaping NsSphereAuthorityAuthorizationNameHandler) {
+    let context = Unmanaged.passRetained(Box(contents: handler)).toOpaque()
+
+    ns_sphere_authority_authorization_name(noosphere, sphere, authorization, context) {
+        (context, error, name) in
+
+        guard let context = context else {
+            return
+        }
+
+        let handler = Unmanaged<Box<NsSphereAuthorityAuthorizationNameHandler>>.fromOpaque(context).takeRetainedValue()
+
+        handler.contents(error, name)
+    }
+}
+
+public typealias NsSphereAuthorityAuthorizationIdentityHandler = (OpaquePointer?, UnsafeMutablePointer<CChar>?) -> ()
+    
+/// See: ns_sphere_authority_authorization_identity
+public func nsSphereAuthorityAuthorizationIdentity(_ noosphere: OpaquePointer!, _ sphere: OpaquePointer!, _ authorization: UnsafePointer<CChar>!, handler: @escaping NsSphereAuthorityAuthorizationIdentityHandler) {
+    let context = Unmanaged.passRetained(Box(contents: handler)).toOpaque()
+
+    ns_sphere_authority_authorization_identity(noosphere, sphere, authorization, context) {
+        (context, error, identity) in
+
+        guard let context = context else {
+            return
+        }
+
+        let handler = Unmanaged<Box<NsSphereAuthorityAuthorizationIdentityHandler>>.fromOpaque(context).takeRetainedValue()
+
+        handler.contents(error, identity)
+    }
+}

@@ -33,7 +33,6 @@ pub fn ns_sphere_authority_authorization_verify(
 ) {
     let sphere = sphere.inner().clone();
     let cid = cid.to_string();
-    let async_runtime = noosphere.async_runtime();
 
     noosphere.async_runtime().spawn(async move {
         let result = async {
@@ -46,9 +45,10 @@ pub fn ns_sphere_authority_authorization_verify(
         .await;
 
         match result {
-            Ok(_) => async_runtime.spawn_blocking(move || callback(context, None)),
-            Err(error) => async_runtime
-                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()))),
+            Ok(_) => tokio::task::spawn_blocking(move || callback(context, None)),
+            Err(error) => tokio::task::spawn_blocking(move || {
+                callback(context, Some(NsError::from(error).into()))
+            }),
         };
     });
 }
@@ -81,7 +81,6 @@ pub fn ns_sphere_authority_authorize(
     let mut sphere = sphere.inner_mut().clone();
     let name = name.to_string();
     let did = Did(did.to_string());
-    let async_runtime = noosphere.async_runtime();
 
     noosphere.async_runtime().spawn(async move {
         let result = async {
@@ -97,10 +96,11 @@ pub fn ns_sphere_authority_authorize(
 
         match result {
             Ok(authorization) => {
-                async_runtime.spawn_blocking(move || callback(context, None, Some(authorization)))
+                tokio::task::spawn_blocking(move || callback(context, None, Some(authorization)))
             }
-            Err(error) => async_runtime
-                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
+            Err(error) => tokio::task::spawn_blocking(move || {
+                callback(context, Some(NsError::from(error).into()), None)
+            }),
         };
     });
 }
@@ -125,7 +125,6 @@ pub fn ns_sphere_authority_authorization_revoke(
 ) {
     let mut sphere = sphere.inner_mut().clone();
     let cid = cid.to_string();
-    let async_runtime = noosphere.async_runtime();
 
     noosphere.async_runtime().spawn(async move {
         let result = async {
@@ -138,9 +137,10 @@ pub fn ns_sphere_authority_authorization_revoke(
         .await;
 
         match result {
-            Ok(_) => async_runtime.spawn_blocking(move || callback(context, None)),
-            Err(error) => async_runtime
-                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()))),
+            Ok(_) => tokio::task::spawn_blocking(move || callback(context, None)),
+            Err(error) => tokio::task::spawn_blocking(move || {
+                callback(context, Some(NsError::from(error).into()))
+            }),
         };
     });
 }
@@ -171,7 +171,6 @@ pub fn ns_sphere_authority_authorizations_list(
     ),
 ) {
     let sphere = sphere.inner().clone();
-    let async_runtime = noosphere.async_runtime();
 
     noosphere.async_runtime().spawn(async move {
         let result = async {
@@ -195,9 +194,9 @@ pub fn ns_sphere_authority_authorizations_list(
 
         match result {
             Ok(authorizations) => {
-                async_runtime.spawn_blocking(move || callback(context, None, authorizations))
+                tokio::task::spawn_blocking(move || callback(context, None, authorizations))
             }
-            Err(error) => async_runtime.spawn_blocking(move || {
+            Err(error) => tokio::task::spawn_blocking(move || {
                 callback(
                     context,
                     Some(NsError::from(error).into()),
@@ -208,6 +207,7 @@ pub fn ns_sphere_authority_authorizations_list(
     });
 }
 
+#[ffi_export]
 /// @memberof ns_sphere_t
 ///
 /// Get the name associated with the given authorization. The authorization
@@ -233,7 +233,6 @@ pub fn ns_sphere_authority_authorization_name(
 ) {
     let sphere = sphere.inner().clone();
     let authorization = authorization.to_string();
-    let async_runtime = noosphere.async_runtime();
 
     noosphere.async_runtime().spawn(async move {
         let result = async {
@@ -257,13 +256,15 @@ pub fn ns_sphere_authority_authorization_name(
         .await;
 
         match result {
-            Ok(name) => async_runtime.spawn_blocking(move || callback(context, None, Some(name))),
-            Err(error) => async_runtime
-                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
+            Ok(name) => tokio::task::spawn_blocking(move || callback(context, None, Some(name))),
+            Err(error) => tokio::task::spawn_blocking(move || {
+                callback(context, Some(NsError::from(error).into()), None)
+            }),
         };
     });
 }
 
+#[ffi_export]
 /// @memberof ns_sphere_t
 ///
 /// Get the DID associated with the given authorization. The authorization should be
@@ -289,7 +290,6 @@ pub fn ns_sphere_authority_authorization_identity(
 ) {
     let sphere = sphere.inner().clone();
     let authorization = authorization.to_string();
-    let async_runtime = noosphere.async_runtime();
 
     noosphere.async_runtime().spawn(async move {
         let result = async {
@@ -307,10 +307,11 @@ pub fn ns_sphere_authority_authorization_identity(
 
         match result {
             Ok(identity) => {
-                async_runtime.spawn_blocking(move || callback(context, None, Some(identity)))
+                tokio::task::spawn_blocking(move || callback(context, None, Some(identity)))
             }
-            Err(error) => async_runtime
-                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
+            Err(error) => tokio::task::spawn_blocking(move || {
+                callback(context, Some(NsError::from(error).into()), None)
+            }),
         };
     });
 }
@@ -346,7 +347,6 @@ pub fn ns_sphere_authority_escalate(
 ) {
     let sphere = sphere.inner().clone();
     let mnemonic = Mnemonic(mnemonic.to_string());
-    let async_runtime = noosphere.async_runtime();
 
     noosphere.async_runtime().spawn(async move {
         let result = async {
@@ -361,10 +361,11 @@ pub fn ns_sphere_authority_escalate(
 
         match result {
             Ok(sphere) => {
-                async_runtime.spawn_blocking(move || callback(context, None, Some(sphere)))
+                tokio::task::spawn_blocking(move || callback(context, None, Some(sphere)))
             }
-            Err(error) => async_runtime
-                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
+            Err(error) => tokio::task::spawn_blocking(move || {
+                callback(context, Some(NsError::from(error).into()), None)
+            }),
         };
     });
 }

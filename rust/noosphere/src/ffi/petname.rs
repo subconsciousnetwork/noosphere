@@ -102,7 +102,6 @@ pub fn ns_sphere_petnames_assigned_get(
 ) {
     let sphere = sphere.inner().clone();
     let did = Did(peer_identity.to_string());
-    let async_runtime = noosphere.async_runtime();
 
     noosphere.async_runtime().spawn(async move {
         let result = async {
@@ -119,10 +118,11 @@ pub fn ns_sphere_petnames_assigned_get(
 
         match result {
             Ok(petnames) => {
-                async_runtime.spawn_blocking(move || callback(context, None, Some(petnames)))
+                tokio::task::spawn_blocking(move || callback(context, None, Some(petnames)))
             }
-            Err(error) => async_runtime
-                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
+            Err(error) => tokio::task::spawn_blocking(move || {
+                callback(context, Some(NsError::from(error).into()), None)
+            }),
         };
     });
 }

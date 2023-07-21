@@ -86,7 +86,7 @@ pub fn ns_sphere_create(
         Ok(Box::<NsSphereReceipt>::new(
             noosphere
                 .async_runtime()
-                .block_on(noosphere.inner_mut().create_sphere(owner_key_name.to_str()))
+                .block_on(noosphere.inner().create_sphere(owner_key_name.to_str()))
                 .map(|receipt| receipt.into())?,
         )
         .into())
@@ -114,7 +114,7 @@ pub fn ns_sphere_join(
         );
         noosphere
             .async_runtime()
-            .block_on(noosphere.inner_mut().join_sphere(
+            .block_on(noosphere.inner().join_sphere(
                 &Did::from(sphere_identity.to_str()),
                 local_key_name.to_str(),
                 Some(&authorization),
@@ -186,7 +186,6 @@ pub fn ns_sphere_sync(
         Option<char_p::Box>,
     ),
 ) {
-    let async_runtime = noosphere.async_runtime();
     let mut sphere_channel = sphere.to_channel();
 
     noosphere.async_runtime().spawn(async move {
@@ -206,10 +205,11 @@ pub fn ns_sphere_sync(
 
         match result {
             Ok(cid_string) => {
-                async_runtime.spawn_blocking(move || callback(context, None, Some(cid_string)))
+                tokio::task::spawn_blocking(move || callback(context, None, Some(cid_string)))
             }
-            Err(error) => async_runtime
-                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
+            Err(error) => tokio::task::spawn_blocking(move || {
+                callback(context, Some(NsError::from(error).into()), None)
+            }),
         };
     });
 }

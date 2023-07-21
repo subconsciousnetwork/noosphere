@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{cell::OnceCell, time::Duration};
 
 use crate::{
     ffi::{NsError, TryOrInitialize},
@@ -30,7 +30,9 @@ const NOOSPHERE_VERSION_PATCH: u32 = pkg_version_patch!();
 /// Root noosphere context, entrypoint of the Noosphere API.
 pub struct NsNoosphere {
     inner: NoosphereContext,
-    async_runtime: Arc<TokioRuntime>,
+    // NOTE: We are using a [OnceCell] primarily so that we can safely
+    // take the value at "drop" time.
+    async_runtime: OnceCell<TokioRuntime>,
 }
 
 impl NsNoosphere {
@@ -52,12 +54,14 @@ impl NsNoosphere {
                     ipfs_gateway_url: None,
                 },
             })?,
-            async_runtime: Arc::new(TokioRuntime::new()?),
+            async_runtime: OnceCell::from(TokioRuntime::new()?),
         })
     }
 
-    pub fn async_runtime(&self) -> Arc<TokioRuntime> {
-        self.async_runtime.clone()
+    pub fn async_runtime(&self) -> &TokioRuntime {
+        // NOTE: Unwrap is safe because we don't allow initializing
+        // [NsNoosphere] with an empty [OnceCell]
+        self.async_runtime.get().unwrap()
     }
 
     pub fn inner(&self) -> &NoosphereContext {
@@ -66,6 +70,14 @@ impl NsNoosphere {
 
     pub fn inner_mut(&mut self) -> &mut NoosphereContext {
         &mut self.inner
+    }
+}
+
+impl Drop for NsNoosphere {
+    fn drop(&mut self) {
+        if let Some(async_runtime) = self.async_runtime.take() {
+            async_runtime.shutdown_timeout(Duration::from_secs(60));
+        }
     }
 }
 
@@ -105,10 +117,15 @@ pub fn ns_initialize(
 
 #[ffi_export]
 /// @memberof ns_noosphere_t
+///
 /// Deallocate a ns_noosphere_t instance.
 ///
-/// Note that this will also deallocate every ns_sphere_t that remains
-/// active within the ns_noosphere_t.
+/// Disposal of the ns_noosphere_t may take up to 60 seconds, as the underlying
+/// implementation will give that amount of time for outstanding asynchronous
+/// tasks to complete.
+///
+/// This will also deallocate every ns_sphere_t that remains active within the
+/// ns_noosphere_t.
 pub fn ns_free(noosphere: repr_c::Box<NsNoosphere>) {
     drop(noosphere)
 }
