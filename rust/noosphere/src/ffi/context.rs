@@ -147,7 +147,6 @@ pub fn ns_sphere_traverse_by_petname(
     ),
 ) {
     let sphere = sphere.inner().clone();
-    let async_runtime = noosphere.async_runtime();
     let raw_petnames = format!("@{}", petname.to_str());
 
     noosphere.async_runtime().spawn(async move {
@@ -171,10 +170,11 @@ pub fn ns_sphere_traverse_by_petname(
 
         match result {
             Ok(maybe_sphere) => {
-                async_runtime.spawn_blocking(move || callback(context, None, maybe_sphere))
+                tokio::task::spawn_blocking(move || callback(context, None, maybe_sphere))
             }
-            Err(error) => async_runtime
-                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
+            Err(error) => tokio::task::spawn_blocking(move || {
+                callback(context, Some(NsError::from(error).into()), None)
+            }),
         };
     });
 }
@@ -256,7 +256,6 @@ pub fn ns_sphere_content_read(
 ) {
     let sphere = sphere.inner().clone();
     let slashlink = slashlink.to_string();
-    let async_runtime = noosphere.async_runtime();
 
     noosphere.async_runtime().spawn(async move {
         let result = async {
@@ -295,10 +294,11 @@ pub fn ns_sphere_content_read(
 
         match result {
             Ok(maybe_file) => {
-                async_runtime.spawn_blocking(move || callback(context, None, maybe_file))
+                tokio::task::spawn_blocking(move || callback(context, None, maybe_file))
             }
-            Err(error) => async_runtime
-                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
+            Err(error) => tokio::task::spawn_blocking(move || {
+                callback(context, Some(NsError::from(error).into()), None)
+            }),
         };
     });
 }
@@ -580,8 +580,6 @@ pub fn ns_sphere_file_contents_read(
         Option<c_slice::Box<u8>>,
     ),
 ) {
-    let async_runtime = noosphere.async_runtime();
-
     noosphere.async_runtime().spawn(async move {
         let result = async {
             let mut buffer = Vec::new();
@@ -599,10 +597,11 @@ pub fn ns_sphere_file_contents_read(
 
         match result {
             Ok(maybe_bytes) => {
-                async_runtime.spawn_blocking(move || callback(context, None, Some(maybe_bytes)))
+                tokio::task::spawn_blocking(move || callback(context, None, Some(maybe_bytes)))
             }
-            Err(error) => async_runtime
-                .spawn_blocking(move || callback(context, Some(NsError::from(error).into()), None)),
+            Err(error) => tokio::task::spawn_blocking(move || {
+                callback(context, Some(NsError::from(error).into()), None)
+            }),
         };
     });
 }
@@ -727,6 +726,30 @@ pub fn ns_sphere_identity(
         match noosphere
             .async_runtime()
             .block_on(async { sphere.inner().identity().await })
+        {
+            Ok(identity) => identity
+                .to_string()
+                .try_into()
+                .map_err(|error: InvalidNulTerminator<String>| anyhow!(error).into()),
+            Err(error) => Err(anyhow!(error).into()),
+        }
+    })
+}
+
+#[ffi_export]
+/// @memberof ns_sphere_t
+///
+/// Get the identity (a DID encoded as a UTF-8 string) of the author that is currently
+/// reading from and/or writing to a given ns_sphere_t
+pub fn ns_sphere_author_identity(
+    noosphere: &NsNoosphere,
+    sphere: &NsSphere,
+    error_out: Option<Out<'_, repr_c::Box<NsError>>>,
+) -> Option<char_p::Box> {
+    error_out.try_or_initialize(|| {
+        match noosphere
+            .async_runtime()
+            .block_on(async { sphere.inner().sphere_context().await?.author().did().await })
         {
             Ok(identity) => identity
                 .to_string()

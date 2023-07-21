@@ -30,16 +30,12 @@ use crate::{
     storage::StorageLayout,
 };
 
+#[derive(Default)]
 enum SphereInitialization {
+    #[default]
     Create,
     Join(Did),
     Open(Option<Did>),
-}
-
-impl Default for SphereInitialization {
-    fn default() -> Self {
-        SphereInitialization::Create
-    }
 }
 
 /// The effect of building a [SphereContext] with a [SphereContextBuilder] may

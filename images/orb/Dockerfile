@@ -1,4 +1,4 @@
-FROM rust:1.66 as builder
+FROM rust:1.70 as builder
 
 WORKDIR /noosphere
 
