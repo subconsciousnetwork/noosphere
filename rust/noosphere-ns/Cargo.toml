@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-ns"
-version = "0.9.3"
+version = "0.9.4"
 edition = "2021"
 description = "A P2P name system for Noosphere"
 keywords = [
@@ -42,7 +42,7 @@ libp2p = { version = "0.51.3", default-features = false, features = [ "ed25519",
 void = { workspace = true }
 
 # noosphere_ns::bin
-noosphere = { version = "0.13.0", path = "../noosphere", optional = true }
+noosphere = { version = "0.13.1", path = "../noosphere", optional = true }
 noosphere-ipfs = { version = "0.7.1", path = "../noosphere-ipfs", optional = true }
 clap = { version = "^4.3", features = ["derive"], optional = true }
 home = { version = "~0.5", optional = true }

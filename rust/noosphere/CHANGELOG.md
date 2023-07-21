@@ -66,6 +66,13 @@
     * noosphere-ipfs bumped from 0.5.2 to 0.5.3
     * noosphere-into bumped from 0.9.2 to 0.9.3
 
+## [0.13.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.13.0...noosphere-v0.13.1) (2023-07-21)
+
+
+### Features
+
+* Safer cleanup when dropping Noosphere ([#521](https://github.com/subconsciousnetwork/noosphere/issues/521)) ([d806c02](https://github.com/subconsciousnetwork/noosphere/commit/d806c0267cf54ce5e2bf0ba64dea8a145306f4f4))
+
 ## [0.13.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.12.2...noosphere-v0.13.0) (2023-07-20)
 
 
