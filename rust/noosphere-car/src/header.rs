@@ -80,9 +80,9 @@ impl From<Vec<Cid>> for CarHeaderV1 {
 
 #[cfg(test)]
 mod tests {
+    use cid::multihash::{Code, MultihashDigest};
     use libipld::codec::{Decode, Encode};
     use libipld_cbor::DagCborCodec;
-    use multihash::MultihashDigest;
 
     use super::*;
 
@@ -95,7 +95,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), test)]
     fn symmetric_header_v1() {
-        let digest = multihash::Code::Blake3_256.digest(b"test");
+        let digest = Code::Blake3_256.digest(b"test");
         let cid = Cid::new_v1(DagCborCodec.into(), digest);
 
         let header = CarHeaderV1::from(vec![cid]);

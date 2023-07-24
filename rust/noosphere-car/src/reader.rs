@@ -74,12 +74,13 @@ where
 mod tests {
     use std::io::Cursor;
 
-    use cid::Cid;
+    use crate::{header::CarHeaderV1, writer::CarWriter};
+    use cid::{
+        multihash::{Code, MultihashDigest},
+        Cid,
+    };
     use futures::TryStreamExt;
     use libipld_cbor::DagCborCodec;
-    use multihash::MultihashDigest;
-
-    use crate::{header::CarHeaderV1, writer::CarWriter};
 
     use super::*;
 
@@ -92,10 +93,10 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn car_write_read() {
-        let digest_test = multihash::Code::Blake3_256.digest(b"test");
+        let digest_test = Code::Blake3_256.digest(b"test");
         let cid_test = Cid::new_v1(DagCborCodec.into(), digest_test);
 
-        let digest_foo = multihash::Code::Blake3_256.digest(b"foo");
+        let digest_foo = Code::Blake3_256.digest(b"foo");
         let cid_foo = Cid::new_v1(DagCborCodec.into(), digest_foo);
 
         let header = CarHeader::V1(CarHeaderV1::from(vec![cid_foo]));
