@@ -25,7 +25,6 @@ serde = { workspace = true }
 serde_bytes = "0.11"
 serde_ipld_dagcbor = "0.2"
 byteorder = "^1.4"
-multihash = { workspace = true }
 # NOTE: async-once-cell 0.4.0 shipped unstable feature usage
 async-once-cell = "0.3"
 async-recursion = "^1"
