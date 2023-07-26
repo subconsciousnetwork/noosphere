@@ -19,6 +19,7 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = { version = "1" }
+axum = { version = "^0.6.18" }
 cid = { version = "0.10" }
 gloo-timers = { version = "0.2", features = ["futures"] }
 iroh-car = { version = "^0.3.0" }
