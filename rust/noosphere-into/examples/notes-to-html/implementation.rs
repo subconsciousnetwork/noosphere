@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use axum::{http::StatusCode, response::IntoResponse, routing::get_service};
+use axum::{error_handling::HandleErrorLayer, http::StatusCode, routing::get_service};
 use noosphere_into::{sphere_into_html, NativeFs};
 use noosphere_sphere::{
     HasMutableSphereContext, SphereContentWrite, SphereContext, SphereContextKey, SphereCursor,
@@ -91,7 +91,10 @@ pub async fn main() -> Result<()> {
 
     sphere_into_html(cursor, &native_fs).await?;
 
-    let app = get_service(ServeDir::new(html_root.path())).handle_error(handle_error);
+    let app =
+        get_service(ServeDir::new(html_root.path())).layer(HandleErrorLayer::new(|_| async {
+            (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong...")
+        }));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 
@@ -102,10 +105,6 @@ pub async fn main() -> Result<()> {
         .await?;
 
     Ok(())
-}
-
-async fn handle_error(_in: std::io::Error) -> impl IntoResponse {
-    (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong...")
 }
 
 pub fn capitalize(s: &str) -> String {
