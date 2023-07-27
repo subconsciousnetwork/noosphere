@@ -134,7 +134,7 @@ impl SphereWriter {
         );
 
         if file_path.exists() {
-            remove_symlink_file(&file_path)?;
+            remove_symlink_file(file_path)?;
         }
 
         symlink_file(relative_peer_content_path, file_path)?;

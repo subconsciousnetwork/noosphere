@@ -165,6 +165,7 @@ mod multiplayer {
         SphereSync, SyncRecovery,
     };
     use serde_json::Value;
+    use tracing::*;
     use url::Url;
 
     #[tokio::test(flavor = "multi_thread")]
