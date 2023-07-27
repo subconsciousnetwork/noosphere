@@ -28,7 +28,7 @@ bytes = "^1"
 
 tokio = { version = "^1", features = ["full"] }
 tokio-stream = "~0.1"
-axum = { version = "0.6.11", features = ["headers", "macros"] }
+axum = { version = "0.6.18", features = ["headers", "macros"] }
 tower = { workspace = true }
 tower-http = { workspace = true, features = ["cors", "trace"] }
 async-trait = "~0.1"
