@@ -1,4 +1,5 @@
 use anyhow::Result;
+use base64::prelude::{Engine, BASE64_URL_SAFE_NO_PAD};
 use cid::{
     multihash::{Code, MultihashDigest},
     Cid,
@@ -12,12 +13,14 @@ use serde::{de::DeserializeOwned, Serialize};
 
 /// Encode some bytes as an unpadded URL-safe base64 string
 pub fn base64_encode(data: &[u8]) -> Result<String> {
-    Ok(base64::encode_config(data, base64::URL_SAFE_NO_PAD))
+    Ok(BASE64_URL_SAFE_NO_PAD.encode(data))
 }
 
 /// Decode some bytes from an unpadded URL-safe base64 string
 pub fn base64_decode(encoded: &str) -> Result<Vec<u8>> {
-    Ok(base64::decode_config(encoded, base64::URL_SAFE_NO_PAD)?)
+    BASE64_URL_SAFE_NO_PAD
+        .decode(encoded)
+        .map_err(anyhow::Error::from)
 }
 
 /// Produces a CID for a block with a Blake3_256 hash; note that the bytes are
