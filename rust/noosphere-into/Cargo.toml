@@ -50,7 +50,7 @@ wasm-bindgen-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 # Mostly these dependencies are used in the examples
-tokio = { version = "^1", features = ["full"] }
+axum = { workspace = true }
 tempfile = { workspace = true }
-axum = "~0.6"
+tokio = { version = "^1", features = ["full"] }
 tower-http = { workspace = true, features = ["fs", "trace"] }

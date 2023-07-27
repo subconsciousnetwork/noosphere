@@ -2,7 +2,7 @@ use crate::server::{handlers, routes::Route};
 use crate::{DhtClient, NameSystem};
 use anyhow::Result;
 use axum::routing::{delete, get, post};
-use axum::{Extension, Router, Server};
+use axum::{Router, Server};
 use std::net::TcpListener;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
@@ -30,8 +30,7 @@ pub async fn start_name_system_api_server(
         .route(&Route::GetRecord.to_string(), get(handlers::get_record))
         .route(&Route::PostRecord.to_string(), post(handlers::post_record))
         .route(&Route::Bootstrap.to_string(), post(handlers::bootstrap))
-        .layer(Extension(ns))
-        .layer(Extension(peer_id))
+        .with_state(handlers::RouterState { ns, peer_id })
         .layer(TraceLayer::new_for_http());
 
     Server::from_tcp(listener)?
