@@ -31,7 +31,7 @@ ucan = { workspace = true }
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
 serde = { workspace = true }
-base64 = "=0.13.0"
+base64 = "=0.21.0"
 url = { version = "^2" }
 
 [dev-dependencies]
