@@ -85,7 +85,13 @@ pub enum NameSystemJob<C> {
         since: Option<Link<MemoIpld>>,
     },
     /// Publish a link record (given as a [Jwt]) to the name system
-    Publish { context: C, record: LinkRecord },
+    Publish {
+        context: C,
+        record: LinkRecord,
+        /// Indicating whether this is a republish, where expiry
+        /// is not validated.
+        republish: bool,
+    },
 }
 
 pub fn start_name_system<C, S>(
@@ -145,6 +151,7 @@ where
             if let Err(error) = tx.send(NameSystemJob::Publish {
                 context: local_sphere.to_owned(),
                 record,
+                republish: true,
             }) {
                 warn!("Failed to request name record publish: {}", error);
             }
@@ -220,11 +227,15 @@ where
     let run_job = with_client.invoke(|client| async move {
         debug!("Running {}", job);
         match job {
-            NameSystemJob::Publish { record, context } => {
+            NameSystemJob::Publish {
+                record,
+                context,
+                republish,
+            } => {
                 if let Err(error) = set_counterpart_record(context, &record).await {
                     warn!("Could not set counterpart record on sphere: {error}");
                 }
-                if record.has_publishable_timeframe() {
+                if republish || record.has_publishable_timeframe() {
                     client.publish(record).await?;
                 } else {
                     return Err(anyhow!("Record is expired and cannot be published."));
@@ -546,6 +557,7 @@ mod tests {
             NameSystemJob::Publish {
                 context: sphere.clone(),
                 record,
+                republish: false,
             },
             &mut with_client,
             &ipfs_url,
@@ -557,13 +569,27 @@ mod tests {
         assert!(process_job(
             NameSystemJob::Publish {
                 context: sphere.clone(),
-                record: expired,
+                record: expired.clone(),
+                republish: false,
             },
             &mut with_client,
             &ipfs_url,
         )
         .await
         .is_err());
+
+        // Republished records however can be published if expired.
+        assert!(process_job(
+            NameSystemJob::Publish {
+                context: sphere.clone(),
+                record: expired,
+                republish: true,
+            },
+            &mut with_client,
+            &ipfs_url,
+        )
+        .await
+        .is_ok());
 
         Ok(())
     }
