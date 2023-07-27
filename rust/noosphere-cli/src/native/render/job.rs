@@ -154,7 +154,7 @@ where
             cursor.mount_at(&version).await?;
 
             for slug in changes {
-                trace!("Buffering change to {}", slug);
+                trace!(version = ?version, slug = ?slug, "Buffering change...");
                 match cursor.read(&slug).await? {
                     Some(file) => content_change_buffer.add(slug, file)?,
                     None => content_change_buffer.remove(&slug)?,

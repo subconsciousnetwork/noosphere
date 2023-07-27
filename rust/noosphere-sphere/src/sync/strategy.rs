@@ -221,10 +221,15 @@ where
             local_sphere_new_base,
         ) {
             // History diverged, so rebase our local changes on the newly received branch
-            (Some(current_tip), Some(old_base), Some(new_base)) => {
-                info!("Syncing received local sphere revisions...");
+            (Some(current_tip), Some(old_base), Some(new_base)) if old_base != new_base => {
+                info!(
+                    ?current_tip,
+                    ?old_base,
+                    ?new_base,
+                    "Syncing received local sphere revisions..."
+                );
                 Sphere::at(current_tip, context.db())
-                    .sync(
+                    .rebase(
                         &old_base,
                         &new_base,
                         &context.author().key,
@@ -236,7 +241,10 @@ where
             (None, old_base, Some(new_base)) => {
                 info!("Hydrating received local sphere revisions...");
                 let timeline = Timeline::new(context.db_mut());
-                Sphere::hydrate_timeslice(&timeline.slice(&new_base, old_base.as_ref())).await?;
+                Sphere::hydrate_timeslice(
+                    &timeline.slice(&new_base, old_base.as_ref()).exclude_past(),
+                )
+                .await?;
 
                 new_base.clone()
             }
@@ -398,10 +406,14 @@ where
         );
 
         let timeline = Timeline::new(context.db_mut());
-        Sphere::hydrate_timeslice(&timeline.slice(
-            &counterpart_sphere_updated_tip,
-            Some(counterpart_sphere_tip),
-        ))
+        Sphere::hydrate_timeslice(
+            &timeline
+                .slice(
+                    &counterpart_sphere_updated_tip,
+                    Some(counterpart_sphere_tip),
+                )
+                .exclude_past(),
+        )
         .await?;
 
         context

@@ -192,7 +192,7 @@ mod multiplayer {
         for (index, pair) in [&pair_1, &pair_2, &pair_3, &pair_4].iter().enumerate() {
             pair.spawn(move |mut ctx| async move {
                 ctx.write(
-                    "content",
+                    format!("content{}", index).as_str(),
                     "text/plain",
                     format!("foo{}", index).as_bytes(),
                     None,
@@ -277,11 +277,11 @@ mod multiplayer {
         .await?;
 
         let expected_content = [
-            ("content.txt", "foo0"),
-            ("@peer2/content.txt", "foo1"),
-            ("@peer3/content.txt", "foo2"),
-            ("@peer2/@peer3-of-peer2/content.txt", "foo2"),
-            ("@peer2/@peer4/content.txt", "foo3"),
+            ("content0.txt", "foo0"),
+            ("@peer2/content1.txt", "foo1"),
+            ("@peer3/content2.txt", "foo2"),
+            ("@peer2/@peer3-of-peer2/content2.txt", "foo2"),
+            ("@peer2/@peer4/content3.txt", "foo3"),
         ];
 
         for (path, content) in expected_content {
@@ -294,7 +294,7 @@ mod multiplayer {
         pair_4
             .spawn(move |mut ctx| async move {
                 ctx.write(
-                    "content",
+                    "content3",
                     "text/plain",
                     "foo3 and something new".as_bytes(),
                     None,
@@ -336,12 +336,12 @@ mod multiplayer {
         cli.orb(&["sphere", "sync"]).await?;
 
         let expected_content = [
-            ("content.txt", "foo0"),
-            ("@peer2/content.txt", "foo1"),
+            ("content0.txt", "foo0"),
+            ("@peer2/content1.txt", "foo1"),
             ("@peer2/newcontent.txt", "new"),
-            ("@peer3-renamed/content.txt", "foo2"),
-            ("@peer2/@peer3-of-peer2/content.txt", "foo2"),
-            ("@peer2/@peer4/content.txt", "foo3 and something new"),
+            ("@peer3-renamed/content2.txt", "foo2"),
+            ("@peer2/@peer3-of-peer2/content2.txt", "foo2"),
+            ("@peer2/@peer4/content3.txt", "foo3 and something new"),
         ];
 
         for (path, content) in expected_content {
