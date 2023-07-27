@@ -77,9 +77,8 @@ where
 
         debug!("Starting full render of {identity} @ {version}...");
 
-        let walker = SphereWalker::from(&cursor);
+        let content_stream = SphereWalker::from(&cursor).into_content_stream();
 
-        let content_stream = walker.content_stream();
         tokio::pin!(content_stream);
 
         let mut content_change_buffer = ChangeBuffer::new(CONTENT_CHANGE_BUFFER_CAPACITY);
@@ -95,7 +94,7 @@ where
 
         content_change_buffer.flush_to_writer(&self.writer).await?;
 
-        let petname_stream = walker.petname_stream();
+        let petname_stream = SphereWalker::from(&cursor).into_petname_stream();
         let db = cursor.sphere_context().await?.db().clone();
 
         let mut petname_change_buffer = ChangeBuffer::new(PETNAME_CHANGE_BUFFER_CAPACITY);
@@ -142,8 +141,8 @@ where
 
     #[instrument(level = "debug", skip(self))]
     async fn incremental_render(&self, since: &Link<MemoIpld>) -> Result<()> {
-        let walker = SphereWalker::from(&self.context);
-        let content_change_stream = walker.content_change_stream(Some(since));
+        let content_change_stream =
+            SphereWalker::from(&self.context).into_content_change_stream(Some(since));
         let mut latest_version = None;
         let mut cursor = SphereCursor::latest(self.context.clone());
         let mut content_change_buffer = ChangeBuffer::new(CONTENT_CHANGE_BUFFER_CAPACITY);
@@ -170,7 +169,8 @@ where
 
         content_change_buffer.flush_to_writer(&self.writer).await?;
 
-        let petname_change_stream = walker.petname_change_stream(Some(since));
+        let petname_change_stream =
+            SphereWalker::from(&self.context).into_petname_change_stream(Some(since));
         let mut petname_change_buffer = ChangeBuffer::new(PETNAME_CHANGE_BUFFER_CAPACITY);
 
         tokio::pin!(petname_change_stream);

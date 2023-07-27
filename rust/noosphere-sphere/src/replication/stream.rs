@@ -127,18 +127,27 @@ where
                         drop(sphere);
                     }
 
+                    drop(store);
+
                     while let Some(result) = tasks.join_next().await {
                         trace!("Replication branch completed, {} remaining...", tasks.len());
                         result??;
                     }
 
+                    trace!("Done replicating!");
+
                     Ok(()) as Result<(), anyhow::Error>
                 });
 
+                let mut yield_count = 0usize;
+
                 while let Some(block) = rx.recv().await {
-                    trace!("Yielding {}", block.0);
+                    yield_count += 1;
+                    trace!(cid = ?block.0, "Yielding block {yield_count}...");
                     yield block;
                 }
+
+                trace!("Done yielding {yield_count} blocks!");
 
                 history_task.await??;
             }
@@ -164,7 +173,7 @@ where
     let memo_version = *memo_version;
 
     try_stream! {
-        let (store, mut rx) = BlockStoreTap::new(store.clone(), 64);
+        let (store, mut rx) = BlockStoreTap::new(store.clone(), 1024);
         let memo = store.load::<DagCborCodec, MemoIpld>(&memo_version).await?;
 
         match memo.content_type() {

@@ -5,8 +5,7 @@ use noosphere_core::{
     data::{Link, MemoIpld},
     view::{Sphere, Timeline},
 };
-use noosphere_storage::{BlockStore, Storage};
-use tokio_stream::StreamExt;
+use noosphere_storage::Storage;
 
 use crate::{HasMutableSphereContext, HasSphereContext, SphereContext, SphereReplicaRead};
 use std::marker::PhantomData;
@@ -200,12 +199,7 @@ where
                     let stream = client
                         .replicate(&version, replicate_parameters.as_ref())
                         .await?;
-
-                    tokio::pin!(stream);
-
-                    while let Some((cid, block)) = stream.try_next().await? {
-                        db.put_block(&cid, &block).await?;
-                    }
+                    db.put_block_stream(stream).await?;
 
                     // If this was incremental replication, we have to hydrate...
                     if let Some(since) = since {

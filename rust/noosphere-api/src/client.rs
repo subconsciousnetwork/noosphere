@@ -310,6 +310,7 @@ where
 
         let (_, push_body_bytes) = block_serialize::<DagCborCodec, _>(push_body)?;
 
+        warn!("MAKING PUSH REQUEST");
         let response = self
             .client
             .put(url)
@@ -321,6 +322,7 @@ where
             .await
             .map_err(|err| PushError::Internal(anyhow!(err)))?;
 
+        warn!("FINISHED PUSH REQUEST");
         if response.status() == StatusCode::CONFLICT {
             return Err(PushError::Conflict);
         }
@@ -329,7 +331,6 @@ where
             .bytes()
             .await
             .map_err(|err| PushError::Internal(anyhow!(err)))?;
-
         Ok(block_deserialize::<DagCborCodec, _>(bytes.as_ref())?)
     }
 }

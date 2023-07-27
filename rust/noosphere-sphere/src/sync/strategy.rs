@@ -179,11 +179,15 @@ where
 
         context.db_mut().put_block_stream(block_stream).await?;
 
+        trace!("Finished putting block stream");
+
         let counterpart_history: CounterpartHistory<S> =
             Sphere::at(&counterpart_sphere_tip, context.db_mut())
                 .into_history_stream(counterpart_sphere_base)
                 .collect()
                 .await;
+
+        trace!("Iterating over counterpart history");
 
         for item in counterpart_history.into_iter().rev() {
             let (_, sphere) = item?;

@@ -2,7 +2,7 @@ use anyhow::Result;
 use noosphere_sphere::HasSphereContext;
 use noosphere_storage::Storage;
 use std::{collections::BTreeSet, marker::PhantomData, sync::Arc, thread::available_parallelism};
-use tokio::task::JoinSet;
+use tokio::{select, task::JoinSet};
 
 use super::{writer::SphereWriter, SphereRenderJob, SphereRenderJobId};
 use crate::native::paths::SpherePaths;
@@ -42,11 +42,10 @@ where
         let root_writer = SphereWriter::new(self.paths.clone());
 
         debug!(
+            ?max_parallel_jobs,
             "Spawning root render job for {}...",
             self.context.identity().await?
         );
-
-        trace!("Maximum parallel render jobs: {max_parallel_jobs}");
 
         // Spawn the root job
         render_jobs.spawn(
@@ -60,40 +59,54 @@ where
             .render(),
         );
 
-        while let Some(result) = render_jobs.join_next().await {
-            result??;
+        let mut job_queue_open = true;
 
-            while let Ok(job_id) = rx.try_recv() {
-                if started_jobs.contains(&job_id) {
-                    continue;
-                }
-
-                started_jobs.insert(job_id.clone());
-
-                let (petname_path, peer, version) = job_id;
-
-                if self.paths.peer(&peer, &version).exists() {
-                    // TODO: We may need to re-render if a previous
-                    // render was incomplete for some reason
-                    debug!(
-                        "Content for {} @ {} is already rendered, skipping...",
-                        peer, version
-                    );
-                    continue;
-                }
-
-                debug!("Spawning render job for {peer} @ {version}...");
-
-                render_jobs.spawn(
-                    SphereRenderJob {
-                        context: self.context.clone(),
-                        petname_path,
-                        writer: root_writer.descend(&peer, &version),
-                        storage_type: PhantomData,
-                        job_queue: tx.clone(),
+        while !render_jobs.is_empty() && job_queue_open {
+            select! {
+                result = render_jobs.join_next() => {
+                    if let Some(result) = result {
+                        result??;
                     }
-                    .render(),
-                );
+                },
+                next_job = rx.recv() => {
+                    match next_job {
+                        None => {
+                            job_queue_open = false;
+                        }
+                        Some(job_id) => {
+                            if started_jobs.contains(&job_id) {
+                                continue;
+                            }
+
+                            started_jobs.insert(job_id.clone());
+
+                            let (petname_path, peer, version) = job_id;
+
+                            if self.paths.peer(&peer, &version).exists() {
+                                // TODO: We may need to re-render if a previous
+                                // render was incomplete for some reason
+                                debug!(
+                                    "Content for {} @ {} is already rendered, skipping...",
+                                    peer, version
+                                );
+                                continue;
+                            }
+
+                            debug!("Spawning render job for {peer} @ {version}...");
+
+                            render_jobs.spawn(
+                                SphereRenderJob {
+                                    context: self.context.clone(),
+                                    petname_path,
+                                    writer: root_writer.descend(&peer, &version),
+                                    storage_type: PhantomData,
+                                    job_queue: tx.clone(),
+                                }
+                                .render(),
+                            );
+                        }
+                    }
+                }
             }
         }
         Ok(())
