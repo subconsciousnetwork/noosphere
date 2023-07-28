@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use futures::TryStreamExt;
 use noosphere_car::*;
 use tokio::io::BufReader;

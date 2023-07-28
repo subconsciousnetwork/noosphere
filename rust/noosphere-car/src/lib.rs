@@ -3,6 +3,8 @@
 //!
 //! Implementation of the [car](https://ipld.io/specs/transport/car/) format.
 
+#![allow(deprecated)]
+
 mod error;
 mod header;
 mod reader;
