@@ -334,7 +334,7 @@ mod multiplayer {
             })
             .await?;
 
-        cli.orb(&["sphere", "sync"]).await?;
+        cli.orb(&["sphere", "sync", "--auto-retry", "3"]).await?;
 
         let expected_content = [
             ("content0.txt", "foo0"),

@@ -126,7 +126,11 @@ pub enum SphereCommand {
     /// note that this is a "conflict-free" sync that may cause local changes
     /// to be overwritten in cases where two or more clients have made changes
     /// to the same files
-    Sync,
+    Sync {
+        /// Automatically retry the attempt to sync this number of times
+        #[clap(short = 'r', long, default_value = "0")]
+        auto_retry: u32,
+    },
 
     Config {
         #[clap(subcommand)]

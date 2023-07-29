@@ -68,7 +68,7 @@ pub async fn invoke_cli(cli: Cli, mut workspace: Workspace) -> Result<()> {
 
             SphereCommand::Status { id } => status(id, &workspace).await?,
             SphereCommand::Save => save(&workspace).await?,
-            SphereCommand::Sync => sync(&workspace).await?,
+            SphereCommand::Sync { auto_retry } => sync(auto_retry, &workspace).await?,
         },
 
         OrbCommand::Serve {
