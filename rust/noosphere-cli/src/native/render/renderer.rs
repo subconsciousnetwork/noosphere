@@ -4,8 +4,8 @@ use noosphere_storage::Storage;
 use std::{collections::BTreeSet, marker::PhantomData, sync::Arc, thread::available_parallelism};
 use tokio::{select, task::JoinSet};
 
-use super::{writer::SphereWriter, SphereRenderJob, SphereRenderJobId};
-use crate::native::paths::SpherePaths;
+use super::{SphereRenderJob, SphereRenderJobId};
+use crate::native::{paths::SpherePaths, render::JobKind};
 
 pub struct SphereRenderer<C, S>
 where
@@ -39,7 +39,7 @@ where
         let max_parallel_jobs = available_parallelism()?.get();
         let (tx, mut rx) = tokio::sync::mpsc::channel::<SphereRenderJobId>(max_parallel_jobs);
 
-        let root_writer = SphereWriter::new(self.paths.clone());
+        // let root_writer = SphereWriter::new(self.paths.clone());
 
         debug!(
             ?max_parallel_jobs,
@@ -49,13 +49,13 @@ where
 
         // Spawn the root job
         render_jobs.spawn(
-            SphereRenderJob {
-                context: self.context.clone(),
-                petname_path: Vec::new(),
-                writer: root_writer.clone(),
-                storage_type: PhantomData,
-                job_queue: tx.clone(),
-            }
+            SphereRenderJob::new(
+                self.context.clone(),
+                JobKind::Root,
+                self.paths.clone(),
+                Vec::new(),
+                tx.clone(),
+            )
             .render(),
         );
 
@@ -95,14 +95,13 @@ where
                             debug!("Spawning render job for {peer} @ {version}...");
 
                             render_jobs.spawn(
-                                SphereRenderJob {
-                                    context: self.context.clone(),
+                                SphereRenderJob::new(
+                                    self.context.clone(),
+                                    JobKind::Peer(peer, version),
+                                    self.paths.clone(),
                                     petname_path,
-                                    writer: root_writer.descend(&peer, &version),
-                                    storage_type: PhantomData,
-                                    job_queue: tx.clone(),
-                                }
-                                .render(),
+                                    tx.clone()
+                                ).render()
                             );
                         }
                     }

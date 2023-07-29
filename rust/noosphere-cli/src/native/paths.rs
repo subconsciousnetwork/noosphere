@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
-use cid::Cid;
+use cid::{multihash::Code, multihash::MultihashDigest, Cid};
+use libipld_core::raw::RawCodec;
 use noosphere_core::data::{Did, MemoIpld};
 use noosphere_storage::base64_encode;
 use std::path::{Path, PathBuf};
@@ -13,7 +14,23 @@ pub const CONTENT_DIRECTORY: &str = "content";
 pub const PEERS_DIRECTORY: &str = "peers";
 pub const SLUGS_DIRECTORY: &str = "slugs";
 pub const VERSION_FILE: &str = "version";
+pub const MOUNT_DIRECTORY: &str = "mount";
 
+/// NOTE: We use hashes to represent internal paths for a couple of reasons,
+/// both related to Windows filesystem limitations:
+///
+///  1. Windows filesystem, in the worst case, only allows 260 character-long
+///     paths
+///  2. Windows does not allow various characters (e.g., ':') in file paths, and
+///     there is no option to escape those characters
+///
+/// Hashing eliminates problem 2 and improves conditions so that we are more
+/// likely to avoid problem 1.
+///
+/// See:
+/// https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation?tabs=registry
+/// See also:
+/// https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions
 #[derive(Debug, Clone)]
 pub struct SpherePaths {
     root: PathBuf,
@@ -98,28 +115,32 @@ impl SpherePaths {
     }
 
     pub fn peer(&self, peer: &Did, version: &Cid) -> PathBuf {
-        self.peers.join(peer.as_str()).join(version.to_string())
+        let cid = Cid::new_v1(
+            RawCodec.into(),
+            Code::Blake3_256.digest(&[peer.as_bytes(), &version.to_bytes()].concat()),
+        );
+        self.peers.join(cid.to_string())
     }
 
-    pub fn peer_raw_content(&self, memo_cid: &Cid) -> PathBuf {
+    pub fn peer_hard_link(&self, memo_cid: &Cid) -> PathBuf {
         self.content.join(memo_cid.to_string())
     }
 
-    pub fn root_file_content(&self, slug: &str, memo: &MemoIpld) -> Result<PathBuf> {
-        self.file_content(&self.root, slug, memo)
+    pub fn root_hard_link(&self, slug: &str, memo: &MemoIpld) -> Result<PathBuf> {
+        self.file(&self.root, slug, memo)
     }
 
-    pub fn peer_file_content(
+    pub fn peer_soft_link(
         &self,
         peer: &Did,
         version: &Cid,
         slug: &str,
         memo: &MemoIpld,
     ) -> Result<PathBuf> {
-        self.file_content(&self.peer(peer, version), slug, memo)
+        self.file(&self.peer(peer, version).join(MOUNT_DIRECTORY), slug, memo)
     }
 
-    pub fn file_content(&self, base: &Path, slug: &str, memo: &MemoIpld) -> Result<PathBuf> {
+    pub fn file(&self, base: &Path, slug: &str, memo: &MemoIpld) -> Result<PathBuf> {
         let extension = infer_file_extension(memo)?;
         let file_fragment = match extension {
             Some(extension) => [slug, &extension].join("."),

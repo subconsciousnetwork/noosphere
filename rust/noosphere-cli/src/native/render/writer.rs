@@ -3,46 +3,94 @@ use cid::Cid;
 use noosphere_core::data::Did;
 use noosphere_sphere::{AsyncFileBody, SphereFile};
 use pathdiff::diff_paths;
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, OnceLock},
+};
 use symlink::{remove_symlink_dir, remove_symlink_file, symlink_dir, symlink_file};
 use tokio::{fs::File, io::copy};
 
-use crate::native::paths::SpherePaths;
+use crate::native::paths::{SpherePaths, MOUNT_DIRECTORY};
+
+use super::JobKind;
 
 #[derive(Debug, Clone)]
 pub struct SphereWriter {
+    kind: JobKind,
     paths: Arc<SpherePaths>,
-    base: PathBuf,
+    base: OnceLock<PathBuf>,
+    mount: OnceLock<PathBuf>,
+    private: OnceLock<PathBuf>,
 }
 
 impl SphereWriter {
-    pub fn new(paths: Arc<SpherePaths>) -> Self {
+    pub fn new(kind: JobKind, paths: Arc<SpherePaths>) -> Self {
         SphereWriter {
-            base: paths.root().to_path_buf(),
+            kind,
             paths,
+            base: Default::default(),
+            mount: Default::default(),
+            private: Default::default(),
         }
+    }
+
+    fn is_root_writer(&self) -> bool {
+        self.kind == JobKind::Root
+    }
+
+    fn petname(&self, name: &str) -> PathBuf {
+        self.mount().join(format!("@{}", name))
+    }
+
+    pub fn mount(&self) -> &Path {
+        self.mount.get_or_init(|| match &self.kind {
+            JobKind::Root => self.base().to_owned(),
+            JobKind::Peer(_, _) => self.base().join(MOUNT_DIRECTORY),
+        })
+    }
+
+    pub fn base(&self) -> &Path {
+        self.base.get_or_init(|| match &self.kind {
+            JobKind::Root => self.paths.root().to_owned(),
+            JobKind::Peer(did, cid) => self.paths.peer(did, cid),
+        })
+    }
+
+    pub fn private(&self) -> &Path {
+        self.private.get_or_init(|| match &self.kind {
+            JobKind::Root => self.paths().sphere().to_owned(),
+            JobKind::Peer(_, _) => self.base().to_owned(),
+        })
     }
 
     pub fn paths(&self) -> &SpherePaths {
-        self.paths.as_ref()
+        &self.paths
     }
 
-    pub fn is_root_writer(&self) -> bool {
-        self.base == self.paths.root()
+    pub async fn write_identity_and_version(&self, identifier: &Did, version: &Cid) -> Result<()> {
+        let private = self.private();
+
+        let (id_result, version_result) = tokio::join!(
+            tokio::fs::write(private.join("identifier"), identifier.to_string()),
+            tokio::fs::write(private.join("version"), version.to_string())
+        );
+
+        id_result?;
+        version_result?;
+
+        Ok(())
     }
 
-    pub fn descend(&self, peer: &Did, version: &Cid) -> Self {
-        SphereWriter {
-            paths: self.paths.clone(),
-            base: self.paths.peer(peer, version),
-        }
-    }
-
-    pub fn raw_content_path<R>(&self, slug: &str, file: &SphereFile<R>) -> Result<PathBuf> {
+    /// Resolves the path to the hard link-equivalent file that contains the
+    /// content for this slug. A [SphereFile] is required because we need a
+    /// [MemoIpld] in the case of rendering root, and we need the [Cid] of that
+    /// [MemoIpld] when rendering a peer. Both are conveniently bundled by
+    /// a [SphereFile].
+    pub fn content_hard_link<R>(&self, slug: &str, file: &SphereFile<R>) -> Result<PathBuf> {
         if self.is_root_writer() {
-            self.paths.root_file_content(slug, &file.memo)
+            self.paths.root_hard_link(slug, &file.memo)
         } else {
-            Ok(self.paths.peer_raw_content(&file.memo_version))
+            Ok(self.paths.peer_hard_link(&file.memo_version))
         }
     }
 
@@ -70,7 +118,7 @@ impl SphereWriter {
     where
         R: AsyncFileBody,
     {
-        let file_path = self.raw_content_path(slug, file)?;
+        let file_path = self.content_hard_link(slug, file)?;
 
         trace!("Final file path will be '{}'", file_path.display());
 
@@ -94,12 +142,18 @@ impl SphereWriter {
             }
         };
 
+        // If we are writing root, we need to symlink from inside .sphere to the
+        // rendered file (we use this backlink to determine how moves / deletes
+        // should be recorded when saving); if we are writing to a peer, we need
+        // to symlink from the end-user visible filesystem location into the
+        // content location within .sphere (so the links go the other
+        // direction).
         if self.is_root_writer() {
             self.symlink_slug(slug, &file_path).await?;
         } else {
             self.symlink_content(
                 &file.memo_version,
-                &self.paths.file_content(&self.base, slug, &file.memo)?,
+                &self.paths.file(self.mount(), slug, &file.memo)?,
             )
             .await?;
         }
@@ -118,7 +172,7 @@ impl SphereWriter {
         tokio::fs::create_dir_all(file_directory_path).await?;
 
         let relative_peer_content_path =
-            diff_paths(self.paths.peer_raw_content(memo_cid), file_directory_path).ok_or_else(
+            diff_paths(self.paths.peer_hard_link(memo_cid), file_directory_path).ok_or_else(
                 || {
                     anyhow!(
                         "Could not resolve relative path for '{}'",
@@ -143,7 +197,7 @@ impl SphereWriter {
     }
 
     pub async fn unlink_peer(&self, petname: &str) -> Result<()> {
-        let absolute_peer_destination = self.base.join(format!("@{}", petname));
+        let absolute_peer_destination = self.petname(petname);
         if absolute_peer_destination.exists() {
             remove_symlink_dir(absolute_peer_destination)?;
         }
@@ -151,7 +205,7 @@ impl SphereWriter {
     }
 
     pub async fn symlink_peer(&self, peer: &Did, version: &Cid, petname: &str) -> Result<()> {
-        let absolute_peer_destination = self.base.join(format!("@{}", petname));
+        let absolute_peer_destination = self.petname(petname);
         let peer_directory_path = absolute_peer_destination.parent().ok_or_else(|| {
             anyhow!(
                 "Unable to determine base directory for '{}'",
@@ -161,8 +215,11 @@ impl SphereWriter {
 
         tokio::fs::create_dir_all(peer_directory_path).await?;
 
-        let relative_peer_source = diff_paths(self.paths.peer(peer, version), &self.base)
-            .ok_or_else(|| anyhow!("Could not resolve relative path for to '@{petname}'",))?;
+        let relative_peer_source = diff_paths(
+            self.paths.peer(peer, version).join(MOUNT_DIRECTORY),
+            self.mount(),
+        )
+        .ok_or_else(|| anyhow!("Could not resolve relative path for to '@{petname}'",))?;
 
         self.unlink_peer(petname).await?;
 

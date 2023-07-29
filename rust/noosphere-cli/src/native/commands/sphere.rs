@@ -19,25 +19,20 @@ pub async fn sphere_create(owner_key: &str, workspace: &mut Workspace) -> Result
 
     let sphere_paths = SpherePaths::intialize(workspace.working_directory()).await?;
 
-    // NOTE: It's important that the sphere context is built inside this block
-    // so that the database lock can be dropped before we try to initialize the
-    // workspace later on; otherwise we may race and occassionally fail to open
-    // the database later.
-    {
-        let sphere_context_artifacts = SphereContextBuilder::default()
-            .create_sphere()
-            .at_storage_path(sphere_paths.root())
-            .reading_keys_from(workspace.key_storage().clone())
-            .using_key(owner_key)
-            .build()
-            .await?;
+    let sphere_context_artifacts = SphereContextBuilder::default()
+        .create_sphere()
+        .at_storage_path(sphere_paths.root())
+        .reading_keys_from(workspace.key_storage().clone())
+        .using_key(owner_key)
+        .build()
+        .await?;
 
-        let mnemonic = sphere_context_artifacts.require_mnemonic()?.to_string();
-        let sphere_context: SphereContext<_> = sphere_context_artifacts.into();
-        let sphere_identity = sphere_context.identity();
+    let mnemonic = sphere_context_artifacts.require_mnemonic()?.to_string();
+    let sphere_context: SphereContext<_> = sphere_context_artifacts.into();
+    let sphere_identity = sphere_context.identity();
 
-        info!(
-            r#"A new sphere has been created in {:?}
+    info!(
+        r#"A new sphere has been created in {:?}
 Its identity is {}
 Your key {:?} is considered its owner
 The owner of a sphere can authorize other keys to write to it
@@ -48,12 +43,11 @@ IMPORTANT: Write down the following sequence of words...
 
 ...and keep it somewhere safe!
 You will be asked to enter them if you ever need to transfer ownership of the sphere to a different key."#,
-            sphere_paths.root(),
-            sphere_identity,
-            owner_key,
-            mnemonic
-        );
-    }
+        sphere_paths.root(),
+        sphere_identity,
+        owner_key,
+        mnemonic
+    );
 
     workspace.initialize(sphere_paths)?;
 
@@ -134,17 +128,24 @@ Type or paste the code here and press enter:"#
     // TODO(#103): Recovery path if the auth needs to change for some reason
 
     info!(
-        r#"The authorization has been saved.
-Make sure that you have configured the gateway's URL:
+        r#"The authorization has been saved. You should be able to sync:
 
-  orb config set gateway-url <URL>
-  
-And then you should be able to sync:
-
-  orb sync
+  orb sphere sync
   
 Happy pondering!"#
     );
 
     Ok(())
+}
+
+pub async fn sphere_follow(
+    _name: Option<String>,
+    _did: Option<Did>,
+    _workspace: &Workspace,
+) -> Result<()> {
+    todo!();
+}
+
+pub async fn sphere_unfollow(_name: Option<String>, _workspace: &Workspace) -> Result<()> {
+    todo!();
 }

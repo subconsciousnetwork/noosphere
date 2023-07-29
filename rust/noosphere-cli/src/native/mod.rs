@@ -20,7 +20,7 @@ use self::{
         key::{key_create, key_list},
         save::save,
         serve::serve,
-        sphere::{sphere_create, sphere_join},
+        sphere::{sphere_create, sphere_follow, sphere_join, sphere_unfollow},
         status::status,
         sync::sync,
     },
@@ -69,6 +69,12 @@ pub async fn invoke_cli(cli: Cli, mut workspace: Workspace) -> Result<()> {
             SphereCommand::Status { id } => status(id, &workspace).await?,
             SphereCommand::Save => save(&workspace).await?,
             SphereCommand::Sync { auto_retry } => sync(auto_retry, &workspace).await?,
+            SphereCommand::Follow { name, did } => {
+                sphere_follow(name, did, &workspace).await?;
+            }
+            SphereCommand::Unfollow { name } => {
+                sphere_unfollow(name, &workspace).await?;
+            }
         },
 
         OrbCommand::Serve {
