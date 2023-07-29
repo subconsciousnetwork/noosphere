@@ -138,7 +138,7 @@ impl ChangeBuffer<(Did, Cid)> {
                 Ok(result) => match result {
                     Ok(_) => (),
                     Err(error) => {
-                        warn!("Petname not changed: {}", error);
+                        warn!("Petname write failed: {}", error);
                     }
                 },
                 Err(error) => {

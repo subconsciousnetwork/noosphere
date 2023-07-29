@@ -66,7 +66,6 @@ pub async fn config_set(command: ConfigSetCommand, workspace: &Workspace) -> Res
     match command {
         ConfigSetCommand::GatewayUrl { url } => db.set_key(GATEWAY_URL, url).await?,
         ConfigSetCommand::Counterpart { did } => db.set_key(COUNTERPART, did).await?,
-        ConfigSetCommand::Difftool { tool } => db.set_key(DIFFTOOL, tool).await?,
     };
 
     Ok(())

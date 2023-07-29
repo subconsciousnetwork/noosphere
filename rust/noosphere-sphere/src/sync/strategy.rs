@@ -61,7 +61,8 @@ where
     S: Storage + 'static,
 {
     /// Synchronize a local sphere's data with the data in a gateway, and rollback
-    /// if there is an error.
+    /// if there is an error. The returned [Link] is the latest version of the local
+    /// sphere lineage after the sync has completed.
     pub async fn sync(&self, context: &mut C) -> Result<Link<MemoIpld>, SyncError>
     where
         C: HasMutableSphereContext<S>,

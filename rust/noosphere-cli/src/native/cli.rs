@@ -132,6 +132,20 @@ pub enum SphereCommand {
         auto_retry: u32,
     },
 
+    Follow {
+        /// A personalized "petname" for the sphere you are following
+        #[clap(short = 'n', long)]
+        name: Option<String>,
+
+        /// The sphere ID that you wish to follow
+        did: Option<Did>,
+    },
+
+    Unfollow {
+        /// The short name of the sphere that you wish to unfollow
+        name: Option<String>,
+    },
+
     Config {
         #[clap(subcommand)]
         command: ConfigCommand,
@@ -144,7 +158,7 @@ pub enum SphereCommand {
 }
 
 /// Read and manage configuration values for a local sphere
-/// TODO: Consider adding `config import` / `config export`
+// TODO: Consider adding `config import` / `config export`
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommand {
     /// Set a configuration value for the local sphere
@@ -159,6 +173,7 @@ pub enum ConfigCommand {
     },
 }
 
+/// Read and write local-only metadata configuration related to this sphere
 #[derive(Debug, Subcommand)]
 pub enum ConfigSetCommand {
     /// Configure the URL of the gateway to use for publishing and sync
@@ -174,12 +189,6 @@ pub enum ConfigSetCommand {
         /// The sphere identity (as a DID) of the counterpart
         did: String,
     },
-
-    /// Configure a command to be used when diffing files
-    Difftool {
-        /// A command that can be used when diffing files
-        tool: String,
-    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -194,7 +203,7 @@ pub enum ConfigGetCommand {
     Difftool,
 }
 
-/// Manage access to a sphere by holders of other keys
+/// Manage the devices/keys that are allowed to access this sphere
 #[derive(Debug, Subcommand)]
 pub enum AuthCommand {
     /// Authorize a key to work on the sphere in the current directory

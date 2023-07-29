@@ -19,6 +19,9 @@ where
     /// fetched to local storage. Then, the local changes will be replayed on
     /// top of those changes. Finally, the synchronized local history will be
     /// pushed up to the gateway.
+    ///
+    /// The returned [Link] is the latest version of the local
+    /// sphere lineage after the sync has completed.
     async fn sync(&mut self, recovery: SyncRecovery) -> Result<Link<MemoIpld>, SyncError>;
 }
 

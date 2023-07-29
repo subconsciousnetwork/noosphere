@@ -6,7 +6,7 @@ use noosphere_sphere::{
     SphereWalker,
 };
 use noosphere_storage::Storage;
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::Arc};
 use tokio::sync::mpsc::Sender;
 use tokio_stream::StreamExt;
 
@@ -17,12 +17,19 @@ use super::writer::SphereWriter;
 const CONTENT_CHANGE_BUFFER_CAPACITY: usize = 512;
 const PETNAME_CHANGE_BUFFER_CAPACITY: usize = 2048;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum JobKind {
+    Root,
+    Peer(Did, Cid),
+}
+
 pub struct SphereRenderJob<C, S>
 where
     C: HasSphereContext<S> + 'static,
     S: Storage + 'static,
 {
     pub context: C,
+    pub kind: JobKind,
     pub petname_path: Vec<String>,
     pub writer: SphereWriter,
     pub storage_type: PhantomData<S>,
@@ -34,37 +41,58 @@ where
     C: HasSphereContext<S> + 'static,
     S: Storage + 'static,
 {
+    pub fn new(
+        context: C,
+        kind: JobKind,
+        paths: Arc<SpherePaths>,
+        petname_path: Vec<String>,
+        job_queue: Sender<SphereRenderJobId>,
+    ) -> Self {
+        SphereRenderJob {
+            context,
+            petname_path,
+            writer: SphereWriter::new(kind.clone(), paths),
+            kind,
+            storage_type: PhantomData,
+            job_queue,
+        }
+    }
+
     fn paths(&self) -> &SpherePaths {
         self.writer.paths()
     }
 
     #[instrument(level = "debug", skip(self))]
     pub async fn render(self) -> Result<()> {
-        if self.writer.is_root_writer() {
-            debug!("Running root render job...");
-            match tokio::fs::try_exists(self.paths().version()).await {
-                Ok(true) => {
-                    debug!("Root has already been rendering; rendering incrementally...");
-                    let version =
-                        Cid::try_from(tokio::fs::read_to_string(self.paths().version()).await?)?;
-                    self.incremental_render(&version.into()).await?;
-                }
-                _ => {
-                    debug!("Root has not been rendered yet; performing a full render...");
-                    self.full_render(SphereCursor::latest(self.context.clone()))
-                        .await?
+        match self.kind {
+            JobKind::Root => {
+                debug!("Running root render job...");
+                match tokio::fs::try_exists(self.paths().version()).await {
+                    Ok(true) => {
+                        debug!("Root has been rendered at least once; rendering incrementally...");
+                        let version = Cid::try_from(
+                            tokio::fs::read_to_string(self.paths().version()).await?,
+                        )?;
+                        self.incremental_render(&version.into()).await?;
+                    }
+                    _ => {
+                        debug!("Root has not been rendered yet; performing a full render...");
+                        self.full_render(SphereCursor::latest(self.context.clone()))
+                            .await?
+                    }
                 }
             }
-        } else {
-            debug!("Running peer render job...");
-            if let Some(context) = SphereCursor::latest(self.context.clone())
-                .traverse_by_petnames(&self.petname_path)
-                .await?
-            {
-                self.full_render(context).await?;
-            } else {
-                return Err(anyhow!("No peer found at {}", self.petname_path.join(".")));
-            };
+            JobKind::Peer(_, _) => {
+                debug!("Running peer render job...");
+                if let Some(context) = SphereCursor::latest(self.context.clone())
+                    .traverse_by_petnames(&self.petname_path)
+                    .await?
+                {
+                    self.full_render(context).await?;
+                } else {
+                    return Err(anyhow!("No peer found at {}", self.petname_path.join(".")));
+                };
+            }
         }
 
         Ok(())
@@ -134,7 +162,9 @@ where
         petname_change_buffer.flush_to_writer(&self.writer).await?;
 
         // Write out the latest version that was rendered
-        tokio::fs::write(self.paths().version(), version.to_string()).await?;
+        self.writer
+            .write_identity_and_version(&identity, &version)
+            .await?;
 
         Ok(())
     }
@@ -143,7 +173,6 @@ where
     async fn incremental_render(&self, since: &Link<MemoIpld>) -> Result<()> {
         let content_change_stream =
             SphereWalker::from(&self.context).into_content_change_stream(Some(since));
-        let mut latest_version = None;
         let mut cursor = SphereCursor::latest(self.context.clone());
         let mut content_change_buffer = ChangeBuffer::new(CONTENT_CHANGE_BUFFER_CAPACITY);
 
@@ -163,8 +192,6 @@ where
                     content_change_buffer.flush_to_writer(&self.writer).await?;
                 }
             }
-
-            latest_version = Some(version);
         }
 
         content_change_buffer.flush_to_writer(&self.writer).await?;
@@ -206,9 +233,13 @@ where
 
         petname_change_buffer.flush_to_writer(&self.writer).await?;
 
-        if let Some(version) = latest_version {
-            tokio::fs::write(self.paths().version(), version.to_string()).await?;
-        }
+        // Write out the latest version that was rendered
+        let identity = cursor.identity().await?;
+        let version = cursor.version().await?;
+
+        self.writer
+            .write_identity_and_version(&identity, &version)
+            .await?;
 
         Ok(())
     }

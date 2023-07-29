@@ -165,7 +165,6 @@ mod multiplayer {
         SphereSync, SyncRecovery,
     };
     use serde_json::Value;
-    use tracing::*;
     use url::Url;
 
     #[tokio::test(flavor = "multi_thread")]
@@ -254,13 +253,13 @@ mod multiplayer {
             _ => panic!(),
         };
 
-        let authorization = pair_1
+        let (authorization, sphere_1_version) = pair_1
             .spawn(move |mut ctx| async move {
                 let authorization = ctx.authorize("cli", &Did(cli_id)).await?;
                 ctx.save(None).await?;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                let version = ctx.sync(SyncRecovery::Retry(3)).await?;
                 wait(1).await;
-                Ok(authorization)
+                Ok((authorization, version))
             })
             .await?;
 
@@ -283,6 +282,8 @@ mod multiplayer {
             ("@peer3/content2.txt", "foo2"),
             ("@peer2/@peer3-of-peer2/content2.txt", "foo2"),
             ("@peer2/@peer4/content3.txt", "foo3"),
+            (".sphere/identifier", &sphere_1_id),
+            (".sphere/version", &sphere_1_version.to_string()),
         ];
 
         for (path, content) in expected_content {
@@ -321,16 +322,16 @@ mod multiplayer {
             })
             .await?;
 
-        pair_1
+        let sphere_1_version = pair_1
             .spawn(move |mut ctx| async move {
                 ctx.set_petname("peer3", None).await?;
                 ctx.set_petname("peer3-renamed", Some(sphere_3_id)).await?;
                 ctx.save(None).await?;
                 ctx.sync(SyncRecovery::Retry(3)).await?;
                 wait(1).await;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                let version = ctx.sync(SyncRecovery::Retry(3)).await?;
 
-                Ok(())
+                Ok(version)
             })
             .await?;
 
@@ -343,6 +344,8 @@ mod multiplayer {
             ("@peer3-renamed/content2.txt", "foo2"),
             ("@peer2/@peer3-of-peer2/content2.txt", "foo2"),
             ("@peer2/@peer4/content3.txt", "foo3 and something new"),
+            (".sphere/identifier", &sphere_1_id),
+            (".sphere/version", &sphere_1_version.to_string()),
         ];
 
         for (path, content) in expected_content {
