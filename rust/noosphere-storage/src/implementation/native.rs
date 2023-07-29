@@ -85,7 +85,11 @@ impl Store for NativeStore {
 
     /// Flushes pending writes if there are any
     async fn flush(&self) -> Result<()> {
-        self.db.flush_async().await?;
+        // `flush_async()` can deadlock when simultaneous calls are performed.
+        // This occurs often in tests and fixed in `sled`'s main branch,
+        // but no cargo release since 2021.
+        // https://github.com/spacejam/sled/issues/1308
+        self.db.flush().map_err(anyhow::Error::from)?;
         Ok(())
     }
 }
