@@ -46,7 +46,7 @@ noosphere = { version = "0.13.1", path = "../noosphere", optional = true }
 noosphere-ipfs = { version = "0.7.1", path = "../noosphere-ipfs", optional = true }
 clap = { version = "^4.3", features = ["derive"], optional = true }
 home = { version = "~0.5", optional = true }
-toml = { version = "~0.5", optional = true }
+toml = { version = "~0.7", optional = true }
 
 # noosphere_ns::server
 axum = { workspace = true, features = ["json", "headers", "macros"], optional = true }
