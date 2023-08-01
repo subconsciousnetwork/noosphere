@@ -24,7 +24,7 @@ sentry = ["dep:sentry-tracing"]
 [dependencies]
 tracing = { workspace = true }
 cid = { workspace = true }
-url = "^2"
+url = { workspace = true }
 async-trait = "~0.1"
 async-recursion = "^1"
 async-std = "^1"

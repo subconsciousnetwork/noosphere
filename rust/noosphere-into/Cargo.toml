@@ -22,7 +22,7 @@ noosphere-storage = { version = "0.7.1", path = "../noosphere-storage" }
 noosphere-sphere = { version = "0.9.0", path = "../noosphere-sphere" }
 subtext = { version = "0.3.2", features = ["stream"] }
 async-trait = "~0.1"
-url = "2"
+url = { workspace = true }
 tracing = { workspace = true }
 
 anyhow = { workspace = true }

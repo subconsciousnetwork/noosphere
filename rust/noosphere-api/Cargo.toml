@@ -22,7 +22,7 @@ readme = "README.md"
 anyhow = "^1"
 thiserror = { workspace = true }
 cid = { workspace = true }
-url = "^2"
+url = { workspace = true }
 serde = { workspace = true }
 serde_urlencoded = "~0.7"
 tracing = { workspace = true }

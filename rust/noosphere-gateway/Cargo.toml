@@ -36,7 +36,7 @@ async-stream = "~0.3"
 tracing = { workspace = true }
 wnfs-namefilter = { version = "0.1.21" }
 
-url = { version = "^2", features = [ "serde" ] }
+url = { workspace = true, features = ["serde"] }
 mime_guess = "^2"
 
 noosphere-ipfs = { version = "0.7.1", path = "../noosphere-ipfs" }
