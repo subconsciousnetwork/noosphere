@@ -4,8 +4,11 @@ use noosphere_storage::Storage;
 use std::{collections::BTreeSet, marker::PhantomData, sync::Arc, thread::available_parallelism};
 use tokio::{select, task::JoinSet};
 
-use super::{SphereRenderJob, SphereRenderJobId};
-use crate::native::{paths::SpherePaths, render::JobKind};
+use super::{SphereRenderJob, SphereRenderRequest};
+use crate::native::{
+    paths::SpherePaths,
+    render::{JobKind, SphereRenderJobId},
+};
 
 pub struct SphereRenderer<C, S>
 where
@@ -30,6 +33,7 @@ where
         }
     }
 
+    #[instrument(level = "debug", skip(self))]
     pub async fn render(&self) -> Result<()> {
         std::env::set_current_dir(self.paths.root())?;
 
@@ -37,9 +41,7 @@ where
         let mut started_jobs = BTreeSet::<SphereRenderJobId>::new();
 
         let max_parallel_jobs = available_parallelism()?.get();
-        let (tx, mut rx) = tokio::sync::mpsc::channel::<SphereRenderJobId>(max_parallel_jobs);
-
-        // let root_writer = SphereWriter::new(self.paths.clone());
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<SphereRenderRequest>(max_parallel_jobs);
 
         debug!(
             ?max_parallel_jobs,
@@ -68,19 +70,23 @@ where
                         result??;
                     }
                 },
-                next_job = rx.recv() => {
-                    match next_job {
+                next_job_request = rx.recv() => {
+                    match next_job_request {
                         None => {
                             job_queue_open = false;
                         }
-                        Some(job_id) => {
+                        Some(job_request) => {
+                            let job_id = job_request.as_id();
+
                             if started_jobs.contains(&job_id) {
+                                debug!("A render job for {} @ {} has already been queued, skipping...", job_id.0, job_id.1);
                                 continue;
                             }
 
-                            started_jobs.insert(job_id.clone());
+                            debug!("Queuing render job for {} @ {}...", job_id.0, job_id.1);
+                            started_jobs.insert(job_id);
 
-                            let (petname_path, peer, version) = job_id;
+                            let SphereRenderRequest(petname_path, peer, version, link_record) = job_request;
 
                             if self.paths.peer(&peer, &version).exists() {
                                 // TODO: We may need to re-render if a previous
@@ -97,7 +103,7 @@ where
                             render_jobs.spawn(
                                 SphereRenderJob::new(
                                     self.context.clone(),
-                                    JobKind::Peer(peer, version),
+                                    JobKind::Peer(peer, version, link_record),
                                     self.paths.clone(),
                                     petname_path,
                                     tx.clone()

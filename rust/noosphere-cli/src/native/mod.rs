@@ -59,7 +59,7 @@ pub async fn invoke_cli(cli: Cli, mut workspace: Workspace) -> Result<()> {
                 }
                 AuthCommand::List { tree, as_json } => auth_list(tree, as_json, &workspace).await?,
                 AuthCommand::Revoke { name } => auth_revoke(&name, &workspace).await?,
-                AuthCommand::Rotate {} => todo!(),
+                AuthCommand::Rotate {} => unimplemented!(),
             },
             SphereCommand::Config { command } => match command {
                 ConfigCommand::Set { command } => config_set(command, &workspace).await?,

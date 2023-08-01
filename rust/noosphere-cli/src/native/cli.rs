@@ -143,7 +143,7 @@ pub enum SphereCommand {
 
     Unfollow {
         /// The short name of the sphere that you wish to unfollow
-        name: Option<String>,
+        name: String,
     },
 
     Config {

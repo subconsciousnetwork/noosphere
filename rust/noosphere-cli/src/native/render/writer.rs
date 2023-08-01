@@ -10,7 +10,9 @@ use std::{
 use symlink::{remove_symlink_dir, remove_symlink_file, symlink_dir, symlink_file};
 use tokio::{fs::File, io::copy};
 
-use crate::native::paths::{SpherePaths, MOUNT_DIRECTORY};
+use crate::native::paths::{
+    SpherePaths, IDENTITY_FILE, LINK_RECORD_FILE, MOUNT_DIRECTORY, VERSION_FILE,
+};
 
 use super::JobKind;
 
@@ -45,21 +47,21 @@ impl SphereWriter {
     pub fn mount(&self) -> &Path {
         self.mount.get_or_init(|| match &self.kind {
             JobKind::Root => self.base().to_owned(),
-            JobKind::Peer(_, _) => self.base().join(MOUNT_DIRECTORY),
+            JobKind::Peer(_, _, _) => self.base().join(MOUNT_DIRECTORY),
         })
     }
 
     pub fn base(&self) -> &Path {
         self.base.get_or_init(|| match &self.kind {
             JobKind::Root => self.paths.root().to_owned(),
-            JobKind::Peer(did, cid) => self.paths.peer(did, cid),
+            JobKind::Peer(did, cid, _) => self.paths.peer(did, cid),
         })
     }
 
     pub fn private(&self) -> &Path {
         self.private.get_or_init(|| match &self.kind {
             JobKind::Root => self.paths().sphere().to_owned(),
-            JobKind::Peer(_, _) => self.base().to_owned(),
+            JobKind::Peer(_, _, _) => self.base().to_owned(),
         })
     }
 
@@ -67,16 +69,20 @@ impl SphereWriter {
         &self.paths
     }
 
-    pub async fn write_identity_and_version(&self, identifier: &Did, version: &Cid) -> Result<()> {
+    pub async fn write_link_record(&self) -> Result<()> {
+        if let JobKind::Peer(_, _, link_record) = &self.kind {
+            tokio::fs::write(self.private().join(LINK_RECORD_FILE), link_record.encode()?).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn write_identity_and_version(&self, identity: &Did, version: &Cid) -> Result<()> {
         let private = self.private();
 
-        let (id_result, version_result) = tokio::join!(
-            tokio::fs::write(private.join("identifier"), identifier.to_string()),
-            tokio::fs::write(private.join("version"), version.to_string())
-        );
-
-        id_result?;
-        version_result?;
+        tokio::try_join!(
+            tokio::fs::write(private.join(IDENTITY_FILE), identity.to_string()),
+            tokio::fs::write(private.join(VERSION_FILE), version.to_string())
+        )?;
 
         Ok(())
     }

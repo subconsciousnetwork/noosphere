@@ -1,17 +1,22 @@
 use anyhow::{anyhow, Result};
+use cid::Cid;
 use directories::ProjectDirs;
 use noosphere::sphere::SphereContextBuilder;
 use noosphere_core::authority::Author;
-use noosphere_core::data::Did;
-use noosphere_sphere::{SphereContext, COUNTERPART, GATEWAY_URL};
+use noosphere_core::data::{Did, Link, LinkRecord, MemoIpld};
+use noosphere_sphere::{SphereContentRead, SphereContext, SphereCursor, COUNTERPART, GATEWAY_URL};
 use noosphere_storage::{KeyValueStore, NativeStorage, SphereDb};
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tokio::io::AsyncReadExt;
 use ucan::crypto::KeyMaterial;
 use url::Url;
 
 use noosphere::key::InsecureKeyStorage;
 use tokio::sync::{Mutex, OnceCell};
+
+use crate::native::paths::{IDENTITY_FILE, LINK_RECORD_FILE, VERSION_FILE};
 
 use super::paths::SpherePaths;
 use super::render::SphereRenderer;
@@ -130,6 +135,147 @@ impl Workspace {
 
         Ok(())
     }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn resolve_closest_sphere(
+        &self,
+        starting_from: Option<&Path>,
+    ) -> Result<Option<(Did, Link<MemoIpld>, Option<LinkRecord>)>> {
+        trace!("Looking for closest sphere...");
+
+        let sphere_paths = self.require_sphere_paths()?;
+
+        let canonical =
+            tokio::fs::canonicalize(starting_from.unwrap_or_else(|| self.working_directory()))
+                .await?;
+
+        let peers = sphere_paths.peers();
+        let root = sphere_paths.root();
+
+        let mut sphere_base: &Path = &canonical;
+
+        while let Some(parent) = sphere_base.parent() {
+            trace!("Looking in {}...", parent.display());
+
+            if parent == peers || parent == root {
+                trace!("Found!");
+
+                let (identity, version, link_record) = tokio::join!(
+                    tokio::fs::read_to_string(sphere_base.join(IDENTITY_FILE)),
+                    tokio::fs::read_to_string(sphere_base.join(VERSION_FILE)),
+                    tokio::fs::read_to_string(sphere_base.join(LINK_RECORD_FILE)),
+                );
+                let identity = identity?;
+                let version = version?;
+                let link_record = if let Ok(link_record) = link_record {
+                    LinkRecord::try_from(link_record).ok()
+                } else {
+                    None
+                };
+
+                return Ok(Some((
+                    identity.into(),
+                    Cid::try_from(version)?.into(),
+                    link_record,
+                )));
+            } else {
+                sphere_base = parent;
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Resolves a nickname from a blessed slug `_profile_`, which is used by
+    /// Subconscious (the first embedder of Noosphere) to store user profile
+    /// data as JSON.
+    #[instrument(level = "trace", skip(self))]
+    pub async fn resolve_profile_nickname(
+        &self,
+        identity: &Did,
+        version: &Link<MemoIpld>,
+    ) -> Result<Option<String>> {
+        trace!("Looking for profile nickname");
+        let sphere_context = self.sphere_context().await?;
+        let peer_sphere_context = Arc::new(sphere_context.lock().await.to_visitor(identity).await?);
+        let cursor = SphereCursor::mounted_at(peer_sphere_context, version);
+
+        if let Some(mut profile) = cursor.read("_profile_").await? {
+            let mut profile_json = String::new();
+            profile.contents.read_to_string(&mut profile_json).await?;
+            match serde_json::from_str(&profile_json)? {
+                Value::Object(object) => match object.get("nickname") {
+                    Some(Value::String(nickname)) => Ok(Some(nickname.to_owned())),
+                    _ => Ok(None),
+                },
+                _ => Ok(None),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    fn find_petname_in_path(&self, path: &Path) -> Result<Option<(String, PathBuf)>> {
+        let mut current_path: Option<&Path> = Some(path);
+
+        debug!("Looking for the petname of the local sphere...");
+        while let Some(path) = current_path {
+            trace!("Looking for petname in {}", path.display());
+            if let Some(tail) = path.components().last() {
+                if let Some(str) = tail.as_os_str().to_str() {
+                    if str.starts_with('@') {
+                        let petname = str.split('@').last().unwrap_or_default().to_owned();
+                        debug!("Found petname @{}", petname);
+                        return Ok(Some((petname, path.to_owned())));
+                    }
+                }
+            }
+
+            current_path = path.parent();
+        }
+
+        debug!("No petname found");
+        Ok(None)
+    }
+
+    // #[instrument(level = "trace", skip(self))]
+    // pub async fn resolve_link_record(
+    //     &self,
+    //     starting_from: Option<&Path>,
+    // ) -> Result<Option<LinkRecord>> {
+    //     debug!("Looking for the link record of the local sphere...");
+    //     if let Some((petname, petname_root)) =
+    //         self.find_petname_in_path(&starting_from.unwrap_or_else(|| &self.working_directory))?
+    //     {
+    //         if let Some(parent_path) = petname_root.parent() {
+    //             match self.find_petname_in_path(parent_path)? {
+    //                 Some((_, parent_petname_root)) if &parent_petname_root == parent_path => {
+    //                     if let Some((parent_sphere_identity, parent_version)) = self
+    //                         .resolve_closest_sphere(Some(&parent_petname_root))
+    //                         .await?
+    //                     {
+    //                         let parent_sphere_context = Arc::new(
+    //                             self.sphere_context()
+    //                                 .await?
+    //                                 .lock()
+    //                                 .await
+    //                                 .to_visitor(&parent_sphere_identity)
+    //                                 .await?,
+    //                         );
+    //                         let cursor =
+    //                             SphereCursor::mounted_at(parent_sphere_context, &parent_version);
+    //                         debug!("Found link record for @{petname} as assigned by {parent_sphere_identity}");
+    //                         return Ok(cursor.get_petname_record(&petname).await?);
+    //                     }
+    //                 }
+    //                 _ => (),
+    //             }
+    //         }
+    //     }
+
+    //     Ok(None)
+    // }
 
     /// Reads the latest local version of the sphere and renders its contents to
     /// files in the workspace. Note that this will overwrite any existing files

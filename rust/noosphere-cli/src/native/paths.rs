@@ -13,8 +13,10 @@ pub const STORAGE_DIRECTORY: &str = "storage";
 pub const CONTENT_DIRECTORY: &str = "content";
 pub const PEERS_DIRECTORY: &str = "peers";
 pub const SLUGS_DIRECTORY: &str = "slugs";
-pub const VERSION_FILE: &str = "version";
 pub const MOUNT_DIRECTORY: &str = "mount";
+pub const VERSION_FILE: &str = "version";
+pub const IDENTITY_FILE: &str = "identity";
+pub const LINK_RECORD_FILE: &str = "link_record";
 
 /// NOTE: We use hashes to represent internal paths for a couple of reasons,
 /// both related to Windows filesystem limitations:
@@ -108,6 +110,10 @@ impl SpherePaths {
 
     pub fn sphere(&self) -> &Path {
         &self.sphere
+    }
+
+    pub fn peers(&self) -> &Path {
+        &self.peers
     }
 
     pub fn slug(&self, slug: &str) -> Result<PathBuf> {

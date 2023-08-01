@@ -3,16 +3,13 @@ use std::{collections::BTreeMap, convert::TryFrom};
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_core::data::{Did, Jwt, Link};
-use noosphere_sphere::{
-    HasMutableSphereContext, HasSphereContext, SphereAuthorityRead, SphereAuthorityWrite,
-    SphereWalker,
-};
+use noosphere_sphere::{HasSphereContext, SphereAuthorityRead, SphereAuthorityWrite, SphereWalker};
 use serde_json::{json, Value};
 use ucan::{store::UcanJwtStore, Ucan};
 
 use tokio_stream::StreamExt;
 
-use crate::native::workspace::Workspace;
+use crate::native::{commands::save::save, workspace::Workspace};
 
 pub async fn auth_add(did: &Did, name: Option<String>, workspace: &Workspace) -> Result<Cid> {
     workspace.ensure_sphere_initialized()?;
@@ -61,7 +58,7 @@ You will be able to add a new one after the old one is revoked"#,
     let new_authorization = sphere_context.authorize(&name, did).await?;
     let new_authorization_cid = Cid::try_from(new_authorization)?;
 
-    sphere_context.save(None).await?;
+    save(workspace).await?;
 
     info!(
         r#"Successfully authorized {did} to access your sphere.
@@ -271,7 +268,7 @@ pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
         sphere_context.revoke_authorization(authorization).await?;
     }
 
-    sphere_context.save(None).await?;
+    save(workspace).await?;
 
     Ok(())
 }

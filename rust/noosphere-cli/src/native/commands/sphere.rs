@@ -8,11 +8,15 @@ use noosphere::{
     sphere::{SphereContextBuilder, SphereContextBuilderArtifacts},
 };
 use noosphere_core::{authority::Authorization, data::Did};
-use noosphere_sphere::{HasMutableSphereContext, SphereContext, SphereSync, SyncRecovery};
+use noosphere_sphere::{
+    HasMutableSphereContext, SphereContext, SpherePetnameWrite, SphereSync, SyncRecovery,
+};
 
 use tokio::sync::Mutex;
 use ucan::crypto::KeyMaterial;
 use url::Url;
+
+use super::save::save;
 
 pub async fn sphere_create(owner_key: &str, workspace: &mut Workspace) -> Result<()> {
     workspace.ensure_sphere_uninitialized()?;
@@ -139,13 +143,100 @@ Happy pondering!"#
 }
 
 pub async fn sphere_follow(
-    _name: Option<String>,
-    _did: Option<Did>,
-    _workspace: &Workspace,
+    name: Option<String>,
+    did: Option<Did>,
+    workspace: &Workspace,
 ) -> Result<()> {
-    todo!();
+    workspace.ensure_sphere_initialized()?;
+
+    let sphere_identity = workspace.sphere_identity().await?;
+    let (closest_sphere_identity, closest_sphere_version, link_record) = workspace
+        .resolve_closest_sphere(None)
+        .await?
+        .ok_or_else(|| anyhow!("Couldn't resolve local sphere and/or version"))?;
+    let closest_sphere_is_root_sphere = closest_sphere_identity == sphere_identity;
+
+    let did = match did {
+        Some(did) => did,
+        None if !closest_sphere_is_root_sphere => closest_sphere_identity.clone(),
+        _ => {
+            info!(
+                r#"Type or paste the sphere ID (e.g., did:key:...) you want to follow and press enter:"#
+            );
+
+            let mut did_string = String::new();
+            std::io::stdin().read_line(&mut did_string)?;
+            // TODO: Validate this is a supported DID method and give feedback if not
+            did_string.trim().into()
+        }
+    };
+
+    info!("Following Sphere {did}");
+
+    let name = match name {
+        Some(name) => name,
+        None => {
+            let name = if closest_sphere_is_root_sphere {
+                None
+            } else {
+                workspace
+                    .resolve_profile_nickname(&closest_sphere_identity, &closest_sphere_version)
+                    .await?
+            };
+
+            if let Some(name) = name {
+                name
+            } else {
+                info!(r#"Type a nickname for the sphere and press enter:"#);
+                let mut name = String::new();
+                std::io::stdin().read_line(&mut name)?;
+                name.trim().to_owned()
+            }
+        }
+    };
+
+    info!("Assigning petname {name}");
+
+    // TODO: Attempt to automatically discover the locally-loaded [LinkRecord]
+    // for the sphere noting that this is only possible when following a FoaF
+    // that has been locally rendered
+    let mut sphere_context = workspace.sphere_context().await?;
+
+    sphere_context.set_petname(&name, Some(did.clone())).await?;
+
+    if let Some(link_record) = link_record {
+        trace!("A link record was found for {did}: {}", link_record);
+        sphere_context.save(None).await?;
+        sphere_context
+            .set_petname_record(&name, &link_record)
+            .await?;
+    } else {
+        info!(
+            r#"You are following '@{name}' but a link record must be resolved before you can see their sphere.
+        
+In order to get a link record, you must sync with a gateway at least twice (ideally a few seconds apart):
+
+  orb sphere sync
+  
+After the first sync, the gateway will try to resolve the link record for you, and you'll receive it upon a future sync."#
+        );
+    }
+
+    save(workspace).await?;
+
+    Ok(())
 }
 
-pub async fn sphere_unfollow(_name: Option<String>, _workspace: &Workspace) -> Result<()> {
-    todo!();
+pub async fn sphere_unfollow(name: String, workspace: &Workspace) -> Result<()> {
+    workspace.ensure_sphere_initialized()?;
+
+    workspace
+        .sphere_context()
+        .await?
+        .set_petname(&name, None)
+        .await?;
+
+    save(workspace).await?;
+
+    Ok(())
 }

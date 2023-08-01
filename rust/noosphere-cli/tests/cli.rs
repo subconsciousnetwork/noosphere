@@ -282,7 +282,7 @@ mod multiplayer {
             ("@peer3/content2.txt", "foo2"),
             ("@peer2/@peer3-of-peer2/content2.txt", "foo2"),
             ("@peer2/@peer4/content3.txt", "foo3"),
-            (".sphere/identifier", &sphere_1_id),
+            (".sphere/identity", &sphere_1_id),
             (".sphere/version", &sphere_1_version.to_string()),
         ];
 
@@ -344,7 +344,7 @@ mod multiplayer {
             ("@peer3-renamed/content2.txt", "foo2"),
             ("@peer2/@peer3-of-peer2/content2.txt", "foo2"),
             ("@peer2/@peer4/content3.txt", "foo3 and something new"),
-            (".sphere/identifier", &sphere_1_id),
+            (".sphere/identity", &sphere_1_id),
             (".sphere/version", &sphere_1_version.to_string()),
         ];
 
