@@ -13,8 +13,11 @@ pub const STORAGE_DIRECTORY: &str = "storage";
 pub const CONTENT_DIRECTORY: &str = "content";
 pub const PEERS_DIRECTORY: &str = "peers";
 pub const SLUGS_DIRECTORY: &str = "slugs";
-pub const VERSION_FILE: &str = "version";
 pub const MOUNT_DIRECTORY: &str = "mount";
+pub const VERSION_FILE: &str = "version";
+pub const IDENTITY_FILE: &str = "identity";
+pub const DEPTH_FILE: &str = "depth";
+pub const LINK_RECORD_FILE: &str = "link_record";
 
 /// NOTE: We use hashes to represent internal paths for a couple of reasons,
 /// both related to Windows filesystem limitations:
@@ -40,6 +43,8 @@ pub struct SpherePaths {
     content: PathBuf,
     peers: PathBuf,
     version: PathBuf,
+    identity: PathBuf,
+    depth: PathBuf,
 }
 
 impl SpherePaths {
@@ -59,6 +64,8 @@ impl SpherePaths {
             peers: sphere.join(PEERS_DIRECTORY),
             slugs: sphere.join(SLUGS_DIRECTORY),
             version: sphere.join(VERSION_FILE),
+            identity: sphere.join(IDENTITY_FILE),
+            depth: sphere.join(DEPTH_FILE),
             sphere,
         }
     }
@@ -102,12 +109,24 @@ impl SpherePaths {
         &self.version
     }
 
+    pub fn identity(&self) -> &Path {
+        &self.identity
+    }
+
+    pub fn depth(&self) -> &Path {
+        &self.depth
+    }
+
     pub fn root(&self) -> &Path {
         &self.root
     }
 
     pub fn sphere(&self) -> &Path {
         &self.sphere
+    }
+
+    pub fn peers(&self) -> &Path {
+        &self.peers
     }
 
     pub fn slug(&self, slug: &str) -> Result<PathBuf> {

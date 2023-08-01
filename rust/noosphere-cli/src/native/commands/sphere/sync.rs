@@ -2,7 +2,7 @@ use crate::native::{content::Content, workspace::Workspace};
 use anyhow::{anyhow, Result};
 use noosphere_sphere::{SphereSync, SyncRecovery};
 
-pub async fn sync(auto_retry: u32, workspace: &Workspace) -> Result<()> {
+pub async fn sync(auto_retry: u32, render_depth: Option<u32>, workspace: &Workspace) -> Result<()> {
     workspace.ensure_sphere_initialized()?;
 
     match Content::read_changes(workspace).await? {
@@ -21,7 +21,7 @@ pub async fn sync(auto_retry: u32, workspace: &Workspace) -> Result<()> {
 
     info!("Sync complete, rendering updated workspace...");
 
-    workspace.render().await?;
+    workspace.render(render_depth).await?;
 
     info!("Done!");
 

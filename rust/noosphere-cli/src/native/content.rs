@@ -201,6 +201,10 @@ impl Content {
             changes.new.insert(slug.clone(), Some(content_type.clone()));
         }
 
-        Ok(Some((file_content, changes, new_blocks)))
+        if changes.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some((file_content, changes, new_blocks)))
+        }
     }
 }

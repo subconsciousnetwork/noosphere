@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere_core::data::{Did, Link, MemoIpld};
+use noosphere_core::data::{Did, Link, LinkRecord, MemoIpld};
 use noosphere_sphere::{
     HasSphereContext, SphereContentRead, SphereCursor, SpherePetnameRead, SphereReplicaRead,
     SphereWalker,
@@ -17,10 +17,20 @@ use super::writer::SphereWriter;
 const CONTENT_CHANGE_BUFFER_CAPACITY: usize = 512;
 const PETNAME_CHANGE_BUFFER_CAPACITY: usize = 2048;
 
+pub type SphereRenderJobId = (Did, Cid);
+
+pub struct SphereRenderRequest(pub Vec<String>, pub Did, pub Cid, pub LinkRecord);
+
+impl SphereRenderRequest {
+    pub fn as_id(&self) -> SphereRenderJobId {
+        (self.1.clone(), self.2)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum JobKind {
     Root,
-    Peer(Did, Cid),
+    Peer(Did, Cid, LinkRecord),
 }
 
 pub struct SphereRenderJob<C, S>
@@ -33,7 +43,7 @@ where
     pub petname_path: Vec<String>,
     pub writer: SphereWriter,
     pub storage_type: PhantomData<S>,
-    pub job_queue: Sender<SphereRenderJobId>,
+    pub job_queue: Sender<SphereRenderRequest>,
 }
 
 impl<C, S> SphereRenderJob<C, S>
@@ -46,7 +56,7 @@ where
         kind: JobKind,
         paths: Arc<SpherePaths>,
         petname_path: Vec<String>,
-        job_queue: Sender<SphereRenderJobId>,
+        job_queue: Sender<SphereRenderRequest>,
     ) -> Self {
         SphereRenderJob {
             context,
@@ -82,7 +92,7 @@ where
                     }
                 }
             }
-            JobKind::Peer(_, _) => {
+            JobKind::Peer(_, _, _) => {
                 debug!("Running peer render job...");
                 if let Some(context) = SphereCursor::latest(self.context.clone())
                     .traverse_by_petnames(&self.petname_path)
@@ -132,14 +142,17 @@ where
         // Write all peer symlinks, queuing jobs to render them as we go
         while let Some((name, identity)) = petname_stream.try_next().await? {
             let did = identity.did.clone();
-            let cid = match identity.link_record(&db).await {
-                None => None,
-                Some(link_record) => link_record.get_link(),
-            };
-            let cid = match cid {
-                Some(cid) => cid,
+            let (link_record, cid) = match identity.link_record(&db).await {
+                Some(link_record) => {
+                    if let Some(cid) = link_record.get_link() {
+                        (link_record, cid)
+                    } else {
+                        warn!("No version resolved for '@{name}', skipping...");
+                        continue;
+                    }
+                }
                 None => {
-                    warn!("No version resolved for '@{name}', skipping...");
+                    warn!("No link record found for '@{name}', skipping...");
                     continue;
                 }
             };
@@ -156,15 +169,23 @@ where
             // depuplicated by the receiver)
             let mut petname_path = vec![name];
             petname_path.append(&mut self.petname_path.clone());
-            self.job_queue.send((petname_path, did, cid.into())).await?;
+            self.job_queue
+                .send(SphereRenderRequest(
+                    petname_path,
+                    did,
+                    cid.into(),
+                    link_record,
+                ))
+                .await?;
         }
 
         petname_change_buffer.flush_to_writer(&self.writer).await?;
 
         // Write out the latest version that was rendered
-        self.writer
-            .write_identity_and_version(&identity, &version)
-            .await?;
+        tokio::try_join!(
+            self.writer.write_identity_and_version(&identity, &version),
+            self.writer.write_link_record()
+        )?;
 
         Ok(())
     }
@@ -207,18 +228,27 @@ where
 
             for petname in changes {
                 match cursor.get_petname(&petname).await? {
-                    Some(identity) => match cursor.resolve_petname(&petname).await? {
-                        Some(version) => {
-                            petname_change_buffer.add(
-                                petname.clone(),
-                                (identity.clone(), Cid::from(version.clone())),
-                            )?;
+                    Some(identity) => match cursor.get_petname_record(&petname).await? {
+                        Some(link_record) => {
+                            if let Some(version) = link_record.get_link() {
+                                petname_change_buffer.add(
+                                    petname.clone(),
+                                    (identity.clone(), Cid::from(version.clone())),
+                                )?;
 
-                            let mut petname_path = self.petname_path.clone();
-                            petname_path.push(petname);
-                            self.job_queue
-                                .send((petname_path, identity, Cid::from(version)))
-                                .await?;
+                                let mut petname_path = self.petname_path.clone();
+                                petname_path.push(petname);
+                                self.job_queue
+                                    .send(SphereRenderRequest(
+                                        petname_path,
+                                        identity,
+                                        Cid::from(version),
+                                        link_record,
+                                    ))
+                                    .await?;
+                            } else {
+                                petname_change_buffer.remove(&petname)?;
+                            }
                         }
                         None => petname_change_buffer.remove(&petname)?,
                     },
@@ -244,5 +274,3 @@ where
         Ok(())
     }
 }
-
-pub type SphereRenderJobId = (Vec<String>, Did, Cid);

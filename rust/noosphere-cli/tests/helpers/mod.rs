@@ -12,7 +12,7 @@ use tempfile::TempDir;
 
 use noosphere_cli::native::{
     cli::ConfigSetCommand,
-    commands::{config::config_set, key::key_create, sphere::sphere_create},
+    commands::{key::key_create, sphere::config_set, sphere::sphere_create},
     workspace::Workspace,
 };
 use noosphere_core::data::Did;

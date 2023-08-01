@@ -39,8 +39,7 @@ pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
 
     let sphere_context = workspace.sphere_context().await?;
     let cid = SphereCursor::latest(sphere_context).version().await?;
-    info!("The latest (saved) version of your sphere is {cid}");
-    info!("Here is a summary of the current changes to sphere content:\n");
+    info!("The latest (saved) version of your sphere is {cid}\n");
 
     // TODO: No need to pack new blocks into a memory store at this step; maybe
     // [Content::read_changes] can be optimized for this path
@@ -51,6 +50,8 @@ pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
             return Ok(());
         }
     };
+
+    info!("Here is a summary of the current changes to sphere content:\n");
 
     let mut content = Vec::new();
 
@@ -81,13 +82,17 @@ pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
         &mut max_content_type_length,
     );
 
-    info!(
-        "{:max_name_length$}  {:max_content_type_length$}  STATUS",
-        "NAME", "CONTENT-TYPE"
-    );
+    if !content.is_empty() {
+        info!(
+            "{:max_name_length$}  {:max_content_type_length$}  STATUS",
+            "NAME", "CONTENT-TYPE"
+        );
 
-    for (slug, content_type, status) in content {
-        info!("{slug:max_name_length$}  {content_type:max_content_type_length$}  {status}");
+        for (slug, content_type, status) in content {
+            info!("{slug:max_name_length$}  {content_type:max_content_type_length$}  {status}");
+        }
+    } else {
+        info!("No content has changed since the last save!")
     }
 
     Ok(())

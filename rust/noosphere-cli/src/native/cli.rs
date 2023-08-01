@@ -107,6 +107,11 @@ pub enum SphereCommand {
 
         /// The identity of an existing sphere to join
         id: Did,
+
+        /// The maximum depth to traverse through followed spheres when
+        /// rendering updates
+        #[clap(short = 'd', long)]
+        render_depth: Option<u32>,
     },
 
     /// Show details about files in the sphere directory that have changed since
@@ -120,7 +125,12 @@ pub enum SphereCommand {
     /// Saves changed files to a sphere, creating and signing a new revision in
     /// the process; does nothing if there have been no changes to the files
     /// since the last revision
-    Save,
+    Save {
+        /// The maximum depth to traverse through followed spheres when
+        /// rendering updates
+        #[clap(short = 'd', long)]
+        render_depth: Option<u32>,
+    },
 
     /// Synchronizes the local sphere with the copy in a configured gateway;
     /// note that this is a "conflict-free" sync that may cause local changes
@@ -130,20 +140,16 @@ pub enum SphereCommand {
         /// Automatically retry the attempt to sync this number of times
         #[clap(short = 'r', long, default_value = "0")]
         auto_retry: u32,
+
+        /// The maximum depth to traverse through followed spheres when
+        /// rendering updates
+        #[clap(short = 'd', long)]
+        render_depth: Option<u32>,
     },
 
     Follow {
-        /// A personalized "petname" for the sphere you are following
-        #[clap(short = 'n', long)]
-        name: Option<String>,
-
-        /// The sphere ID that you wish to follow
-        did: Option<Did>,
-    },
-
-    Unfollow {
-        /// The short name of the sphere that you wish to unfollow
-        name: Option<String>,
+        #[clap(subcommand)]
+        command: FollowCommand,
     },
 
     Config {
@@ -236,4 +242,47 @@ pub enum AuthCommand {
 
     /// Rotate key authority from one key to another
     Rotate {},
+}
+
+#[derive(Debug, Subcommand)]
+pub enum FollowCommand {
+    /// Follow a sphere, assigning it a personalized nickname
+    Add {
+        /// A personalized nickname for the sphere you are following
+        name: Option<String>,
+
+        /// The sphere ID that you wish to follow
+        #[clap(short = 'i', long)]
+        sphere_id: Option<Did>,
+    },
+
+    /// Unfollow a sphere, either by nickname or by sphere ID
+    Remove {
+        /// A short name of a sphere that you wish to unfollow. If you follow
+        /// the same sphere by multiple names, this will only remove the name
+        /// you specify
+        #[clap(short = 'n', long)]
+        by_name: Option<String>,
+
+        /// The sphere ID that you wish to unfollow. If you follow this sphere
+        /// by multiple names, all of them will be removed at once.
+        #[clap(short = 'i', long)]
+        by_sphere_id: Option<Did>,
+    },
+
+    /// Rename a sphere that you currently follow to something new
+    Rename {
+        /// The current nickname of a sphere that you follow
+        from: String,
+
+        /// The preferred nickname to rename the sphere to
+        #[clap(short = 't', long)]
+        to: Option<String>,
+    },
+
+    /// Show a list of all the spheres that you follow
+    List {
+        #[clap(short = 'j', long)]
+        as_json: bool,
+    },
 }

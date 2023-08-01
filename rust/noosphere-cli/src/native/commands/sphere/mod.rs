@@ -1,3 +1,17 @@
+mod auth;
+mod config;
+mod follow;
+mod save;
+mod status;
+mod sync;
+
+pub use auth::*;
+pub use config::*;
+pub use follow::*;
+pub use save::*;
+pub use status::*;
+pub use sync::*;
+
 use std::{str::FromStr, sync::Arc};
 
 use crate::native::{paths::SpherePaths, workspace::Workspace};
@@ -59,6 +73,7 @@ pub async fn sphere_join(
     authorization: Option<String>,
     sphere_identity: &Did,
     gateway_url: &Url,
+    render_depth: Option<u32>,
     workspace: &mut Workspace,
 ) -> Result<()> {
     workspace.ensure_sphere_uninitialized()?;
@@ -124,7 +139,7 @@ Type or paste the code here and press enter:"#
     }
 
     workspace.initialize(sphere_paths)?;
-    workspace.render().await?;
+    workspace.render(render_depth).await?;
     // TODO(#103): Recovery path if the auth needs to change for some reason
 
     info!(
@@ -136,16 +151,4 @@ Happy pondering!"#
     );
 
     Ok(())
-}
-
-pub async fn sphere_follow(
-    _name: Option<String>,
-    _did: Option<Did>,
-    _workspace: &Workspace,
-) -> Result<()> {
-    todo!();
-}
-
-pub async fn sphere_unfollow(_name: Option<String>, _workspace: &Workspace) -> Result<()> {
-    todo!();
 }
