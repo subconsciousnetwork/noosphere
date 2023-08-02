@@ -38,7 +38,7 @@ async-trait = "~0.1"
 tracing = { workspace = true }
 iroh-car = { workspace = true }
 
-url = { version = "^2", features = [ "serde" ] }
+url = { workspace = true, features = ["serde"] }
 whoami = "^1"
 home = "~0.5"
 pathdiff = "~0.2"

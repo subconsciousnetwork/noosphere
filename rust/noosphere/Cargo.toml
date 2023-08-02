@@ -29,7 +29,7 @@ cid = { workspace = true }
 async-trait = "~0.1"
 async-stream = "~0.3"
 tracing = { workspace = true }
-url = { version = "^2", features = ["serde"] }
+url = { workspace = true, features = ["serde"] }
 subtext = { workspace = true }
 itertools = "0.10.5"
 tokio-stream = "~0.1"
