@@ -2,8 +2,8 @@ use noosphere_core::data::Did;
 
 use std::net::IpAddr;
 
-use clap::Parser;
-use clap::Subcommand;
+use clap::{Parser, Subcommand};
+use git_version::git_version;
 use url::Url;
 
 #[derive(Debug, Parser)]
@@ -12,7 +12,8 @@ use url::Url;
 r#"The orb CLI tool is a utility for saving, syncing and sharing content to the
 Noosphere. In practical terms, this means it helps you with tasks such as key
 management, creating and updating spheres, managing acccess to said spheres and
-publishing the contents of those spheres to public networks."#))]
+publishing the contents of those spheres to public networks."#),
+long_version = git_version!())]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: OrbCommand,
