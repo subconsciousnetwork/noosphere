@@ -31,6 +31,8 @@ libipld-cbor = { workspace = true }
 serde = { workspace = true }
 base64 = "=0.21.4"
 url = { version = "^2" }
+r2d2 = { version = "0.8.10", optional = true }
+r2d2_sqlite = { version = "0.22.0", optional = true, features = ["bundled"] }
 
 [dev-dependencies]
 witty-phrase-generator = "~0.2"
@@ -69,6 +71,7 @@ features = [
 default = []
 rocksdb = ["dep:rocksdb"]
 rocksdb-multi-thread = ["dep:rocksdb"]
+sqlite = ["dep:r2d2", "dep:r2d2_sqlite"]
 
 [[example]]
 name = "bench"

@@ -13,8 +13,9 @@ fn main() {
         },
 
         // Backends
-        rocksdb: { all(feature = "rocksdb", native) },
-        sled: { all(not(any(rocksdb)), native) },
+        rocksdb: { all(feature = "rocksdb", native, not(sqlite)) },
+        sqlite: { all(feature = "sqlite", native) },
+        sled: { all(not(any(sqlite, rocksdb)), native) },
         indexeddb: { wasm },
 
         // Other

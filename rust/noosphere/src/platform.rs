@@ -20,6 +20,8 @@ mod inner {
     pub(crate) type PrimitiveStorage = noosphere_storage::SledStorage;
     #[cfg(rocksdb)]
     pub(crate) type PrimitiveStorage = noosphere_storage::RocksDbStorage;
+    #[cfg(sqlite)]
+    pub(crate) type PrimitiveStorage = noosphere_storage::SqliteStorage;
 
     #[cfg(not(ipfs_storage))]
     pub type PlatformStorage = PrimitiveStorage;
@@ -115,6 +117,8 @@ mod inner {
     pub(crate) type PrimitiveStorage = noosphere_storage::SledStorage;
     #[cfg(rocksdb)]
     pub(crate) type PrimitiveStorage = noosphere_storage::RocksDbStorage;
+    #[cfg(sqlite)]
+    pub(crate) type PrimitiveStorage = noosphere_storage::SqliteStorage;
 
     /// The default backing [noosphere_storage::Storage] in use for this
     /// platform
