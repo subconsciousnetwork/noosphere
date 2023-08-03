@@ -364,6 +364,8 @@ mod multiplayer {
             })
             .await?;
 
+        wait(1).await;
+
         // Sync to get the latest remote changes
         cli.orb(&["sphere", "sync", "--auto-retry", "3"]).await?;
 
@@ -406,6 +408,8 @@ mod multiplayer {
         for path in unexpected_content {
             assert!(!tokio::fs::try_exists(&cli.sphere_directory().join(path)).await?);
         }
+
+        wait(1).await;
 
         // Sync again, but with a greater render depth
         cli.orb(&["sphere", "sync", "--auto-retry", "3", "--render-depth", "4"])

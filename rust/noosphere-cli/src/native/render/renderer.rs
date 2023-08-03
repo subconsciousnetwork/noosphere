@@ -212,9 +212,9 @@ where
                                 debug!("Skipping render job for '@{}' (exceeds max render depth {render_depth})", petname_path.join("."));
                                 continue;
                             }
-                            warn!("PETNAME PATH {:?}", petname_path);
 
-                            debug!("Queuing render job for {} @ {}...", job_id.0, job_id.1);
+                            debug!(?petname_path, "Queuing render job for {} @ {}...", job_id.0, job_id.1);
+
                             started_jobs.insert(job_id);
 
                             if self.paths.peer(&peer, &version).exists() {

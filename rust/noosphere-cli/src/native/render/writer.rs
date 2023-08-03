@@ -187,7 +187,8 @@ impl SphereWriter {
     /// Remove a symlink to a peer by petname
     pub async fn unlink_peer(&self, petname: &str) -> Result<()> {
         let absolute_peer_destination = self.petname(petname);
-        if absolute_peer_destination.exists() {
+        if absolute_peer_destination.is_symlink() {
+            trace!(?petname, ?absolute_peer_destination, "Unlinking peer");
             remove_symlink_dir(absolute_peer_destination)?;
         }
         Ok(())
@@ -212,6 +213,8 @@ impl SphereWriter {
         .ok_or_else(|| anyhow!("Could not resolve relative path for to '@{petname}'",))?;
 
         self.unlink_peer(petname).await?;
+
+        trace!(?petname, ?absolute_peer_destination, "Symlinking peer");
 
         symlink_dir(relative_peer_source, absolute_peer_destination)?;
 
