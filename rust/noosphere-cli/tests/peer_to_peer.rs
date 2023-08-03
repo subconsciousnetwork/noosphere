@@ -579,7 +579,6 @@ async fn local_lineage_remains_sparse_as_graph_changes_accrue_over_time() -> Res
 
     pair_2
         .spawn(move |mut ctx| async move {
-            // ctx.write(slug, content_type, value, additional_headers)
             ctx.write("peer-content", "text/plain", "baz".as_bytes(), None)
                 .await?;
 

@@ -200,6 +200,7 @@ pub async fn follow_rename(from: String, to: Option<String>, workspace: &Workspa
     let to = if let Some(to) = to {
         to
     } else {
+        info!(r#"Type the new nickname to update to and press enter:"#);
         let mut name = String::new();
         std::io::stdin().read_line(&mut name)?;
         name.trim().to_owned()
