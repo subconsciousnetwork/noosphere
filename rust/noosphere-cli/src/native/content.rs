@@ -82,8 +82,8 @@ impl Content {
     /// This includes files that have not yet been saved to the sphere. All
     /// files are chunked into blocks, and those blocks are persisted to the
     /// provided store.
-    // TODO: This is slow; we could probably do a concurrent traversal similar
-    // to how we traverse when rendering files to disk
+    // TODO(#556): This is slow; we could probably do a concurrent traversal
+    // similar to how we traverse when rendering files to disk
     pub async fn read_all<S: BlockStore>(paths: &SpherePaths, store: &mut S) -> Result<Content> {
         let root_path = paths.root();
         let mut directories = vec![(None, tokio::fs::read_dir(root_path).await?)];
@@ -106,7 +106,8 @@ impl Content {
 
                     directories.push((Some(slug_prefix), tokio::fs::read_dir(path).await?));
 
-                    // TODO: Limit the depth of the directory traversal to some reasonable number
+                    // TODO(#557): Limit the depth of the directory traversal to
+                    // some reasonable number
 
                     continue;
                 }
@@ -166,7 +167,8 @@ impl Content {
     pub async fn read_changes(
         workspace: &Workspace,
     ) -> Result<Option<(Content, ContentChanges, MemoryStore)>> {
-        // TODO: We need a better strategy than reading all changed content into memory at once
+        // TODO(#556): We need a better strategy than reading all changed
+        // content into memory at once
         let mut new_blocks = MemoryStore::default();
         let file_content =
             Content::read_all(workspace.require_sphere_paths()?, &mut new_blocks).await?;

@@ -147,8 +147,8 @@ pub async fn auth_list(tree: bool, as_json: bool, workspace: &Workspace) -> Resu
         for (link, (_name, _identity, jwt)) in authorization_meta.iter() {
             let ucan = Ucan::try_from(jwt.as_str())?;
 
-            // TODO: Maybe only consider Noosphere-related proofs here
-            // TODO: Maybe filter on proofs that specifically refer to the current sphere
+            // TODO(#552): Maybe only consider Noosphere-related proofs here
+            // TODO(#553): Maybe filter on proofs that specifically refer to the current sphere
             let proofs = ucan
                 .proofs()
                 .clone()
@@ -158,7 +158,7 @@ pub async fn auth_list(tree: bool, as_json: bool, workspace: &Workspace) -> Resu
                 .collect::<Vec<Link<Jwt>>>();
 
             if *ucan.issuer() == sphere_identity {
-                // TODO: Such an authorization ought not have any topical proofs,
+                // TODO(#554): Such an authorization ought not have any topical proofs,
                 // but perhaps we should verify that
                 authorization_roots.push(link.clone())
             } else {

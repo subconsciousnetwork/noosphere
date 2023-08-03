@@ -38,7 +38,8 @@ pub async fn follow_add(
 
             let mut did_string = String::new();
             std::io::stdin().read_line(&mut did_string)?;
-            // TODO: Validate this is a supported DID method and give feedback if not
+            // TODO(#555): Validate this is a supported DID method and give
+            // feedback if not
             did_string.trim().into()
         }
     };
@@ -51,7 +52,8 @@ pub async fn follow_add(
         // No name is specified....
         None => {
             let name = match &closest_sphere_details {
-                // ...but we can try to infer a good default from a Subconscious profile
+                // ...but we can try to infer a good default from a Subconscious
+                // profile
                 Some((closest_sphere_identity, closest_sphere_version, _))
                     if closest_sphere_identity == &did =>
                 {
@@ -79,9 +81,6 @@ pub async fn follow_add(
 
     info!("Assigning nickname '@{name}' to sphere {did}...");
 
-    // TODO: Attempt to automatically discover the locally-loaded [LinkRecord]
-    // for the sphere noting that this is only possible when following a FoaF
-    // that has been locally rendered
     let mut sphere_context = workspace.sphere_context().await?;
 
     sphere_context.set_petname(&name, Some(did.clone())).await?;

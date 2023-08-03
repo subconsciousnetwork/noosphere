@@ -115,8 +115,8 @@ where
         let client = context.client().await?;
         let counterpart_sphere_identity = client.session.sphere_identity.clone();
 
-        // TODO: Some kind of due diligence to notify the caller when this value
-        // changes
+        // TODO(#561): Some kind of due diligence to notify the caller when this
+        // value changes
         context
             .db_mut()
             .set_key(COUNTERPART, &counterpart_sphere_identity)
@@ -304,8 +304,9 @@ where
                     }
 
                     if context.resolve_petname(&name).await? == link_record.get_link() {
-                        // TODO: Should probably also verify record expiry in case we are dealing
-                        // with a renewed record to the same link
+                        // TODO(#562): Should probably also verify record expiry
+                        // in case we are dealing with a renewed record to the
+                        // same link
                         warn!("Resolved link for {name} has not changed; skipping...");
                         continue;
                     }

@@ -43,8 +43,8 @@ pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
     let cid = SphereCursor::latest(sphere_context).version().await?;
     info!("The latest (saved) version of your sphere is {cid}\n");
 
-    // TODO: No need to pack new blocks into a memory store at this step; maybe
-    // [Content::read_changes] can be optimized for this path
+    // TODO(#556): No need to pack new blocks into a memory store at this step;
+    // maybe [Content::read_changes] can be optimized for this path
     let (_, content_changes, _) = match Content::read_changes(workspace).await? {
         Some(changes) => changes,
         None => {

@@ -171,7 +171,6 @@ pub enum SphereCommand {
 }
 
 /// Read and manage configuration values for a local sphere
-// TODO: Consider adding `config import` / `config export`
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommand {
     /// Set a configuration value for the local sphere

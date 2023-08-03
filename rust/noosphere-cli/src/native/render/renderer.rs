@@ -218,7 +218,7 @@ where
                             started_jobs.insert(job_id);
 
                             if self.paths.peer(&peer, &version).exists() {
-                                // TODO: We may need to re-render if a previous
+                                // TODO(#559): We may need to re-render if a previous
                                 // render was incomplete for some reason
                                 debug!(
                                     "Content for {} @ {} is already rendered, skipping...",

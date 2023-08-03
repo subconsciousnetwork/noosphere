@@ -37,7 +37,7 @@ pub fn infer_file_extension(memo: &MemoIpld) -> Result<Option<String>> {
 
 /// Given a file extension, infer its mime
 pub async fn infer_content_type(extension: &str) -> Result<ContentType> {
-    // TODO: User-specified extension->mime mapping
+    // TODO(#558): User-specified/customized extension->mime mapping
     Ok(match extension {
         "subtext" => ContentType::Subtext,
         "sphere" => ContentType::Sphere,
