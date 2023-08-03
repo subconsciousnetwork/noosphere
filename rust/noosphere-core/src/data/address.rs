@@ -4,6 +4,7 @@ use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_storage::BlockStore;
 use serde::{de, ser, Deserialize, Serialize};
+use std::fmt::Debug;
 use std::{convert::TryFrom, fmt::Display, ops::Deref, str::FromStr};
 use ucan::{chain::ProofChain, crypto::did::DidParser, store::UcanJwtStore, Ucan};
 
@@ -59,9 +60,22 @@ impl IdentityIpld {
 
 /// A [LinkRecord] is a wrapper around a decoded [Jwt] ([Ucan]),
 /// representing a link address as a [Cid] to a sphere.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 #[repr(transparent)]
 pub struct LinkRecord(Ucan);
+
+impl Debug for LinkRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("LinkRecord")
+            .field(
+                &self
+                    .0
+                    .to_cid(cid::multihash::Code::Blake3_256)
+                    .map_or_else(|_| String::from("<Invalid>"), |cid| cid.to_string()),
+            )
+            .finish()
+    }
+}
 
 impl LinkRecord {
     /// Validates the [Ucan] token as a [LinkRecord], ensuring that

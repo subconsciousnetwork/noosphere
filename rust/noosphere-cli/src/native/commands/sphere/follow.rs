@@ -9,6 +9,7 @@ use noosphere_sphere::{
 use serde_json::{json, Value};
 use tokio_stream::StreamExt;
 
+/// Add a peer to your address book by assigning their sphere ID to a nickname
 pub async fn follow_add(
     name: Option<String>,
     did: Option<Did>,
@@ -111,6 +112,8 @@ After the first sync, the gateway will try to resolve the link record for you, a
     Ok(())
 }
 
+/// Remove a peer to your address book either by nickname or by [Did] (but not both); if
+/// the removal is by [Did], all petnames assigned to that [Did] will be removed.
 pub async fn follow_remove(
     by_name: Option<String>,
     mut by_sphere_id: Option<Did>,
@@ -181,6 +184,7 @@ pub async fn follow_remove(
     Ok(())
 }
 
+/// Rename an entry in the sphere's address book to something new
 pub async fn follow_rename(from: String, to: Option<String>, workspace: &Workspace) -> Result<()> {
     workspace.ensure_sphere_initialized()?;
 
@@ -229,6 +233,7 @@ pub async fn follow_rename(from: String, to: Option<String>, workspace: &Workspa
     Ok(())
 }
 
+/// List all the entries in the address book, optionally in JSON format
 pub async fn follow_list(as_json: bool, workspace: &Workspace) -> Result<()> {
     workspace.ensure_sphere_initialized()?;
 

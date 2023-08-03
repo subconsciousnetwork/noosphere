@@ -1,61 +1,13 @@
 use anyhow::Result;
 use noosphere_core::data::Did;
-use noosphere_sphere::metadata::GATEWAY_URL;
+use noosphere_sphere::metadata::{COUNTERPART, GATEWAY_URL};
 use noosphere_storage::KeyValueStore;
-use serde::{Deserialize, Serialize};
-use tokio::sync::OnceCell;
+
 use url::Url;
 
 use crate::native::{cli::ConfigGetCommand, cli::ConfigSetCommand, workspace::Workspace};
 
-pub const COUNTERPART: &str = "counterpart";
-pub const DIFFTOOL: &str = "difftool";
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct ConfigContents {
-    pub gateway_url: Option<Url>,
-    pub counterpart: Option<Did>,
-    pub difftool: Option<String>,
-}
-
-// TODO: Consider signing configuration values to head-off tampering
-pub struct Config<'a> {
-    workspace: &'a Workspace,
-    contents: OnceCell<ConfigContents>,
-}
-
-impl<'a> From<&'a Workspace> for Config<'a> {
-    fn from(workspace: &'a Workspace) -> Self {
-        Config {
-            workspace,
-            contents: Default::default(),
-        }
-    }
-}
-
-impl<'a> Config<'a> {
-    pub async fn read(&self) -> Result<&ConfigContents> {
-        self.contents
-            .get_or_try_init(|| async {
-                let context = self.workspace.sphere_context().await?;
-                let context = context.lock().await;
-
-                let db = context.db();
-
-                let gateway_url: Option<Url> = db.get_key(GATEWAY_URL).await?;
-                let counterpart: Option<Did> = db.get_key(COUNTERPART).await?;
-                let difftool: Option<String> = db.get_key(DIFFTOOL).await?;
-
-                Ok(ConfigContents {
-                    gateway_url,
-                    counterpart,
-                    difftool,
-                })
-            })
-            .await
-    }
-}
-
+/// Set a local metadata value in the database
 pub async fn config_set(command: ConfigSetCommand, workspace: &Workspace) -> Result<()> {
     workspace.ensure_sphere_initialized()?;
     let context = workspace.sphere_context().await?;
@@ -71,6 +23,7 @@ pub async fn config_set(command: ConfigSetCommand, workspace: &Workspace) -> Res
     Ok(())
 }
 
+/// Get a local metadata value from the database
 pub async fn config_get(command: ConfigGetCommand, workspace: &Workspace) -> Result<()> {
     workspace.ensure_sphere_initialized()?;
     let context = workspace.sphere_context().await?;
@@ -87,7 +40,6 @@ pub async fn config_get(command: ConfigGetCommand, workspace: &Workspace) -> Res
             .get_key::<_, Did>(COUNTERPART)
             .await?
             .map(|did| did.to_string()),
-        ConfigGetCommand::Difftool => db.get_key::<_, String>(DIFFTOOL).await?,
     };
 
     if let Some(value) = value {

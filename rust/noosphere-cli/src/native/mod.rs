@@ -1,3 +1,5 @@
+//! Functions for invoking the CLI imperatively
+
 pub mod cli;
 pub mod commands;
 pub mod content;
@@ -25,6 +27,8 @@ use self::{
     workspace::Workspace,
 };
 
+#[cfg(not(doc))]
+#[allow(missing_docs)]
 pub async fn main() -> Result<()> {
     initialize_tracing(None);
 
@@ -33,6 +37,12 @@ pub async fn main() -> Result<()> {
     invoke_cli(Cli::parse(), workspace).await
 }
 
+/// Invoke the CLI implementation imperatively. This is the entrypoint used by
+/// orb when handling a command line invocation. The [Cli] is produced by
+/// parsing the command line arguments, and the [Workspace] is initialized from
+/// the current working directory. The effect of invoking the CLI this way will
+/// depend on the [Cli] and [Workspace] provided (results may vary significantly
+/// depending on those inputs).
 pub async fn invoke_cli(cli: Cli, mut workspace: Workspace) -> Result<()> {
     match cli.command {
         OrbCommand::Key { command } => match command {

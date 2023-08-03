@@ -1,3 +1,5 @@
+//! Constructs related to performing specific rendering tasks
+
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_core::data::{Did, Link, LinkRecord, MemoIpld};
@@ -17,33 +19,51 @@ use super::writer::SphereWriter;
 const CONTENT_CHANGE_BUFFER_CAPACITY: usize = 512;
 const PETNAME_CHANGE_BUFFER_CAPACITY: usize = 2048;
 
+/// A pairing of [Did] and [Cid], suitable for uniquely identifying the work
+/// needed to render a specific sphere at a specific version, regardless of
+/// relative location in the graph
 pub type SphereRenderJobId = (Did, Cid);
 
+/// A request to render a sphere, originating from a given path through the
+/// graph.
 pub struct SphereRenderRequest(pub Vec<String>, pub Did, pub Cid, pub LinkRecord);
 
 impl SphereRenderRequest {
+    /// Get the [SphereRenderJobId] that corresponds to this request
     pub fn as_id(&self) -> SphereRenderJobId {
         (self.1.clone(), self.2)
     }
 }
 
+/// The kind of render work to be performed by a [SphereRenderJob]. The effects
+/// of using each variant have a lot of overlap, but the specific results vary
+/// significantly
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum JobKind {
+    /// A job that renders the root sphere
     Root,
+    /// A job that renders a peer (or peer-of-a-peer) of the root sphere
     Peer(Did, Cid, LinkRecord),
+    /// A job that renders _just_ the peers of the root sphere
+    RefreshPeers,
 }
 
+/// A [SphereRenderJob] encapsulates the state needed to perform some discrete
+/// [JobKind], and implements the specified render path that corresponds to that
+/// [JobKind]. It is designed to be able to be run concurrently or in parallel
+/// with an arbitrary number of other [SphereRenderJob]s that are associated with
+/// the local sphere workspace.
 pub struct SphereRenderJob<C, S>
 where
     C: HasSphereContext<S> + 'static,
     S: Storage + 'static,
 {
-    pub context: C,
-    pub kind: JobKind,
-    pub petname_path: Vec<String>,
-    pub writer: SphereWriter,
-    pub storage_type: PhantomData<S>,
-    pub job_queue: Sender<SphereRenderRequest>,
+    context: C,
+    kind: JobKind,
+    petname_path: Vec<String>,
+    writer: SphereWriter,
+    storage_type: PhantomData<S>,
+    job_queue: Sender<SphereRenderRequest>,
 }
 
 impl<C, S> SphereRenderJob<C, S>
@@ -51,6 +71,8 @@ where
     C: HasSphereContext<S> + 'static,
     S: Storage + 'static,
 {
+    /// Construct a new render job of [JobKind], using the given [HasSphereContext] and
+    /// [SpherePaths] to perform rendering.
     pub fn new(
         context: C,
         kind: JobKind,
@@ -68,10 +90,7 @@ where
         }
     }
 
-    fn paths(&self) -> &SpherePaths {
-        self.writer.paths()
-    }
-
+    /// Entrypoint to render based on the [SphereRenderJob] configuration
     #[instrument(level = "debug", skip(self))]
     pub async fn render(self) -> Result<()> {
         match self.kind {
@@ -103,9 +122,18 @@ where
                     return Err(anyhow!("No peer found at {}", self.petname_path.join(".")));
                 };
             }
+            JobKind::RefreshPeers => {
+                debug!("Running refresh peers render job...");
+                self.refresh_peers(SphereCursor::latest(self.context.clone()))
+                    .await?;
+            }
         }
 
         Ok(())
+    }
+
+    fn paths(&self) -> &SpherePaths {
+        self.writer.paths()
     }
 
     #[instrument(level = "debug", skip(self, cursor))]
@@ -115,23 +143,38 @@ where
 
         debug!("Starting full render of {identity} @ {version}...");
 
-        let content_stream = SphereWalker::from(&cursor).into_content_stream();
+        {
+            let content_stream = SphereWalker::from(&cursor).into_content_stream();
 
-        tokio::pin!(content_stream);
+            tokio::pin!(content_stream);
 
-        let mut content_change_buffer = ChangeBuffer::new(CONTENT_CHANGE_BUFFER_CAPACITY);
+            let mut content_change_buffer = ChangeBuffer::new(CONTENT_CHANGE_BUFFER_CAPACITY);
 
-        // Write all content
-        while let Some((slug, file)) = content_stream.try_next().await? {
-            content_change_buffer.add(slug, file)?;
+            // Write all content
+            while let Some((slug, file)) = content_stream.try_next().await? {
+                content_change_buffer.add(slug, file)?;
 
-            if content_change_buffer.is_full() {
-                content_change_buffer.flush_to_writer(&self.writer).await?;
+                if content_change_buffer.is_full() {
+                    content_change_buffer.flush_to_writer(&self.writer).await?;
+                }
             }
+
+            content_change_buffer.flush_to_writer(&self.writer).await?;
         }
 
-        content_change_buffer.flush_to_writer(&self.writer).await?;
+        self.refresh_peers(cursor).await?;
 
+        // Write out the latest version that was rendered
+        tokio::try_join!(
+            self.writer.write_identity_and_version(&identity, &version),
+            self.writer.write_link_record()
+        )?;
+
+        Ok(())
+    }
+
+    #[instrument(level = "debug", skip(self, cursor))]
+    async fn refresh_peers(&self, cursor: SphereCursor<C, S>) -> Result<()> {
         let petname_stream = SphereWalker::from(&cursor).into_petname_stream();
         let db = cursor.sphere_context().await?.db().clone();
 
@@ -180,12 +223,6 @@ where
         }
 
         petname_change_buffer.flush_to_writer(&self.writer).await?;
-
-        // Write out the latest version that was rendered
-        tokio::try_join!(
-            self.writer.write_identity_and_version(&identity, &version),
-            self.writer.write_link_record()
-        )?;
 
         Ok(())
     }

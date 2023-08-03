@@ -11,9 +11,15 @@ use tokio::task::JoinSet;
 
 use super::SphereWriter;
 
+/// The form a callback that can be passed when flushing a [ChangeBuffer]; note
+/// that it is generic for the argument that is passed to the callback.
 pub type ChangeBufferFlushCallback<T> =
     Box<dyn Fn(BTreeMap<String, T>, BTreeSet<String>) -> Pin<Box<dyn Future<Output = Result<()>>>>>;
 
+/// A [ChangeBuffer] enables order-sensitive buffering of changes, and is meant
+/// to be used when traversing incremental revisions of a sphere. If changes are
+/// buffered in history order, they can be flushed and the flusher will be able
+/// to work with a flattened representation of all those changes.
 #[derive(Debug)]
 pub struct ChangeBuffer<T> {
     capacity: usize,
@@ -22,6 +28,9 @@ pub struct ChangeBuffer<T> {
 }
 
 impl<T> ChangeBuffer<T> {
+    /// Initialize a [ChangeBuffer] with the given capacity. When the capacity
+    /// is reached, the [ChangeBuffer] _must_ be flushed before additional
+    /// changes are buffered.
     pub fn new(capacity: usize) -> Self {
         ChangeBuffer {
             capacity,
@@ -38,10 +47,12 @@ impl<T> ChangeBuffer<T> {
         }
     }
 
+    /// Returns true if the [ChangeBuffer] is full
     pub fn is_full(&self) -> bool {
         (self.added.len() + self.removed.len()) >= self.capacity
     }
 
+    /// Buffer an additive change by key
     pub fn add(&mut self, key: String, value: T) -> Result<()> {
         self.assert_not_full()?;
 
@@ -51,6 +62,7 @@ impl<T> ChangeBuffer<T> {
         Ok(())
     }
 
+    /// Buffer a removal by key
     pub fn remove(&mut self, key: &str) -> Result<()> {
         self.assert_not_full()?;
 
@@ -60,6 +72,8 @@ impl<T> ChangeBuffer<T> {
         Ok(())
     }
 
+    /// Take all the buffered, flattened changes. This has the effect of
+    /// resetting the [ChangeBuffer] internally.
     pub fn take(&mut self) -> (BTreeMap<String, T>, BTreeSet<String>) {
         (
             std::mem::take(&mut self.added),
@@ -72,6 +86,8 @@ impl<R> ChangeBuffer<SphereFile<R>>
 where
     R: AsyncFileBody + 'static,
 {
+    /// Flush the [ChangeBuffer] to a [SphereWriter] for the case where we are
+    /// dealing in sphere content
     #[instrument(skip(self))]
     pub async fn flush_to_writer(&mut self, writer: &SphereWriter) -> Result<()> {
         let (added, removed) = self.take();
@@ -112,6 +128,8 @@ where
 }
 
 impl ChangeBuffer<(Did, Cid)> {
+    /// Flush the [ChangeBuffer] to a [SphereWriter] for the case where we are
+    /// dealing with peer references
     #[instrument]
     pub async fn flush_to_writer(&mut self, writer: &SphereWriter) -> Result<()> {
         let (added, removed) = self.take();

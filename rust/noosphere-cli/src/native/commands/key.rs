@@ -1,3 +1,4 @@
+//! Concrete implementations of subcommands to manage device keys
 use anyhow::Result;
 use noosphere::key::KeyStorage;
 use serde_json::json;
@@ -5,8 +6,7 @@ use ucan::crypto::KeyMaterial;
 
 use crate::native::workspace::Workspace;
 
-pub static SERVICE_NAME: &str = "noosphere";
-
+/// Create a device key, identified by the given name
 pub async fn key_create(name: &str, workspace: &Workspace) -> Result<()> {
     let key = workspace.key_storage().create_key(name).await?;
     let did = key.get_did().await?;
@@ -21,6 +21,7 @@ pub async fn key_create(name: &str, workspace: &Workspace) -> Result<()> {
     Ok(())
 }
 
+/// List all device keys, optionally in JSON format
 pub async fn key_list(as_json: bool, workspace: &Workspace) -> Result<()> {
     let keys = workspace.key_storage().get_discoverable_keys().await?;
     let max_name_length = keys

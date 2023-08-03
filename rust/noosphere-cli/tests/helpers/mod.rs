@@ -10,7 +10,7 @@ use noosphere_storage::{BlockStoreRetry, MemoryStore, NativeStorage, UcanStore};
 use std::{net::TcpListener, sync::Arc, time::Duration};
 use tempfile::TempDir;
 
-use noosphere_cli::native::{
+use noosphere_cli::{
     cli::ConfigSetCommand,
     commands::{key::key_create, sphere::config_set, sphere::sphere_create},
     workspace::Workspace,

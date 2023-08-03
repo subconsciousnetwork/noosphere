@@ -5,7 +5,7 @@ use anyhow::Result;
 use noosphere_core::data::ContentType;
 use noosphere_sphere::{HasSphereContext, SphereCursor};
 
-pub fn status_section(
+fn status_section(
     name: &str,
     entries: &BTreeMap<String, Option<ContentType>>,
     section: &mut Vec<(String, String, String)>,
@@ -25,6 +25,8 @@ pub fn status_section(
     }
 }
 
+/// Get the current status of the workspace, reporting the content that has
+/// changed in some way (if any)
 pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
     workspace.ensure_sphere_initialized()?;
 

@@ -1,38 +1,46 @@
+//! Helpers for working with the file system content within a workspace
+
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use noosphere_core::data::{BodyChunkIpld, ContentType};
-use noosphere_storage::{BlockStore, MemoryStore, NativeStorage};
+use noosphere_storage::{BlockStore, MemoryStore};
 use pathdiff::diff_paths;
 use std::collections::{BTreeMap, BTreeSet};
 use subtext::util::to_slug;
 use tokio::fs;
 use tokio_stream::StreamExt;
 
-use noosphere_sphere::{SphereContext, SphereWalker};
+use noosphere_sphere::SphereWalker;
 
 use super::{extension::infer_content_type, paths::SpherePaths, workspace::Workspace};
-
-pub type CliSphereContext = SphereContext<NativeStorage>;
 
 /// Metadata that identifies some sphere content that is present on the file
 /// system
 pub struct FileReference {
+    /// The [Cid] of the file's body contents
     pub cid: Cid,
+    /// The inferred [ContentType] of the file
     pub content_type: ContentType,
+    /// The known extension of the file, if any
     pub extension: Option<String>,
 }
 
 /// A delta manifest of changes to the local content space
 #[derive(Default)]
 pub struct ContentChanges {
+    /// Newly added files
     pub new: BTreeMap<String, Option<ContentType>>,
+    /// Updated files
     pub updated: BTreeMap<String, Option<ContentType>>,
+    /// Removed files
     pub removed: BTreeMap<String, Option<ContentType>>,
+    /// Unchanged files
     pub unchanged: BTreeSet<String>,
 }
 
 impl ContentChanges {
+    /// Returns true if there are no recorded changes
     pub fn is_empty(&self) -> bool {
         self.new.is_empty() && self.updated.is_empty() && self.removed.is_empty()
     }
@@ -41,11 +49,16 @@ impl ContentChanges {
 /// A manifest of content to apply some work to in the local content space
 #[derive(Default)]
 pub struct Content {
+    /// Content in the workspace that can be considered for inclusion in the
+    /// sphere's content space
     pub matched: BTreeMap<String, FileReference>,
+    /// Content in the workspace that has been ignored
     pub ignored: BTreeSet<String>,
 }
 
 impl Content {
+    /// Returns true if no content has been found that can be included in the
+    /// sphere's content space
     pub fn is_empty(&self) -> bool {
         self.matched.is_empty()
     }
@@ -146,6 +159,10 @@ impl Content {
         Ok(content)
     }
 
+    /// Read all changed content in the sphere's workspace. Changed content will
+    /// include anything that has been modified, moved or deleted. The blocks
+    /// associated with the changed content will be included in the returned
+    /// [MemoryStore].
     pub async fn read_changes(
         workspace: &Workspace,
     ) -> Result<Option<(Content, ContentChanges, MemoryStore)>> {

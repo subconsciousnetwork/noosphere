@@ -1,8 +1,13 @@
+//! Helpers for dealing with translation between slugs and files
+
 use std::str::FromStr;
 
 use anyhow::Result;
 use noosphere_core::data::{ContentType, Header, MemoIpld};
 
+/// Given a [MemoIpld], attempt to infer a file extension. A 'File-Extension' header
+/// will be used (if present); otherwise, the extension will be inferred from
+/// the 'Content-Type' header (again, if present).
 pub fn infer_file_extension(memo: &MemoIpld) -> Result<Option<String>> {
     if let Some(extension) = memo.get_first_header(&Header::FileExtension) {
         return Ok(Some(extension));

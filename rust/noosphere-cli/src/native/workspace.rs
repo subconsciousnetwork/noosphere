@@ -1,3 +1,5 @@
+//! Operations that are common to most CLI commands
+
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use directories::ProjectDirs;
@@ -21,10 +23,15 @@ use crate::native::paths::{IDENTITY_FILE, LINK_RECORD_FILE, VERSION_FILE};
 use super::paths::SpherePaths;
 use super::render::SphereRenderer;
 
+/// The flavor of [SphereContext] used through the CLI
 pub type CliSphereContext = SphereContext<NativeStorage>;
 
+/// Metadata about a given sphere, including the sphere ID, a [Link]
+/// to it and a corresponding [LinkRecord] (if one is available).
 pub type SphereDetails = (Did, Link<MemoIpld>, Option<LinkRecord>);
 
+/// The [Workspace] is the kernel of the CLI. It implements it keeps state and
+/// implements routines that are common to most CLI commands.
 pub struct Workspace {
     sphere_paths: Option<Arc<SpherePaths>>,
     key_storage: InsecureKeyStorage,
@@ -33,6 +40,8 @@ pub struct Workspace {
 }
 
 impl Workspace {
+    /// The current working directory as given to the [Workspace] when it was
+    /// created
     pub fn working_directory(&self) -> &Path {
         &self.working_directory
     }
@@ -70,16 +79,21 @@ impl Workspace {
         &self.key_storage
     }
 
+    /// Get the [Author] that is configured to work on the local sphere
     pub async fn author(&self) -> Result<Author<impl KeyMaterial + Clone>> {
         Ok(self.sphere_context().await?.lock().await.author().clone())
     }
 
+    /// Same as [Workspace::sphere_paths] but returns an error result if the
+    /// [SpherePaths] have not been initialized for this [Workspace].
     pub fn require_sphere_paths(&self) -> Result<&Arc<SpherePaths>> {
         self.sphere_paths
             .as_ref()
             .ok_or_else(|| anyhow!("Sphere paths not discovered for this location"))
     }
 
+    /// Get the [SpherePaths] for this workspace, if they have been initialized
+    /// and/or discovered.
     pub fn sphere_paths(&self) -> Option<&Arc<SpherePaths>> {
         self.sphere_paths.as_ref()
     }
@@ -103,6 +117,7 @@ impl Workspace {
         self.db().await?.require_key(GATEWAY_URL).await
     }
 
+    /// Returns true if the local sphere has been initialized
     pub fn is_sphere_initialized(&self) -> bool {
         if let Some(sphere_paths) = self.sphere_paths() {
             sphere_paths.sphere().exists()
@@ -111,6 +126,7 @@ impl Workspace {
         }
     }
 
+    /// Asserts that a local sphere has been intiialized
     pub fn ensure_sphere_initialized(&self) -> Result<()> {
         let sphere_paths = self.require_sphere_paths()?;
         if !sphere_paths.sphere().exists() {
@@ -122,6 +138,7 @@ impl Workspace {
         Ok(())
     }
 
+    /// Asserts that a local sphere has _not_ been intiialized
     pub fn ensure_sphere_uninitialized(&self) -> Result<()> {
         if let Some(sphere_paths) = self.sphere_paths() {
             match sphere_paths.sphere().exists() {
@@ -138,6 +155,9 @@ impl Workspace {
         Ok(())
     }
 
+    /// For a given location on disk, describe the closest sphere by traversing
+    /// file system ancestors until a sphere is found (either the root workspace
+    /// or one of the rendered peers within that workspace).
     #[instrument(level = "trace", skip(self))]
     pub async fn describe_closest_sphere(
         &self,
@@ -217,6 +237,8 @@ impl Workspace {
         }
     }
 
+    /// Given a path, look for a petname within the path by traversing ancestors until a
+    /// path component that starts with '@' is found.
     #[instrument(level = "trace", skip(self))]
     fn find_petname_in_path(&self, path: &Path) -> Result<Option<(String, PathBuf)>> {
         let mut current_path: Option<&Path> = Some(path);
@@ -256,6 +278,7 @@ impl Workspace {
         Ok(())
     }
 
+    /// Initialize a [Workspace] in place with a given set of [SpherePaths].
     pub fn initialize(&mut self, sphere_paths: SpherePaths) -> Result<()> {
         self.ensure_sphere_uninitialized()?;
 
@@ -264,6 +287,22 @@ impl Workspace {
         Ok(())
     }
 
+    /// Create a new (possibly uninitialized) [Workspace] for a given working
+    /// directory and optional global configuration directory.
+    ///
+    /// This constructor will attempt to discover the [SpherePaths] by traversing
+    /// ancestors from the provided working directory. The [Workspace] will be considered
+    /// initialized if [SpherePaths] are discovered, otherwise it will be considered
+    /// uninitialized.
+    ///
+    /// If no global configuration directory is specified, one will be automatically
+    /// chosen based on the current platform:
+    ///
+    /// - Linux: /home/<user>/.config/noosphere
+    /// - MacOS: /Users/<user>/Library/Application Support/network.subconscious.noosphere
+    /// - Windows: C:\Users\<user>\AppData\Roaming\subconscious\noosphere\config
+    ///
+    /// On Linux, an $XDG_CONFIG_HOME environment variable will be respected if set.
     pub fn new(
         working_directory: &Path,
         custom_noosphere_directory: Option<&Path>,

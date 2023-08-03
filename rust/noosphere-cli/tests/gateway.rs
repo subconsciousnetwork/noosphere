@@ -17,7 +17,7 @@ use noosphere_core::data::{ContentType, Did};
 
 use ucan::crypto::KeyMaterial;
 
-use noosphere_cli::native::commands::{
+use noosphere_cli::commands::{
     key::key_create,
     sphere::{sphere_create, sphere_join},
 };

@@ -12,7 +12,7 @@ use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::Layer;
 
 use clap::Parser;
-use noosphere_cli::native::{cli::Cli, invoke_cli, workspace::Workspace};
+use noosphere_cli::{cli::Cli, invoke_cli, workspace::Workspace};
 
 #[derive(Default)]
 struct InfoCaptureVisitor {

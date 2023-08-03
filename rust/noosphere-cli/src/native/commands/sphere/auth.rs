@@ -11,6 +11,7 @@ use tokio_stream::StreamExt;
 
 use crate::native::{commands::sphere::save, workspace::Workspace};
 
+/// Add an authorization for another device key (given by its [Did]) to the sphere
 pub async fn auth_add(did: &Did, name: Option<String>, workspace: &Workspace) -> Result<Cid> {
     workspace.ensure_sphere_initialized()?;
 
@@ -77,6 +78,48 @@ Use this identity when joining the sphere on the other client"#
     Ok(new_authorization_cid)
 }
 
+fn draw_branch(
+    mut items: Vec<Link<Jwt>>,
+    mut indentation: Vec<bool>,
+    hierarchy: &BTreeMap<Link<Jwt>, Vec<Link<Jwt>>>,
+    meta: &BTreeMap<Link<Jwt>, (String, Did, Jwt)>,
+) {
+    let prefix = indentation
+        .iter()
+        .enumerate()
+        .map(|(index, is_last)| match is_last {
+            false if index == 0 => "│",
+            false => "   │ ",
+            true if index == 0 => " ",
+            true => "    ",
+        })
+        .collect::<String>();
+
+    while let Some(link) = items.pop() {
+        let is_last = items.is_empty();
+
+        if let Some((name, id, _token)) = meta.get(&link) {
+            let (branch_char, trunk_char) = match is_last {
+                true => ('└', ' '),
+                false => ('├', '│'),
+            };
+
+            info!("{prefix}{}── {}", branch_char, name);
+            info!("{prefix}{}   {}", trunk_char, id);
+
+            if let Some(children) = hierarchy.get(&link) {
+                info!("{prefix}{}   │", trunk_char);
+                indentation.push(is_last);
+                draw_branch(children.clone(), indentation.clone(), hierarchy, meta);
+            } else {
+                info!("{prefix}{}", trunk_char);
+            }
+        }
+    }
+}
+
+/// List all authorizations in the sphere, optionally as a tree hierarchy
+/// representing the chain of authority, and optionally in JSON format
 pub async fn auth_list(tree: bool, as_json: bool, workspace: &Workspace) -> Result<()> {
     let sphere_context = workspace.sphere_context().await?;
     let sphere_identity = sphere_context.identity().await?;
@@ -179,46 +222,6 @@ pub async fn auth_list(tree: bool, as_json: bool, workspace: &Workspace) -> Resu
             info!(" │ {sphere_identity}");
             info!(" │");
 
-            fn draw_branch(
-                mut items: Vec<Link<Jwt>>,
-                mut indentation: Vec<bool>,
-                hierarchy: &BTreeMap<Link<Jwt>, Vec<Link<Jwt>>>,
-                meta: &BTreeMap<Link<Jwt>, (String, Did, Jwt)>,
-            ) {
-                let prefix = indentation
-                    .iter()
-                    .enumerate()
-                    .map(|(index, is_last)| match is_last {
-                        false if index == 0 => "│",
-                        false => "   │ ",
-                        true if index == 0 => " ",
-                        true => "    ",
-                    })
-                    .collect::<String>();
-
-                while let Some(link) = items.pop() {
-                    let is_last = items.is_empty();
-
-                    if let Some((name, id, _token)) = meta.get(&link) {
-                        let (branch_char, trunk_char) = match is_last {
-                            true => ('└', ' '),
-                            false => ('├', '│'),
-                        };
-
-                        info!("{prefix}{}── {}", branch_char, name);
-                        info!("{prefix}{}   {}", trunk_char, id);
-
-                        if let Some(children) = hierarchy.get(&link) {
-                            info!("{prefix}{}   │", trunk_char);
-                            indentation.push(is_last);
-                            draw_branch(children.clone(), indentation.clone(), hierarchy, meta);
-                        } else {
-                            info!("{prefix}{}", trunk_char);
-                        }
-                    }
-                }
-            }
-
             while let Some(root) = authorization_roots.pop() {
                 let items = vec![root];
                 let indentation = vec![authorization_roots.is_empty()];
@@ -254,6 +257,7 @@ pub async fn auth_list(tree: bool, as_json: bool, workspace: &Workspace) -> Resu
     Ok(())
 }
 
+/// Revoke an authorization for another device key by its nickname
 pub async fn auth_revoke(name: &str, workspace: &Workspace) -> Result<()> {
     workspace.ensure_sphere_initialized()?;
 

@@ -1,3 +1,6 @@
+//! This module contains constructs that used when rendering a sphere within a
+//! workspace on a file system.
+
 mod buffer;
 mod job;
 mod renderer;

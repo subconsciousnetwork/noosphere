@@ -1,3 +1,5 @@
+//! Concrete implementations of the various subcommands of the sphere command
+
 mod auth;
 mod config;
 mod follow;
@@ -28,6 +30,8 @@ use tokio::sync::Mutex;
 use ucan::crypto::KeyMaterial;
 use url::Url;
 
+/// Create a sphere, assigning authority to modify it to the given key
+/// (specified by nickname)
 pub async fn sphere_create(owner_key: &str, workspace: &mut Workspace) -> Result<()> {
     workspace.ensure_sphere_uninitialized()?;
 
@@ -68,6 +72,7 @@ You will be asked to enter them if you ever need to transfer ownership of the sp
     Ok(())
 }
 
+/// Join an existing sphere
 pub async fn sphere_join(
     local_key: &str,
     authorization: Option<String>,

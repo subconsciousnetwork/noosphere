@@ -4,7 +4,7 @@ mod helpers;
 
 use anyhow::Result;
 use helpers::CliSimulator;
-use noosphere_cli::native::paths::SPHERE_DIRECTORY;
+use noosphere_cli::paths::SPHERE_DIRECTORY;
 use noosphere_core::tracing::initialize_tracing;
 use serde_json::Value;
 
@@ -178,23 +178,30 @@ mod multiplayer {
         let mut pair_2 = SpherePair::new("TWO", &ipfs_url, &ns_url).await?;
         let mut pair_3 = SpherePair::new("THREE", &ipfs_url, &ns_url).await?;
         let mut pair_4 = SpherePair::new("FOUR", &ipfs_url, &ns_url).await?;
+        let mut pair_5 = SpherePair::new("FIVE", &ipfs_url, &ns_url).await?;
 
         pair_1.start_gateway().await?;
         pair_2.start_gateway().await?;
         pair_3.start_gateway().await?;
         pair_4.start_gateway().await?;
+        pair_5.start_gateway().await?;
 
         let sphere_1_id = pair_1.client.identity.clone();
         let sphere_2_id = pair_2.client.identity.clone();
         let sphere_3_id = pair_3.client.identity.clone();
         let sphere_4_id = pair_4.client.identity.clone();
+        let sphere_5_id = pair_5.client.identity.clone();
 
-        for (index, pair) in [&pair_1, &pair_2, &pair_3, &pair_4].iter().enumerate() {
+        for (index, pair) in [&pair_1, &pair_2, &pair_3, &pair_4, &pair_5]
+            .iter()
+            .enumerate()
+        {
             pair.spawn(move |mut ctx| async move {
+                let id = index + 1;
                 ctx.write(
-                    format!("content{}", index).as_str(),
+                    format!("content{}", id).as_str(),
                     "text/plain",
-                    format!("foo{}", index).as_bytes(),
+                    format!("foo{}", id).as_bytes(),
                     None,
                 )
                 .await?;
@@ -263,6 +270,7 @@ mod multiplayer {
             })
             .await?;
 
+        // Join the first sphere
         cli.orb(&[
             "sphere",
             "join",
@@ -277,11 +285,11 @@ mod multiplayer {
         .await?;
 
         let expected_content = [
-            ("content0.txt", "foo0"),
-            ("@peer2/content1.txt", "foo1"),
-            ("@peer3/content2.txt", "foo2"),
-            ("@peer2/@peer3-of-peer2/content2.txt", "foo2"),
-            ("@peer2/@peer4/content3.txt", "foo3"),
+            ("content1.txt", "foo1"),
+            ("@peer2/content2.txt", "foo2"),
+            ("@peer3/content3.txt", "foo3"),
+            ("@peer2/@peer3-of-peer2/content3.txt", "foo3"),
+            ("@peer2/@peer4/content4.txt", "foo4"),
             (".sphere/identity", &sphere_1_id),
             (".sphere/version", &sphere_1_version.to_string()),
         ];
@@ -293,26 +301,17 @@ mod multiplayer {
             assert_eq!(&tokio::fs::read_to_string(&path).await?, content);
         }
 
+        // Change a peer-of-my-peer
         pair_4
             .spawn(move |mut ctx| async move {
                 ctx.write(
-                    "content3",
+                    "content4",
                     "text/plain",
-                    "foo3 and something new".as_bytes(),
+                    "foo4 and something new".as_bytes(),
                     None,
                 )
                 .await?;
-                ctx.save(None).await?;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
-
-                Ok(())
-            })
-            .await?;
-
-        pair_2
-            .spawn(move |mut ctx| async move {
-                ctx.write("newcontent", "text/plain", "new".as_bytes(), None)
-                    .await?;
+                ctx.set_petname("peer5", Some(sphere_5_id)).await?;
                 ctx.save(None).await?;
                 ctx.sync(SyncRecovery::Retry(3)).await?;
                 wait(1).await;
@@ -322,10 +321,40 @@ mod multiplayer {
             })
             .await?;
 
+        // Add another level of depth to the graph
+        pair_3
+            .spawn(move |mut ctx| async move {
+                ctx.set_petname("peer4-of-peer3", Some(sphere_4_id)).await?;
+                ctx.save(None).await?;
+                ctx.sync(SyncRecovery::Retry(3)).await?;
+                wait(1).await;
+                ctx.sync(SyncRecovery::Retry(3)).await?;
+
+                Ok(())
+            })
+            .await?;
+
+        // Change a peer
+        pair_2
+            .spawn(move |mut ctx| async move {
+                ctx.write("newcontent", "text/plain", "new".as_bytes(), None)
+                    .await?;
+                ctx.set_petname("peer4", None).await?;
+                ctx.save(None).await?;
+                ctx.sync(SyncRecovery::Retry(3)).await?;
+                wait(1).await;
+                ctx.sync(SyncRecovery::Retry(3)).await?;
+
+                Ok(())
+            })
+            .await?;
+
+        // Rename a peer
         let sphere_1_version = pair_1
             .spawn(move |mut ctx| async move {
                 ctx.set_petname("peer3", None).await?;
-                ctx.set_petname("peer3-renamed", Some(sphere_3_id)).await?;
+                ctx.set_petname("peer2", None).await?;
+                ctx.set_petname("peer2-renamed", Some(sphere_2_id)).await?;
                 ctx.save(None).await?;
                 ctx.sync(SyncRecovery::Retry(3)).await?;
                 wait(1).await;
@@ -335,15 +364,23 @@ mod multiplayer {
             })
             .await?;
 
+        // Sync to get the latest remote changes
         cli.orb(&["sphere", "sync", "--auto-retry", "3"]).await?;
 
         let expected_content = [
-            ("content0.txt", "foo0"),
-            ("@peer2/content1.txt", "foo1"),
-            ("@peer2/newcontent.txt", "new"),
-            ("@peer3-renamed/content2.txt", "foo2"),
-            ("@peer2/@peer3-of-peer2/content2.txt", "foo2"),
-            ("@peer2/@peer4/content3.txt", "foo3 and something new"),
+            ("content1.txt", "foo1"),
+            ("@peer2-renamed/content2.txt", "foo2"),
+            ("@peer2-renamed/newcontent.txt", "new"),
+            ("@peer2-renamed/@peer3-of-peer2/content3.txt", "foo3"),
+            (
+                "@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/content4.txt",
+                "foo4 and something new",
+            ),
+            ("@peer2-renamed/@peer3-of-peer2/content3.txt", "foo3"),
+            (
+                "@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/content4.txt",
+                "foo4 and something new",
+            ),
             (".sphere/identity", &sphere_1_id),
             (".sphere/version", &sphere_1_version.to_string()),
         ];
@@ -355,7 +392,33 @@ mod multiplayer {
             assert_eq!(&tokio::fs::read_to_string(&path).await?, content);
         }
 
-        assert!(!tokio::fs::try_exists(&cli.sphere_directory().join("@peer3/content.txt")).await?);
+        let unexpected_content = [
+            // Peer removed
+            "@peer3/content3.txt",
+            // Peer renamed
+            "@peer2/content2.txt",
+            // Peer removed
+            "@peer2-renamed/@peer4/content4.txt",
+            // Peer depth greater than render depth
+            "@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt",
+        ];
+
+        for path in unexpected_content {
+            assert!(!tokio::fs::try_exists(&cli.sphere_directory().join(path)).await?);
+        }
+
+        // Sync again, but with a greater render depth
+        cli.orb(&["sphere", "sync", "--auto-retry", "3", "--render-depth", "4"])
+            .await?;
+
+        // Previously omitted peer should be rendered now
+        assert!(
+            tokio::fs::try_exists(
+                &cli.sphere_directory()
+                    .join("@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt")
+            )
+            .await?
+        );
 
         ns_task.abort();
 

@@ -1,3 +1,5 @@
+//! Declarative definition for the end-user-facing CLI
+
 use noosphere_core::data::Did;
 
 use std::net::IpAddr;
@@ -6,6 +8,7 @@ use clap::Parser;
 use clap::Subcommand;
 use url::Url;
 
+#[allow(missing_docs)]
 #[derive(Debug, Parser)]
 #[clap(name = "orb")]
 #[clap(about = "A CLI tool for saving, syncing and sharing content to the Noosphere", long_about = Some(
@@ -18,6 +21,7 @@ pub struct Cli {
     pub command: OrbCommand,
 }
 
+#[allow(missing_docs)]
 #[derive(Debug, Subcommand)]
 pub enum OrbCommand {
     Key {
@@ -147,16 +151,19 @@ pub enum SphereCommand {
         render_depth: Option<u32>,
     },
 
+    #[allow(missing_docs)]
     Follow {
         #[clap(subcommand)]
         command: FollowCommand,
     },
 
+    #[allow(missing_docs)]
     Config {
         #[clap(subcommand)]
         command: ConfigCommand,
     },
 
+    #[allow(missing_docs)]
     Auth {
         #[clap(subcommand)]
         command: AuthCommand,
@@ -169,17 +176,19 @@ pub enum SphereCommand {
 pub enum ConfigCommand {
     /// Set a configuration value for the local sphere
     Set {
+        #[allow(missing_docs)]
         #[clap(subcommand)]
         command: ConfigSetCommand,
     },
     /// Retrieve a configuration value if one is set
     Get {
+        #[allow(missing_docs)]
         #[clap(subcommand)]
         command: ConfigGetCommand,
     },
 }
 
-/// Read and write local-only metadata configuration related to this sphere
+/// Write local-only metadata configuration related to this sphere
 #[derive(Debug, Subcommand)]
 pub enum ConfigSetCommand {
     /// Configure the URL of the gateway to use for publishing and sync
@@ -197,6 +206,7 @@ pub enum ConfigSetCommand {
     },
 }
 
+/// Read local-only metadata configuration related to this sphere
 #[derive(Debug, Subcommand)]
 pub enum ConfigGetCommand {
     /// Read the configured gateway URL
@@ -204,9 +214,6 @@ pub enum ConfigGetCommand {
 
     /// Read the configured counterpart DID
     Counterpart,
-
-    /// Read the configured difftool command
-    Difftool,
 }
 
 /// Manage the devices/keys that are allowed to access this sphere
@@ -230,6 +237,7 @@ pub enum AuthCommand {
         #[clap(short = 'j', long)]
         as_json: bool,
 
+        /// Format the authorizations as a tree based on ancestry
         #[clap(short = 't', long)]
         tree: bool,
     },
@@ -244,6 +252,7 @@ pub enum AuthCommand {
     Rotate {},
 }
 
+/// Follow and/or unfollow other spheres
 #[derive(Debug, Subcommand)]
 pub enum FollowCommand {
     /// Follow a sphere, assigning it a personalized nickname
@@ -282,6 +291,7 @@ pub enum FollowCommand {
 
     /// Show a list of all the spheres that you follow
     List {
+        /// Output the list of peers as formatted JSON
         #[clap(short = 'j', long)]
         as_json: bool,
     },
