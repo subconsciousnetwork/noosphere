@@ -8,7 +8,7 @@
   "packages": {
     "rust/noosphere-api": {},
     "rust/noosphere-car": {
-      "release-as": "0.3.0+deprecated" 
+      "release-as": "0.3.1+deprecated" 
     },
     "rust/noosphere-cli": {
       "draft": true
