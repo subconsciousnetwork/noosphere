@@ -1,5 +1,5 @@
 //! :warning: `noosphere-car` is deprecated.
-//! Please use [iroh-car](https://docs.rs/iroh-car).
+//! Please use [iroh-car](https://docs.rs/iroh-car)!
 //!
 //! Implementation of the [car](https://ipld.io/specs/transport/car/) format.
 
