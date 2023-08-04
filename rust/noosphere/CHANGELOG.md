@@ -66,6 +66,30 @@
     * noosphere-ipfs bumped from 0.5.2 to 0.5.3
     * noosphere-into bumped from 0.9.2 to 0.9.3
 
+## [0.14.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.13.1...noosphere-v0.14.0) (2023-08-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* `orb` uses latest Noosphere capabilities ([#530](https://github.com/subconsciousnetwork/noosphere/issues/530))
+
+### Features
+
+* `orb` uses latest Noosphere capabilities ([#530](https://github.com/subconsciousnetwork/noosphere/issues/530)) ([adfa028](https://github.com/subconsciousnetwork/noosphere/commit/adfa028ebcb2de7ea7492af57239fcc9bfc27955))
+* Store private noosphere keys as owner-readwrite only. Fixes [#547](https://github.com/subconsciousnetwork/noosphere/issues/547) ([#550](https://github.com/subconsciousnetwork/noosphere/issues/550)) ([035ce73](https://github.com/subconsciousnetwork/noosphere/commit/035ce738e82a806d94fae2a295a61053d54854f5))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.14.0 to 0.15.0
+    * noosphere-sphere bumped from 0.9.0 to 0.10.0
+    * noosphere-storage bumped from 0.7.1 to 0.8.0
+    * noosphere-api bumped from 0.11.0 to 0.12.0
+    * noosphere-ipfs bumped from 0.7.1 to 0.7.2
+    * noosphere-into bumped from 0.10.3 to 0.10.4
+
 ## [0.13.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.13.0...noosphere-v0.13.1) (2023-07-21)
 
 

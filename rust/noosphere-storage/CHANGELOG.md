@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.7.1...noosphere-storage-v0.8.0) (2023-08-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* `orb` uses latest Noosphere capabilities ([#530](https://github.com/subconsciousnetwork/noosphere/issues/530))
+
+### Features
+
+* `orb` uses latest Noosphere capabilities ([#530](https://github.com/subconsciousnetwork/noosphere/issues/530)) ([adfa028](https://github.com/subconsciousnetwork/noosphere/commit/adfa028ebcb2de7ea7492af57239fcc9bfc27955))
+* Synchronously flush sled DB rather than using sled::Tree::flush_async, which can cause deadlocks. Fixes [#403](https://github.com/subconsciousnetwork/noosphere/issues/403) ([#540](https://github.com/subconsciousnetwork/noosphere/issues/540)) ([7262d5c](https://github.com/subconsciousnetwork/noosphere/commit/7262d5c884bf756b70a8d115d75a5e11e98c9a54))
+
 ## [0.7.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.7.0...noosphere-storage-v0.7.1) (2023-07-01)
 
 

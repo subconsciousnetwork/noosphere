@@ -10,6 +10,25 @@
     * noosphere-storage bumped from 0.7.0 to 0.7.1
     * noosphere-collections bumped from 0.6.0 to 0.6.1
 
+## [0.15.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.14.0...noosphere-core-v0.15.0) (2023-08-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* `orb` uses latest Noosphere capabilities ([#530](https://github.com/subconsciousnetwork/noosphere/issues/530))
+
+### Features
+
+* `orb` uses latest Noosphere capabilities ([#530](https://github.com/subconsciousnetwork/noosphere/issues/530)) ([adfa028](https://github.com/subconsciousnetwork/noosphere/commit/adfa028ebcb2de7ea7492af57239fcc9bfc27955))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.7.1 to 0.8.0
+    * noosphere-collections bumped from 0.6.1 to 0.6.2
+
 ## [0.14.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.13.2...noosphere-core-v0.14.0) (2023-07-20)
 
 
