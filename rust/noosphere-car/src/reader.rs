@@ -22,6 +22,7 @@ impl<S> CarReaderSend for S {}
 
 /// Reads CAR files that are in a BufReader
 #[derive(Debug)]
+#[deprecated(note = "`noosphere-car` is deprecated. Please use `iroh-car`.")]
 pub struct CarReader<R> {
     reader: R,
     header: CarHeader,

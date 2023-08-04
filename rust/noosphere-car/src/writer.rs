@@ -5,6 +5,7 @@ use tokio::io::{AsyncWrite, AsyncWriteExt};
 use crate::{error::Error, header::CarHeader};
 
 #[derive(Debug)]
+#[deprecated(note = "`noosphere-car` is deprecated. Please use `iroh-car`.")]
 pub struct CarWriter<W> {
     header: CarHeader,
     writer: W,

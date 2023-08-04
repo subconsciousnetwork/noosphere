@@ -7,6 +7,7 @@ use crate::error::Error;
 /// A car header.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
+#[deprecated(note = "`noosphere-car` is deprecated. Please use `iroh-car`.")]
 pub enum CarHeader {
     V1(CarHeaderV1),
 }
