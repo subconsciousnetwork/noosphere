@@ -4,7 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use cid::Cid;
 use futures_util::TryStreamExt;
-use noosphere_core::data::{Did, Link, MemoIpld};
+use noosphere_core::data::{Did, Link, LinkRecord, MemoIpld};
 use noosphere_storage::{KeyValueStore, Storage};
 
 use crate::{HasSphereContext, SphereWalker};
@@ -28,6 +28,9 @@ where
     /// Given a [Did], get all the petnames that have been assigned to it
     /// in this sphere
     async fn get_assigned_petnames(&self, did: &Did) -> Result<Vec<String>>;
+
+    /// Given a petname, get the raw last known [LinkRecord] for that peer
+    async fn get_petname_record(&self, name: &str) -> Result<Option<LinkRecord>>;
 }
 
 fn assigned_petnames_cache_key(origin: &Did, peer: &Did, origin_version: &Cid) -> String {
@@ -114,6 +117,13 @@ where
     }
 
     async fn resolve_petname(&self, name: &str) -> Result<Option<Link<MemoIpld>>> {
+        Ok(match self.get_petname_record(name).await? {
+            Some(link_record) => link_record.get_link(),
+            None => None,
+        })
+    }
+
+    async fn get_petname_record(&self, name: &str) -> Result<Option<LinkRecord>> {
         let sphere = self.to_sphere().await?;
         let identities = sphere.get_address_book().await?.get_identities().await?;
         let address_ipld = identities.get(&name.to_string()).await?;
@@ -121,16 +131,7 @@ where
         trace!("Recorded address for {name}: {:?}", address_ipld);
 
         Ok(match address_ipld {
-            Some(identity) => {
-                let link_record = identity
-                    .link_record(self.sphere_context().await?.db())
-                    .await;
-
-                match link_record {
-                    Some(link_record) => link_record.get_link(),
-                    None => None,
-                }
-            }
+            Some(identity) => identity.link_record(sphere.store()).await,
             None => None,
         })
     }

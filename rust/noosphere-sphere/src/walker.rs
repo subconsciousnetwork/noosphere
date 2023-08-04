@@ -10,7 +10,7 @@ use tokio_stream::{Stream, StreamExt};
 use crate::{
     content::{SphereContentRead, SphereFile},
     internal::SphereContextInternal,
-    HasSphereContext, SpherePetnameRead,
+    HasSphereContext, SphereAuthorityRead, SpherePetnameRead,
 };
 
 /// A [SphereWalker] makes it possible to convert anything that implements
@@ -41,7 +41,7 @@ where
 
 impl<'a, C, S> SphereWalker<'a, C, S>
 where
-    C: SpherePetnameRead<S> + HasSphereContext<S>,
+    C: SphereAuthorityRead<S> + HasSphereContext<S>,
     S: Storage + 'static,
 {
     /// Get a stream that yields a link to every authorization to access the
@@ -61,6 +61,62 @@ where
                 let (link, delegation) = entry?;
                 let ucan = delegation.resolve_ucan(sphere.store()).await?;
                 yield (delegation.name, Did(ucan.audience().to_string()), link);
+            }
+        }
+    }
+
+    /// Get a [BTreeSet] whose members are all the [Link<Jwt>]s to
+    /// authorizations that enable sphere access as of this version of the
+    /// sphere. Note that the full space of authoriztions may be very large; for
+    /// a more space-efficient approach, use
+    /// [SphereWalker::authorization_stream] to incrementally access all
+    /// authorizations in the sphere.
+    ///
+    /// This method is forgiving of missing or corrupted data, and will yield an
+    /// incomplete set of authorizations in the case that some or all names are
+    /// not able to be accessed.
+    pub async fn list_authorizations(&self) -> Result<BTreeSet<Link<Jwt>>> {
+        let sphere_identity = self.has_sphere_context.identity().await?;
+        let authorization_stream = self.authorization_stream();
+
+        tokio::pin!(authorization_stream);
+
+        Ok(authorization_stream
+            .fold(BTreeSet::new(), |mut delegations, another_delegation| {
+                match another_delegation {
+                    Ok((_, _, delegation)) => {
+                        delegations.insert(delegation);
+                    }
+                    Err(error) => {
+                        warn!(
+                            "Could not read a petname from {}: {}",
+                            sphere_identity, error
+                        )
+                    }
+                };
+                delegations
+            })
+            .await)
+    }
+}
+
+impl<'a, C, S> SphereWalker<'a, C, S>
+where
+    C: SpherePetnameRead<S> + HasSphereContext<S>,
+    S: Storage + 'static,
+{
+    /// Same as [SphereWalker::petname_stream], but consumes the [SphereWalker].
+    /// This is useful in cases where it would otherwise be necessary to borrow
+    /// a reference to [SphereWalker] for a static lifetime.
+    pub fn into_petname_stream(self) -> impl Stream<Item = Result<(String, IdentityIpld)>> + 'a {
+        try_stream! {
+            let sphere = self.has_sphere_context.to_sphere().await?;
+            let petnames = sphere.get_address_book().await?.get_identities().await?;
+            let stream = petnames.into_stream().await?;
+
+            for await entry in stream {
+                let (petname, address) = entry?;
+                yield (petname, address);
             }
         }
     }
@@ -112,38 +168,34 @@ where
         }
     }
 
-    /// Get a [BTreeSet] whose members are all the [Link<Jwt>]s to
-    /// authorizations that enable sphere access as of this version of the
-    /// sphere. Note that the full space of authoriztions may be very large; for
-    /// a more space-efficient approach, use
-    /// [SphereWalker::authorization_stream] to incrementally access all
-    /// authorizations in the sphere.
-    ///
-    /// This method is forgiving of missing or corrupted data, and will yield an
-    /// incomplete set of authorizations in the case that some or all names are
-    /// not able to be accessed.
-    pub async fn list_authorizations(&self) -> Result<BTreeSet<Link<Jwt>>> {
-        let sphere_identity = self.has_sphere_context.identity().await?;
-        let authorization_stream = self.authorization_stream();
+    /// Get a stream that yields the set of petnames that changed at each
+    /// revision of the backing sphere, up to but excluding an optional `since`
+    /// CID parameter. To stream the entire history, pass `None` as the
+    /// parameter.
+    pub fn into_petname_change_stream(
+        self,
+        since: Option<&'a Link<MemoIpld>>,
+    ) -> impl Stream<Item = Result<(Link<MemoIpld>, BTreeSet<String>)>> + '_ {
+        try_stream! {
+            let sphere = self.has_sphere_context.to_sphere().await?;
+            let since = since.cloned();
+            let stream = sphere.into_identities_changelog_stream(since.as_ref());
 
-        tokio::pin!(authorization_stream);
+            for await change in stream {
+                let (cid, changelog) = change?;
+                let mut changed_petnames = BTreeSet::new();
 
-        Ok(authorization_stream
-            .fold(BTreeSet::new(), |mut delegations, another_delegation| {
-                match another_delegation {
-                    Ok((_, _, delegation)) => {
-                        delegations.insert(delegation);
-                    }
-                    Err(error) => {
-                        warn!(
-                            "Could not read a petname from {}: {}",
-                            sphere_identity, error
-                        )
-                    }
-                };
-                delegations
-            })
-            .await)
+                for operation in changelog.changes {
+                    let petname = match operation {
+                        MapOperation::Add { key, .. } => key,
+                        MapOperation::Remove { key } => key,
+                    };
+                    changed_petnames.insert(petname);
+                }
+
+                yield (cid, changed_petnames);
+            }
+        }
     }
 
     /// Get a [BTreeSet] whose members are all the petnames that have addresses
@@ -258,6 +310,35 @@ where
                 let file = self.has_sphere_context.get_file(sphere.cid(), memo).await?;
 
                 yield (key.clone(), file);
+            }
+        }
+    }
+
+    /// Get a stream that yields the set of slugs that changed at each revision
+    /// of the backing sphere, up to but excluding an optional CID. To stream
+    /// the entire history, pass `None` as the parameter.
+    pub fn into_content_change_stream(
+        self,
+        since: Option<&'a Link<MemoIpld>>,
+    ) -> impl Stream<Item = Result<(Link<MemoIpld>, BTreeSet<String>)>> + '_ {
+        try_stream! {
+            let sphere = self.has_sphere_context.to_sphere().await?;
+            let since = since.cloned();
+            let stream = sphere.into_content_changelog_stream(since.as_ref());
+
+            for await change in stream {
+                let (cid, changelog) = change?;
+                let mut changed_slugs = BTreeSet::new();
+
+                for operation in changelog.changes {
+                    let slug = match operation {
+                        MapOperation::Add { key, .. } => key,
+                        MapOperation::Remove { key } => key,
+                    };
+                    changed_slugs.insert(slug);
+                }
+
+                yield (cid, changed_slugs);
             }
         }
     }

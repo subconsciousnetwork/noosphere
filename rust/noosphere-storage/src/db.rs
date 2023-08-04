@@ -209,8 +209,11 @@ where
     {
         tokio::pin!(stream);
 
+        let mut stream_count = 0usize;
+
         while let Some((cid, block)) = stream.try_next().await? {
-            trace!("Putting streamed block {}...", cid);
+            stream_count += 1;
+            trace!(?cid, "Putting streamed block {stream_count}...");
 
             self.put_block(&cid, &block).await?;
 
@@ -224,6 +227,8 @@ where
                 codec_id => warn!("Unrecognized codec {}; skipping...", codec_id),
             }
         }
+
+        trace!("Loaded {stream_count} blocks from stream...");
 
         Ok(())
     }

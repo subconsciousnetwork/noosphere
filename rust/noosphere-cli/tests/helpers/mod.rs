@@ -1,12 +1,19 @@
+#![allow(dead_code)]
+
+mod cli;
+
+pub use cli::*;
+
 use anyhow::Result;
 use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_storage::{BlockStoreRetry, MemoryStore, NativeStorage, UcanStore};
 use std::{net::TcpListener, sync::Arc, time::Duration};
+use tempfile::TempDir;
 
-use noosphere_cli::native::{
-    commands::{config::config_set, key::key_create, sphere::sphere_create},
+use noosphere_cli::{
+    cli::ConfigSetCommand,
+    commands::{key::key_create, sphere::config_set, sphere::sphere_create},
     workspace::Workspace,
-    ConfigSetCommand,
 };
 use noosphere_core::data::Did;
 use noosphere_gateway::{start_gateway, GatewayScope};
@@ -15,6 +22,28 @@ use noosphere_sphere::{HasSphereContext, SphereContext};
 use tokio::{sync::Mutex, task::JoinHandle};
 use url::Url;
 
+/// Produce a temporary [Workspace] suitable for use in tests. The [Workspace]
+/// will be configured to use temporary directories that are deleted as soon as
+/// the corresponding [TempDir]'s (also returned) are dropped. Every invocation
+/// of this helper will produce a unique temporary workspace with its own
+/// directories.
+///
+/// In the returned tuple `(TempDir, TempDir)`, the first is the local sphere
+/// root directory, and the second represents the global Noosphere configuration
+/// directory.
+pub fn temporary_workspace() -> Result<(Workspace, (TempDir, TempDir))> {
+    let root = TempDir::new()?;
+    let global_root = TempDir::new()?;
+
+    Ok((
+        Workspace::new(root.path(), Some(global_root.path()))?,
+        (root, global_root),
+    ))
+}
+
+/// Wait for the specified number of seconds; uses [tokio::time::sleep], so this
+/// will yield to the async runtime rather than block until the sleep time is
+/// elapsed.
 pub async fn wait(seconds: u64) {
     tokio::time::sleep(Duration::from_secs(seconds)).await;
 }
@@ -110,14 +139,14 @@ impl SpherePair {
     /// Creates a new client and gateway sphere with workspace, and associates
     /// them together.
     pub async fn new(name: &str, ipfs_url: &Url, ns_url: &Url) -> Result<Self> {
-        let (client_workspace, client_temp_dirs) = Workspace::temporary().unwrap();
-        let (gateway_workspace, gateway_temp_dirs) = Workspace::temporary().unwrap();
+        let (mut client_workspace, client_temp_dirs) = temporary_workspace()?;
+        let (mut gateway_workspace, gateway_temp_dirs) = temporary_workspace()?;
         let client_key_name = format!("{}-CLIENT_KEY", name);
         let gateway_key_name = format!("{}-GATEWAY_KEY", name);
         key_create(&client_key_name, &client_workspace).await?;
         key_create(&gateway_key_name, &gateway_workspace).await?;
-        sphere_create(&client_key_name, &client_workspace).await?;
-        sphere_create(&gateway_key_name, &gateway_workspace).await?;
+        sphere_create(&client_key_name, &mut client_workspace).await?;
+        sphere_create(&gateway_key_name, &mut gateway_workspace).await?;
         let client_identity = client_workspace.sphere_identity().await.unwrap();
         let gateway_identity = gateway_workspace.sphere_identity().await.unwrap();
 

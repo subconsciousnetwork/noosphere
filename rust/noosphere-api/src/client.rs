@@ -329,7 +329,6 @@ where
             .bytes()
             .await
             .map_err(|err| PushError::Internal(anyhow!(err)))?;
-
         Ok(block_deserialize::<DagCborCodec, _>(bytes.as_ref())?)
     }
 }

@@ -1,15 +1,18 @@
+use std::str::FromStr;
+
 use anyhow::{anyhow, Result};
 use async_stream::try_stream;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_core::{
-    data::{ContentType, Link, MemoIpld, SphereIpld},
+    data::{ContentType, Link, LinkRecord, MemoIpld, SphereIpld},
     view::Sphere,
 };
 use noosphere_storage::{BlockStore, BlockStoreTap, UcanStore};
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::task::JoinSet;
 use tokio_stream::{Stream, StreamExt};
+use ucan::store::UcanJwtStore;
 
 use crate::{
     walk_versioned_map_changes_and, walk_versioned_map_elements, walk_versioned_map_elements_and,
@@ -73,13 +76,20 @@ where
                         };
 
                         if replicate_authority {
+                            debug!("Replicating authority...");
                             let authority = sphere.get_authority().await?;
+                            let store = store.clone();
 
                             tasks.spawn(async move {
                                 let delegations = authority.get_delegations().await?;
-                                let revocations = authority.get_revocations().await?;
 
-                                delegations.load_changelog().await?;
+                                walk_versioned_map_changes_and(delegations, store, |_, delegation, store| async move {
+                                    let ucan_store = UcanStore(store);
+                                    LinkRecord::from_str(&ucan_store.require_token(&delegation.jwt).await?)?.collect_proofs(&ucan_store).await?;
+                                    Ok(())
+                                }).await?;
+
+                                let revocations = authority.get_revocations().await?;
                                 revocations.load_changelog().await?;
 
                                 Ok(()) as Result<_, anyhow::Error>
@@ -87,6 +97,7 @@ where
                         }
 
                         if replicate_address_book {
+                            debug!("Replicating address book...");
                             let address_book = sphere.get_address_book().await?;
                             let identities = address_book.get_identities().await?;
 
@@ -101,6 +112,7 @@ where
                         }
 
                         if replicate_content {
+                            debug!("Replicating content...");
                             let content = sphere.get_content().await?;
 
                             tasks.spawn(walk_versioned_map_changes_and(content, store.clone(), |_, link, store| async move {
@@ -115,17 +127,27 @@ where
                         drop(sphere);
                     }
 
+                    drop(store);
+
                     while let Some(result) = tasks.join_next().await {
+                        trace!("Replication branch completed, {} remaining...", tasks.len());
                         result??;
                     }
+
+                    trace!("Done replicating!");
 
                     Ok(()) as Result<(), anyhow::Error>
                 });
 
+                let mut yield_count = 0usize;
+
                 while let Some(block) = rx.recv().await {
-                    trace!("Yielding {}", block.0);
+                    yield_count += 1;
+                    trace!(cid = ?block.0, "Yielding block {yield_count}...");
                     yield block;
                 }
+
+                trace!("Done yielding {yield_count} blocks!");
 
                 history_task.await??;
             }
@@ -151,7 +173,7 @@ where
     let memo_version = *memo_version;
 
     try_stream! {
-        let (store, mut rx) = BlockStoreTap::new(store.clone(), 64);
+        let (store, mut rx) = BlockStoreTap::new(store.clone(), 1024);
         let memo = store.load::<DagCborCodec, MemoIpld>(&memo_version).await?;
 
         match memo.content_type() {

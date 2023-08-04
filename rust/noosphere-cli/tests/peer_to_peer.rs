@@ -6,15 +6,18 @@ extern crate tracing;
 mod helpers;
 use anyhow::Result;
 use helpers::{start_name_system_server, wait, SpherePair};
-use noosphere_core::data::ContentType;
+use noosphere_core::data::{ContentType, Did, Link, MemoIpld};
 use noosphere_core::tracing::initialize_tracing;
 use noosphere_ns::{server::HttpClient, NameResolver};
 use noosphere_sphere::{
     HasMutableSphereContext, HasSphereContext, SphereContentRead, SphereContentWrite, SphereCursor,
-    SpherePetnameRead, SpherePetnameWrite, SphereReplicaRead, SphereSync, SyncRecovery,
+    SpherePetnameRead, SpherePetnameWrite, SphereReplicaRead, SphereSync, SphereWalker,
+    SyncRecovery,
 };
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
+use tokio_stream::StreamExt;
 use url::Url;
 
 #[tokio::test]
@@ -363,6 +366,10 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
 
     pair_1
         .spawn(|mut ctx| async move {
+            // Set and sync a new petname to "force" name resolution in the gateway
+            ctx.set_petname("foo", Some(Did("did:key:foo".into())))
+                .await?;
+            ctx.save(None).await?;
             ctx.sync(SyncRecovery::Retry(3)).await?;
             wait(1).await;
             ctx.sync(SyncRecovery::Retry(3)).await?;
@@ -450,6 +457,10 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
         // sphere_2 updates with sphere_3's initial content
         pair_2
             .spawn(move |mut ctx| async move {
+                // Set and sync a new petname to "force" name resolution in the gateway
+                ctx.set_petname("foo", Some(Did("did:key:foo".into())))
+                    .await?;
+                ctx.save(None).await?;
                 ctx.sync(SyncRecovery::Retry(3)).await?;
                 wait(1).await;
                 ctx.sync(SyncRecovery::Retry(3)).await?;
@@ -544,6 +555,112 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
             file.contents.read_to_string(&mut content).await?;
 
             assert_eq!(content, "foo");
+
+            Ok(())
+        })
+        .await?;
+
+    ns_task.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn local_lineage_remains_sparse_as_graph_changes_accrue_over_time() -> Result<()> {
+    initialize_tracing(None);
+
+    let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
+    let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
+
+    let mut pair_1 = SpherePair::new("pair_1", &ipfs_url, &ns_url).await?;
+    let mut pair_2 = SpherePair::new("pair_2", &ipfs_url, &ns_url).await?;
+
+    pair_1.start_gateway().await?;
+    pair_2.start_gateway().await?;
+
+    pair_2
+        .spawn(move |mut ctx| async move {
+            ctx.write("peer-content", "text/plain", "baz".as_bytes(), None)
+                .await?;
+
+            ctx.save(None).await?;
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+            Ok(())
+        })
+        .await?;
+
+    let sphere_2_id = pair_2.client.identity.clone();
+
+    pair_1
+        .spawn(move |mut ctx| async move {
+            ctx.write("some-content", "text/plain", "foobar".as_bytes(), None)
+                .await?;
+
+            ctx.save(None).await?;
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+
+            ctx.write("new-content", "text/plain", "foobar2".as_bytes(), None)
+                .await?;
+
+            ctx.save(None).await?;
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+
+            ctx.set_petname("my-peer", Some(sphere_2_id)).await?;
+            ctx.save(None).await?;
+
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+            wait(1).await;
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+
+            Ok(())
+        })
+        .await?;
+
+    pair_2
+        .spawn(|mut ctx| async move {
+            ctx.write("peer-content", "text/plain", "baz".as_bytes(), None)
+                .await?;
+            ctx.save(None).await?;
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+
+            Ok(())
+        })
+        .await?;
+
+    pair_1
+        .spawn(|mut ctx| async move {
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+            wait(1).await;
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+
+            let walker = SphereWalker::from(&ctx);
+
+            let content_history = walker.content_change_stream(None);
+            tokio::pin!(content_history);
+
+            let history = content_history
+                .collect::<Result<Vec<(Link<MemoIpld>, BTreeSet<String>)>>>()
+                .await?;
+
+            for (cid, changes) in history.iter() {
+                trace!("{}: {:?}", cid.to_string(), changes);
+            }
+
+            for (index, (version, content_changes)) in history.iter().enumerate() {
+                debug!(history_index = ?index, version = ?version, changes = ?content_changes);
+                match index {
+                    0 => {
+                        assert!(content_changes.contains(&"some-content".to_owned()));
+                        assert_eq!(content_changes.len(), 1);
+                    }
+                    1 => {
+                        assert!(content_changes.contains(&"new-content".to_owned()));
+                        assert_eq!(content_changes.len(), 1);
+                    }
+                    _ => {
+                        unreachable!("There should only be two revisions to content!")
+                    }
+                }
+            }
 
             Ok(())
         })

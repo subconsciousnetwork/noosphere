@@ -1,8 +1,5 @@
-pub mod auth;
-pub mod config;
+//! Concrete implementations of the commands of the Noosphere CLI
+
 pub mod key;
-pub mod save;
 pub mod serve;
 pub mod sphere;
-pub mod status;
-pub mod sync;

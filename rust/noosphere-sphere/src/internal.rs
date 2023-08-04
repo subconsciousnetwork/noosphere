@@ -2,7 +2,6 @@ use super::{BodyChunkDecoder, SphereFile};
 use crate::{AsyncFileBody, HasSphereContext};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use futures_util::TryStreamExt;
 use noosphere_storage::{BlockStore, Storage};
 use std::str::FromStr;
 use tokio_util::io::StreamReader;
@@ -55,28 +54,29 @@ where
         sphere_revision: &Cid,
         memo_link: Link<MemoIpld>,
     ) -> Result<SphereFile<Box<dyn AsyncFileBody>>> {
-        let sphere_context = self.sphere_context().await?;
-        let memo = memo_link.load_from(sphere_context.db()).await?;
+        let mut db = self.sphere_context().await?.db().clone();
+        let memo = memo_link.load_from(&db).await?;
 
         // If we have a memo, but not the content it refers to, we should try to
         // replicate from the gateway
-        if sphere_context.db().get_block(&memo.body).await?.is_none() {
-            let client = sphere_context.client().await.map_err(|error| {
-                warn!("Unable to initialize API client for replicating missing content");
-                error
-            })?;
+        if db.get_block(&memo.body).await?.is_none() {
+            let client = self
+                .sphere_context()
+                .await?
+                .client()
+                .await
+                .map_err(|error| {
+                    warn!("Unable to initialize API client for replicating missing content");
+                    error
+                })?;
 
             // NOTE: This is kind of a hack, since we may be accessing a
             // "read-only" context. Technically this should be acceptable
             // because our mutation here is propagating immutable blocks
             // into the local DB
-            let mut db = sphere_context.db().clone();
             let stream = client.replicate(&memo_link, None).await?;
 
-            tokio::pin!(stream);
-            while let Some((cid, block)) = stream.try_next().await? {
-                db.put_block(&cid, &block).await?;
-            }
+            db.put_block_stream(stream).await?;
         }
 
         let content_type = match memo.get_first_header(&Header::ContentType) {
@@ -86,12 +86,12 @@ where
 
         let stream = match content_type {
             // TODO(#86): Content-type aware decoding of body bytes
-            Some(_) => BodyChunkDecoder(&memo.body, sphere_context.db()).stream(),
+            Some(_) => BodyChunkDecoder(&memo.body, &db).stream(),
             None => return Err(anyhow!("No content type specified")),
         };
 
         Ok(SphereFile {
-            sphere_identity: sphere_context.identity().clone(),
+            sphere_identity: self.sphere_context().await?.identity().clone(),
             sphere_version: sphere_revision.into(),
             memo_version: memo_link,
             memo,

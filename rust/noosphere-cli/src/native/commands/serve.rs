@@ -1,3 +1,6 @@
+//! Concrete implementations of subcommands related to running a Noosphere
+//! gateway server
+
 use anyhow::Result;
 
 use std::net::{IpAddr, TcpListener};
@@ -8,6 +11,7 @@ use crate::native::workspace::Workspace;
 
 use noosphere_gateway::{start_gateway, GatewayScope};
 
+/// Start a Noosphere gateway server
 pub async fn serve(
     interface: IpAddr,
     port: u16,

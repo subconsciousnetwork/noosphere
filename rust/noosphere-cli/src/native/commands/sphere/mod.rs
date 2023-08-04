@@ -1,20 +1,45 @@
-use std::str::FromStr;
+//! Concrete implementations of the various subcommands of the sphere command
 
-use crate::native::workspace::Workspace;
+mod auth;
+mod config;
+mod follow;
+mod save;
+mod status;
+mod sync;
+
+pub use auth::*;
+pub use config::*;
+pub use follow::*;
+pub use save::*;
+pub use status::*;
+pub use sync::*;
+
+use std::{str::FromStr, sync::Arc};
+
+use crate::native::{paths::SpherePaths, workspace::Workspace};
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere::{key::KeyStorage, sphere::SphereContextBuilder};
+use noosphere::{
+    key::KeyStorage,
+    sphere::{SphereContextBuilder, SphereContextBuilderArtifacts},
+};
 use noosphere_core::{authority::Authorization, data::Did};
-use noosphere_sphere::SphereContext;
+use noosphere_sphere::{HasMutableSphereContext, SphereContext, SphereSync, SyncRecovery};
 
+use tokio::sync::Mutex;
 use ucan::crypto::KeyMaterial;
+use url::Url;
 
-pub async fn sphere_create(owner_key: &str, workspace: &Workspace) -> Result<()> {
+/// Create a sphere, assigning authority to modify it to the given key
+/// (specified by nickname)
+pub async fn sphere_create(owner_key: &str, workspace: &mut Workspace) -> Result<()> {
     workspace.ensure_sphere_uninitialized()?;
+
+    let sphere_paths = SpherePaths::intialize(workspace.working_directory()).await?;
 
     let sphere_context_artifacts = SphereContextBuilder::default()
         .create_sphere()
-        .at_storage_path(workspace.root_directory())
+        .at_storage_path(sphere_paths.root())
         .reading_keys_from(workspace.key_storage().clone())
         .using_key(owner_key)
         .build()
@@ -36,20 +61,25 @@ IMPORTANT: Write down the following sequence of words...
 
 ...and keep it somewhere safe!
 You will be asked to enter them if you ever need to transfer ownership of the sphere to a different key."#,
-        workspace.root_directory(),
+        sphere_paths.root(),
         sphere_identity,
         owner_key,
         mnemonic
     );
 
+    workspace.initialize(sphere_paths)?;
+
     Ok(())
 }
 
+/// Join an existing sphere
 pub async fn sphere_join(
     local_key: &str,
     authorization: Option<String>,
     sphere_identity: &Did,
-    workspace: &Workspace,
+    gateway_url: &Url,
+    render_depth: Option<u32>,
+    workspace: &mut Workspace,
 ) -> Result<()> {
     workspace.ensure_sphere_uninitialized()?;
     info!("Joining sphere {sphere_identity}...");
@@ -87,26 +117,40 @@ Type or paste the code here and press enter:"#
     let cid = Cid::from_str(cid_string.trim())
         .map_err(|_| anyhow!("Could not parse the authorization identity as a CID"))?;
 
-    SphereContextBuilder::default()
-        .join_sphere(sphere_identity)
-        .at_storage_path(workspace.root_directory())
-        .reading_keys_from(workspace.key_storage().clone())
-        .using_key(local_key)
-        .authorized_by(Some(&Authorization::Cid(cid)))
-        .build()
-        .await?;
+    let sphere_paths = SpherePaths::intialize(workspace.working_directory()).await?;
 
+    {
+        let mut sphere_context = Arc::new(Mutex::new(
+            match SphereContextBuilder::default()
+                .join_sphere(sphere_identity)
+                .at_storage_path(sphere_paths.root())
+                .reading_keys_from(workspace.key_storage().clone())
+                .using_key(local_key)
+                .authorized_by(Some(&Authorization::Cid(cid)))
+                .build()
+                .await?
+            {
+                SphereContextBuilderArtifacts::SphereCreated { context, .. } => context,
+                SphereContextBuilderArtifacts::SphereOpened(context) => context,
+            },
+        ));
+
+        sphere_context
+            .sphere_context_mut()
+            .await?
+            .configure_gateway_url(Some(gateway_url))
+            .await?;
+        sphere_context.sync(SyncRecovery::None).await?;
+    }
+
+    workspace.initialize(sphere_paths)?;
+    workspace.render(render_depth).await?;
     // TODO(#103): Recovery path if the auth needs to change for some reason
 
     info!(
-        r#"The authorization has been saved.
-Make sure that you have configured the gateway's URL:
+        r#"The authorization has been saved. You should be able to sync:
 
-  orb config set gateway-url <URL>
-  
-And then you should be able to sync:
-
-  orb sync
+  orb sphere sync
   
 Happy pondering!"#
     );

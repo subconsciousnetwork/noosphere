@@ -1,12 +1,11 @@
 use std::collections::BTreeMap;
 
-use crate::native::Workspace;
+use crate::native::{content::Content, Workspace};
 use anyhow::Result;
 use noosphere_core::data::ContentType;
 use noosphere_sphere::{HasSphereContext, SphereCursor};
-use noosphere_storage::MemoryStore;
 
-pub fn status_section(
+fn status_section(
     name: &str,
     entries: &BTreeMap<String, Option<ContentType>>,
     section: &mut Vec<(String, String, String)>,
@@ -26,6 +25,8 @@ pub fn status_section(
     }
 }
 
+/// Get the current status of the workspace, reporting the content that has
+/// changed in some way (if any)
 pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
     workspace.ensure_sphere_initialized()?;
 
@@ -40,23 +41,19 @@ pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
 
     let sphere_context = workspace.sphere_context().await?;
     let cid = SphereCursor::latest(sphere_context).version().await?;
-    info!("The latest (saved) version of your sphere is {cid}");
-    info!("Here is a summary of the current changes to sphere content:\n");
+    info!("The latest (saved) version of your sphere is {cid}\n");
 
-    let mut memory_store = MemoryStore::default();
-
-    let (_, changes) = match workspace
-        .get_file_content_changes(&mut memory_store)
-        .await?
-    {
-        Some((content, content_changes)) if !content_changes.is_empty() => {
-            (content, content_changes)
-        }
-        _ => {
+    // TODO(#556): No need to pack new blocks into a memory store at this step;
+    // maybe [Content::read_changes] can be optimized for this path
+    let (_, content_changes, _) = match Content::read_changes(workspace).await? {
+        Some(changes) => changes,
+        None => {
             info!("No new changes to sphere content!");
             return Ok(());
         }
     };
+
+    info!("Here is a summary of the current changes to sphere content:\n");
 
     let mut content = Vec::new();
 
@@ -65,7 +62,7 @@ pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
 
     status_section(
         "Updated",
-        &changes.updated,
+        &content_changes.updated,
         &mut content,
         &mut max_name_length,
         &mut max_content_type_length,
@@ -73,7 +70,7 @@ pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
 
     status_section(
         "New",
-        &changes.new,
+        &content_changes.new,
         &mut content,
         &mut max_name_length,
         &mut max_content_type_length,
@@ -81,19 +78,23 @@ pub async fn status(only_id: bool, workspace: &Workspace) -> Result<()> {
 
     status_section(
         "Removed",
-        &changes.removed,
+        &content_changes.removed,
         &mut content,
         &mut max_name_length,
         &mut max_content_type_length,
     );
 
-    info!(
-        "{:max_name_length$}  {:max_content_type_length$}  STATUS",
-        "NAME", "CONTENT-TYPE"
-    );
+    if !content.is_empty() {
+        info!(
+            "{:max_name_length$}  {:max_content_type_length$}  STATUS",
+            "NAME", "CONTENT-TYPE"
+        );
 
-    for (slug, content_type, status) in content {
-        info!("{slug:max_name_length$}  {content_type:max_content_type_length$}  {status}");
+        for (slug, content_type, status) in content {
+            info!("{slug:max_name_length$}  {content_type:max_content_type_length$}  {status}");
+        }
+    } else {
+        info!("No content has changed since the last save!")
     }
 
     Ok(())

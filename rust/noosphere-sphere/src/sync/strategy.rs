@@ -61,7 +61,8 @@ where
     S: Storage + 'static,
 {
     /// Synchronize a local sphere's data with the data in a gateway, and rollback
-    /// if there is an error.
+    /// if there is an error. The returned [Link] is the latest version of the local
+    /// sphere lineage after the sync has completed.
     pub async fn sync(&self, context: &mut C) -> Result<Link<MemoIpld>, SyncError>
     where
         C: HasMutableSphereContext<S>,
@@ -114,8 +115,8 @@ where
         let client = context.client().await?;
         let counterpart_sphere_identity = client.session.sphere_identity.clone();
 
-        // TODO: Some kind of due diligence to notify the caller when this value
-        // changes
+        // TODO(#561): Some kind of due diligence to notify the caller when this
+        // value changes
         context
             .db_mut()
             .set_key(COUNTERPART, &counterpart_sphere_identity)
@@ -179,11 +180,15 @@ where
 
         context.db_mut().put_block_stream(block_stream).await?;
 
+        trace!("Finished putting block stream");
+
         let counterpart_history: CounterpartHistory<S> =
             Sphere::at(&counterpart_sphere_tip, context.db_mut())
                 .into_history_stream(counterpart_sphere_base)
                 .collect()
                 .await;
+
+        trace!("Iterating over counterpart history");
 
         for item in counterpart_history.into_iter().rev() {
             let (_, sphere) = item?;
@@ -221,10 +226,15 @@ where
             local_sphere_new_base,
         ) {
             // History diverged, so rebase our local changes on the newly received branch
-            (Some(current_tip), Some(old_base), Some(new_base)) => {
-                info!("Syncing received local sphere revisions...");
+            (Some(current_tip), Some(old_base), Some(new_base)) if old_base != new_base => {
+                info!(
+                    ?current_tip,
+                    ?old_base,
+                    ?new_base,
+                    "Syncing received local sphere revisions..."
+                );
                 Sphere::at(current_tip, context.db())
-                    .sync(
+                    .rebase(
                         &old_base,
                         &new_base,
                         &context.author().key,
@@ -236,7 +246,10 @@ where
             (None, old_base, Some(new_base)) => {
                 info!("Hydrating received local sphere revisions...");
                 let timeline = Timeline::new(context.db_mut());
-                Sphere::hydrate_timeslice(&timeline.slice(&new_base, old_base.as_ref())).await?;
+                Sphere::hydrate_timeslice(
+                    &timeline.slice(&new_base, old_base.as_ref()).exclude_past(),
+                )
+                .await?;
 
                 new_base.clone()
             }
@@ -289,6 +302,15 @@ where
                         warn!("Updated link record for {name} referred to unexpected sphere; expected {identity}, but record referred to {}; skipping...", address.did);
                         continue;
                     }
+
+                    if context.resolve_petname(&name).await? == link_record.get_link() {
+                        // TODO(#562): Should probably also verify record expiry
+                        // in case we are dealing with a renewed record to the
+                        // same link
+                        warn!("Resolved link for {name} has not changed; skipping...");
+                        continue;
+                    }
+
                     context.set_petname_record(&name, &link_record).await?;
                 } else {
                     debug!("Not adopting link record for {name}, which is no longer present in the address book")
@@ -390,10 +412,14 @@ where
         );
 
         let timeline = Timeline::new(context.db_mut());
-        Sphere::hydrate_timeslice(&timeline.slice(
-            &counterpart_sphere_updated_tip,
-            Some(counterpart_sphere_tip),
-        ))
+        Sphere::hydrate_timeslice(
+            &timeline
+                .slice(
+                    &counterpart_sphere_updated_tip,
+                    Some(counterpart_sphere_tip),
+                )
+                .exclude_past(),
+        )
         .await?;
 
         context

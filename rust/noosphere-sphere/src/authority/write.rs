@@ -55,6 +55,9 @@ where
     // but this will bear the consequence of leaking personal information about
     // the user (e.g., a list of their authorized devices). We should encrypt
     // these names so that they are only readable by the user themselves.
+    // TODO(#560): We should probably enforce that each [Did] only gets one
+    // authorization, from a hygeine perspective; elsewhere we need to assume
+    // multiple authorizations for the same [Did] are possible.
     async fn authorize(&mut self, name: &str, identity: &Did) -> Result<Authorization> {
         self.assert_write_access().await?;
 

@@ -360,7 +360,7 @@ mod test {
         let mut memos = vec![memo];
 
         for _ in 0..5 {
-            memo = MemoIpld::branch_from(&memo_cid.into(), &mut store).await?;
+            memo = MemoIpld::branch_from(&memo_cid.into(), &store).await?;
             memo_cid = store.save::<DagCborCodec, _>(&memo).await?;
 
             memos.push(memo);

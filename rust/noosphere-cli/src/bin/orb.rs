@@ -2,7 +2,7 @@
 #[tokio::main]
 pub async fn main() -> anyhow::Result<()> {
     // Call out to an external module for platform-specific compilation purposes
-    noosphere_cli::native::main().await?;
+    noosphere_cli::main().await?;
 
     Ok(())
 }
@@ -10,5 +10,5 @@ pub async fn main() -> anyhow::Result<()> {
 #[cfg(target_arch = "wasm32")]
 #[allow(unused_must_use)]
 pub fn main() {
-    noosphere_cli::web::main();
+    noosphere_cli::main();
 }

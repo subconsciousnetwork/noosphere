@@ -93,6 +93,7 @@ where
     /// [Did] identity. If the local data for the sphere being traversed to is
     /// not available, an attempt will be made to replicate the data from a
     /// Noosphere Gateway.
+    #[instrument(level = "debug", skip(self, replicate))]
     pub async fn traverse_by_petname<F, Fut>(
         &self,
         petname: &str,
@@ -483,12 +484,6 @@ impl<S: BlockStore> Sphere<S> {
         })
     }
 
-    /// Same as `rebase_version`, but uses the version that this [Sphere] refers
-    /// to as the version to rebase.
-    pub async fn rebase(&self, onto: &Link<MemoIpld>) -> Result<SphereRevision<S>> {
-        Sphere::rebase_version(self.cid(), onto, &mut self.store.clone()).await
-    }
-
     /// "Rebase" the given version of a sphere so that its change is made with
     /// the "onto" version as its base.
     pub async fn rebase_version(
@@ -575,7 +570,7 @@ impl<S: BlockStore> Sphere<S> {
 
     /// Attempt to linearize the canonical history of the sphere by re-basing
     /// the history onto a branch with an implicitly common lineage.
-    pub async fn sync<Credential: KeyMaterial>(
+    pub async fn rebase<Credential: KeyMaterial>(
         &self,
         old_base: &Link<MemoIpld>,
         new_base: &Link<MemoIpld>,
@@ -585,15 +580,15 @@ impl<S: BlockStore> Sphere<S> {
         let mut store = self.store.clone();
 
         let timeline = Timeline::new(&self.store);
-        Sphere::hydrate_timeslice(&timeline.slice(new_base, Some(old_base))).await?;
+        Sphere::hydrate_timeslice(&timeline.slice(new_base, Some(old_base)).exclude_past()).await?;
 
         let timeline = Timeline::new(&self.store);
-        let timeslice = timeline.slice(self.cid(), Some(old_base));
+        let timeslice = timeline.slice(self.cid(), Some(old_base)).exclude_past();
         let rebase_revisions = timeslice.to_chronological().await?;
 
         let mut next_base = new_base.clone();
 
-        for (cid, _) in rebase_revisions.iter().skip(1) {
+        for (cid, _) in rebase_revisions.iter() {
             let mut revision = Sphere::rebase_version(cid, &next_base, &mut store).await?;
             next_base = revision.sign(credential, authorization).await?;
         }
@@ -927,15 +922,30 @@ impl<S: BlockStore> Sphere<S> {
 
         try_stream! {
             let history: Vec<Result<(Link<MemoIpld>, Sphere<S>)>> = self.into_history_stream(since.as_ref()).collect().await;
+            let mut parent = None;
 
             for item in history.into_iter().rev() {
                 let (cid, sphere) = item?;
-                let identities = sphere.get_address_book().await?.get_identities().await?;
-                let changelog = identities.load_changelog().await?;
+                let parent_sphere = match parent {
+                    Some(_) => parent,
+                    None => sphere.get_parent().await?
+                };
 
-                if !changelog.is_empty() {
-                    yield (cid, changelog);
+                let identities = sphere.get_address_book().await?.get_identities().await?;
+                let may_yield_changelog = match parent_sphere {
+                    Some(parent_sphere) => identities.cid() != parent_sphere.get_address_book().await?.get_identities().await?.cid(),
+                    None => true
+                };
+
+                if may_yield_changelog {
+                    let changelog = identities.load_changelog().await?;
+
+                    if !changelog.is_empty() {
+                        yield (cid, changelog);
+                    }
                 }
+
+                parent = Some(sphere);
             }
         }
     }
@@ -956,15 +966,30 @@ impl<S: BlockStore> Sphere<S> {
 
         try_stream! {
             let history: Vec<Result<(Link<MemoIpld>, Sphere<S>)>> = self.into_history_stream(since.as_ref()).collect().await;
+            let mut parent = None;
 
             for item in history.into_iter().rev() {
                 let (cid, sphere) = item?;
-                let content = sphere.get_content().await?;
-                let changelog = content.load_changelog().await?;
+                let parent_sphere = match parent {
+                    Some(_) => parent,
+                    None => sphere.get_parent().await?
+                };
 
-                if !changelog.is_empty() {
-                    yield (cid, changelog);
+                let content = sphere.get_content().await?;
+                let may_yield_changelog = match parent_sphere {
+                    Some(parent_sphere) => content.cid() != parent_sphere.get_content().await?.cid(),
+                    None => true
+                };
+
+                if may_yield_changelog {
+                    let changelog = content.load_changelog().await?;
+
+                    if !changelog.is_empty() {
+                        yield (cid, changelog);
+                    }
                 }
+
+                parent = Some(sphere);
             }
         }
     }
@@ -1577,7 +1602,7 @@ mod tests {
         let local_sphere = Sphere::at(&local_cid_b, &store);
 
         local_sphere
-            .sync(&base_cid, &external_cid_b, &owner_key, Some(&authorization))
+            .rebase(&base_cid, &external_cid_b, &owner_key, Some(&authorization))
             .await
             .unwrap();
     }

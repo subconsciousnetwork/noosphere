@@ -89,7 +89,7 @@ impl Store for NativeStore {
         // This occurs often in tests and fixed in `sled`'s main branch,
         // but no cargo release since 2021.
         // https://github.com/spacejam/sled/issues/1308
-        self.db.flush().map_err(anyhow::Error::from)?;
+        self.db.flush()?;
         Ok(())
     }
 }

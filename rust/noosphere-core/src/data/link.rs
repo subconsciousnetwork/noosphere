@@ -4,6 +4,7 @@ use libipld_core::{
     codec::{Codec, Decode, Encode},
     raw::RawCodec,
 };
+use std::fmt::Debug;
 use std::{
     fmt::{Display, Formatter},
     io::{Read, Seek, Write},
@@ -35,7 +36,7 @@ impl<T> LinkSend for T {}
 /// typing. A [Link] transparently represents its inner [Cid], so a data
 /// structure that uses [Link]s can safely be interpretted in terms of [Cid]s,
 /// and vice-versa.
-#[derive(Debug, Ord, PartialOrd, Serialize, Deserialize, Clone)]
+#[derive(Ord, PartialOrd, Serialize, Deserialize, Clone)]
 // NOTE: Required because libipld special-cases unit structs and errors
 // SEE: https://github.com/ipld/libipld/blob/65e0b38520f62cfb2b67ebe658846d86dac2f73e/core/src/serde/ser.rs#L192
 #[serde(from = "Cid", into = "Cid")]
@@ -46,6 +47,18 @@ where
 {
     pub cid: Cid,
     linked_type: PhantomData<T>,
+}
+
+impl<T> Debug for Link<T>
+where
+    T: Clone,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Link")
+            .field("cid", &self.cid.to_string())
+            .field("linked_type", &self.linked_type)
+            .finish()
+    }
 }
 
 impl<T> Deref for Link<T>
@@ -105,7 +118,7 @@ where
     T: Clone,
 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        self.cid.fmt(f)
+        Display::fmt(&self.cid, f)
     }
 }
 
