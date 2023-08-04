@@ -1,3 +1,5 @@
+use super::KeyStorage;
+use crate::platform::PlatformKeyMaterial;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use noosphere_core::{
@@ -12,9 +14,14 @@ use tokio::fs;
 use ucan::crypto::KeyMaterial;
 use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
-use crate::platform::PlatformKeyMaterial;
-
-use super::KeyStorage;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+#[cfg(unix)]
+/// `chmod`-like permission given to private key files on unix systems.
+const PRIVATE_KEY_PERMISSIONS: u32 = 0o100600;
+#[cfg(unix)]
+/// `chmod`-like permission given to public key files on unix systems.
+const PUBLIC_KEY_PERMISSIONS: u32 = 0o100644;
 
 /// InsecureKeyStorage is a stand-in key storage mechanism to tide us over until
 /// we have full-fledged support for secure key storage using TPMs or similar
@@ -111,9 +118,24 @@ impl KeyStorage<Ed25519KeyMaterial> for InsecureKeyStorage {
         let mnemonic = ed25519_key_to_mnemonic(&key_pair)?;
         let did = key_pair.get_did().await?;
 
+        let private_key_path = self.private_key_path(name);
+        let public_key_path = self.public_key_path(name);
+
         tokio::try_join!(
-            fs::write(self.private_key_path(name), mnemonic),
-            fs::write(self.public_key_path(name), did)
+            fs::write(&private_key_path, mnemonic),
+            fs::write(&public_key_path, did)
+        )?;
+
+        #[cfg(unix)]
+        tokio::try_join!(
+            fs::set_permissions(
+                &private_key_path,
+                std::fs::Permissions::from_mode(PRIVATE_KEY_PERMISSIONS)
+            ),
+            fs::set_permissions(
+                &public_key_path,
+                std::fs::Permissions::from_mode(PUBLIC_KEY_PERMISSIONS)
+            ),
         )?;
 
         Ok(key_pair)
@@ -122,10 +144,10 @@ impl KeyStorage<Ed25519KeyMaterial> for InsecureKeyStorage {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::key::KeyStorage;
-
-    use super::InsecureKeyStorage;
     use tempfile::TempDir;
+    use tokio::fs;
     use ucan::crypto::KeyMaterial;
 
     #[tokio::test]
@@ -167,5 +189,36 @@ mod tests {
                 assert!(keys.contains_key(&format!("key{}", i)));
             }
         }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn it_sets_permissions_on_keys() -> anyhow::Result<()> {
+        let temp_dir = TempDir::new().unwrap();
+        let key_storage = InsecureKeyStorage::new(temp_dir.path()).unwrap();
+        key_storage.create_key("foo").await?;
+
+        let private_key_path = temp_dir
+            .path()
+            .join("keys")
+            .join("foo")
+            .with_extension("private");
+        let public_key_path = temp_dir
+            .path()
+            .join("keys")
+            .join("foo")
+            .with_extension("public");
+
+        let private_key = fs::File::open(private_key_path).await?;
+        assert_eq!(
+            private_key.metadata().await?.permissions().mode(),
+            PRIVATE_KEY_PERMISSIONS
+        );
+        let public_key = fs::File::open(public_key_path).await?;
+        assert_eq!(
+            public_key.metadata().await?.permissions().mode(),
+            PUBLIC_KEY_PERMISSIONS
+        );
+        Ok(())
     }
 }
