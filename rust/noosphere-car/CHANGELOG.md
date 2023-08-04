@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1+deprecated](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-car-v0.3.0...noosphere-car-v0.3.1+deprecated) (2023-08-04)
+
+
+### Features
+
+* Featureful deprecation notice ([dadea07](https://github.com/subconsciousnetwork/noosphere/commit/dadea079a7d5101b39e9ebb5947c8bade633ade2))
+
 ## [0.3.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-car-v0.2.0...noosphere-car-v0.3.0) (2023-07-19)
 
 

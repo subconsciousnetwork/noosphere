@@ -196,6 +196,32 @@
   * dev-dependencies
     * noosphere-ns bumped from 0.9.3 to 0.9.4
 
+## [0.14.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.13.2...noosphere-cli-v0.14.0) (2023-08-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* `orb` uses latest Noosphere capabilities ([#530](https://github.com/subconsciousnetwork/noosphere/issues/530))
+
+### Features
+
+* `orb` uses latest Noosphere capabilities ([#530](https://github.com/subconsciousnetwork/noosphere/issues/530)) ([adfa028](https://github.com/subconsciousnetwork/noosphere/commit/adfa028ebcb2de7ea7492af57239fcc9bfc27955))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.7.1 to 0.7.2
+    * noosphere-core bumped from 0.14.0 to 0.15.0
+    * noosphere-sphere bumped from 0.9.0 to 0.10.0
+    * noosphere-storage bumped from 0.7.1 to 0.8.0
+    * noosphere-api bumped from 0.11.0 to 0.12.0
+    * noosphere-gateway bumped from 0.7.2 to 0.8.0
+    * noosphere bumped from 0.13.1 to 0.14.0
+  * dev-dependencies
+    * noosphere-ns bumped from 0.9.4 to 0.10.0
+
 ## [0.13.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.12.2...noosphere-cli-v0.13.0) (2023-07-19)
 
 

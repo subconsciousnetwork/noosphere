@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-car"
-version = "0.3.0"
+version = "0.3.1+deprecated"
 edition = "2021"
 description = "Streaming CAR format support for Noosphere"
 keywords = ["car", "sync", "noosphere", "ipfs", "cid"]
