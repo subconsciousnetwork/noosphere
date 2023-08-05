@@ -2,7 +2,7 @@
 mod implementation;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 pub async fn main() -> anyhow::Result<()> {
     implementation::main().await
 }

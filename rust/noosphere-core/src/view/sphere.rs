@@ -757,7 +757,7 @@ impl<S: BlockStore> Sphere<S> {
 
         try_stream! {
             let timeline = Timeline::new(&self.store);
-            let timeslice = timeline.slice(&self.cid, since.as_ref());
+            let timeslice = timeline.slice(&self.cid, since.as_ref()).exclude_past();
             let stream = timeslice.stream();
 
             for await item in stream {

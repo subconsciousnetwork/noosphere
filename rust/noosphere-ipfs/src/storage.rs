@@ -150,7 +150,6 @@ mod tests {
     use noosphere_storage::{block_serialize, BlockStoreRetry, MemoryStore};
     use rand::prelude::*;
     use serde::{Deserialize, Serialize};
-    use std::time::Duration;
     use url::Url;
 
     #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -181,7 +180,7 @@ mod tests {
         let ipfs_store = {
             let inner = MemoryStore::default();
             let inner = IpfsStore::new(inner, Some(kubo_client));
-            BlockStoreRetry::new(inner, 3u32, Duration::new(0, 100))
+            BlockStoreRetry::from(inner)
         };
 
         assert!(ipfs_store.get_block(&foo_cid).await.is_err());

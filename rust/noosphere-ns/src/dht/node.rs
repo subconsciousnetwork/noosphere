@@ -30,7 +30,7 @@ macro_rules! ensure_response {
 /// use async_trait::async_trait;
 /// use tokio;
 ///
-/// #[tokio::main]
+/// #[tokio::main(flavor = "multi_thread")]
 /// async fn main() {
 ///     let node = DhtNode::new(
 ///         Keypair::generate_ed25519(),

@@ -111,7 +111,7 @@ where
     /// render, all rendered peers will be reset and rendered again (although
     /// the hard links to their content will remain unchanged).
     #[instrument(level = "debug", skip(self))]
-    pub async fn render(&self, depth: Option<u32>) -> Result<()> {
+    pub async fn render(&self, depth: Option<u32>, force_full_render: bool) -> Result<()> {
         std::env::set_current_dir(self.paths.root())?;
 
         let mut render_jobs = JoinSet::<Result<()>>::new();
@@ -133,33 +133,39 @@ where
             last_render_depth.unwrap_or(DEFAULT_RENDER_DEPTH)
         };
 
-        if let Some(last_render_depth) = last_render_depth {
-            if render_depth > last_render_depth {
-                // NOTE: Sequencing is important here. This reset is performed
-                // by the renderer in advance of queuing any work because we
-                // cannot guarantee the order in which requests to render peers
-                // may come in, and it could happen out-of-order with a "refresh
-                // peers" job that is running concurrently.
-                self.reset_peers().await?;
+        let force_render_peers = if force_full_render {
+            true
+        } else if let Some(last_render_depth) = last_render_depth {
+            render_depth > last_render_depth
+        } else {
+            false
+        };
 
-                debug!(
-                    ?max_parallel_jobs,
-                    ?render_depth,
-                    "Spawning peer refresh render job for {}...",
-                    self.context.identity().await?
-                );
+        if force_render_peers {
+            // NOTE: Sequencing is important here. This reset is performed
+            // by the renderer in advance of queuing any work because we
+            // cannot guarantee the order in which requests to render peers
+            // may come in, and it could happen out-of-order with a "refresh
+            // peers" job that is running concurrently.
+            self.reset_peers().await?;
 
-                render_jobs.spawn(
-                    SphereRenderJob::new(
-                        self.context.clone(),
-                        JobKind::RefreshPeers,
-                        self.paths.clone(),
-                        Vec::new(),
-                        tx.clone(),
-                    )
-                    .render(),
-                );
-            }
+            debug!(
+                ?max_parallel_jobs,
+                ?render_depth,
+                "Spawning peer refresh render job for {}...",
+                self.context.identity().await?
+            );
+
+            render_jobs.spawn(
+                SphereRenderJob::new(
+                    self.context.clone(),
+                    JobKind::RefreshPeers,
+                    self.paths.clone(),
+                    Vec::new(),
+                    tx.clone(),
+                )
+                .render(),
+            );
         }
 
         debug!(
@@ -173,7 +179,7 @@ where
         render_jobs.spawn(
             SphereRenderJob::new(
                 self.context.clone(),
-                JobKind::Root,
+                JobKind::Root { force_full_render },
                 self.paths.clone(),
                 Vec::new(),
                 tx.clone(),
@@ -186,8 +192,16 @@ where
         while !render_jobs.is_empty() && job_queue_open {
             select! {
                 result = render_jobs.join_next() => {
-                    if let Some(result) = result {
-                        result??;
+                    if let Some(join_result) = result {
+                        match join_result {
+                            Err(error) => {
+                                warn!("Failed to join render job task: {}", error);
+                            },
+                            Ok(task_result) => match task_result {
+                                Ok(_) => (),
+                                Err(error) => warn!("Render job failed: {}", error),
+                            }
+                        }
                     }
                 },
                 next_job_request = rx.recv() => {

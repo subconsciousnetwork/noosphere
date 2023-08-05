@@ -36,6 +36,7 @@ where
     let since = since.cloned();
 
     try_stream! {
+
         let (store, mut rx) = BlockStoreTap::new(store.clone(), 64);
         let memo = store.load::<DagCborCodec, MemoIpld>(&latest).await?;
 
@@ -85,6 +86,7 @@ where
 
                                 walk_versioned_map_changes_and(delegations, store, |_, delegation, store| async move {
                                     let ucan_store = UcanStore(store);
+
                                     LinkRecord::from_str(&ucan_store.require_token(&delegation.jwt).await?)?.collect_proofs(&ucan_store).await?;
                                     Ok(())
                                 }).await?;
@@ -101,8 +103,9 @@ where
                             let address_book = sphere.get_address_book().await?;
                             let identities = address_book.get_identities().await?;
 
-                            tasks.spawn(walk_versioned_map_changes_and(identities, store.clone(), |_, identity, store| async move {
+                            tasks.spawn(walk_versioned_map_changes_and(identities, store.clone(), |name, identity, store| async move {
                                 let ucan_store = UcanStore(store);
+                                trace!("Replicating proofs for {}", name);
                                 if let Some(link_record) = identity.link_record(&ucan_store).await {
                                     link_record.collect_proofs(&ucan_store).await?;
                                 };

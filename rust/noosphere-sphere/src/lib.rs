@@ -16,7 +16,7 @@
 //!
 //! use noosphere_sphere::{SphereCursor, HasMutableSphereContext, SphereContentWrite};
 //!
-//! #[tokio::main]
+//! #[tokio::main(flavor = "multi_thread")]
 //! async fn main() -> Result<()> {
 //!   let (mut sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 //!
@@ -36,7 +36,7 @@
 //!
 //! use noosphere_sphere::{SphereCursor, HasMutableSphereContext, SpherePetnameWrite};
 //!
-//! #[tokio::main]
+//! #[tokio::main(flavor = "multi_thread")]
 //! async fn main() -> Result<()> {
 //!   let (mut sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
 //!

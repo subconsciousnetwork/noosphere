@@ -67,7 +67,9 @@ pub async fn save(render_depth: Option<u32>, workspace: &Workspace) -> Result<()
     if has_unsaved_changes {
         let cid = SphereCursor::latest(sphere_context).save(None).await?;
         info!("Save complete!\nThe latest sphere revision is {cid}");
-        workspace.render(render_depth).await?;
+
+        workspace.render(render_depth, false).await?;
+
         Ok(())
     } else {
         Err(anyhow!("No changes to save"))

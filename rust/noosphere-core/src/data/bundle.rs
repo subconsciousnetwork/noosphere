@@ -7,19 +7,20 @@ use cid::Cid;
 use futures::{pin_mut, StreamExt};
 use libipld_cbor::DagCborCodec;
 use libipld_core::raw::RawCodec;
-use noosphere_storage::{block_deserialize, block_serialize, BlockStore};
+use noosphere_storage::{block_deserialize, block_serialize, BlockStore, UcanStore};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use ucan::{store::UcanJwtStore, Ucan};
 
 use crate::{
     data::{
         AuthorityIpld, BodyChunkIpld, ChangelogIpld, ContentIpld, ContentType, DelegationIpld,
-        DelegationsIpld, Header, MapOperation, MemoIpld, RevocationIpld, RevocationsIpld,
-        SphereIpld, VersionedMapIpld, VersionedMapKey, VersionedMapValue,
+        DelegationsIpld, Header, IdentityIpld, MapOperation, MemoIpld, RevocationIpld,
+        RevocationsIpld, SphereIpld, VersionedMapIpld, VersionedMapKey, VersionedMapValue,
     },
     view::Timeslice,
 };
 
-use super::{AddressBookIpld, IdentitiesIpld, IdentityIpld, Jwt, Link, LinkRecord};
+use super::{AddressBookIpld, IdentitiesIpld, Jwt, Link, LinkRecord};
 
 // TODO: This should maybe only collect CIDs, and then streaming-serialize to
 // a CAR (https://ipld.io/specs/transport/car/carv2/)
@@ -357,7 +358,21 @@ impl TryBundle for SphereIpld {
 impl TryBundle for IdentityIpld {
     async fn extend_bundle<S: BlockStore>(&self, bundle: &mut Bundle, store: &S) -> Result<()> {
         if let Some(cid) = &self.link_record {
-            bundle.add(cid.clone().into(), store.require_block(cid).await?);
+            let mut remaining = vec![cid.clone()];
+            let ucan_store = UcanStore(store.clone());
+
+            while let Some(cid) = remaining.pop() {
+                let jwt = ucan_store.require_token(&cid).await?;
+                let ucan = Ucan::try_from(jwt.as_str())?;
+
+                bundle.add(cid.clone().into(), store.require_block(&cid).await?);
+
+                if let Some(proofs) = ucan.proofs() {
+                    for proof_string in proofs {
+                        remaining.push(Cid::try_from(proof_string.as_str())?.into())
+                    }
+                }
+            }
         };
         Ok(())
     }

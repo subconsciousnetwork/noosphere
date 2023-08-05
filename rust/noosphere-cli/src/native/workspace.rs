@@ -267,13 +267,13 @@ impl Workspace {
     /// files in the workspace. Note that this will overwrite any existing files
     /// in the workspace.
     #[instrument(level = "debug", skip(self))]
-    pub async fn render(&self, depth: Option<u32>) -> Result<()> {
+    pub async fn render(&self, depth: Option<u32>, force_full: bool) -> Result<()> {
         let renderer = SphereRenderer::new(
             self.sphere_context().await?,
             self.require_sphere_paths()?.clone(),
         );
 
-        renderer.render(depth).await?;
+        renderer.render(depth, force_full).await?;
 
         Ok(())
     }

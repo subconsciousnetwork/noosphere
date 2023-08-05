@@ -41,7 +41,10 @@ impl SphereRenderRequest {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum JobKind {
     /// A job that renders the root sphere
-    Root,
+    Root {
+        /// If an incremental render would be performed, force a full render
+        force_full_render: bool,
+    },
     /// A job that renders a peer (or peer-of-a-peer) of the root sphere
     Peer(Did, Cid, LinkRecord),
     /// A job that renders _just_ the peers of the root sphere
@@ -94,10 +97,13 @@ where
     #[instrument(level = "debug", skip(self))]
     pub async fn render(self) -> Result<()> {
         match self.kind {
-            JobKind::Root => {
+            JobKind::Root { force_full_render } => {
                 debug!("Running root render job...");
-                match tokio::fs::try_exists(self.paths().version()).await {
-                    Ok(true) => {
+                match (
+                    force_full_render,
+                    tokio::fs::try_exists(self.paths().version()).await,
+                ) {
+                    (false, Ok(true)) => {
                         debug!("Root has been rendered at least once; rendering incrementally...");
                         let version = Cid::try_from(
                             tokio::fs::read_to_string(self.paths().version()).await?,
@@ -105,7 +111,11 @@ where
                         self.incremental_render(&version.into()).await?;
                     }
                     _ => {
-                        debug!("Root has not been rendered yet; performing a full render...");
+                        if force_full_render {
+                            debug!("Root full render is being forced...");
+                        } else {
+                            debug!("Root has not been rendered yet; performing a full render...");
+                        }
                         self.full_render(SphereCursor::latest(self.context.clone()))
                             .await?
                     }

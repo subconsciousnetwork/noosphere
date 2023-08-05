@@ -44,7 +44,7 @@ impl SphereWriter {
     }
 
     fn is_root_writer(&self) -> bool {
-        self.kind == JobKind::Root
+        matches!(self.kind, JobKind::Root { .. })
     }
 
     fn petname(&self, name: &str) -> PathBuf {
@@ -54,7 +54,7 @@ impl SphereWriter {
     /// The path to the directory where content and peers will be rendered to
     pub fn mount(&self) -> &Path {
         self.mount.get_or_init(|| match &self.kind {
-            JobKind::Root | JobKind::RefreshPeers => self.base().to_owned(),
+            JobKind::Root { .. } | JobKind::RefreshPeers => self.base().to_owned(),
             JobKind::Peer(_, _, _) => self.base().join(MOUNT_DIRECTORY),
         })
     }
@@ -63,7 +63,7 @@ impl SphereWriter {
     /// based on [JobKind]
     pub fn base(&self) -> &Path {
         self.base.get_or_init(|| match &self.kind {
-            JobKind::Root | JobKind::RefreshPeers => self.paths.root().to_owned(),
+            JobKind::Root { .. } | JobKind::RefreshPeers => self.paths.root().to_owned(),
             JobKind::Peer(did, cid, _) => self.paths.peer(did, cid),
         })
     }
@@ -71,7 +71,7 @@ impl SphereWriter {
     /// The path to the directory containing "private" structural information
     pub fn private(&self) -> &Path {
         self.private.get_or_init(|| match &self.kind {
-            JobKind::Root | JobKind::RefreshPeers => self.paths().sphere().to_owned(),
+            JobKind::Root { .. } | JobKind::RefreshPeers => self.paths().sphere().to_owned(),
             JobKind::Peer(_, _, _) => self.base().to_owned(),
         })
     }

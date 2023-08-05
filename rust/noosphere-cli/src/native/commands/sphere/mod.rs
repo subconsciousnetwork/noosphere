@@ -3,6 +3,8 @@
 mod auth;
 mod config;
 mod follow;
+mod history;
+mod render;
 mod save;
 mod status;
 mod sync;
@@ -10,6 +12,8 @@ mod sync;
 pub use auth::*;
 pub use config::*;
 pub use follow::*;
+pub use history::*;
+pub use render::*;
 pub use save::*;
 pub use status::*;
 pub use sync::*;
@@ -144,7 +148,8 @@ Type or paste the code here and press enter:"#
     }
 
     workspace.initialize(sphere_paths)?;
-    workspace.render(render_depth).await?;
+    workspace.render(render_depth, true).await?;
+
     // TODO(#103): Recovery path if the auth needs to change for some reason
 
     info!(

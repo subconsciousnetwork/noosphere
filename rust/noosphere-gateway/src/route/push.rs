@@ -231,6 +231,7 @@ where
         tokio::pin!(stream);
 
         let mut updated_names = BTreeSet::<String>::new();
+        let mut removed_names = BTreeSet::<String>::new();
 
         // Walk backwards through the history of the pushed sphere and aggregate
         // name changes into a single mutation
@@ -248,7 +249,7 @@ where
                         // Since we are walking backwards through history, we
                         // can ignore changes to names in the past that we have
                         // already encountered in the future
-                        if updated_names.contains(&key) {
+                        if updated_names.contains(&key) || removed_names.contains(&key) {
                             trace!("Skipping name add for '{}' (already seen)...", key);
                             continue;
                         }
@@ -271,6 +272,8 @@ where
                         updated_names.insert(key);
                     }
                     MapOperation::Remove { key } => {
+                        removed_names.insert(key.clone());
+
                         if updated_names.contains(&key) {
                             trace!("Skipping name removal for '{}' (already seen)...", key);
                             continue;
