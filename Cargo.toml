@@ -34,7 +34,7 @@ pathdiff = { version = "0.2.1" }
 sentry-tracing = { version = "0.31.5" }
 serde = { version = "^1" }
 serde_json = { version = "^1" }
-strum = { version = "0.24" }
+strum = { version = "0.25" }
 strum_macros = { version = "0.25" }
 subtext = { version = "0.3.4" }
 symlink = { version = "0.1" }
