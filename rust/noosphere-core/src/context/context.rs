@@ -256,21 +256,81 @@ mod tests {
     use crate::{
         authority::{generate_capability, generate_ed25519_key, Access, SphereAbility},
         context::{
-            HasMutableSphereContext, HasSphereContext, SphereContentWrite, SpherePetnameWrite,
+            AsyncFileBody, HasMutableSphereContext, HasSphereContext, SphereContentWrite,
+            SpherePetnameWrite,
         },
-        data::{ContentType, LinkRecord, LINK_RECORD_FACT_NAME},
+        data::{ContentType, Header, LinkRecord, LINK_RECORD_FACT_NAME},
         helpers::{make_valid_link_record, simulated_sphere_context},
         tracing::initialize_tracing,
         view::Sphere,
     };
 
-    use noosphere_storage::{MemoryStorage, SphereDb};
+    use noosphere_storage::{MemoryStorage, SphereDb, Storage};
+    use serde_json::json;
     use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
+
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_sets_content_length_and_type_on_write() -> Result<()> {
+        initialize_tracing(None);
+
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
+
+        check_headers(
+            &mut sphere_context,
+            "note",
+            ContentType::Text,
+            "hello".as_ref(),
+            "5",
+        )
+        .await?;
+
+        check_headers(
+            &mut sphere_context,
+            "note",
+            ContentType::Json,
+            json!({"foo":true}).to_string().as_ref(),
+            "12",
+        )
+        .await?;
+
+        async fn check_headers<C, S, F>(
+            sphere_context: &mut C,
+            slug: &str,
+            content_type: ContentType,
+            content: F,
+            expected_length: &str,
+        ) -> Result<()>
+        where
+            C: HasMutableSphereContext<S>,
+            S: Storage + 'static,
+            F: AsyncFileBody,
+        {
+            let db = sphere_context.sphere_context().await?.db().clone();
+            let link = sphere_context
+                .write(slug, &content_type, content, None)
+                .await?;
+            let memo = link.load_from(&db).await?;
+            assert_eq!(
+                memo.headers,
+                vec![
+                    (
+                        Header::ContentLength.to_string(),
+                        expected_length.to_owned()
+                    ),
+                    (Header::ContentType.to_string(), content_type.to_string())
+                ]
+            );
+            Ok(())
+        }
+        Ok(())
+    }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]

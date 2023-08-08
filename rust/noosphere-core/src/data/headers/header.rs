@@ -2,6 +2,8 @@ use std::{convert::Infallible, fmt::Display, ops::Deref, str::FromStr};
 
 /// Well-known headers in the Noosphere
 pub enum Header {
+    /// The content length (in bytes) of associated binary data
+    ContentLength,
     /// Content-type, for mimes
     ContentType,
     /// A proof, typically a UCAN JWT
@@ -34,6 +36,7 @@ impl FromStr for Header {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s.to_lowercase().as_str() {
+            "content-length" => Header::ContentLength,
             "content-type" => Header::ContentType,
             "file-extension" => Header::FileExtension,
             "proof" => Header::Proof,
@@ -52,6 +55,7 @@ impl Deref for Header {
 
     fn deref(&self) -> &Self::Target {
         match self {
+            Header::ContentLength => "Content-Length",
             Header::ContentType => "Content-Type",
             Header::Proof => "Proof",
             Header::Author => "Author",
