@@ -170,6 +170,21 @@ impl LinkRecord {
         None
     }
 
+    /// Returns a boolean indicating whether the `other` [LinkRecord]
+    /// is a newer record referring to the same identity.
+    /// Underlying [Ucan] expiry is used to compare. A record with
+    /// `null` expiry cannot supercede or be superceded.
+    pub fn superceded_by(&self, other: &LinkRecord) -> bool {
+        match (self.0.expires_at(), other.0.expires_at()) {
+            (Some(self_expiry), Some(other_expiry)) => {
+                other_expiry > self_expiry
+                    && self.to_sphere_identity() == other.to_sphere_identity()
+            }
+            (None, _) => false,
+            (_, None) => false,
+        }
+    }
+
     /// Walk the underlying [Ucan] and collect all of the supporting proofs that
     /// verify the link publisher's authority to publish the link
     #[instrument(level = "trace", skip(self, store))]
@@ -702,6 +717,74 @@ mod tests {
         assert_eq!(proofs.len(), 3);
         assert_eq!(vec![link_record_ucan, delegated_ucan, ucan], proofs);
 
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn test_superceded_by() -> Result<()> {
+        let sphere_key = generate_ed25519_key();
+        let identity = Did::from(sphere_key.get_did().await?);
+        let capability = generate_capability(&identity, SphereAbility::Publish);
+        let cid_address = "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i";
+        let other_key = generate_ed25519_key();
+        let other_identity = Did::from(other_key.get_did().await?);
+
+        let earlier = LinkRecord::from(
+            UcanBuilder::default()
+                .issued_by(&sphere_key)
+                .for_audience(&identity)
+                .with_lifetime(1000)
+                .claiming_capability(&capability)
+                .with_fact(LINK_RECORD_FACT_NAME, cid_address.to_owned())
+                .build()?
+                .sign()
+                .await?,
+        );
+
+        let later = LinkRecord::from(
+            UcanBuilder::default()
+                .issued_by(&sphere_key)
+                .for_audience(&identity)
+                .with_lifetime(2000)
+                .claiming_capability(&capability)
+                .with_fact(LINK_RECORD_FACT_NAME, cid_address.to_owned())
+                .build()?
+                .sign()
+                .await?,
+        );
+
+        let no_expiry = LinkRecord::from(
+            UcanBuilder::default()
+                .issued_by(&sphere_key)
+                .for_audience(&identity)
+                .claiming_capability(&capability)
+                .with_fact(LINK_RECORD_FACT_NAME, cid_address.to_owned())
+                .build()?
+                .sign()
+                .await?,
+        );
+
+        let other_identity = LinkRecord::from(
+            UcanBuilder::default()
+                .issued_by(&sphere_key)
+                .for_audience(&other_identity)
+                .claiming_capability(&generate_capability(
+                    &other_identity,
+                    SphereAbility::Publish,
+                ))
+                .with_fact(LINK_RECORD_FACT_NAME, cid_address.to_owned())
+                .build()?
+                .sign()
+                .await?,
+        );
+
+        assert!(earlier.superceded_by(&later));
+        assert!(!later.superceded_by(&earlier));
+        assert!(!earlier.superceded_by(&no_expiry));
+        assert!(!earlier.superceded_by(&other_identity));
+        assert!(!no_expiry.superceded_by(&later));
+        assert!(!other_identity.superceded_by(&later));
         Ok(())
     }
 }

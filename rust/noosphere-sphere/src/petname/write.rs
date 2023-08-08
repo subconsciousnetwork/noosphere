@@ -137,6 +137,14 @@ where
             return Err(anyhow!("Sphere cannot assign itself to a petname."));
         }
 
+        if let Some(existing_record) = self.get_petname_record(name).await? {
+            if !existing_record.superceded_by(record) {
+                return Err(anyhow!(
+                    "Previously stored record supercedes provided record."
+                ));
+            }
+        }
+
         let cid = self
             .sphere_context_mut()
             .await?
@@ -144,7 +152,6 @@ where
             .write_token(&record.encode()?)
             .await?;
 
-        // TODO: Verify that a record for an existing address is actually newer than the old one
         // TODO: Validate the record as a UCAN
 
         debug!(

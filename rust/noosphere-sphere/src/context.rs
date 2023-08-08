@@ -256,13 +256,15 @@ mod tests {
     use anyhow::Result;
 
     use noosphere_core::{
-        authority::{generate_capability, SphereAbility},
+        authority::{generate_capability, generate_ed25519_key, SphereAbility},
         data::{ContentType, LinkRecord, LINK_RECORD_FACT_NAME},
         helpers::make_valid_link_record,
         tracing::initialize_tracing,
+        view::Sphere,
     };
 
-    use ucan::builder::UcanBuilder;
+    use noosphere_storage::{MemoryStorage, SphereDb};
+    use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
@@ -381,6 +383,67 @@ mod tests {
             .await
             .is_err());
 
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_disallows_adding_outdated_records() -> Result<()> {
+        initialize_tracing(None);
+
+        let (mut sphere_context, _) =
+            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let mut store = sphere_context.sphere_context().await?.db().clone();
+
+        // Generate two LinkRecords, the first one having a later expiry
+        // than the second.
+        let (records, foo_identity) = {
+            let mut records: Vec<LinkRecord> = vec![];
+            let owner_key = generate_ed25519_key();
+            let owner_did = owner_key.get_did().await?;
+            let mut db = SphereDb::new(&MemoryStorage::default()).await?;
+            let (sphere, proof, _) = Sphere::generate(&owner_did, &mut db).await?;
+            let ucan_proof = proof.as_ucan(&db).await?;
+            let sphere_identity = sphere.get_identity().await?;
+            store.write_token(&ucan_proof.encode()?).await?;
+
+            for lifetime in [500, 100] {
+                let link_record = LinkRecord::from(
+                    UcanBuilder::default()
+                        .issued_by(&owner_key)
+                        .for_audience(&sphere_identity)
+                        .witnessed_by(&ucan_proof, None)
+                        .claiming_capability(&generate_capability(
+                            &sphere_identity,
+                            SphereAbility::Publish,
+                        ))
+                        .with_lifetime(lifetime)
+                        .with_fact(LINK_RECORD_FACT_NAME, sphere.cid().to_string())
+                        .build()?
+                        .sign()
+                        .await?,
+                );
+
+                store.write_token(&link_record.encode()?).await?;
+                records.push(link_record);
+            }
+            (records, sphere_identity)
+        };
+
+        sphere_context
+            .set_petname("foo", Some(foo_identity))
+            .await?;
+        sphere_context.save(None).await?;
+
+        assert!(sphere_context
+            .set_petname_record("foo", records.get(0).unwrap())
+            .await
+            .is_ok());
+        sphere_context.save(None).await?;
+        assert!(sphere_context
+            .set_petname_record("foo", records.get(1).unwrap())
+            .await
+            .is_err());
         Ok(())
     }
 }
