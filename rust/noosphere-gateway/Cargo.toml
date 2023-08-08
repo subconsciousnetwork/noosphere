@@ -24,7 +24,7 @@ axum = { workspace = true, features = ["headers", "macros"] }
 iroh-car = { workspace = true }
 thiserror = { workspace = true }
 strum = "0.24"
-strum_macros = "0.24"
+strum_macros = "0.25"
 bytes = "^1"
 
 tokio = { version = "^1", features = ["full"] }
