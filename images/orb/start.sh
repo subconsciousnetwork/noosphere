@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x
+set -ex
 
 KEY="${1:-${ORB_KEY}}"
 COUNTERPART="${2:-${ORB_COUNTERPART}}"
@@ -14,7 +14,7 @@ if ! [ -d "./.sphere" ]; then
 	orb sphere create --owner-key $KEY
 fi
 
-orb config set counterpart $COUNTERPART
+orb sphere config set counterpart $COUNTERPART
 
 ARGS="-i 0.0.0.0"
 ARGS="${ARGS} --ipfs-api ${IPFS_API}"
