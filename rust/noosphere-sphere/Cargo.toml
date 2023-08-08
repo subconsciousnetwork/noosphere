@@ -52,5 +52,8 @@ wasm-bindgen-futures = "0.4.37"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "^1", features = ["full"] }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+noosphere-core = { version = "0.15.0", path = "../noosphere-core", features = ["helpers"] }
+
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = { workspace = true }

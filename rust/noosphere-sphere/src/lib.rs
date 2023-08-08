@@ -71,6 +71,7 @@ mod has;
 mod replication;
 mod walker;
 
+#[cfg(any(test, feature = "helpers"))]
 pub mod helpers;
 
 mod internal;

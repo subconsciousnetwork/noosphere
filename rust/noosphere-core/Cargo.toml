@@ -20,6 +20,7 @@ readme = "README.md"
 
 [features]
 sentry = ["dep:sentry-tracing"]
+helpers = []
 
 [dependencies]
 tracing = { workspace = true }

@@ -318,12 +318,31 @@ impl TryBundle for Jwt {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl TryBundle for LinkRecord {
+    async fn extend_bundle<S: BlockStore>(&self, bundle: &mut Bundle, store: &S) -> Result<()> {
+        let cid = self.to_cid(cid::multihash::Code::Blake3_256)?;
+        Self::extend_bundle_with_cid(&cid, bundle, store).await
+    }
+
     async fn extend_bundle_with_cid<S: BlockStore>(
         cid: &Cid,
         bundle: &mut Bundle,
         store: &S,
     ) -> Result<()> {
-        bundle.add(*cid, store.require_block(cid).await?);
+        let mut remaining = vec![cid.clone()];
+        let ucan_store = UcanStore(store.clone());
+
+        while let Some(cid) = remaining.pop() {
+            let jwt = ucan_store.require_token(&cid).await?;
+            let ucan = Ucan::try_from(jwt.as_str())?;
+
+            bundle.add(cid.clone().into(), store.require_block(&cid).await?);
+
+            if let Some(proofs) = ucan.proofs() {
+                for proof_string in proofs {
+                    remaining.push(Cid::try_from(proof_string.as_str())?.into())
+                }
+            }
+        }
         Ok(())
     }
 }
@@ -358,21 +377,7 @@ impl TryBundle for SphereIpld {
 impl TryBundle for IdentityIpld {
     async fn extend_bundle<S: BlockStore>(&self, bundle: &mut Bundle, store: &S) -> Result<()> {
         if let Some(cid) = &self.link_record {
-            let mut remaining = vec![cid.clone()];
-            let ucan_store = UcanStore(store.clone());
-
-            while let Some(cid) = remaining.pop() {
-                let jwt = ucan_store.require_token(&cid).await?;
-                let ucan = Ucan::try_from(jwt.as_str())?;
-
-                bundle.add(cid.clone().into(), store.require_block(&cid).await?);
-
-                if let Some(proofs) = ucan.proofs() {
-                    for proof_string in proofs {
-                        remaining.push(Cid::try_from(proof_string.as_str())?.into())
-                    }
-                }
-            }
+            LinkRecord::extend_bundle_with_cid(cid, bundle, store).await?;
         };
         Ok(())
     }
@@ -435,9 +440,13 @@ impl TryBundle for AddressBookIpld {
 
 #[cfg(test)]
 mod tests {
+    use crate::{helpers::make_valid_link_record, tracing::initialize_tracing};
+
+    use anyhow::Result;
+    use cid::Cid;
     use libipld_cbor::DagCborCodec;
     use libipld_core::{ipld::Ipld, raw::RawCodec};
-    use noosphere_storage::{block_serialize, BlockStore, MemoryStore};
+    use noosphere_storage::{block_serialize, BlockStore, MemoryStore, UcanStore};
     use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
     #[cfg(target_arch = "wasm32")]
@@ -473,32 +482,59 @@ mod tests {
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    async fn it_bundles_a_delegation_with_its_associated_jwt() {
+    async fn it_bundles_a_delegation_with_its_associated_jwt() -> Result<()> {
         let store = MemoryStore::default();
         let key = generate_ed25519_key();
         let did = key.get_did().await.unwrap();
+
         let jwt = UcanBuilder::default()
             .issued_by(&key)
             .for_audience(&did)
             .with_lifetime(100)
-            .build()
-            .unwrap()
+            .with_nonce()
+            .build()?
             .sign()
-            .await
-            .unwrap()
-            .encode()
-            .unwrap();
-        let (jwt_cid, _) =
-            block_serialize::<RawCodec, _>(Ipld::Bytes(jwt.as_bytes().to_vec())).unwrap();
+            .await?
+            .encode()?;
 
-        let delegation = DelegationIpld::register("foo", &jwt, &store).await.unwrap();
+        let (jwt_cid, _) = block_serialize::<RawCodec, _>(Ipld::Bytes(jwt.as_bytes().to_vec()))?;
 
-        let (delegation_cid, _) = block_serialize::<DagCborCodec, _>(&delegation).unwrap();
+        let delegation = DelegationIpld::register("foo", &jwt, &store).await?;
 
-        let bundle = delegation.bundle(&store).await.unwrap();
+        let (delegation_cid, _) = block_serialize::<DagCborCodec, _>(&delegation)?;
 
-        assert!(bundle.contains(&jwt_cid));
+        let bundle = delegation.bundle(&store).await?;
+
         assert!(bundle.contains(&delegation_cid));
+        assert!(bundle.contains(&jwt_cid));
+
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_bundles_a_link_record_with_its_associated_proofs() -> Result<()> {
+        initialize_tracing(None);
+
+        let store = MemoryStore::default();
+        let (_, link_record, link_record_link) =
+            make_valid_link_record(&mut UcanStore(store.clone())).await?;
+
+        let proof_cid = Cid::try_from(
+            link_record
+                .proofs()
+                .as_ref()
+                .unwrap()
+                .first()
+                .unwrap()
+                .as_str(),
+        )?;
+        let bundle = link_record.bundle(&store).await?;
+
+        assert!(bundle.contains(&link_record_link));
+        assert!(bundle.contains(&proof_cid));
+
+        Ok(())
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
