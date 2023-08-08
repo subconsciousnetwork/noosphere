@@ -31,7 +31,7 @@ async-std = "^1"
 async-stream = "~0.3"
 
 # NOTE: async-once-cell 0.4.0 shipped unstable feature usage
-async-once-cell = "~0.3"
+async-once-cell = "~0.4"
 anyhow = "^1"
 thiserror = { workspace = true }
 fastcdc = { workspace = true }
