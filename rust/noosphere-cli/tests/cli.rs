@@ -391,8 +391,17 @@ mod multiplayer {
         for (path, content) in expected_content {
             let path = cli.sphere_directory().join(path);
 
-            assert!(tokio::fs::try_exists(&path).await?);
-            assert_eq!(&tokio::fs::read_to_string(&path).await?, content);
+            assert!(
+                tokio::fs::try_exists(&path).await?,
+                "'{}' should exist",
+                path.display()
+            );
+            assert_eq!(
+                &tokio::fs::read_to_string(&path).await?,
+                content,
+                "'{}' should contain '{content}'",
+                path.display()
+            );
         }
 
         let unexpected_content = [
@@ -407,7 +416,10 @@ mod multiplayer {
         ];
 
         for path in unexpected_content {
-            assert!(!tokio::fs::try_exists(&cli.sphere_directory().join(path)).await?);
+            assert!(
+                !tokio::fs::try_exists(&cli.sphere_directory().join(path)).await?,
+                "'{path}' should not exist"
+            );
         }
 
         wait(1).await;
@@ -417,12 +429,11 @@ mod multiplayer {
             .await?;
 
         // Previously omitted peer should be rendered now
+        let peer_5_content_path =
+            "@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt";
         assert!(
-            tokio::fs::try_exists(
-                &cli.sphere_directory()
-                    .join("@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt")
-            )
-            .await?
+            tokio::fs::try_exists(&cli.sphere_directory().join(peer_5_content_path)).await?,
+            "'{peer_5_content_path}' should exist"
         );
 
         // Re-render using the original render depth
@@ -430,11 +441,8 @@ mod multiplayer {
             .await?;
 
         assert!(
-            !tokio::fs::try_exists(
-                &cli.sphere_directory()
-                    .join("@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt")
-            )
-            .await?
+            !tokio::fs::try_exists(&cli.sphere_directory().join(peer_5_content_path)).await?,
+            "'{peer_5_content_path}' should not exist"
         );
 
         ns_task.abort();
