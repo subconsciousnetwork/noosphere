@@ -364,7 +364,8 @@ mod multiplayer {
             })
             .await?;
 
-        wait(1).await;
+        // Give the graph state the opportunity to "settle"
+        wait(5).await;
 
         // Sync to get the latest remote changes
         cli.orb(&["sphere", "sync", "--auto-retry", "3"]).await?;
@@ -418,6 +419,18 @@ mod multiplayer {
         // Previously omitted peer should be rendered now
         assert!(
             tokio::fs::try_exists(
+                &cli.sphere_directory()
+                    .join("@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt")
+            )
+            .await?
+        );
+
+        // Re-render using the original render depth
+        cli.orb(&["sphere", "render", "--render-depth", "3"])
+            .await?;
+
+        assert!(
+            !tokio::fs::try_exists(
                 &cli.sphere_directory()
                     .join("@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt")
             )
