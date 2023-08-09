@@ -143,6 +143,8 @@ where
 // node running with the RPC API enabled
 #[cfg(all(test, feature = "test_kubo"))]
 mod tests {
+    use std::time::Duration;
+
     use super::*;
     use crate::KuboClient;
     use libipld_cbor::DagCborCodec;
@@ -180,7 +182,13 @@ mod tests {
         let ipfs_store = {
             let inner = MemoryStore::default();
             let inner = IpfsStore::new(inner, Some(kubo_client));
-            BlockStoreRetry::from(inner)
+            BlockStoreRetry {
+                store: inner,
+                maximum_retries: 1,
+                attempt_window: Duration::from_millis(100),
+                minimum_delay: Duration::from_millis(100),
+                backoff: None,
+            }
         };
 
         assert!(ipfs_store.get_block(&foo_cid).await.is_err());

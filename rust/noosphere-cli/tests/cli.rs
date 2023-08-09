@@ -316,6 +316,7 @@ mod multiplayer {
                 ctx.sync(SyncRecovery::Retry(3)).await?;
                 wait(1).await;
                 ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync(SyncRecovery::Retry(3)).await?;
 
                 Ok(())
             })
@@ -352,20 +353,21 @@ mod multiplayer {
         // Rename a peer
         let sphere_1_version = pair_1
             .spawn(move |mut ctx| async move {
+                // Give the graph state the opportunity to "settle"
+                wait(2).await;
                 ctx.set_petname("peer3", None).await?;
                 ctx.set_petname("peer2", None).await?;
                 ctx.set_petname("peer2-renamed", Some(sphere_2_id)).await?;
                 ctx.save(None).await?;
                 ctx.sync(SyncRecovery::Retry(3)).await?;
-                wait(1).await;
+                wait(2).await;
                 let version = ctx.sync(SyncRecovery::Retry(3)).await?;
 
                 Ok(version)
             })
             .await?;
 
-        // Give the graph state the opportunity to "settle"
-        wait(5).await;
+        wait(1).await;
 
         // Sync to get the latest remote changes
         cli.orb(&["sphere", "sync", "--auto-retry", "3"]).await?;
@@ -404,6 +406,9 @@ mod multiplayer {
             );
         }
 
+        let peer_5_content_path =
+            "@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt";
+
         let unexpected_content = [
             // Peer removed
             "@peer3/content3.txt",
@@ -412,7 +417,7 @@ mod multiplayer {
             // Peer removed
             "@peer2-renamed/@peer4/content4.txt",
             // Peer depth greater than render depth
-            "@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt",
+            peer_5_content_path,
         ];
 
         for path in unexpected_content {
@@ -429,8 +434,6 @@ mod multiplayer {
             .await?;
 
         // Previously omitted peer should be rendered now
-        let peer_5_content_path =
-            "@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt";
         assert!(
             tokio::fs::try_exists(&cli.sphere_directory().join(peer_5_content_path)).await?,
             "'{peer_5_content_path}' should exist"

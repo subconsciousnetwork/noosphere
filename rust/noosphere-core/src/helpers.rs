@@ -1,5 +1,3 @@
-// TODO: Figure out how to share this code across crates
-
 use anyhow::Result;
 use noosphere_storage::{MemoryStorage, SphereDb};
 use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};

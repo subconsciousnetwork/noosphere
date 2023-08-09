@@ -98,7 +98,7 @@ where
     pub async fn render(self) -> Result<()> {
         match self.kind {
             JobKind::Root { force_full_render } => {
-                debug!("Running root render job...");
+                info!("Rendering this sphere...");
                 match (
                     force_full_render,
                     tokio::fs::try_exists(self.paths().version()).await,
@@ -122,7 +122,7 @@ where
                 }
             }
             JobKind::Peer(_, _, _) => {
-                debug!("Running peer render job...");
+                info!("Rendering @{}...", self.petname_path.join("."));
                 if let Some(context) = SphereCursor::latest(self.context.clone())
                     .traverse_by_petnames(&self.petname_path)
                     .await?
@@ -200,12 +200,12 @@ where
                     if let Some(cid) = link_record.get_link() {
                         (link_record, cid)
                     } else {
-                        warn!("No version resolved for '@{name}', skipping...");
+                        debug!("No version resolved for '@{name}', skipping...");
                         continue;
                     }
                 }
                 None => {
-                    warn!("No link record found for '@{name}', skipping...");
+                    debug!("No link record found for '@{name}', skipping...");
                     continue;
                 }
             };
