@@ -258,6 +258,7 @@ mod tests {
     use noosphere_core::{
         authority::{generate_capability, SphereAbility},
         data::{ContentType, LinkRecord, LINK_RECORD_FACT_NAME},
+        helpers::make_valid_link_record,
         tracing::initialize_tracing,
     };
 
@@ -266,7 +267,7 @@ mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use crate::{
-        helpers::{make_valid_link_record, simulated_sphere_context, SimulationAccess},
+        helpers::{simulated_sphere_context, SimulationAccess},
         HasMutableSphereContext, HasSphereContext, SphereContentWrite, SpherePetnameWrite,
     };
 

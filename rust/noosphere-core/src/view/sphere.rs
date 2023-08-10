@@ -272,7 +272,9 @@ impl<S: BlockStore> Sphere<S> {
     /// sphere if no [Link<MemoIpld>] is given).
     pub async fn bundle_until_ancestor(&self, cid: Option<&Link<MemoIpld>>) -> Result<Bundle> {
         Bundle::from_timeslice(
-            &Timeline::new(&self.store).slice(&self.cid, cid),
+            &Timeline::new(&self.store)
+                .slice(&self.cid, cid)
+                .exclude_past(),
             &self.store,
         )
         .await
@@ -757,7 +759,7 @@ impl<S: BlockStore> Sphere<S> {
 
         try_stream! {
             let timeline = Timeline::new(&self.store);
-            let timeslice = timeline.slice(&self.cid, since.as_ref());
+            let timeslice = timeline.slice(&self.cid, since.as_ref()).exclude_past();
             let stream = timeslice.stream();
 
             for await item in stream {

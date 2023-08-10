@@ -41,7 +41,10 @@ impl SphereRenderRequest {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum JobKind {
     /// A job that renders the root sphere
-    Root,
+    Root {
+        /// If an incremental render would be performed, force a full render
+        force_full_render: bool,
+    },
     /// A job that renders a peer (or peer-of-a-peer) of the root sphere
     Peer(Did, Cid, LinkRecord),
     /// A job that renders _just_ the peers of the root sphere
@@ -94,10 +97,13 @@ where
     #[instrument(level = "debug", skip(self))]
     pub async fn render(self) -> Result<()> {
         match self.kind {
-            JobKind::Root => {
-                debug!("Running root render job...");
-                match tokio::fs::try_exists(self.paths().version()).await {
-                    Ok(true) => {
+            JobKind::Root { force_full_render } => {
+                info!("Rendering this sphere...");
+                match (
+                    force_full_render,
+                    tokio::fs::try_exists(self.paths().version()).await,
+                ) {
+                    (false, Ok(true)) => {
                         debug!("Root has been rendered at least once; rendering incrementally...");
                         let version = Cid::try_from(
                             tokio::fs::read_to_string(self.paths().version()).await?,
@@ -105,14 +111,18 @@ where
                         self.incremental_render(&version.into()).await?;
                     }
                     _ => {
-                        debug!("Root has not been rendered yet; performing a full render...");
+                        if force_full_render {
+                            debug!("Root full render is being forced...");
+                        } else {
+                            debug!("Root has not been rendered yet; performing a full render...");
+                        }
                         self.full_render(SphereCursor::latest(self.context.clone()))
                             .await?
                     }
                 }
             }
             JobKind::Peer(_, _, _) => {
-                debug!("Running peer render job...");
+                info!("Rendering @{}...", self.petname_path.join("."));
                 if let Some(context) = SphereCursor::latest(self.context.clone())
                     .traverse_by_petnames(&self.petname_path)
                     .await?
@@ -190,12 +200,12 @@ where
                     if let Some(cid) = link_record.get_link() {
                         (link_record, cid)
                     } else {
-                        warn!("No version resolved for '@{name}', skipping...");
+                        debug!("No version resolved for '@{name}', skipping...");
                         continue;
                     }
                 }
                 None => {
-                    warn!("No link record found for '@{name}', skipping...");
+                    debug!("No link record found for '@{name}', skipping...");
                     continue;
                 }
             };

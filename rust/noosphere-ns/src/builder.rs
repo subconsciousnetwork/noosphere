@@ -20,7 +20,7 @@ use libp2p::kad::KademliaConfig;
 /// use ucan_key_support::ed25519::Ed25519KeyMaterial;
 /// use tokio;
 ///
-/// #[tokio::main]
+/// #[tokio::main(flavor = "multi_thread")]
 /// async fn main() {
 ///     let key_material = generate_ed25519_key();
 ///     let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();

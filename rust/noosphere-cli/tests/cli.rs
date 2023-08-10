@@ -316,6 +316,7 @@ mod multiplayer {
                 ctx.sync(SyncRecovery::Retry(3)).await?;
                 wait(1).await;
                 ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync(SyncRecovery::Retry(3)).await?;
 
                 Ok(())
             })
@@ -352,12 +353,14 @@ mod multiplayer {
         // Rename a peer
         let sphere_1_version = pair_1
             .spawn(move |mut ctx| async move {
+                // Give the graph state the opportunity to "settle"
+                wait(2).await;
                 ctx.set_petname("peer3", None).await?;
                 ctx.set_petname("peer2", None).await?;
                 ctx.set_petname("peer2-renamed", Some(sphere_2_id)).await?;
                 ctx.save(None).await?;
                 ctx.sync(SyncRecovery::Retry(3)).await?;
-                wait(1).await;
+                wait(2).await;
                 let version = ctx.sync(SyncRecovery::Retry(3)).await?;
 
                 Ok(version)
@@ -390,9 +393,21 @@ mod multiplayer {
         for (path, content) in expected_content {
             let path = cli.sphere_directory().join(path);
 
-            assert!(tokio::fs::try_exists(&path).await?);
-            assert_eq!(&tokio::fs::read_to_string(&path).await?, content);
+            assert!(
+                tokio::fs::try_exists(&path).await?,
+                "'{}' should exist",
+                path.display()
+            );
+            assert_eq!(
+                &tokio::fs::read_to_string(&path).await?,
+                content,
+                "'{}' should contain '{content}'",
+                path.display()
+            );
         }
+
+        let peer_5_content_path =
+            "@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt";
 
         let unexpected_content = [
             // Peer removed
@@ -402,11 +417,14 @@ mod multiplayer {
             // Peer removed
             "@peer2-renamed/@peer4/content4.txt",
             // Peer depth greater than render depth
-            "@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt",
+            peer_5_content_path,
         ];
 
         for path in unexpected_content {
-            assert!(!tokio::fs::try_exists(&cli.sphere_directory().join(path)).await?);
+            assert!(
+                !tokio::fs::try_exists(&cli.sphere_directory().join(path)).await?,
+                "'{path}' should not exist"
+            );
         }
 
         wait(1).await;
@@ -417,11 +435,17 @@ mod multiplayer {
 
         // Previously omitted peer should be rendered now
         assert!(
-            tokio::fs::try_exists(
-                &cli.sphere_directory()
-                    .join("@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt")
-            )
-            .await?
+            tokio::fs::try_exists(&cli.sphere_directory().join(peer_5_content_path)).await?,
+            "'{peer_5_content_path}' should exist"
+        );
+
+        // Re-render using the original render depth
+        cli.orb(&["sphere", "render", "--render-depth", "3"])
+            .await?;
+
+        assert!(
+            !tokio::fs::try_exists(&cli.sphere_directory().join(peer_5_content_path)).await?,
+            "'{peer_5_content_path}' should not exist"
         );
 
         ns_task.abort();

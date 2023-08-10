@@ -22,7 +22,7 @@ use async_trait::async_trait;
 ///     }
 /// }
 ///
-/// #[tokio::main]
+/// #[tokio::main(flavor = "multi_thread")]
 /// async fn main() {
 ///     let mut validator = MyValidator {};
 ///     let data = String::from("hello").into_bytes();

@@ -1,4 +1,5 @@
 #![cfg(not(target_arch = "wasm32"))]
+
 use super::{IpfsClient, IpfsClientAsyncReadSendSync};
 use async_trait::async_trait;
 

@@ -26,7 +26,7 @@ mod inner {
 use inner::*;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<()> {
     initialize_tracing(None);
 

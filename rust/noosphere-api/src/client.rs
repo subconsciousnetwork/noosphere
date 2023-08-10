@@ -161,7 +161,9 @@ where
                 );
             }
             _ => {
-                warn!("Unable to resolve authorization to a UCAN; it will be used as a blind proof")
+                debug!(
+                    "Unable to resolve authorization to a UCAN; it will be used as a blind proof"
+                )
             }
         };
 

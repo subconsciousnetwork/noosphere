@@ -1,4 +1,4 @@
-use std::{pin::Pin, time::Duration};
+use std::pin::Pin;
 
 use anyhow::Result;
 
@@ -75,17 +75,14 @@ where
     }
 
     debug!(
-        "Streaming gateway sphere revisions since {:?}...",
+        "Streaming gateway sphere revisions from {} to {}...",
+        latest_local_sphere_cid,
         since
             .map(|cid| cid.to_string())
             .unwrap_or_else(|| "the beginning".into())
     );
 
-    let store = BlockStoreRetry::new(
-        IpfsStore::new(db.clone(), Some(ipfs_client)),
-        6,
-        Duration::from_secs(10),
-    );
+    let store = BlockStoreRetry::from(IpfsStore::new(db.clone(), Some(ipfs_client)));
 
     let stream = memo_history_stream(store.clone(), &latest_local_sphere_cid, since);
 

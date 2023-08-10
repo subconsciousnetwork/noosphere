@@ -42,6 +42,9 @@ serde_json = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 
+[dev-dependencies]
+noosphere-core = { version = "0.15.0", path = "../noosphere-core", features = ["helpers"] }
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # TODO: We should eventually support gateway storage as a specialty target only,
 # as it is a specialty use-case

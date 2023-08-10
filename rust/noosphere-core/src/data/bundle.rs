@@ -7,19 +7,20 @@ use cid::Cid;
 use futures::{pin_mut, StreamExt};
 use libipld_cbor::DagCborCodec;
 use libipld_core::raw::RawCodec;
-use noosphere_storage::{block_deserialize, block_serialize, BlockStore};
+use noosphere_storage::{block_deserialize, block_serialize, BlockStore, UcanStore};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use ucan::{store::UcanJwtStore, Ucan};
 
 use crate::{
     data::{
         AuthorityIpld, BodyChunkIpld, ChangelogIpld, ContentIpld, ContentType, DelegationIpld,
-        DelegationsIpld, Header, MapOperation, MemoIpld, RevocationIpld, RevocationsIpld,
-        SphereIpld, VersionedMapIpld, VersionedMapKey, VersionedMapValue,
+        DelegationsIpld, Header, IdentityIpld, MapOperation, MemoIpld, RevocationIpld,
+        RevocationsIpld, VersionedMapIpld, VersionedMapKey, VersionedMapValue,
     },
-    view::Timeslice,
+    view::{Sphere, Timeslice},
 };
 
-use super::{AddressBookIpld, IdentitiesIpld, IdentityIpld, Jwt, Link, LinkRecord};
+use super::{AddressBookIpld, IdentitiesIpld, Jwt, Link, LinkRecord};
 
 // TODO: This should maybe only collect CIDs, and then streaming-serialize to
 // a CAR (https://ipld.io/specs/transport/car/carv2/)
@@ -166,6 +167,8 @@ impl TryBundle for BodyChunkIpld {
         let mut next_cid = Some(*cid);
 
         while let Some(cid) = next_cid {
+            trace!(?cid, "Bundling BodyChunkIpld...");
+
             let bytes = store.require_block(&cid).await?;
             let chunk = block_deserialize::<DagCborCodec, BodyChunkIpld>(&bytes)?;
             bundle.add(cid, bytes);
@@ -191,10 +194,13 @@ where
         let bytes = store.require_block(cid).await?;
         let changelog = block_deserialize::<DagCborCodec, Self>(&bytes)?;
 
+        trace!(?cid, "Bundling ChangeLogIpld...");
+
         bundle.add(*cid, bytes);
 
         for op in changelog.changes {
-            if let MapOperation::Add { value, .. } = op {
+            if let MapOperation::Add { value, key } = op {
+                trace!("...added entry {key}");
                 value.extend_bundle(bundle, store).await?;
             }
         }
@@ -208,6 +214,7 @@ where
 impl TryBundle for MemoIpld {
     async fn extend_bundle<S: BlockStore>(&self, bundle: &mut Bundle, store: &S) -> Result<()> {
         let (self_cid, self_bytes) = block_serialize::<DagCborCodec, _>(self)?;
+        trace!(cid = ?self_cid, "Bundling MemoIpld....");
 
         bundle.add(self_cid, self_bytes);
 
@@ -223,7 +230,45 @@ impl TryBundle for MemoIpld {
                     }
                     ContentType::Sphere => {
                         trace!("Bundling sphere revision {self_cid}...");
-                        bundle.extend::<SphereIpld, _>(&self.body, store).await?;
+
+                        let sphere = Sphere::at(&Link::from(self_cid), store);
+                        let mutation = sphere.derive_mutation().await?;
+                        let sphere_body = sphere.to_body().await?;
+
+                        let sphere_body_bytes = store.require_block(&self.body).await?;
+                        bundle.add(self.body, sphere_body_bytes);
+
+                        if !mutation.content().changes().is_empty() {
+                            trace!(cid = ?sphere_body.content, "Bundling content...");
+                            ContentIpld::extend_bundle_with_cid(
+                                &sphere_body.content,
+                                bundle,
+                                store,
+                            )
+                            .await?;
+                        }
+
+                        if !mutation.delegations().changes().is_empty()
+                            || !mutation.revocations().changes().is_empty()
+                        {
+                            trace!(cid = ?sphere_body.authority, "Bundling authority...");
+                            AuthorityIpld::extend_bundle_with_cid(
+                                &sphere_body.authority,
+                                bundle,
+                                store,
+                            )
+                            .await?;
+                        }
+
+                        if !mutation.identities().changes().is_empty() {
+                            trace!(cid = ?sphere_body.address_book, "Bundling address book...");
+                            AddressBookIpld::extend_bundle_with_cid(
+                                &sphere_body.address_book,
+                                bundle,
+                                store,
+                            )
+                            .await?;
+                        }
                     }
                     ContentType::Unknown(content_type) => {
                         warn!("Unrecognized content type {:?}; attempting to bundle as body chunks...", content_type);
@@ -269,6 +314,7 @@ where
     V: VersionedMapValue + TryBundle,
 {
     async fn extend_bundle<S: BlockStore>(&self, bundle: &mut Bundle, store: &S) -> Result<()> {
+        trace!("Bundling versioned map...");
         let (self_cid, self_bytes) = block_serialize::<DagCborCodec, _>(self)?;
 
         ChangelogIpld::<MapOperation<K, V>>::extend_bundle_with_cid(&self.changelog, bundle, store)
@@ -317,37 +363,35 @@ impl TryBundle for Jwt {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl TryBundle for LinkRecord {
-    async fn extend_bundle_with_cid<S: BlockStore>(
-        cid: &Cid,
-        bundle: &mut Bundle,
-        store: &S,
-    ) -> Result<()> {
-        bundle.add(*cid, store.require_block(cid).await?);
-        Ok(())
+    async fn extend_bundle<S: BlockStore>(&self, bundle: &mut Bundle, store: &S) -> Result<()> {
+        let cid = self.to_cid(cid::multihash::Code::Blake3_256)?;
+        Self::extend_bundle_with_cid(&cid, bundle, store).await
     }
-}
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl TryBundle for SphereIpld {
     async fn extend_bundle_with_cid<S: BlockStore>(
         cid: &Cid,
         bundle: &mut Bundle,
         store: &S,
     ) -> Result<()> {
-        let self_bytes = store.require_block(cid).await?;
-        let sphere = block_deserialize::<DagCborCodec, Self>(&self_bytes)?;
+        trace!("Bundling LinkRecord...");
 
-        bundle.add(*cid, self_bytes);
+        let mut remaining = vec![*cid];
+        let ucan_store = UcanStore(store.clone());
 
-        ContentIpld::extend_bundle_with_cid(&sphere.content, bundle, store).await?;
-        AuthorityIpld::extend_bundle_with_cid(&sphere.authority, bundle, store).await?;
-        AddressBookIpld::extend_bundle_with_cid(&sphere.address_book, bundle, store).await?;
+        while let Some(cid) = remaining.pop() {
+            trace!("...with proof {cid}");
 
-        if let Some(_cid) = sphere.private {
-            todo!();
+            let jwt = ucan_store.require_token(&cid).await?;
+            let ucan = Ucan::try_from(jwt.as_str())?;
+
+            bundle.add(cid, store.require_block(&cid).await?);
+
+            if let Some(proofs) = ucan.proofs() {
+                for proof_string in proofs {
+                    remaining.push(Cid::try_from(proof_string.as_str())?)
+                }
+            }
         }
-
         Ok(())
     }
 }
@@ -356,8 +400,11 @@ impl TryBundle for SphereIpld {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl TryBundle for IdentityIpld {
     async fn extend_bundle<S: BlockStore>(&self, bundle: &mut Bundle, store: &S) -> Result<()> {
+        trace!("Bundling IdentityIpld...");
+        let (self_cid, self_bytes) = block_serialize::<DagCborCodec, _>(self)?;
+        bundle.add(self_cid, self_bytes);
         if let Some(cid) = &self.link_record {
-            bundle.add(cid.clone().into(), store.require_block(cid).await?);
+            LinkRecord::extend_bundle_with_cid(cid, bundle, store).await?;
         };
         Ok(())
     }
@@ -420,9 +467,13 @@ impl TryBundle for AddressBookIpld {
 
 #[cfg(test)]
 mod tests {
+    use crate::{helpers::make_valid_link_record, tracing::initialize_tracing};
+
+    use anyhow::Result;
+    use cid::Cid;
     use libipld_cbor::DagCborCodec;
     use libipld_core::{ipld::Ipld, raw::RawCodec};
-    use noosphere_storage::{block_serialize, BlockStore, MemoryStore};
+    use noosphere_storage::{block_serialize, BlockStore, MemoryStore, UcanStore};
     use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
     #[cfg(target_arch = "wasm32")]
@@ -458,32 +509,59 @@ mod tests {
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    async fn it_bundles_a_delegation_with_its_associated_jwt() {
+    async fn it_bundles_a_delegation_with_its_associated_jwt() -> Result<()> {
         let store = MemoryStore::default();
         let key = generate_ed25519_key();
         let did = key.get_did().await.unwrap();
+
         let jwt = UcanBuilder::default()
             .issued_by(&key)
             .for_audience(&did)
             .with_lifetime(100)
-            .build()
-            .unwrap()
+            .with_nonce()
+            .build()?
             .sign()
-            .await
-            .unwrap()
-            .encode()
-            .unwrap();
-        let (jwt_cid, _) =
-            block_serialize::<RawCodec, _>(Ipld::Bytes(jwt.as_bytes().to_vec())).unwrap();
+            .await?
+            .encode()?;
 
-        let delegation = DelegationIpld::register("foo", &jwt, &store).await.unwrap();
+        let (jwt_cid, _) = block_serialize::<RawCodec, _>(Ipld::Bytes(jwt.as_bytes().to_vec()))?;
 
-        let (delegation_cid, _) = block_serialize::<DagCborCodec, _>(&delegation).unwrap();
+        let delegation = DelegationIpld::register("foo", &jwt, &store).await?;
 
-        let bundle = delegation.bundle(&store).await.unwrap();
+        let (delegation_cid, _) = block_serialize::<DagCborCodec, _>(&delegation)?;
 
-        assert!(bundle.contains(&jwt_cid));
+        let bundle = delegation.bundle(&store).await?;
+
         assert!(bundle.contains(&delegation_cid));
+        assert!(bundle.contains(&jwt_cid));
+
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_bundles_a_link_record_with_its_associated_proofs() -> Result<()> {
+        initialize_tracing(None);
+
+        let store = MemoryStore::default();
+        let (_, link_record, link_record_link) =
+            make_valid_link_record(&mut UcanStore(store.clone())).await?;
+
+        let proof_cid = Cid::try_from(
+            link_record
+                .proofs()
+                .as_ref()
+                .unwrap()
+                .first()
+                .unwrap()
+                .as_str(),
+        )?;
+        let bundle = link_record.bundle(&store).await?;
+
+        assert!(bundle.contains(&link_record_link));
+        assert!(bundle.contains(&proof_cid));
+
+        Ok(())
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
@@ -507,7 +585,7 @@ mod tests {
 
         let bundle = MemoIpld::bundle_with_cid(&new_cid, &store).await.unwrap();
 
-        assert_eq!(bundle.map().keys().len(), 14);
+        assert_eq!(bundle.map().keys().len(), 6);
 
         let sphere = Sphere::at(&new_cid, &store);
 
@@ -604,7 +682,7 @@ mod tests {
 
         let bundle = MemoIpld::bundle_with_cid(&new_cid, &store).await.unwrap();
 
-        assert_eq!(bundle.map().keys().len(), 14);
+        assert_eq!(bundle.map().keys().len(), 6);
         assert!(!bundle.contains(&foo_cid));
         assert!(bundle.contains(&bar_cid));
     }
@@ -647,7 +725,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(bundle.map().keys().len(), 20);
+        assert_eq!(bundle.map().keys().len(), 12);
 
         assert!(bundle.contains(&foo_cid));
         assert!(bundle.contains(&bar_cid));
