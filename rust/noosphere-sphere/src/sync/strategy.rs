@@ -311,7 +311,10 @@ where
                         continue;
                     }
 
-                    context.set_petname_record(&name, &link_record).await?;
+                    if let Err(e) = context.set_petname_record(&name, &link_record).await {
+                        warn!("Could not set petname record: {}", e);
+                        continue;
+                    }
                 } else {
                     debug!("Not adopting link record for {name}, which is no longer present in the address book")
                 }

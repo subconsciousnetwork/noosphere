@@ -370,8 +370,13 @@ where
                         }
                     }
 
-                    // TODO(#258): Verify that the new value is the most recent value
-                    Some(record)
+                    match &last_known_record {
+                        Some(last_known_record) => match last_known_record.superceded_by(&record) {
+                            true => Some(record),
+                            false => None,
+                        },
+                        None => Some(record),
+                    }
                 }
                 None => {
                     // TODO(#259): Expire recorded value if we don't get an updated
@@ -394,7 +399,10 @@ where
                     }
                 }
 
-                context.set_petname_record(&name, record).await?;
+                if let Err(e) = context.set_petname_record(&name, record).await {
+                    warn!("Could not set petname record: {}", e);
+                    continue;
+                }
             }
             _ => continue,
         }
