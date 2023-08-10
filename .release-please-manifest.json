@@ -9,6 +9,5 @@
   "rust/noosphere": "0.14.0",
   "rust/noosphere-ipfs": "0.7.2",
   "rust/noosphere-gateway": "0.8.0",
-  "rust/noosphere-sphere": "0.10.0",
-  "rust/noosphere-car": "0.3.1+deprecated"
+  "rust/noosphere-sphere": "0.10.0"
 }
