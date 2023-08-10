@@ -47,14 +47,29 @@ Author: {author}"#
 
             if !content_changes.is_empty() {
                 let mut removed = Vec::new();
+                let mut any_content_added = false;
+
                 for change in content_changes {
                     match change {
-                        MapOperation::Add { key, .. } => info!("{: >12}  /{key}", "Modified"),
+                        MapOperation::Add { key, .. } => {
+                            any_content_added = true;
+                            info!("{: >12}  /{key}", "Modified")
+                        }
                         MapOperation::Remove { key } => removed.push(key),
                     }
                 }
 
-                info!("")
+                if any_content_added {
+                    info!("");
+                }
+
+                for slug in &removed {
+                    info!("{: >12}  /{slug}", "Removed");
+                }
+
+                if !removed.is_empty() {
+                    info!("")
+                }
             }
 
             let petname_changes = mutation.identities().changes();

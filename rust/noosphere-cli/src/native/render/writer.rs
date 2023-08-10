@@ -120,6 +120,14 @@ impl SphereWriter {
     pub async fn remove_content(&self, slug: &str) -> Result<()> {
         if self.is_root_writer() {
             let slug_path = self.paths.slug(slug)?;
+
+            if !slug_path.exists() {
+                trace!(
+                    "No slug link found at '{}', skipping removal of '{slug}'...",
+                    slug_path.display()
+                );
+            }
+
             let file_path = tokio::fs::read_link(&slug_path).await?;
 
             let _ = remove_symlink_file(slug_path);

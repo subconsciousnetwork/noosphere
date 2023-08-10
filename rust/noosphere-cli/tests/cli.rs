@@ -355,10 +355,21 @@ mod multiplayer {
             .spawn(move |mut ctx| async move {
                 // Give the graph state the opportunity to "settle"
                 wait(2).await;
+
+                // Change up petnames a bit
                 ctx.set_petname("peer3", None).await?;
                 ctx.set_petname("peer2", None).await?;
                 ctx.set_petname("peer2-renamed", Some(sphere_2_id)).await?;
+
+                // Add some new content...
+                ctx.write("never-seen", "text/plain", "boo".as_bytes(), None)
+                    .await?;
                 ctx.save(None).await?;
+
+                // ...and remove it again:
+                ctx.remove("never-seen").await?;
+                ctx.save(None).await?;
+
                 ctx.sync(SyncRecovery::Retry(3)).await?;
                 wait(2).await;
                 let version = ctx.sync(SyncRecovery::Retry(3)).await?;
@@ -410,6 +421,8 @@ mod multiplayer {
             "@peer2-renamed/@peer3-of-peer2/@peer4-of-peer3/@peer5/content5.txt";
 
         let unexpected_content = [
+            // Content added and removed remotely before local sync
+            "never-seen",
             // Peer removed
             "@peer3/content3.txt",
             // Peer renamed
@@ -430,7 +443,7 @@ mod multiplayer {
         wait(1).await;
 
         // Sync again, but with a greater render depth
-        cli.orb(&["sphere", "sync", "--auto-retry", "3", "--render-depth", "4"])
+        cli.orb(&["sphere", "sync", "--auto-retry", "3", "--render-depth", "5"])
             .await?;
 
         // Previously omitted peer should be rendered now
