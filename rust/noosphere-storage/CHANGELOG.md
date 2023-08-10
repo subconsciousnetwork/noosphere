@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.8.0...noosphere-storage-v0.8.1) (2023-08-10)
+
+
+### Features
+
+* `orb sphere history` and `orb sphere render` ([#576](https://github.com/subconsciousnetwork/noosphere/issues/576)) ([a6f0a74](https://github.com/subconsciousnetwork/noosphere/commit/a6f0a74cde2fc001bfff5c1bed0844ac19fc8258))
+* flush when dropping NativeStorage to prevent intermittent failures. ([#580](https://github.com/subconsciousnetwork/noosphere/issues/580)) ([76f678f](https://github.com/subconsciousnetwork/noosphere/commit/76f678fed59dcfb56360927d3a6a352f90c020ee))
+
 ## [0.8.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.7.1...noosphere-storage-v0.8.0) (2023-08-04)
 
 

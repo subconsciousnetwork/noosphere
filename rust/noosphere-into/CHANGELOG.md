@@ -135,6 +135,24 @@
   * dev-dependencies
     * noosphere-sphere bumped from 0.9.0 to 0.10.0
 
+## [0.10.5](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.10.4...noosphere-into-v0.10.5) (2023-08-10)
+
+
+### Features
+
+* `orb sphere history` and `orb sphere render` ([#576](https://github.com/subconsciousnetwork/noosphere/issues/576)) ([a6f0a74](https://github.com/subconsciousnetwork/noosphere/commit/a6f0a74cde2fc001bfff5c1bed0844ac19fc8258))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.15.0 to 0.15.1
+    * noosphere-storage bumped from 0.8.0 to 0.8.1
+    * noosphere-sphere bumped from 0.10.0 to 0.10.1
+  * dev-dependencies
+    * noosphere-sphere bumped from 0.10.0 to 0.10.1
+
 ## [0.10.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.9.3...noosphere-into-v0.10.0) (2023-07-01)
 
 

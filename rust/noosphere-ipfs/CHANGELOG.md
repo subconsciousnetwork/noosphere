@@ -54,6 +54,23 @@
     * noosphere-storage bumped from 0.7.1 to 0.8.0
     * noosphere-core bumped from 0.14.0 to 0.15.0
 
+## [0.7.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.7.2...noosphere-ipfs-v0.7.3) (2023-08-10)
+
+
+### Features
+
+* `orb sphere history` and `orb sphere render` ([#576](https://github.com/subconsciousnetwork/noosphere/issues/576)) ([a6f0a74](https://github.com/subconsciousnetwork/noosphere/commit/a6f0a74cde2fc001bfff5c1bed0844ac19fc8258))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.8.0 to 0.8.1
+  * dev-dependencies
+    * noosphere-storage bumped from 0.8.0 to 0.8.1
+    * noosphere-core bumped from 0.15.0 to 0.15.1
+
 ## [0.7.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.6.1...noosphere-ipfs-v0.7.0) (2023-07-19)
 
 
