@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
-use async_std::sync::Mutex;
 use async_trait::async_trait;
 use cid::Cid;
 use std::{collections::HashMap, sync::Arc};
+use tokio::sync::Mutex;
 
 use crate::storage::Storage;
 use crate::store::Store;

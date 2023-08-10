@@ -24,7 +24,7 @@ readme = "README.md"
 [dependencies]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-anyhow = "^1"
+anyhow = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 lazy_static = "^1"
@@ -35,7 +35,7 @@ futures = "^0.3.26"
 async-trait = "~0.1"
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
-tokio = { version = "1.29", features = ["io-util", "io-std", "sync", "macros", "rt", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["io-util", "io-std", "sync", "macros", "rt", "rt-multi-thread"] }
 noosphere-storage = { version = "0.8.1", path = "../noosphere-storage" }
 noosphere-core = { version = "0.15.1", path = "../noosphere-core" }
 libp2p = { version = "0.51.3", default-features = false, features = [ "ed25519", "identify", "dns", "kad", "macros", "noise", "serde", "tcp", "tokio", "yamux" ] }

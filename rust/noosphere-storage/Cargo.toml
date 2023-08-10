@@ -21,10 +21,9 @@ readme = "README.md"
 
 [dependencies]
 anyhow = { workspace = true }
-async-std = "^1"
 async-trait = "~0.1"
-async-stream = "~0.3"
-tokio-stream = "~0.1"
+async-stream = { workspace = true }
+tokio-stream = { workspace = true }
 cid = { workspace = true }
 tracing = "~0.1"
 ucan = { workspace = true }
@@ -40,10 +39,10 @@ wasm-bindgen-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sled = "~0.34"
-tokio = { version = "^1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-tokio = { version = "^1", features = ["sync", "macros"] }
+tokio = { workspace = true, features = ["sync", "macros"] }
 wasm-bindgen = { workspace = true }
 js-sys = { workspace = true }
 rexie = { version = "~0.4" }

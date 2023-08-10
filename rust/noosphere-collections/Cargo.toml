@@ -17,13 +17,12 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [dependencies]
-anyhow = "^1"
+anyhow = { workspace = true }
 sha2 = "0.10"
 cid = { workspace = true }
 forest_hash_utils = "0.1.0"
 serde = { workspace = true }
 serde_bytes = "0.11"
-serde_ipld_dagcbor = "0.4"
 byteorder = "^1.4"
 # NOTE: async-once-cell 0.4.0 shipped unstable feature usage
 async-once-cell = "0.4"
@@ -31,17 +30,17 @@ async-recursion = "^1"
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
 noosphere-storage = { version = "0.8.1", path = "../noosphere-storage" }
+tokio = { workspace = true, features = ["sync", "io-util"] }
 
-tokio = { version = "^1", features = ["sync", "io-util"] }
-tokio-stream = "~0.1"
-async-stream = "~0.3"
+tokio-stream = { workspace = true }
+async-stream = { workspace = true }
 
 [dev-dependencies]
-async-std = "^1"
 unsigned-varint = "0.7"
+serde_ipld_dagcbor = "0.4"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-tokio = { version = "^1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = { workspace = true }

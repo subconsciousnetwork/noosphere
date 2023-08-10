@@ -1,7 +1,7 @@
 use anyhow::Result;
-use async_std::sync::Mutex;
 use async_trait::async_trait;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use crate::{store::Store, MemoryStorage, MemoryStore, Storage};
 

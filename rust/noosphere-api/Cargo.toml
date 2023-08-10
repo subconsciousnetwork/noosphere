@@ -19,7 +19,7 @@ readme = "README.md"
 
 
 [dependencies]
-anyhow = "^1"
+anyhow = { workspace = true }
 thiserror = { workspace = true }
 cid = { workspace = true }
 url = { workspace = true }
@@ -30,7 +30,7 @@ noosphere-core = { version = "0.15.1", path = "../noosphere-core" }
 noosphere-storage = { version = "0.8.1", path = "../noosphere-storage" }
 iroh-car = { workspace = true }
 reqwest = { version = "0.11.15", default-features = false, features = ["json", "rustls-tls", "stream"] }
-tokio-stream = "~0.1"
+tokio-stream = { workspace = true }
 tokio-util = "0.7.7"
 
 ucan = { workspace = true }
@@ -40,7 +40,7 @@ libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "^1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { workspace = true }
