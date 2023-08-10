@@ -13,6 +13,7 @@ mod key_value;
 mod db;
 mod encoding;
 mod retry;
+mod scratch;
 mod storage;
 mod store;
 mod tap;
@@ -25,11 +26,12 @@ pub use encoding::*;
 pub use implementation::*;
 pub use key_value::*;
 pub use retry::*;
+pub use scratch::*;
 pub use storage::*;
 pub use store::*;
 pub use tap::*;
 
-#[cfg(test)]
+#[cfg(feature = "helpers")]
 pub mod helpers;
 
 #[cfg(test)]

@@ -25,7 +25,7 @@ iroh-car = { workspace = true }
 thiserror = { workspace = true }
 strum = "0.25"
 strum_macros = "0.25"
-bytes = "^1"
+bytes = { workspace = true }
 
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = { workspace = true }

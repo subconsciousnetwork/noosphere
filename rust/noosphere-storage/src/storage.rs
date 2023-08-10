@@ -1,5 +1,6 @@
 use crate::block::BlockStore;
 use crate::key_value::KeyValueStore;
+use crate::Scratch;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::fmt::Debug;
@@ -24,7 +25,7 @@ impl<T> StorageSendSync for T {}
 /// other Noosphere constructs.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait Storage: Clone + StorageSendSync + Debug {
+pub trait Storage: Scratch + Clone + StorageSendSync + Debug {
     type BlockStore: BlockStore;
     type KeyValueStore: KeyValueStore;
 
@@ -34,5 +35,5 @@ pub trait Storage: Clone + StorageSendSync + Debug {
 
     /// Get a [KeyValueStore] where all values stored in it are scoped to the
     /// given name
-    async fn get_key_value_store(&self, name: &str) -> Result<Self::KeyValueStore>;
+    async fn get_key_value_store(&self, name: &str) -> Result<<Self as Storage>::KeyValueStore>;
 }

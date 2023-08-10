@@ -1562,6 +1562,11 @@ name = "fastcdc"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a71061d097bfa9a5a4d2efdec57990d9a88745020b365191d37e48541a1628f2"
+dependencies = [
+ "async-stream",
+ "tokio",
+ "tokio-stream",
+]
 
 [[package]]
 name = "fastrand"
@@ -3446,6 +3451,7 @@ dependencies = [
  "async-trait",
  "base64 0.21.2",
  "byteorder",
+ "bytes",
  "cid",
  "console_error_panic_hook",
  "ed25519-zebra",
@@ -3464,17 +3470,21 @@ dependencies = [
  "serde_json",
  "strum 0.25.0",
  "strum_macros",
+ "tempfile",
  "thiserror",
  "tiny-bip39",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
  "tracing-wasm",
  "ucan",
  "ucan-key-support",
  "url",
+ "wasm-bindgen",
  "wasm-bindgen-test",
+ "web-time",
 ]
 
 [[package]]
@@ -3651,6 +3661,7 @@ dependencies = [
  "js-sys",
  "libipld-cbor",
  "libipld-core",
+ "rand 0.8.5",
  "rexie",
  "serde",
  "sled",
@@ -6152,6 +6163,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b85cbef8c220a6abc02aefd892dfc0fc23afb1c6a426316ec33253a3877249b"
 dependencies = [
  "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "web-time"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19353897b48e2c4d849a2d73cb0aeb16dc2be4e00c565abfc11eb65a806e47de"
+dependencies = [
+ "js-sys",
+ "once_cell",
  "wasm-bindgen",
 ]
 

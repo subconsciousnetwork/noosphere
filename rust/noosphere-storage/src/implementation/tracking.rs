@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::{store::Store, MemoryStorage, MemoryStore, Storage};
+use crate::{store::Store, MemoryStorage, MemoryStore, Scratch, Storage};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StoreStats {
@@ -90,7 +90,6 @@ impl TrackingStorage<MemoryStorage> {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl Storage for TrackingStorage<MemoryStorage> {
     type BlockStore = TrackingStore<MemoryStore>;
-
     type KeyValueStore = TrackingStore<MemoryStore>;
 
     async fn get_block_store(&self, name: &str) -> Result<Self::BlockStore> {
@@ -101,5 +100,18 @@ impl Storage for TrackingStorage<MemoryStorage> {
     async fn get_key_value_store(&self, name: &str) -> Result<Self::KeyValueStore> {
         let key_value_store = TrackingStore::wrap(self.storage.get_key_value_store(name).await?);
         Ok(key_value_store)
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<T> Scratch for TrackingStorage<T>
+where
+    T: Storage + Scratch,
+    T::ScratchStore: Store,
+{
+    type ScratchStore = TrackingStore<<T as Scratch>::ScratchStore>;
+    async fn get_scratch_store(&self) -> Result<Self::ScratchStore> {
+        Ok(TrackingStore::wrap(self.storage.get_scratch_store().await?))
     }
 }

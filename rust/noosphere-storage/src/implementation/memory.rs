@@ -6,6 +6,7 @@ use tokio::sync::Mutex;
 
 use crate::storage::Storage;
 use crate::store::Store;
+use crate::Scratch;
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -45,7 +46,6 @@ impl MemoryStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl Storage for MemoryStorage {
     type BlockStore = MemoryStore;
-
     type KeyValueStore = MemoryStore;
 
     async fn get_block_store(&self, name: &str) -> Result<Self::BlockStore> {
@@ -128,5 +128,26 @@ impl Store for MemoryStore {
     async fn remove(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let mut dags = self.entries.lock().await;
         Ok(dags.remove(key))
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl Scratch for MemoryStorage {
+    type ScratchStore = MemoryStore;
+    async fn get_scratch_store(&self) -> Result<Self::ScratchStore> {
+        Ok(MemoryStore::default())
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl Scratch for MemoryStore {
+    type ScratchStore = MemoryStore;
+    // It's uncommon for a Store to implement a Scratch, but trivial
+    // for an in-memory implementation, and makes temporary stores
+    // easier to work with in the codebase.
+    async fn get_scratch_store(&self) -> Result<Self::ScratchStore> {
+        Ok(MemoryStore::default())
     }
 }
