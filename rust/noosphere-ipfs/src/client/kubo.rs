@@ -10,9 +10,11 @@ use hyper::{
     client::connect::dns::GaiResolver, client::HttpConnector, Body, Client, Request, StatusCode,
 };
 use hyper_multipart_rfc7578::client::multipart::{Body as MultipartBody, Form};
-use ipfs_api_prelude::response::{IdResponse, PinLsResponse};
+// TODO(#587): Remove dependency on `ipfs-api` crate
+use ipfs_api_prelude::response::PinLsResponse;
 use libipld_cbor::DagCborCodec;
 use libipld_core::raw::RawCodec;
+use serde_json::Value;
 use url::Url;
 
 /// Maps a codec defined in a [Cid] to a string
@@ -83,8 +85,19 @@ impl IpfsClient for KuboClient {
 
         let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
 
-        let IdResponse { public_key, .. } = serde_json::from_slice(body_bytes.as_ref())?;
-        Ok(public_key)
+        let identity_response: Value = serde_json::from_slice(body_bytes.as_ref())?;
+
+        if let Some(identity) = identity_response.as_object() {
+            if let Some(public_key_value) = identity.get("PublicKey") {
+                if let Some(public_key) = public_key_value.as_str() {
+                    return Ok(public_key.into());
+                }
+            }
+        }
+
+        Err(anyhow!(
+            "Could not discover public key from /api/v0/id response"
+        ))
     }
 
     #[instrument(skip(self, car), level = "trace")]
