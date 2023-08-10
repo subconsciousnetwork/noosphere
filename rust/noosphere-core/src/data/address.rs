@@ -1,4 +1,6 @@
-use crate::authority::{generate_capability, SphereAbility, SPHERE_SEMANTICS, SUPPORTED_KEYS};
+use crate::authority::{
+    collect_ucan_proofs, generate_capability, SphereAbility, SPHERE_SEMANTICS, SUPPORTED_KEYS,
+};
 use anyhow::Result;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
@@ -175,25 +177,7 @@ impl LinkRecord {
     where
         S: UcanJwtStore,
     {
-        let mut proofs = vec![];
-        let mut remaining = vec![self.0.clone()];
-
-        while let Some(ucan) = remaining.pop() {
-            if let Some(ucan_proofs) = ucan.proofs() {
-                for proof_cid_string in ucan_proofs {
-                    let cid = Cid::try_from(proof_cid_string.as_str())?;
-                    trace!("Collecting proof with CID {}", cid);
-                    let jwt = store.require_token(&cid).await?;
-                    let ucan = Ucan::try_from(jwt.as_str())?;
-
-                    remaining.push(ucan);
-                }
-            };
-
-            proofs.push(ucan);
-        }
-
-        Ok(proofs)
+        collect_ucan_proofs(&self.0, store).await
     }
 }
 

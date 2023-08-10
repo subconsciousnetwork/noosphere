@@ -142,6 +142,50 @@ mod tests {
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_only_yields_one_item_when_past_equals_present() -> Result<()> {
+        let mut store = MemoryStore::default();
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await?;
+
+        let (mut sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await?;
+        let mut lineage = vec![sphere.cid().clone()];
+
+        for i in 0..5u8 {
+            let mut mutation = SphereMutation::new(&owner_did);
+            let memo = MemoIpld::for_body(&mut store, &[i]).await?;
+            let cid = store.save::<DagCborCodec, _>(&memo).await?;
+
+            mutation.content_mut().set(&format!("foo/{i}"), &cid.into());
+            let mut revision = sphere.apply_mutation(&mutation).await?;
+            let next_cid = revision.sign(&owner_key, Some(&ucan)).await?;
+
+            sphere = Sphere::at(&next_cid, &store);
+            lineage.push(next_cid);
+        }
+
+        let past = lineage[4].clone();
+        let future = lineage[4].clone();
+
+        let timeline = Timeline::new(&store);
+        let timeslice = timeline.slice(&future, Some(&past));
+
+        let items: Vec<Link<MemoIpld>> = timeslice
+            .to_chronological()
+            .await?
+            .into_iter()
+            .map(|(cid, _)| cid)
+            .collect();
+
+        assert_eq!(items.len(), 1);
+
+        assert_eq!(items[0], past);
+        assert_eq!(items[0], future);
+
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_includes_the_revision_delimiters() -> Result<()> {
         let mut store = MemoryStore::default();
         let owner_key = generate_ed25519_key();

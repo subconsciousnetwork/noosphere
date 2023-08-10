@@ -10,7 +10,6 @@ use std::{
     pin::Pin,
     sync::Arc,
     task,
-    time::Duration,
 };
 use url::Url;
 
@@ -49,7 +48,7 @@ impl NameSystemRunner {
             let store = {
                 let inner = MemoryStore::default();
                 let inner = IpfsStore::new(inner, Some(KuboClient::new(&ipfs_api_url)?));
-                let inner = BlockStoreRetry::new(inner, 6u32, Duration::from_secs(10));
+                let inner = BlockStoreRetry::from(inner);
                 Some(UcanStore(inner))
             };
             NameSystem::new(&config.key_material, config.dht_config.to_owned(), store)?

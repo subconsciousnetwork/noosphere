@@ -299,7 +299,7 @@ where
             if let Some(link_record) = address.link_record(&db).await {
                 if let Some(identity) = context.get_petname(&name).await? {
                     if identity != address.did {
-                        warn!("Updated link record for {name} referred to unexpected sphere; expected {identity}, but record referred to {}; skipping...", address.did);
+                        warn!("Updated link record for {name} referred to unexpected sphere; expected {identity}, but record referred to {}; ignoring...", address.did);
                         continue;
                     }
 
@@ -307,7 +307,7 @@ where
                         // TODO(#562): Should probably also verify record expiry
                         // in case we are dealing with a renewed record to the
                         // same link
-                        warn!("Resolved link for {name} has not changed; skipping...");
+                        debug!("Resolved got new link record for {name} but the link has not changed; skipping...");
                         continue;
                     }
 
@@ -350,6 +350,7 @@ where
         }
 
         info!("Collecting blocks from new local history...");
+        debug!("Bundling until {:?}", local_sphere_base);
 
         let bundle = Sphere::at(local_sphere_tip, context.db())
             .bundle_until_ancestor(local_sphere_base.as_ref())
@@ -438,6 +439,7 @@ where
         counterpart_identity: &Did,
         original_counterpart_version: Option<&Link<MemoIpld>>,
     ) -> Result<()> {
+        debug!("Rolling back!");
         let sphere_identity = context.identity().await?;
         let mut context = context.sphere_context_mut().await?;
 

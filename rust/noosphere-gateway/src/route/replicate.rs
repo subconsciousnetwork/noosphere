@@ -1,4 +1,4 @@
-use std::{pin::Pin, time::Duration};
+use std::pin::Pin;
 
 use anyhow::Result;
 use axum::{
@@ -65,11 +65,7 @@ where
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .db()
         .clone();
-    let store = BlockStoreRetry::new(
-        IpfsStore::new(db, Some(ipfs_client)),
-        6,
-        Duration::from_secs(10),
-    );
+    let store = BlockStoreRetry::from(IpfsStore::new(db, Some(ipfs_client)));
 
     if let Some(since) = since {
         let since_memo = store

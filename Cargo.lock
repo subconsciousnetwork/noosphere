@@ -876,20 +876,6 @@ dependencies = [
 
 [[package]]
 name = "cid"
-version = "0.8.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6ed9c8b2d17acb8110c46f1da5bf4a696d745e1474a16db0cd2b49cd0249bf2"
-dependencies = [
- "core2",
- "multibase",
- "multihash 0.16.3",
- "serde",
- "serde_bytes",
- "unsigned-varint 0.7.1",
-]
-
-[[package]]
-name = "cid"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd94671561e36e4e7de75f753f577edafb0e7c05d6e4547229fdf7938fbcd2c3"
@@ -2491,7 +2477,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0a291220adb48738bdea587156c5f44ca5ec4ad31fdeb8fb88fda1dcd7886a24"
 dependencies = [
  "anyhow",
- "cid 0.10.1",
+ "cid",
  "futures",
  "libipld",
  "thiserror",
@@ -2616,7 +2602,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5acd707e8d8b092e967b2af978ed84709eaded82b75effe6cb6f6cc797ef8158"
 dependencies = [
  "anyhow",
- "cid 0.10.1",
+ "cid",
  "core2",
  "multibase",
  "multihash 0.18.1",
@@ -3282,19 +3268,6 @@ dependencies = [
 
 [[package]]
 name = "multihash"
-version = "0.16.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c346cf9999c631f002d8f977c4eaeaa0e6386f16007202308d0b3757522c2cc"
-dependencies = [
- "core2",
- "multihash-derive 0.8.1",
- "serde",
- "serde-big-array",
- "unsigned-varint 0.7.1",
-]
-
-[[package]]
-name = "multihash"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "835d6ff01d610179fbce3de1694d007e500bf33a7f29689838941d6bf783ae40"
@@ -3477,7 +3450,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "bytes",
- "cid 0.10.1",
+ "cid",
  "gloo-timers",
  "instant",
  "itertools",
@@ -3516,7 +3489,7 @@ name = "noosphere-api"
 version = "0.12.0"
 dependencies = [
  "anyhow",
- "cid 0.10.1",
+ "cid",
  "iroh-car",
  "libipld-cbor",
  "libipld-core",
@@ -3543,7 +3516,7 @@ version = "0.14.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "cid 0.10.1",
+ "cid",
  "clap",
  "directories",
  "globset",
@@ -3592,7 +3565,7 @@ dependencies = [
  "async-std",
  "async-stream",
  "byteorder",
- "cid 0.10.1",
+ "cid",
  "forest_hash_utils",
  "libipld-cbor",
  "libipld-core",
@@ -3619,7 +3592,7 @@ dependencies = [
  "async-trait",
  "base64 0.21.2",
  "byteorder",
- "cid 0.10.1",
+ "cid",
  "console_error_panic_hook",
  "ed25519-zebra",
  "fastcdc",
@@ -3659,7 +3632,7 @@ dependencies = [
  "async-trait",
  "axum",
  "bytes",
- "cid 0.10.1",
+ "cid",
  "iroh-car",
  "libipld-cbor",
  "libipld-core",
@@ -3699,7 +3672,7 @@ dependencies = [
  "async-utf8-decoder",
  "axum",
  "bytes",
- "cid 0.10.1",
+ "cid",
  "futures",
  "horrorshow",
  "libipld-cbor",
@@ -3727,7 +3700,7 @@ dependencies = [
  "async-compat",
  "async-stream",
  "async-trait",
- "cid 0.10.1",
+ "cid",
  "hyper",
  "hyper-multipart-rfc7578",
  "ipfs-api-prelude",
@@ -3754,7 +3727,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
- "cid 0.10.1",
+ "cid",
  "clap",
  "futures",
  "home",
@@ -3789,7 +3762,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "bytes",
- "cid 0.10.1",
+ "cid",
  "futures-util",
  "iroh-car",
  "libipld-cbor",
@@ -3821,7 +3794,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "base64 0.21.2",
- "cid 0.10.1",
+ "cid",
  "js-sys",
  "libipld-cbor",
  "libipld-core",
@@ -5112,12 +5085,12 @@ dependencies = [
 
 [[package]]
 name = "serde_ipld_dagcbor"
-version = "0.2.2"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1e23de7a4a18dff77ab9531f279a882500b8cf3549fde044d4e10481b411f1e"
+checksum = "ace39c1b7526be78c755a4c698313f699cf44e62408c0029bf9ab9450fe836da"
 dependencies = [
  "cbor4ii",
- "cid 0.8.6",
+ "cid",
  "scopeguard",
  "serde",
 ]
@@ -5992,7 +5965,7 @@ dependencies = [
  "async-trait",
  "base64 0.21.2",
  "bs58 0.5.0",
- "cid 0.10.1",
+ "cid",
  "futures",
  "getrandom 0.2.10",
  "instant",

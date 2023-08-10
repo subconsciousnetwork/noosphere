@@ -25,7 +25,7 @@ pub async fn sync(auto_retry: u32, render_depth: Option<u32>, workspace: &Worksp
 
     info!("Sync complete, rendering updated workspace...");
 
-    workspace.render(render_depth).await?;
+    workspace.render(render_depth, false).await?;
 
     info!("Done!");
 

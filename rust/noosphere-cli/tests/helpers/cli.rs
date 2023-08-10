@@ -100,6 +100,14 @@ impl CliSimulator {
         })
     }
 
+    pub fn print_debug_shell_command(&self) {
+        info!(
+            "cd {} && cp {}/keys/* $HOME/.config/noosphere/keys/",
+            self.sphere_directory().display(),
+            self.noosphere_directory().display()
+        );
+    }
+
     pub fn sphere_directory(&self) -> &Path {
         self.sphere_directory.path()
     }

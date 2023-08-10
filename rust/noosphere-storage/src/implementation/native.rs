@@ -93,3 +93,9 @@ impl Store for NativeStore {
         Ok(())
     }
 }
+
+impl Drop for NativeStorage {
+    fn drop(&mut self) {
+        let _ = self.db.flush();
+    }
+}

@@ -21,7 +21,7 @@ use self::{
         serve::serve,
         sphere::{
             auth_add, auth_list, auth_revoke, config_get, config_set, follow_add, follow_list,
-            follow_remove, follow_rename, save, sphere_create, sphere_join, status, sync,
+            follow_remove, follow_rename, history, save, sphere_create, sphere_join, status, sync,
         },
     },
     workspace::Workspace,
@@ -100,6 +100,12 @@ pub async fn invoke_cli(cli: Cli, mut workspace: Workspace) -> Result<()> {
                 FollowCommand::Rename { from, to } => follow_rename(from, to, &workspace).await?,
                 FollowCommand::List { as_json } => follow_list(as_json, &workspace).await?,
             },
+            SphereCommand::Render { render_depth } => {
+                commands::sphere::render(render_depth, &workspace).await?
+            }
+            SphereCommand::History => {
+                history(&workspace).await?;
+            }
         },
 
         OrbCommand::Serve {

@@ -93,7 +93,7 @@ pub async fn start_name_system_server(ipfs_url: &Url) -> Result<(Url, JoinHandle
     let store = if use_validation {
         let inner = MemoryStore::default();
         let inner = IpfsStore::new(inner, Some(KuboClient::new(ipfs_url).unwrap()));
-        let inner = BlockStoreRetry::new(inner, 5u32, Duration::new(1, 0));
+        let inner = BlockStoreRetry::from(inner);
         let inner = UcanStore(inner);
         Some(inner)
     } else {

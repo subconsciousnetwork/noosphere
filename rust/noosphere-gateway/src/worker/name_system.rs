@@ -106,6 +106,7 @@ where
 
     let task = {
         let tx = tx.clone();
+
         tokio::task::spawn(async move {
             let _ = tokio::join!(
                 periodic_publisher_task(tx.clone(), local_spheres.clone()),
@@ -348,7 +349,7 @@ where
     let ipfs_store = {
         let inner = db.clone();
         let inner = IpfsStore::new(inner, Some(kubo_client));
-        let inner = BlockStoreRetry::new(inner, 6u32, Duration::new(10, 0));
+        let inner = BlockStoreRetry::from(inner);
         UcanStore(inner)
     };
 
@@ -387,6 +388,12 @@ where
                     name, identity.did, record
                 );
 
+                if let Some(current_record) = context.get_petname_record(&name).await? {
+                    if current_record.get_link() == record.get_link() {
+                        continue;
+                    }
+                }
+
                 context.set_petname_record(&name, record).await?;
             }
             _ => continue,
@@ -394,7 +401,7 @@ where
     }
 
     if context.has_unsaved_changes().await? {
-        SphereCursor::latest(context).save(None).await?;
+        context.save(None).await?;
     }
 
     Ok(())

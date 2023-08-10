@@ -5,14 +5,15 @@ use async_stream::try_stream;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_core::{
-    data::{ContentType, Link, LinkRecord, MemoIpld, SphereIpld},
+    authority::collect_ucan_proofs,
+    data::{ContentType, Link, MemoIpld, SphereIpld},
     view::Sphere,
 };
 use noosphere_storage::{BlockStore, BlockStoreTap, UcanStore};
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::task::JoinSet;
 use tokio_stream::{Stream, StreamExt};
-use ucan::store::UcanJwtStore;
+use ucan::{store::UcanJwtStore, Ucan};
 
 use crate::{
     walk_versioned_map_changes_and, walk_versioned_map_elements, walk_versioned_map_elements_and,
@@ -36,6 +37,7 @@ where
     let since = since.cloned();
 
     try_stream! {
+
         let (store, mut rx) = BlockStoreTap::new(store.clone(), 64);
         let memo = store.load::<DagCborCodec, MemoIpld>(&latest).await?;
 
@@ -85,7 +87,9 @@ where
 
                                 walk_versioned_map_changes_and(delegations, store, |_, delegation, store| async move {
                                     let ucan_store = UcanStore(store);
-                                    LinkRecord::from_str(&ucan_store.require_token(&delegation.jwt).await?)?.collect_proofs(&ucan_store).await?;
+
+                                    collect_ucan_proofs(&Ucan::from_str(&ucan_store.require_token(&delegation.jwt).await?)?, &ucan_store).await?;
+
                                     Ok(())
                                 }).await?;
 
@@ -101,8 +105,9 @@ where
                             let address_book = sphere.get_address_book().await?;
                             let identities = address_book.get_identities().await?;
 
-                            tasks.spawn(walk_versioned_map_changes_and(identities, store.clone(), |_, identity, store| async move {
+                            tasks.spawn(walk_versioned_map_changes_and(identities, store.clone(), |name, identity, store| async move {
                                 let ucan_store = UcanStore(store);
+                                trace!("Replicating proofs for {}", name);
                                 if let Some(link_record) = identity.link_record(&ucan_store).await {
                                     link_record.collect_proofs(&ucan_store).await?;
                                 };
@@ -253,11 +258,13 @@ where
 mod tests {
     use anyhow::Result;
     use std::collections::BTreeSet;
+    use ucan::store::UcanJwtStore;
 
     use iroh_car::CarReader;
     use libipld_cbor::DagCborCodec;
     use noosphere_core::{
-        data::{BodyChunkIpld, ContentType, MemoIpld},
+        data::{BodyChunkIpld, ContentType, LinkRecord, MemoIpld},
+        helpers::make_valid_link_record,
         tracing::initialize_tracing,
         view::Sphere,
     };
@@ -267,10 +274,7 @@ mod tests {
 
     use crate::{
         car_stream,
-        helpers::{
-            make_valid_link_record, simulated_sphere_context, touch_all_sphere_blocks,
-            SimulationAccess,
-        },
+        helpers::{simulated_sphere_context, touch_all_sphere_blocks, SimulationAccess},
         memo_body_stream, memo_history_stream, BodyChunkDecoder, HasMutableSphereContext,
         HasSphereContext, SphereContentWrite, SpherePetnameWrite,
     };
@@ -280,6 +284,51 @@ mod tests {
 
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_includes_all_link_records_and_proofs_from_the_address_book() -> Result<()> {
+        initialize_tracing(None);
+
+        let (mut sphere_context, _) =
+            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let mut db = sphere_context.sphere_context().await?.db().clone();
+
+        let (foo_did, foo_link_record, foo_link_record_link) =
+            make_valid_link_record(&mut db).await?;
+
+        sphere_context.set_petname("foo", Some(foo_did)).await?;
+        sphere_context.save(None).await?;
+        sphere_context
+            .set_petname_record("foo", &foo_link_record)
+            .await?;
+        let final_version = sphere_context.save(None).await?;
+
+        let mut other_store = MemoryStore::default();
+
+        let stream = memo_body_stream(
+            sphere_context.sphere_context().await?.db().clone(),
+            &final_version,
+        );
+
+        tokio::pin!(stream);
+
+        while let Some((cid, block)) = stream.try_next().await? {
+            debug!("Received {cid}");
+            other_store.put_block(&cid, &block).await?;
+        }
+
+        let ucan_store = UcanStore(other_store);
+
+        let link_record =
+            LinkRecord::try_from(ucan_store.require_token(&foo_link_record_link).await?)?;
+
+        assert_eq!(link_record, foo_link_record);
+
+        link_record.collect_proofs(&ucan_store).await?;
+
+        Ok(())
+    }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]

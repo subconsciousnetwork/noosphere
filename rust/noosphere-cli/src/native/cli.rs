@@ -151,6 +151,18 @@ pub enum SphereCommand {
         render_depth: Option<u32>,
     },
 
+    /// Force a render of local sphere content as well as the peer graph; note
+    /// that this will overwrite any unsaved changes to local sphere content
+    Render {
+        /// The maximum depth to traverse through followed spheres when
+        /// rendering updates
+        #[clap(short = 'd', long)]
+        render_depth: Option<u32>,
+    },
+
+    /// Print a changelog of sphere in a human readable format
+    History,
+
     #[allow(missing_docs)]
     Follow {
         #[clap(subcommand)]

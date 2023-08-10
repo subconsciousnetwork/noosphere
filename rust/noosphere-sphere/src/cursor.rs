@@ -274,6 +274,7 @@ mod tests {
 
     use anyhow::Result;
     use noosphere_core::data::{ContentType, Header};
+    use noosphere_core::helpers::make_valid_link_record;
     use noosphere_core::tracing::initialize_tracing;
     use noosphere_storage::UcanStore;
     use tokio::io::AsyncReadExt;
@@ -285,8 +286,7 @@ mod tests {
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
     use crate::helpers::{
-        make_sphere_context_with_peer_chain, make_valid_link_record, simulated_sphere_context,
-        SimulationAccess,
+        make_sphere_context_with_peer_chain, simulated_sphere_context, SimulationAccess,
     };
     use crate::{
         HasMutableSphereContext, HasSphereContext, SphereContentRead, SphereContentWrite,
