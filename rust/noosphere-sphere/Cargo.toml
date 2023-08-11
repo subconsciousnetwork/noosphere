@@ -31,8 +31,8 @@ ucan = { workspace = true }
 ucan-key-support = { workspace = true }
 
 async-trait = "~0.1"
-tokio-stream = "~0.1"
-async-stream = "~0.3"
+tokio-stream = { workspace = true }
+async-stream = { workspace = true }
 tokio-util = { version = "0.7.7", features = ["io"] }
 futures-util = "0.3.27"
 libipld-core = { workspace = true }
@@ -48,12 +48,12 @@ noosphere-core = { version = "0.15.1", path = "../noosphere-core", features = ["
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # TODO: We should eventually support gateway storage as a specialty target only,
 # as it is a specialty use-case
-tokio = { version = "^1", features = ["sync", "macros"] }
+tokio = { workspace = true, features = ["sync", "macros"] }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = "0.4.37"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "^1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = { workspace = true }

@@ -25,18 +25,18 @@ storage = ["ucan"]
 test_kubo = []
 
 [dependencies]
-anyhow = "^1"
+anyhow = { workspace = true }
 async-compat = { version = "~0.2" }
 async-trait = "~0.1"
-tokio-stream = "~0.1"
-async-stream = "~0.3"
+async-stream = { workspace = true }
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
 cid = { workspace = true }
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls", "stream"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { version = "^1", features = ["io-util"] }
+tokio = { workspace = true, features = ["io-util"] }
+tokio-stream = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true, features = [ "serde" ] }
 noosphere-storage = { version = "0.8.1", path = "../noosphere-storage" }
@@ -53,5 +53,4 @@ ipfs-api-prelude = "0.6"
 rand = "~0.8"
 iroh-car = { workspace = true }
 libipld-cbor = { workspace = true }
-noosphere-storage = { version = "0.8.1", path = "../noosphere-storage" }
 noosphere-core = { version = "0.15.1", path = "../noosphere-core" }

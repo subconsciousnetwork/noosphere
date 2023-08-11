@@ -24,7 +24,6 @@ subtext = { version = "0.3.2", features = ["stream"] }
 async-trait = "~0.1"
 url = { workspace = true }
 tracing = { workspace = true }
-
 anyhow = { workspace = true }
 
 horrorshow = "~0.8"
@@ -32,11 +31,11 @@ cid = { workspace = true }
 libipld-cbor = { workspace = true }
 
 bytes = "^1"
-tokio-stream = "~0.1"
 tokio-util = "~0.7"
-tokio = { version = "^1", features = ["io-util", "macros", "test-util"] }
+tokio-stream = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "macros", "test-util"] }
 
-async-stream = { version = "~0.3" }
+async-stream = { workspace = true }
 futures = { version = "~0.3" }
 async-compat = { version = "~0.2" }
 async-utf8-decoder = { version = "~0.3" }
@@ -52,5 +51,5 @@ wasm-bindgen-test = { workspace = true }
 # Mostly these dependencies are used in the examples
 axum = { workspace = true }
 tempfile = { workspace = true }
-tokio = { version = "^1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 tower-http = { workspace = true, features = ["fs", "trace"] }

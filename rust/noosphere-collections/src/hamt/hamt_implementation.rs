@@ -46,8 +46,10 @@ pub type HamtStream<'a, K, V> = Pin<Box<dyn Stream<Item = Result<(&'a K, &'a V)>
 /// ```
 /// use noosphere_collections::hamt::Hamt;
 /// use noosphere_storage::MemoryStore;
+/// use tokio;
 ///
-/// async_std::task::block_on(async {
+/// #[tokio::main(flavor = "multi_thread")]
+/// async fn main() {
 ///     let store = MemoryStore::default();
 ///
 ///     let mut map: Hamt<_, _, usize> = Hamt::new(store);
@@ -56,7 +58,7 @@ pub type HamtStream<'a, K, V> = Pin<Box<dyn Stream<Item = Result<(&'a K, &'a V)>
 ///     assert_eq!(map.delete(&1).await.unwrap(), Some((1, "a".to_string())));
 ///     assert_eq!(map.get::<_>(&1).await.unwrap(), None);
 ///     let cid = map.flush().await.unwrap();
-/// });
+/// }
 /// ```
 #[derive(Debug)]
 pub struct Hamt<BS, V, K = BytesKey, H = Sha256>
@@ -158,8 +160,10 @@ where
     /// ```
     /// use noosphere_collections::hamt::Hamt;
     /// use noosphere_storage::MemoryStore;
+    /// use tokio;
     ///
-    /// async_std::task::block_on(async {
+    /// #[tokio::main(flavor = "multi_thread")]
+    /// async fn main() {
     ///     let store = MemoryStore::default();
     ///
     ///     let mut map: Hamt<_, _, usize> = Hamt::new(store);
@@ -168,7 +172,7 @@ where
     ///
     ///     map.set(37, "b".to_string()).await.unwrap();
     ///     map.set(37, "c".to_string()).await.unwrap();
-    /// })
+    /// }
     /// ```
     pub async fn set(&mut self, key: K, value: V) -> Result<Option<V>> {
         self.root
@@ -188,8 +192,10 @@ where
     /// ```
     /// use noosphere_collections::hamt::Hamt;
     /// use noosphere_storage::MemoryStore;
+    /// use tokio;
     ///
-    /// async_std::task::block_on(async {
+    /// #[tokio::main(flavor = "multi_thread")]
+    /// async fn main() {
     ///     let store = MemoryStore::default();
     ///
     ///     let mut map: Hamt<_, _, usize> = Hamt::new(store);
@@ -203,7 +209,7 @@ where
     ///
     ///     let c = map.set_if_absent(30, "c".to_string()).await.unwrap();
     ///     assert_eq!(c, true);
-    /// });
+    /// }
     /// ```
     pub async fn set_if_absent(&mut self, key: K, value: V) -> Result<bool>
     where
@@ -226,15 +232,17 @@ where
     /// ```
     /// use noosphere_collections::hamt::Hamt;
     /// use noosphere_storage::MemoryStore;
+    /// use tokio;
     ///
-    /// async_std::task::block_on(async {
+    /// #[tokio::main(flavor = "multi_thread")]
+    /// async fn main() {
     ///     let store = MemoryStore::default();
     ///
     ///     let mut map: Hamt<_, _, usize> = Hamt::new(store);
     ///     map.set(1, "a".to_string()).await.unwrap();
     ///     assert_eq!(map.get(&1).await.unwrap(), Some(&"a".to_string()));
     ///     assert_eq!(map.get(&2).await.unwrap(), None);
-    /// })
+    /// }
     /// ```
     #[inline]
     pub async fn get<Q: ?Sized>(&self, k: &Q) -> Result<Option<&V>>
@@ -260,15 +268,17 @@ where
     /// ```
     /// use noosphere_collections::hamt::Hamt;
     /// use noosphere_storage::MemoryStore;
+    /// use tokio;
     ///
-    /// async_std::task::block_on(async {
+    /// #[tokio::main(flavor = "multi_thread")]
+    /// async fn main() {
     ///     let store = MemoryStore::default();
     ///
     ///     let mut map: Hamt<_, _, usize> = Hamt::new(store);
     ///     map.set(1, "a".to_string()).await.unwrap();
     ///     assert_eq!(map.contains_key(&1).await.unwrap(), true);
     ///     assert_eq!(map.contains_key(&2).await.unwrap(), false);
-    /// });
+    /// }
     /// ```
     #[inline]
     pub async fn contains_key<Q: ?Sized>(&self, k: &Q) -> Result<bool>
@@ -295,15 +305,17 @@ where
     /// ```
     /// use noosphere_collections::hamt::Hamt;
     /// use noosphere_storage::MemoryStore;
+    /// use tokio;
     ///
-    /// async_std::task::block_on(async {
+    /// #[tokio::main(flavor = "multi_thread")]
+    /// async fn main() {
     ///     let store = MemoryStore::default();
     ///
     ///     let mut map: Hamt<_, _, usize> = Hamt::new(store);
     ///     map.set(1, "a".to_string()).await.unwrap();
     ///     assert_eq!(map.delete(&1).await.unwrap(), Some((1, "a".to_string())));
     ///     assert_eq!(map.delete(&1).await.unwrap(), None);
-    /// });
+    /// }
     /// ```
     pub async fn delete<Q: ?Sized>(&mut self, k: &Q) -> Result<Option<(K, V)>>
     where
@@ -333,8 +345,10 @@ where
     /// ```
     /// use noosphere_collections::hamt::Hamt;
     /// use noosphere_storage::MemoryStore;
+    /// use tokio;
     ///
-    /// async_std::task::block_on(async {
+    /// #[tokio::main(flavor = "multi_thread")]
+    /// async fn main() {
     ///     let store = MemoryStore::default();
     ///
     ///     let mut map: Hamt<_, _, usize> = Hamt::new(store);
@@ -347,7 +361,7 @@ where
     ///         Ok(())
     ///     }).await.unwrap();
     ///     assert_eq!(total, 3);
-    /// });
+    /// }
     /// ```
     #[inline]
     pub async fn for_each<F>(&self, mut f: F) -> Result<()>

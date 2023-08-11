@@ -21,18 +21,18 @@ headers = ["safer-ffi/headers"]
 ipfs-storage = ["noosphere-ipfs"]
 
 [dependencies]
-anyhow = "^1"
+anyhow = { workspace = true }
 pkg-version = "^1.0.0"
 thiserror = { workspace = true }
 lazy_static = "^1"
 cid = { workspace = true }
 async-trait = "~0.1"
-async-stream = "~0.3"
+async-stream = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 subtext = { workspace = true }
 itertools = "0.10.5"
-tokio-stream = "~0.1"
+tokio-stream = { workspace = true }
 tokio-util = { version = "~0.7", features = ["io"] }
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
@@ -52,7 +52,7 @@ libipld-core = { workspace = true }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # TODO: We should eventually support gateway storage as a specialty target only,
 # as it is a specialty use-case
-tokio = { version = "^1", features = ["sync"] }
+tokio = { workspace = true, features = ["sync"] }
 rexie = { version = "~0.4" }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
@@ -67,7 +67,7 @@ features = [
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 safer-ffi = { version = "0.1.2", features = ["proc_macros", "python-headers"] }
-tokio = { version = "^1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tempfile = { workspace = true }
