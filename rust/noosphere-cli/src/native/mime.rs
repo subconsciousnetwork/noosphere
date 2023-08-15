@@ -1,5 +1,7 @@
 //! Helpers for dealing with translation between the Noosphere and standard file
-//! system representation of content
+//! system representation of content. These constructs endeavor to be maximally
+//! spec-compatible without sacrificing flexibility, but they have not been
+//! vetted for correctness.
 use anyhow::anyhow;
 use std::str::FromStr;
 
@@ -7,8 +9,9 @@ use strum_macros::{AsRefStr, Display, EnumString};
 
 /// https://www.iana.org/assignments/media-types/media-types.xhtml
 /// https://www.rfc-editor.org/rfc/rfc6838#section-4.2
-#[derive(Display, EnumString, AsRefStr)]
-pub enum SuperType {
+#[derive(Display, EnumString, AsRefStr, Clone, Debug, PartialEq, Eq)]
+#[strum(serialize_all = "lowercase")]
+pub enum Type {
     /// https://www.rfc-editor.org/rfc/rfc6838#section-4.2.5
     Application,
     /// https://www.rfc-editor.org/rfc/rfc6838#section-4.2.3
@@ -36,7 +39,8 @@ pub enum SuperType {
 }
 
 /// https://www.rfc-editor.org/rfc/rfc6838#section-3
-#[derive(Display, EnumString, AsRefStr)]
+#[derive(Display, EnumString, AsRefStr, Clone, Debug, PartialEq, Eq)]
+#[strum(serialize_all = "lowercase")]
 pub enum Tree {
     /// https://www.rfc-editor.org/rfc/rfc6838#section-3.1
     Standard,
@@ -53,6 +57,49 @@ pub enum Tree {
     Unknown(String),
 }
 
+/// https://www.iana.org/assignments/media-type-structured-suffix/media-type-structured-suffix.xml
+/// https://datatracker.ietf.org/doc/html/rfc3023.html
+#[derive(Display, EnumString, AsRefStr, Clone, Debug, PartialEq, Eq)]
+#[strum(serialize_all = "lowercase")]
+pub enum Suffix {
+    /// XML
+    Xml,
+    /// JSON
+    Json,
+    /// JSON Text Sequence
+    #[strum(serialize = "json-seq")]
+    JsonSeq,
+    /// CBOR
+    Cbor,
+    /// CBOR Sequence
+    #[strum(serialize = "cbor-seq")]
+    CborSeq,
+    /// Basic Encoding Rules
+    Ber,
+    /// Distinguished Encoding Rules
+    Der,
+    /// Fast Infoset Document
+    FastInfoset,
+    /// WAP Binary XML
+    WbXml,
+    /// ZIP
+    Zip,
+    /// gzip
+    Gzip,
+    /// Type Length Value
+    Tlv,
+    /// SQLite 3 Database
+    Sqlite3,
+    /// JSON Web Tokens
+    Jwt,
+    /// Zstandard
+    Zstd,
+    /// YAML
+    Yaml,
+    /// Everything else
+    Unknown(String),
+}
+
 /// Internal state transitions for string parsing
 enum MimeParseState {
     Type,
@@ -62,49 +109,57 @@ enum MimeParseState {
     Parameter,
 }
 
-/// A parsed representation of a media type
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// A parsed representation of a media type.
 pub struct Mime {
-    /// The top-level type, see [SuperType]
-    pub super_type: SuperType,
+    /// The top-level type, see [Type]; noting that this should be called
+    /// 'type', but we can't call a field 'type' in Rust.
+    pub top_level_type: Type,
     /// The registration tree, see [Tree]
-    pub tree: Option<Tree>,
+    pub tree: Tree,
     /// The sub-type, see https://www.rfc-editor.org/rfc/rfc6838#section-4.2
     pub subtype: String,
     /// Optional suffixes, see https://www.rfc-editor.org/rfc/rfc6838#section-4.2.8
-    pub suffix: Option<Vec<String>>,
+    pub suffix: Option<Vec<Suffix>>,
     /// Optional trailing parameter, see https://www.rfc-editor.org/rfc/rfc6838#section-4.3
     pub parameter: Option<String>,
 }
 
 impl std::fmt::Display for Mime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let super_type = match &self.super_type {
-            SuperType::Unknown(super_type) => super_type.as_str(),
+        let top_level_type = match &self.top_level_type {
+            Type::Unknown(top_level_type) => top_level_type.as_str(),
             any_other => any_other.as_ref(),
         };
 
-        let mut parts: Vec<&str> = vec![super_type, "/"];
+        let mut parts: Vec<&str> = vec![top_level_type, "/"];
 
-        if let Some(tree) = &self.tree {
-            match tree {
-                Tree::Standard => (),
-                Tree::Unknown(tree) => {
-                    parts.push(tree.as_str());
-                    parts.push(".");
-                }
-                any_other => {
-                    parts.push(any_other.as_ref());
-                    parts.push(".");
-                }
+        match &self.tree {
+            Tree::Standard => (),
+            Tree::Unknown(tree) => {
+                parts.push(tree.as_str());
+                parts.push(".");
             }
-        }
+            any_other => {
+                parts.push(any_other.as_ref());
+                parts.push(".");
+            }
+        };
 
         parts.push(self.subtype.as_ref());
 
         if let Some(suffix) = &self.suffix {
             for part in suffix {
-                parts.push("+");
-                parts.push(part.as_str());
+                match part {
+                    Suffix::Unknown(suffix) => {
+                        parts.push("+");
+                        parts.push(suffix.as_str());
+                    }
+                    any_other => {
+                        parts.push("+");
+                        parts.push(any_other.as_ref());
+                    }
+                }
             }
         }
 
@@ -117,50 +172,83 @@ impl std::fmt::Display for Mime {
     }
 }
 
-// mime-type = type "/" [tree "."] subtype ["+" suffix]* [";" parameter];
 impl FromStr for Mime {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // mime-type = type "/" [tree "."] subtype ["+" suffix]* [";" parameter];
+        //
+        // NOTE: This is a simplification of the grammar described in
+        // https://datatracker.ietf.org/doc/html/rfc2045#section-2 as documented
+        // in https://en.m.wikipedia.org/wiki/Media_type#Naming
         let mut state = MimeParseState::Type;
 
-        state = MimeParseState::Tree;
-
-        let mut super_type: Option<String> = None; //jString::new();
-        let mut tree = None;
-        let mut subtype = String::new();
+        let mut raw_top_level_type = String::new();
+        let mut tree = String::new();
+        let mut subtype = None;
         let mut suffix: Option<Vec<String>> = None;
         let mut parameter: Option<String> = None;
+
+        let mut top_level_type = None;
 
         for char in s.chars() {
             match state {
                 MimeParseState::Type => match char {
-                    '/' => state = MimeParseState::Tree,
+                    '/' => {
+                        top_level_type =
+                            Some(raw_top_level_type.parse::<Type>().unwrap_or_else(|_| {
+                                Type::Unknown(std::mem::take(&mut raw_top_level_type))
+                            }));
+                        state = MimeParseState::Tree;
+                    }
                     _ => {
-                        if let Some(super_type) = &mut super_type {
-                            super_type.push(char);
-                        } else {
-                            super_type = Some(String::from(char));
-                        }
+                        raw_top_level_type.push(char);
                     }
                 },
                 MimeParseState::Tree => match char {
                     '.' => state = MimeParseState::Subtype,
-                    '+' | ';' => return Err(anyhow!("Missing or misrepresented subtype")),
+                    '+' => state = MimeParseState::Suffix,
+                    ';' => state = MimeParseState::Parameter,
                     _ => {
-                        if tree.is_none() {
-                            tree = Some(String::new());
+                        // NOTE: We support parsing strings that use the legacy
+                        // `x-` prefix for the unregistered tree, but
+                        // serializing a [Mime] always produces a string with
+                        // the preferred `x.` prefix (so in this case, the round
+                        // trip is lossy).
+                        //
+                        // Strictly speaking, `x-` prefix is no longer
+                        // considered part of the "unregistered" tree, but for
+                        // our interpretation of mimes it may as well be. For
+                        // example, if we are trying to infer the file extension
+                        // for a content type, the type `text/x-markdown` should
+                        // get the same extension as `text/x.markdown`, which
+                        // should get the same extension as `text/markdown`. The
+                        // virtue in parsing as a [Mime] arises from separating
+                        // the tree prefix from the subtype.
+                        //
+                        // https://en.m.wikipedia.org/wiki/Media_type#Unregistered_tree
+                        if char == '-' {
+                            if tree.len() == 1 && "x" == &tree.to_lowercase() {
+                                state = MimeParseState::Subtype;
+                                continue;
+                            }
                         }
 
-                        if let Some(tree) = &mut tree {
-                            tree.push(char)
-                        }
+                        tree.push(char);
                     }
                 },
                 MimeParseState::Subtype => match char {
                     '+' => state = MimeParseState::Suffix,
                     ';' => state = MimeParseState::Parameter,
-                    _ => subtype.push(char),
+                    _ => {
+                        if subtype.is_none() {
+                            subtype = Some(String::new());
+                        }
+
+                        if let Some(subtype) = &mut subtype {
+                            subtype.push(char);
+                        }
+                    }
                 },
                 MimeParseState::Suffix => match char {
                     '+' => {
@@ -173,13 +261,13 @@ impl FromStr for Mime {
                     ';' => state = MimeParseState::Parameter,
                     _ => {
                         if let Some(suffix) = &mut suffix {
-                            if let Some(element) = suffix.get_mut(0) {
+                            if let Some(element) = suffix.last_mut() {
                                 element.push(char);
                             } else {
                                 warn!("No initialized string in suffix");
                             }
                         } else {
-                            suffix = Some(vec![String::from(char)])
+                            suffix = Some(vec![String::from(char)]);
                         }
                     }
                 },
@@ -193,14 +281,30 @@ impl FromStr for Mime {
             }
         }
 
-        let tree = if let Some(tree) = tree {
-            Some(Tree::from_str(&tree)?)
+        let top_level_type = top_level_type.ok_or_else(|| anyhow!("Missing top-level type"))?;
+
+        let (tree, subtype) = if let Some(subtype) = subtype {
+            (
+                tree.parse::<Tree>().unwrap_or_else(|_| Tree::Unknown(tree)),
+                subtype,
+            )
         } else {
-            None
+            (Tree::Standard, tree)
         };
 
+        let suffix = suffix.map(|suffix| {
+            suffix
+                .into_iter()
+                .map(|suffix| {
+                    suffix
+                        .parse::<Suffix>()
+                        .unwrap_or_else(|_| Suffix::Unknown(suffix))
+                })
+                .collect()
+        });
+
         Ok(Mime {
-            super_type: todo!(),
+            top_level_type,
             tree,
             subtype,
             suffix,
@@ -212,44 +316,134 @@ impl FromStr for Mime {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use noosphere_core::tracing::initialize_tracing;
 
-    use super::{Mime, SuperType, Tree};
+    use crate::mime::Suffix;
 
-    #[test]
-    fn it_can_parse_mimes_from_strings() -> Result<()> {
-        let test_cases = [
+    use super::{Mime, Tree, Type};
+
+    fn test_cases() -> Vec<(&'static str, Mime, Option<&'static str>)> {
+        vec![
             (
                 "text/plain",
                 Mime {
-                    super_type: SuperType::Text,
-                    tree: None,
+                    top_level_type: Type::Text,
+                    tree: Tree::Standard,
                     subtype: "plain".into(),
                     suffix: None,
                     parameter: None,
                 },
+                None,
+            ),
+            (
+                "text/plain; special+kind; foo",
+                Mime {
+                    top_level_type: Type::Text,
+                    tree: Tree::Standard,
+                    subtype: "plain".into(),
+                    suffix: None,
+                    parameter: Some(" special+kind; foo".into()),
+                },
+                None,
+            ),
+            (
+                "random/numbers",
+                Mime {
+                    top_level_type: Type::Unknown("random".into()),
+                    tree: Tree::Standard,
+                    subtype: "numbers".into(),
+                    suffix: None,
+                    parameter: None,
+                },
+                None,
+            ),
+            (
+                "text/x-markdown",
+                Mime {
+                    top_level_type: Type::Text,
+                    tree: Tree::Unregistered,
+                    subtype: "markdown".into(),
+                    suffix: None,
+                    parameter: None,
+                },
+                Some("text/x.markdown"),
+            ),
+            (
+                "text/x.markdown",
+                Mime {
+                    top_level_type: Type::Text,
+                    tree: Tree::Unregistered,
+                    subtype: "markdown".into(),
+                    suffix: None,
+                    parameter: None,
+                },
+                None,
             ),
             (
                 "application/json",
                 Mime {
-                    super_type: SuperType::Application,
-                    tree: None,
+                    top_level_type: Type::Application,
+                    tree: Tree::Standard,
                     subtype: "json".into(),
                     suffix: None,
                     parameter: None,
                 },
+                None,
+            ),
+            (
+                "application/json+suffix",
+                Mime {
+                    top_level_type: Type::Application,
+                    tree: Tree::Standard,
+                    subtype: "json".into(),
+                    suffix: Some(vec![Suffix::Unknown("suffix".into())]),
+                    parameter: None,
+                },
+                None,
             ),
             (
                 "application/vnd.subconscious+json",
                 Mime {
-                    super_type: SuperType::Application,
-                    tree: Some(Tree::Vendor),
+                    top_level_type: Type::Application,
+                    tree: Tree::Vendor,
                     subtype: "subconscious".into(),
-                    suffix: Some(vec!["json".into()]),
+                    suffix: Some(vec![Suffix::Json]),
                     parameter: None,
                 },
+                None,
             ),
-            "text/vnd.subconscious+subtext+text; hotsauce",
-        ];
+            (
+                "text/vnd.subconscious.noosphere+subtext+cbor; hotsauce",
+                Mime {
+                    top_level_type: Type::Text,
+                    tree: Tree::Vendor,
+                    subtype: "subconscious.noosphere".into(),
+                    suffix: Some(vec![Suffix::Unknown("subtext".into()), Suffix::Cbor]),
+                    parameter: Some(" hotsauce".into()),
+                },
+                None,
+            ),
+        ]
+    }
+
+    #[test]
+    fn it_can_parse_strings_as_mimes() -> Result<()> {
+        initialize_tracing(None);
+
+        for (test_string, expected, _) in test_cases() {
+            assert_eq!(test_string.parse::<Mime>()?, expected);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_can_serialize_mimes_as_strings() -> Result<()> {
+        initialize_tracing(None);
+
+        for (expected, mime, serialized) in test_cases() {
+            assert_eq!(&mime.to_string(), serialized.unwrap_or(expected));
+        }
 
         Ok(())
     }
