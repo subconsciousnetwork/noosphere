@@ -30,6 +30,8 @@ noosphere-ns = { version = "0.10.1", path = "../noosphere-ns" }
 tempfile = { workspace = true }
 clap = { version = "^4.3", features = ["derive", "cargo"] }
 anyhow = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
 
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = { workspace = true }

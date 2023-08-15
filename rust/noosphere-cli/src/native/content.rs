@@ -139,7 +139,7 @@ impl Content {
                     .map(|extension| String::from(extension.to_string_lossy()));
 
                 let content_type = match &extension {
-                    Some(extension) => infer_content_type(extension).await?,
+                    Some(extension) => infer_content_type(extension)?,
                     None => ContentType::Bytes,
                 };
 

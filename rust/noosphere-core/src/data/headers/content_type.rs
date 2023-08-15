@@ -4,6 +4,7 @@ use std::{convert::Infallible, fmt::Display, ops::Deref, str::FromStr};
 pub enum ContentType {
     Text,
     Subtext,
+    Markdown,
     Sphere,
     Bytes,
     Cbor,
@@ -23,8 +24,14 @@ impl FromStr for ContentType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "text/plain" => ContentType::Text,
+            // See: https://github.com/subconsciousnetwork/subtext/issues/54
+            "text/vnd.subtext" => ContentType::Subtext,
             "text/subtext" => ContentType::Subtext,
+            "text/x.subtext" => ContentType::Subtext,
+            "text/x-subtext" => ContentType::Subtext,
+            "text/markdown" => ContentType::Markdown,
             "noo/sphere" => ContentType::Sphere,
+            "application/vnd.noosphere.sphere" => ContentType::Sphere,
             "raw/bytes" => ContentType::Bytes,
             "application/json" => ContentType::Json,
             "application/cbor" => ContentType::Cbor,
@@ -39,8 +46,9 @@ impl Deref for ContentType {
     fn deref(&self) -> &Self::Target {
         match self {
             ContentType::Text => "text/plain",
-            ContentType::Subtext => "text/subtext",
-            ContentType::Sphere => "noo/sphere",
+            ContentType::Markdown => "text/markdown",
+            ContentType::Subtext => "text/vnd.subtext",
+            ContentType::Sphere => "application/vnd.noosphere.sphere",
             ContentType::Bytes => "raw/bytes",
             ContentType::Cbor => "application/cbor",
             ContentType::Json => "application/json",

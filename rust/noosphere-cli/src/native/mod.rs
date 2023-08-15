@@ -4,6 +4,7 @@ pub mod cli;
 pub mod commands;
 pub mod content;
 pub mod extension;
+pub mod mime;
 pub mod paths;
 pub mod render;
 pub mod workspace;

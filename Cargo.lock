@@ -3395,6 +3395,8 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "strum 0.25.0",
+ "strum_macros",
  "subtext",
  "symlink",
  "tempfile",

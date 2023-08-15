@@ -222,6 +222,7 @@ impl TryBundle for MemoIpld {
             Some(value) => {
                 match ContentType::from_str(&value)? {
                     ContentType::Subtext
+                    | ContentType::Markdown
                     | ContentType::Text
                     | ContentType::Bytes
                     | ContentType::Json
