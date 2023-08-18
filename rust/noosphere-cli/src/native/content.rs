@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use noosphere_core::data::{BodyChunkIpld, ContentType};
-use noosphere_storage::{BlockStore, MemoryStore};
+use noosphere_storage::{BlockStore, MemoryStore, Scratch};
 use pathdiff::diff_paths;
 use std::collections::{BTreeMap, BTreeSet};
 use subtext::util::to_slug;
@@ -84,7 +84,10 @@ impl Content {
     /// provided store.
     // TODO(#556): This is slow; we could probably do a concurrent traversal
     // similar to how we traverse when rendering files to disk
-    pub async fn read_all<S: BlockStore>(paths: &SpherePaths, store: &mut S) -> Result<Content> {
+    pub async fn read_all<S: BlockStore + Scratch>(
+        paths: &SpherePaths,
+        store: &mut S,
+    ) -> Result<Content> {
         let root_path = paths.root();
         let mut directories = vec![(None, tokio::fs::read_dir(root_path).await?)];
 
@@ -144,7 +147,7 @@ impl Content {
                 };
 
                 let file_bytes = fs::read(path).await?;
-                let body_cid = BodyChunkIpld::store_bytes(&file_bytes, store).await?;
+                let body_cid = BodyChunkIpld::encode(file_bytes.as_ref(), store, None).await?;
 
                 content.matched.insert(
                     slug,
@@ -172,7 +175,6 @@ impl Content {
         let mut new_blocks = MemoryStore::default();
         let file_content =
             Content::read_all(workspace.require_sphere_paths()?, &mut new_blocks).await?;
-
         let sphere_context = workspace.sphere_context().await?;
         let walker = SphereWalker::from(&sphere_context);
 

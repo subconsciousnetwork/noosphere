@@ -1,4 +1,4 @@
-use super::{BodyChunkDecoder, SphereFile};
+use super::SphereFile;
 use crate::{AsyncFileBody, HasSphereContext};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -9,7 +9,7 @@ use tokio_util::io::StreamReader;
 use cid::Cid;
 use noosphere_core::{
     authority::Access,
-    data::{ContentType, Header, Link, MemoIpld},
+    data::{BodyChunkIpld, ContentType, Header, Link, MemoIpld},
 };
 
 /// A module-private trait for internal trait methods; this is a workaround for
@@ -86,7 +86,7 @@ where
 
         let stream = match content_type {
             // TODO(#86): Content-type aware decoding of body bytes
-            Some(_) => BodyChunkDecoder(&memo.body, &db).stream(),
+            Some(_) => BodyChunkIpld::decode(&memo.body, &db),
             None => return Err(anyhow!("No content type specified")),
         };
 

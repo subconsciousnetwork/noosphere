@@ -30,9 +30,9 @@ horrorshow = "~0.8"
 cid = { workspace = true }
 libipld-cbor = { workspace = true }
 
-bytes = "^1"
-tokio-util = "~0.7"
+bytes = { workspace = true }
 tokio-stream = { workspace = true }
+tokio-util = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "macros", "test-util"] }
 
 async-stream = { workspace = true }

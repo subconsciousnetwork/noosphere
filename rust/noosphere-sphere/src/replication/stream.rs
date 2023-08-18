@@ -6,7 +6,7 @@ use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_core::{
     authority::collect_ucan_proofs,
-    data::{ContentType, Link, MemoIpld, SphereIpld},
+    data::{BodyChunkIpld, ContentType, Link, MemoIpld, SphereIpld},
     view::Sphere,
 };
 use noosphere_storage::{BlockStore, BlockStoreTap, UcanStore};
@@ -17,7 +17,6 @@ use ucan::{store::UcanJwtStore, Ucan};
 
 use crate::{
     walk_versioned_map_changes_and, walk_versioned_map_elements, walk_versioned_map_elements_and,
-    BodyChunkDecoder,
 };
 
 /// Stream all the blocks required to reconstruct the history of a sphere since a
@@ -231,7 +230,7 @@ where
                 revocations_result??;
             }
             Some(_) => {
-                let stream = BodyChunkDecoder(&memo.body, &store).stream();
+                let stream = BodyChunkIpld::decode(&memo.body, &store);
 
                 drop(store);
 
@@ -275,8 +274,8 @@ mod tests {
     use crate::{
         car_stream,
         helpers::{simulated_sphere_context, touch_all_sphere_blocks, SimulationAccess},
-        memo_body_stream, memo_history_stream, BodyChunkDecoder, HasMutableSphereContext,
-        HasSphereContext, SphereContentWrite, SpherePetnameWrite,
+        memo_body_stream, memo_history_stream, HasMutableSphereContext, HasSphereContext,
+        SphereContentWrite, SpherePetnameWrite,
     };
 
     #[cfg(target_arch = "wasm32")]
@@ -538,7 +537,7 @@ mod tests {
         let memo = store.load::<DagCborCodec, MemoIpld>(&content_cid).await?;
 
         let mut buffer = Vec::new();
-        let body_stream = BodyChunkDecoder(&memo.body, &store).stream();
+        let body_stream = BodyChunkIpld::decode(&memo.body, &store);
 
         tokio::pin!(body_stream);
 

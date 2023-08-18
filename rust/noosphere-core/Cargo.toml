@@ -23,6 +23,8 @@ sentry = ["dep:sentry-tracing"]
 helpers = []
 
 [dependencies]
+bytes = { workspace = true }
+tempfile = { workspace = true }
 tracing = { workspace = true }
 cid = { workspace = true }
 url = { workspace = true }
@@ -34,14 +36,14 @@ async-stream = { workspace = true }
 async-once-cell = "~0.4"
 anyhow = { workspace = true }
 thiserror = { workspace = true }
-fastcdc = { workspace = true }
+fastcdc = { workspace = true, features = ["tokio"] }
 futures = "~0.3"
 serde = { workspace = true }
 serde_json = { workspace = true }
 byteorder = "^1.4"
 base64 = "0.21"
 ed25519-zebra = "^3"
-rand = "~0.8"
+rand = { workspace = true }
 once_cell = "^1"
 tiny-bip39 = "^1"
 tokio-stream = { workspace = true }
@@ -60,6 +62,7 @@ sentry-tracing = { workspace = true, optional = true }
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
 serde_bytes = "~0.11"
+tokio-util = { workspace = true, features = ["io-util"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { workspace = true, features = ["full"] }
@@ -71,3 +74,11 @@ getrandom = { version = "~0.2", features = ["js"] }
 tokio = { workspace = true, features = ["sync", "macros"] }
 console_error_panic_hook = "0.1"
 tracing-wasm = "~0.2"
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen = { workspace = true }
+web-time = { version = "0.2.0" }
+
+[[example]]
+name = "encoding"
+path = "examples/encoding.rs"

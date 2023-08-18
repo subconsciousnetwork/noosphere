@@ -33,10 +33,10 @@ url = { workspace = true, features = ["serde"] }
 subtext = { workspace = true }
 itertools = "0.11.0"
 tokio-stream = { workspace = true }
-tokio-util = { version = "~0.7", features = ["io"] }
+tokio-util = { workspace = true, features = ["io"] }
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
-bytes = "^1"
+bytes = { workspace = true }
 
 noosphere-core = { version = "0.15.1", path = "../noosphere-core" }
 noosphere-sphere = { version = "0.10.1", path = "../noosphere-sphere" }

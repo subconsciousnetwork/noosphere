@@ -13,7 +13,7 @@ use std::{collections::BTreeSet, fmt::Debug};
 use tokio_stream::{Stream, StreamExt};
 use ucan::store::{UcanStore, UcanStoreConditionalSend};
 
-use crate::{BlockStore, BlockStoreSend, KeyValueStore, MemoryStore, Storage};
+use crate::{BlockStore, BlockStoreSend, KeyValueStore, MemoryStore, Scratch, Storage};
 
 use async_stream::try_stream;
 
@@ -33,9 +33,15 @@ pub const BLOCK_STORE: &str = "blocks";
 pub const LINK_STORE: &str = "links";
 pub const VERSION_STORE: &str = "versions";
 pub const METADATA_STORE: &str = "metadata";
+pub const SCRATCH_STORE: &str = "scratch";
 
-pub const SPHERE_DB_STORE_NAMES: &[&str] =
-    &[BLOCK_STORE, LINK_STORE, VERSION_STORE, METADATA_STORE];
+pub const SPHERE_DB_STORE_NAMES: &[&str] = &[
+    BLOCK_STORE,
+    LINK_STORE,
+    VERSION_STORE,
+    METADATA_STORE,
+    SCRATCH_STORE,
+];
 
 /// A [SphereDb] is a high-level storage primitive for Noosphere's APIs. It
 /// takes a [Storage] and implements [BlockStore] and [KeyValueStore],
@@ -45,8 +51,9 @@ pub const SPHERE_DB_STORE_NAMES: &[&str] =
 #[derive(Clone, Debug)]
 pub struct SphereDb<S>
 where
-    S: Storage,
+    S: Storage + Scratch,
 {
+    storage: S,
     block_store: S::BlockStore,
     link_store: S::KeyValueStore,
     version_store: S::KeyValueStore,
@@ -55,10 +62,11 @@ where
 
 impl<S> SphereDb<S>
 where
-    S: Storage,
+    S: Storage + Scratch,
 {
     pub async fn new(storage: &S) -> Result<SphereDb<S>> {
         Ok(SphereDb {
+            storage: storage.to_owned(),
             block_store: storage.get_block_store(BLOCK_STORE).await?,
             link_store: storage.get_key_value_store(LINK_STORE).await?,
             version_store: storage.get_key_value_store(VERSION_STORE).await?,
@@ -244,7 +252,7 @@ where
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl<S> BlockStore for SphereDb<S>
 where
-    S: Storage,
+    S: Storage + Scratch,
 {
     async fn put_links<C>(&mut self, cid: &Cid, block: &[u8]) -> Result<()>
     where
@@ -274,7 +282,7 @@ where
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl<S> KeyValueStore for SphereDb<S>
 where
-    S: Storage,
+    S: Storage + Scratch,
 {
     async fn set_key<K, V>(&mut self, key: K, value: V) -> Result<()>
     where
@@ -304,7 +312,7 @@ where
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl<S> UcanStore for SphereDb<S>
 where
-    S: Storage,
+    S: Storage + Scratch,
 {
     async fn read<T: Decode<RawCodec>>(&self, cid: &Cid) -> Result<Option<T>> {
         self.get::<RawCodec, T>(cid).await
@@ -318,18 +326,33 @@ where
     }
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<S> Scratch for SphereDb<S>
+where
+    S: Storage + Scratch,
+{
+    type ScratchStore = <S as Scratch>::ScratchStore;
+
+    async fn get_scratch_store(&self) -> Result<Self::ScratchStore> {
+        self.storage.get_scratch_store().await
+    }
+}
+
 #[cfg(test)]
 mod tests {
-
+    use super::*;
+    use crate::{
+        block_encode, derive_cid, helpers::make_disposable_storage, BlockStore, KeyValueStoreSend,
+        MemoryStorage, Scratch, SphereDb,
+    };
     use libipld_cbor::DagCborCodec;
     use libipld_core::{ipld::Ipld, raw::RawCodec};
+    use tokio_stream::StreamExt;
     use ucan::store::UcanJwtStore;
+
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
-
-    use crate::{block_encode, derive_cid, BlockStore, MemoryStorage, SphereDb};
-
-    use tokio_stream::StreamExt;
 
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test_configure!(run_in_browser);
@@ -403,5 +426,51 @@ mod tests {
         let token = db.read_token(&cid).await.unwrap();
 
         assert_eq!(token, Some("foobar".into()));
+    }
+
+    async fn test_storage_scratch_provider<S>(db: SphereDb<S>) -> anyhow::Result<()>
+    where
+        S: Storage + Scratch,
+        S::ScratchStore: KeyValueStoreSend + 'static,
+    {
+        let mut stores = vec![];
+        for n in 1..3 {
+            stores.push((db.get_scratch_store().await?, n));
+        }
+
+        for record in stores.iter_mut() {
+            record
+                .0
+                .set_key(format!("foo-{}", record.1), format!("bar-{}", record.1))
+                .await?;
+        }
+
+        for record in stores {
+            for i in 1..3 {
+                let value = record.0.get_key(&format!("foo-{}", i)).await?;
+                if record.1 == i {
+                    assert_eq!(value, Some(format!("bar-{}", i)));
+                } else {
+                    assert_eq!(value, None);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    pub async fn it_supports_scratch_space_platform_default() -> anyhow::Result<()> {
+        let storage_provider = make_disposable_storage().await?;
+        let db = SphereDb::new(&storage_provider).await.unwrap();
+        test_storage_scratch_provider(db).await
+    }
+
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    pub async fn it_supports_scratch_space_memory() -> anyhow::Result<()> {
+        let storage_provider = MemoryStorage::default();
+        let db = SphereDb::new(&storage_provider).await.unwrap();
+        test_storage_scratch_provider(db).await
     }
 }

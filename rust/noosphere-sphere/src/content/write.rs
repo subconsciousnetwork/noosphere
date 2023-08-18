@@ -155,8 +155,12 @@ where
         // TODO(#38): We imply here that the only content types we care about
         // amount to byte streams, but in point of fact we can support anything
         // that may be referenced by CID including arbitrary IPLD structures
-        let body_cid =
-            BodyChunkIpld::store_bytes(&bytes, self.sphere_context_mut().await?.db_mut()).await?;
+        let body_cid = BodyChunkIpld::encode(
+            bytes.as_ref(),
+            self.sphere_context_mut().await?.db_mut(),
+            None,
+        )
+        .await?;
 
         self.link(slug, content_type, &body_cid, additional_headers)
             .await

@@ -2,12 +2,10 @@
 //! with a public "slug", that is addressable by them or others who have replicated the sphere
 //! data.
 
-mod decoder;
 mod file;
 mod read;
 mod write;
 
-pub use decoder::*;
 pub use file::*;
 pub use read::*;
 pub use write::*;

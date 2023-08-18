@@ -29,12 +29,13 @@ tracing = "~0.1"
 ucan = { workspace = true }
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
+rand = { workspace = true }
 serde = { workspace = true }
 base64 = "=0.21.2"
 url = { version = "^2" }
+witty-phrase-generator = { version = "~0.2", optional = true }
 
 [dev-dependencies]
-witty-phrase-generator = "~0.2"
 wasm-bindgen-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -53,3 +54,7 @@ features = [
   "Window",
   "DedicatedWorkerGlobalScope",
 ]
+
+[features]
+default = ["helpers"]
+helpers = ["dep:witty-phrase-generator"]

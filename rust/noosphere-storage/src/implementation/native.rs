@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use crate::storage::Storage;
 use crate::store::Store;
+use crate::{storage::Storage, Scratch};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -38,7 +38,6 @@ impl NativeStorage {
 #[async_trait]
 impl Storage for NativeStorage {
     type BlockStore = NativeStore;
-
     type KeyValueStore = NativeStore;
 
     async fn get_block_store(&self, name: &str) -> Result<Self::BlockStore> {
@@ -97,5 +96,59 @@ impl Store for NativeStore {
 impl Drop for NativeStorage {
     fn drop(&mut self) {
         let _ = self.db.flush();
+    }
+}
+
+#[async_trait]
+impl Scratch for NativeStorage {
+    type ScratchStore = TempNativeStore;
+
+    async fn get_scratch_store(&self) -> Result<Self::ScratchStore> {
+        TempNativeStore::new(&self.db)
+    }
+}
+
+#[derive(Clone)]
+/// A [NativeStore] that does not persist data after dropping.
+/// Can be created from [NativeStorage]'s [Scratch] implementation.
+pub struct TempNativeStore {
+    db: Db,
+    name: String,
+    store: NativeStore,
+}
+
+impl TempNativeStore {
+    pub(crate) fn new(db: &Db) -> Result<Self> {
+        let db = db.to_owned();
+        let name = format!("temp-native-store-{}", rand::random::<u32>());
+        let store = NativeStore::new(&db.open_tree(&name)?);
+        Ok(TempNativeStore { db, store, name })
+    }
+}
+
+#[async_trait]
+impl Store for TempNativeStore {
+    async fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        self.store.read(key).await
+    }
+
+    async fn write(&mut self, key: &[u8], bytes: &[u8]) -> Result<Option<Vec<u8>>> {
+        self.store.write(key, bytes).await
+    }
+
+    async fn remove(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        self.store.remove(key).await
+    }
+
+    async fn flush(&self) -> Result<()> {
+        self.store.flush().await
+    }
+}
+
+impl Drop for TempNativeStore {
+    fn drop(&mut self) {
+        if let Err(e) = self.db.drop_tree(&self.name) {
+            error!("Could not drop temporary tree: {}", e);
+        }
     }
 }
