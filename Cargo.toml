@@ -31,6 +31,7 @@ libipld = { version = "0.16" }
 libipld-core = { version = "0.16" }
 libipld-cbor = { version = "0.16" }
 pathdiff = { version = "0.2.1" }
+rand = { version = "0.8" }
 sentry-tracing = { version = "0.31.5" }
 serde = { version = "^1" }
 serde_json = { version = "^1" }

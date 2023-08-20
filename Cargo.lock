@@ -3392,6 +3392,7 @@ dependencies = [
  "noosphere-sphere",
  "noosphere-storage",
  "pathdiff",
+ "rand 0.8.5",
  "reqwest",
  "serde",
  "serde_json",

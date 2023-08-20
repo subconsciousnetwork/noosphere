@@ -1,4 +1,5 @@
 use anyhow::Result;
+use axum::extract::DefaultBodyLimit;
 use axum::http::{HeaderValue, Method};
 use axum::routing::{get, put};
 use axum::{Extension, Router, Server};
@@ -22,6 +23,8 @@ use crate::{
 };
 
 use noosphere_core::tracing::initialize_tracing;
+
+pub const DEFAULT_BODY_LENGTH_LIMIT: usize = 100 /* MB */ * 1000 * 1000;
 
 #[derive(Clone, Debug)]
 pub struct GatewayScope {
@@ -99,6 +102,7 @@ where
         .layer(Extension(gateway_key_did))
         .layer(Extension(syndication_tx))
         .layer(Extension(name_system_tx))
+        .layer(DefaultBodyLimit::max(DEFAULT_BODY_LENGTH_LIMIT))
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 

@@ -1,7 +1,9 @@
 #![allow(dead_code)]
 
 mod cli;
+mod random;
 
+pub use crate::helpers::random::*;
 pub use cli::*;
 
 use anyhow::Result;

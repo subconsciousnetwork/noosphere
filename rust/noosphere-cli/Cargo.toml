@@ -58,6 +58,7 @@ cid = { workspace = true }
 symlink = { workspace = true }
 pathdiff = { workspace = true }
 subtext = "0.3.2"
+rand = {workspace = true }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
