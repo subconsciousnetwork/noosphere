@@ -105,6 +105,29 @@
   * dependencies
     * noosphere-ns bumped from 0.9.3 to 0.9.4
 
+## [0.8.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.8.1...noosphere-gateway-v0.8.2) (2023-08-29)
+
+
+### Features
+
+* Ensure adopted link records are fresher than previous entries. Fixes [#258](https://github.com/subconsciousnetwork/noosphere/issues/258), fixes [#562](https://github.com/subconsciousnetwork/noosphere/issues/562) ([#578](https://github.com/subconsciousnetwork/noosphere/issues/578)) ([36e42fb](https://github.com/subconsciousnetwork/noosphere/commit/36e42fb03424858e7731d10ad0a0cf89826b1354))
+
+
+### Bug Fixes
+
+* Increase allowed request body payload size ([#608](https://github.com/subconsciousnetwork/noosphere/issues/608)) ([da83f38](https://github.com/subconsciousnetwork/noosphere/commit/da83f3894d47d606bd148b72db83414a92688cf4))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.7.3 to 0.7.4
+    * noosphere-core bumped from 0.15.1 to 0.15.2
+    * noosphere-ns bumped from 0.10.1 to 0.10.2
+    * noosphere-sphere bumped from 0.10.1 to 0.10.2
+    * noosphere-api bumped from 0.12.1 to 0.12.2
+
 ## [0.8.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.8.0...noosphere-gateway-v0.8.1) (2023-08-10)
 
 

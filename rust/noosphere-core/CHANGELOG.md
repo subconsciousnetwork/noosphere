@@ -10,6 +10,13 @@
     * noosphere-storage bumped from 0.7.0 to 0.7.1
     * noosphere-collections bumped from 0.6.0 to 0.6.1
 
+## [0.15.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.15.1...noosphere-core-v0.15.2) (2023-08-29)
+
+
+### Features
+
+* Ensure adopted link records are fresher than previous entries. Fixes [#258](https://github.com/subconsciousnetwork/noosphere/issues/258), fixes [#562](https://github.com/subconsciousnetwork/noosphere/issues/562) ([#578](https://github.com/subconsciousnetwork/noosphere/issues/578)) ([36e42fb](https://github.com/subconsciousnetwork/noosphere/commit/36e42fb03424858e7731d10ad0a0cf89826b1354))
+
 ## [0.15.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.15.0...noosphere-core-v0.15.1) (2023-08-10)
 
 

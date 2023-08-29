@@ -135,6 +135,13 @@
   * dev-dependencies
     * noosphere-sphere bumped from 0.9.0 to 0.10.0
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.15.1 to 0.15.2
+    * noosphere-sphere bumped from 0.10.1 to 0.10.2
+  * dev-dependencies
+    * noosphere-sphere bumped from 0.10.1 to 0.10.2
+
 ## [0.10.5](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.10.4...noosphere-into-v0.10.5) (2023-08-10)
 
 
