@@ -135,6 +135,8 @@
   * dev-dependencies
     * noosphere-sphere bumped from 0.9.0 to 0.10.0
 
+
+
 ## [0.10.5](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.10.4...noosphere-into-v0.10.5) (2023-08-10)
 
 

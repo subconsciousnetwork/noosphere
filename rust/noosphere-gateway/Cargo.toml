@@ -44,7 +44,7 @@ noosphere-core = { version = "0.15.1", path = "../noosphere-core" }
 noosphere-ns = { version = "0.10.1", path = "../noosphere-ns" }
 noosphere-storage = { version = "0.8.1", path = "../noosphere-storage" }
 noosphere-sphere = { version = "0.10.1", path = "../noosphere-sphere" }
-noosphere-api = { version = "0.12.1", path = "../noosphere-api" }
+noosphere-api = { version = "0.12.2", path = "../noosphere-api" }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
 cid = { workspace = true }
