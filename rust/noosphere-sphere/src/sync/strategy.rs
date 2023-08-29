@@ -359,6 +359,13 @@ where
             .bundle_until_ancestor(local_sphere_base.as_ref())
             .await?;
 
+        let mut byte_count = 0;
+        for bytes in bundle.map().values() {
+            byte_count += bytes.len();
+        }
+
+        trace!("Total bytes in bundle to be pushed: {}", byte_count);
+
         let client = context.client().await?;
 
         let local_sphere_identity = context.identity();

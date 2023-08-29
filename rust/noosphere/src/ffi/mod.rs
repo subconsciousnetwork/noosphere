@@ -1,3 +1,6 @@
+// TODO(getditto/safer_ffi#181): Re-enable this lint
+#![allow(clippy::incorrect_clone_impl_on_copy_type)]
+
 mod authority;
 mod context;
 mod error;

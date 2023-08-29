@@ -14,11 +14,14 @@ use noosphere_sphere::{
     SpherePetnameRead, SpherePetnameWrite, SphereReplicaRead, SphereSync, SphereWalker,
     SyncRecovery,
 };
+use rand::Rng;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio_stream::StreamExt;
 use url::Url;
+
+use crate::helpers::TestEntropy;
 
 #[tokio::test]
 async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() -> Result<()> {
@@ -667,5 +670,115 @@ async fn local_lineage_remains_sparse_as_graph_changes_accrue_over_time() -> Res
         .await?;
 
     ns_task.abort();
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn clients_can_sync_when_there_is_a_lot_of_content() -> Result<()> {
+    initialize_tracing(None);
+
+    let entropy = TestEntropy::default();
+    let rng = entropy.to_rng();
+
+    let ipfs_url = Url::parse("http://127.0.0.1:5001").unwrap();
+    let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await.unwrap();
+
+    let mut pair_1 = SpherePair::new("ONE", &ipfs_url, &ns_url).await?;
+    let mut pair_2 = SpherePair::new("TWO", &ipfs_url, &ns_url).await?;
+
+    pair_1.start_gateway().await?;
+    pair_2.start_gateway().await?;
+
+    let peer_2_identity = pair_2.client.workspace.sphere_identity().await?;
+    let pair_2_rng = rng.clone();
+
+    pair_2
+        .spawn(|mut ctx| async move {
+            let mut rng = pair_2_rng.lock().await;
+
+            // Long history, small-ish files
+            for _ in 0..1000 {
+                let random_index = rng.gen_range(0..100);
+                let mut random_bytes = Vec::from(rng.gen::<[u8; 32]>());
+                let slug = format!("slug{}", random_index);
+
+                let next_bytes = if let Some(mut file) = ctx.read(&slug).await? {
+                    let mut file_bytes = Vec::new();
+                    file.contents.read_to_end(&mut file_bytes).await?;
+                    file_bytes.append(&mut random_bytes);
+                    file_bytes
+                } else {
+                    random_bytes
+                };
+
+                ctx.write(&slug, &ContentType::Bytes, next_bytes.as_ref(), None)
+                    .await?;
+                ctx.save(None).await?;
+            }
+
+            Ok(ctx.sync(SyncRecovery::Retry(3)).await?)
+        })
+        .await?;
+
+    let pair_1_rng = rng.clone();
+
+    pair_1
+        .spawn(|mut ctx| async move {
+            let mut rng = pair_1_rng.lock().await;
+
+            // Modest history, large-ish files
+            for _ in 0..100 {
+                let mut random_bytes = (0..1000).fold(Vec::new(), |mut bytes, _| {
+                    bytes.append(&mut Vec::from(rng.gen::<[u8; 32]>()));
+                    bytes
+                });
+                let random_index = rng.gen_range(0..10);
+                let slug = format!("slug{}", random_index);
+
+                let next_bytes = if let Some(mut file) = ctx.read(&slug).await? {
+                    let mut file_bytes = Vec::new();
+                    file.contents.read_to_end(&mut file_bytes).await?;
+                    file_bytes.append(&mut random_bytes);
+                    file_bytes
+                } else {
+                    random_bytes
+                };
+
+                ctx.write(&slug, &ContentType::Bytes, next_bytes.as_ref(), None)
+                    .await?;
+
+                ctx.save(None).await?;
+            }
+
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+
+            ctx.set_petname("peer2", Some(peer_2_identity)).await?;
+
+            ctx.save(None).await?;
+
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+
+            // TODO(#606): Implement this part of the test when we "fix" latency asymmetry between
+            // name system and syndication workers. We should be able to test traversing to a peer
+            // after a huge update as been added to the name system.
+            /*
+            wait(1).await;
+
+            ctx.sync(SyncRecovery::Retry(3)).await?;
+
+            wait(1).await;
+
+            let cursor = SphereCursor::latest(ctx);
+            let _peer2_ctx = cursor
+                .traverse_by_petnames(&["peer2".into()])
+                .await?
+                .unwrap();
+            */
+            Ok(())
+        })
+        .await?;
+
+    ns_task.abort();
+
     Ok(())
 }
