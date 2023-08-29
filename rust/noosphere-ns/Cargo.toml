@@ -38,7 +38,7 @@ ucan-key-support = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "io-std", "sync", "macros", "rt", "rt-multi-thread"] }
 noosphere-storage = { version = "0.8.1", path = "../noosphere-storage" }
 noosphere-core = { version = "0.15.2", path = "../noosphere-core" }
-libp2p = { version = "0.51.3", default-features = false, features = [ "ed25519", "identify", "dns", "kad", "macros", "noise", "serde", "tcp", "tokio", "yamux" ] }
+libp2p = { version = "0.52.2", default-features = false, features = [ "ed25519", "identify", "dns", "kad", "macros", "noise", "serde", "tcp", "tokio", "yamux" ] }
 void = { workspace = true }
 
 # noosphere_ns::bin
