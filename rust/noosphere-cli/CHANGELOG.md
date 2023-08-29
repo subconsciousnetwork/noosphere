@@ -196,6 +196,21 @@
   * dev-dependencies
     * noosphere-ns bumped from 0.9.3 to 0.9.4
 
+## [0.14.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.14.0...noosphere-cli-v0.14.1) (2023-08-29)
+
+
+### Bug Fixes
+
+* Better handling of removed content in `orb` ([#588](https://github.com/subconsciousnetwork/noosphere/issues/588)) ([b811e68](https://github.com/subconsciousnetwork/noosphere/commit/b811e6891aec648d9a856adaeda86335ae94cacb))
+* Increase allowed request body payload size ([#608](https://github.com/subconsciousnetwork/noosphere/issues/608)) ([da83f38](https://github.com/subconsciousnetwork/noosphere/commit/da83f3894d47d606bd148b72db83414a92688cf4))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-api bumped from 0.12.1 to 0.12.2
+
 ## [0.14.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.14.0...noosphere-cli-v0.14.1) (2023-08-10)
 
 

@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-into"
-version = "0.10.5"
+version = "0.10.6"
 edition = "2021"
 description = "Transformations of Noosphere content into various target formats"
 keywords = ["html", "ipld", "noosphere", "subtext", "transcode"]

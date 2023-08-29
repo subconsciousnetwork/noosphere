@@ -106,6 +106,13 @@
   * dependencies
     * noosphere bumped from 0.13.0 to 0.13.1
 
+## [0.10.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.10.0...noosphere-ns-v0.10.1) (2023-08-29)
+
+
+### Bug Fixes
+
+* Increase allowed request body payload size ([#608](https://github.com/subconsciousnetwork/noosphere/issues/608)) ([da83f38](https://github.com/subconsciousnetwork/noosphere/commit/da83f3894d47d606bd148b72db83414a92688cf4))
+
 ## [0.10.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.10.0...noosphere-ns-v0.10.1) (2023-08-10)
 
 

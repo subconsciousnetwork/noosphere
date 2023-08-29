@@ -69,6 +69,8 @@
     * noosphere-core bumped from 0.13.0 to 0.13.1
     * noosphere-storage bumped from 0.7.0 to 0.7.1
 
+
+
 ## [0.12.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-api-v0.12.0...noosphere-api-v0.12.1) (2023-08-10)
 
 

@@ -54,6 +54,14 @@
     * noosphere-storage bumped from 0.7.1 to 0.8.0
     * noosphere-core bumped from 0.14.0 to 0.15.0
 
+## [0.7.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.7.2...noosphere-ipfs-v0.7.3) (2023-08-29)
+
+
+### Bug Fixes
+
+* Better handling of removed content in `orb` ([#588](https://github.com/subconsciousnetwork/noosphere/issues/588)) ([b811e68](https://github.com/subconsciousnetwork/noosphere/commit/b811e6891aec648d9a856adaeda86335ae94cacb))
+* Increase allowed request body payload size ([#608](https://github.com/subconsciousnetwork/noosphere/issues/608)) ([da83f38](https://github.com/subconsciousnetwork/noosphere/commit/da83f3894d47d606bd148b72db83414a92688cf4))
+
 ## [0.7.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.7.2...noosphere-ipfs-v0.7.3) (2023-08-10)
 
 
