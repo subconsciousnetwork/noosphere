@@ -29,6 +29,7 @@ pub struct SphereIpld {
 }
 
 impl SphereIpld {
+    /// Initialize a new, empty [SphereIpld] with a given [Did] sphere identity.
     pub async fn new<S>(identity: &Did, store: &mut S) -> Result<SphereIpld>
     where
         S: BlockStore,
@@ -58,31 +59,23 @@ impl SphereIpld {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use ed25519_zebra::{SigningKey as Ed25519PrivateKey, VerificationKey as Ed25519PublicKey};
     use libipld_cbor::DagCborCodec;
     use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
-    use ucan_key_support::ed25519::Ed25519KeyMaterial;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use crate::{
-        authority::{generate_capability, SphereAbility},
+        authority::{generate_capability, generate_ed25519_key, SphereAbility},
         data::{ContentType, Did, Header, MemoIpld, SphereIpld},
         view::Sphere,
     };
 
     use noosphere_storage::{BlockStore, MemoryStorage, SphereDb};
 
-    fn generate_credential() -> Ed25519KeyMaterial {
-        let private_key = Ed25519PrivateKey::new(rand::thread_rng());
-        let public_key = Ed25519PublicKey::from(&private_key);
-        Ed25519KeyMaterial(public_key, Some(private_key))
-    }
-
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_be_signed_by_identity_key_and_verified() -> Result<()> {
-        let identity_credential = generate_credential();
+        let identity_credential = generate_ed25519_key();
         let identity = Did(identity_credential.get_did().await?);
 
         let mut store = SphereDb::new(&MemoryStorage::default()).await?;
@@ -128,8 +121,8 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_be_signed_by_an_authorized_key_and_verified() -> Result<()> {
-        let identity_credential = generate_credential();
-        let authorized_credential = generate_credential();
+        let identity_credential = generate_ed25519_key();
+        let authorized_credential = generate_ed25519_key();
 
         let identity = Did(identity_credential.get_did().await?);
         let authorized = Did(authorized_credential.get_did().await?);

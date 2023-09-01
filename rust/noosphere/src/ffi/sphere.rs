@@ -2,8 +2,8 @@ use std::ffi::c_void;
 
 use anyhow::anyhow;
 use cid::Cid;
+use noosphere_core::context::{HasSphereContext, SphereSync, SyncRecovery};
 use noosphere_core::{authority::Authorization, data::Did};
-use noosphere_sphere::{HasSphereContext, SphereSync, SyncRecovery};
 use safer_ffi::char_p::InvalidNulTerminator;
 use safer_ffi::prelude::*;
 

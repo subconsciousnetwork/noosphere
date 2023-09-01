@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use noosphere_api::data::ReplicateParameters;
 use noosphere_core::{
     data::{Link, MemoIpld},
+    stream::put_block_stream,
     view::{Sphere, Timeline},
 };
 use noosphere_storage::Storage;
@@ -192,14 +193,14 @@ where
                     let replicate_parameters = since.as_ref().map(|since| ReplicateParameters {
                         since: Some(since.clone()),
                     });
-                    let (mut db, client) = {
+                    let (db, client) = {
                         let sphere_context = cursor.sphere_context().await?;
                         (sphere_context.db().clone(), sphere_context.client().await?)
                     };
                     let stream = client
                         .replicate(&version, replicate_parameters.as_ref())
                         .await?;
-                    db.put_block_stream(stream).await?;
+                    put_block_stream(db.clone(), stream).await?;
 
                     // If this was incremental replication, we have to hydrate...
                     if let Some(since) = since {

@@ -20,7 +20,9 @@ use super::generate_capability;
 /// else read-only access (to all other spheres).
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Access {
+    /// Read/write access to a sphere
     ReadWrite,
+    /// Read-only access to a sphere
     ReadOnly,
 }
 
@@ -33,7 +35,9 @@ pub struct Author<K>
 where
     K: KeyMaterial + Clone + 'static,
 {
+    /// [KeyMaterial] that the [Author] has access to
     pub key: K,
+    /// Optional proof of [Authorization] for the associated key
     pub authorization: Option<Authorization>,
 }
 

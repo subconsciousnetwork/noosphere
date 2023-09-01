@@ -8,6 +8,9 @@ pub mod paths;
 pub mod render;
 pub mod workspace;
 
+#[cfg(any(test, feature = "helpers"))]
+pub mod helpers;
+
 use anyhow::Result;
 
 use noosphere_core::tracing::initialize_tracing;

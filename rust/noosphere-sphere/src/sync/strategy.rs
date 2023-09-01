@@ -5,6 +5,7 @@ use noosphere_api::data::{FetchParameters, PushBody, PushResponse};
 use noosphere_core::{
     authority::{generate_capability, SphereAbility},
     data::{Did, IdentityIpld, Jwt, Link, MemoIpld, LINK_RECORD_FACT_NAME},
+    stream::put_block_stream,
     view::{Sphere, Timeline},
 };
 use noosphere_storage::{KeyValueStore, SphereDb, Storage};
@@ -178,7 +179,7 @@ where
             }
         };
 
-        context.db_mut().put_block_stream(block_stream).await?;
+        put_block_stream(context.db_mut().clone(), block_stream).await?;
 
         trace!("Finished putting block stream");
 

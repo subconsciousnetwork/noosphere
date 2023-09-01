@@ -7,27 +7,16 @@ use libipld_core::{
     ipld::Ipld,
     raw::RawCodec,
 };
+use noosphere_common::ConditionalSend;
 use serde::{de::DeserializeOwned, Serialize};
 use std::future::Future;
 use std::{collections::BTreeSet, fmt::Debug};
-use tokio_stream::{Stream, StreamExt};
-use ucan::store::{UcanStore, UcanStoreConditionalSend};
+use tokio_stream::Stream;
+use ucan::store::UcanStore;
 
-use crate::{BlockStore, BlockStoreSend, KeyValueStore, MemoryStore, Storage};
+use crate::{BlockStore, KeyValueStore, MemoryStore, Storage};
 
 use async_stream::try_stream;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub trait SphereDbSendSync: Send + Sync {}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl<T> SphereDbSendSync for T where T: Send + Sync {}
-
-#[cfg(target_arch = "wasm32")]
-pub trait SphereDbSendSync {}
-
-#[cfg(target_arch = "wasm32")]
-impl<T> SphereDbSendSync for T {}
 
 pub const BLOCK_STORE: &str = "blocks";
 pub const LINK_STORE: &str = "links";
@@ -203,36 +192,6 @@ where
         }
     }
 
-    pub async fn put_block_stream<Str>(&mut self, stream: Str) -> Result<()>
-    where
-        Str: Stream<Item = Result<(Cid, Vec<u8>)>>,
-    {
-        tokio::pin!(stream);
-
-        let mut stream_count = 0usize;
-
-        while let Some((cid, block)) = stream.try_next().await? {
-            stream_count += 1;
-            trace!(?cid, "Putting streamed block {stream_count}...");
-
-            self.put_block(&cid, &block).await?;
-
-            match cid.codec() {
-                codec_id if codec_id == u64::from(DagCborCodec) => {
-                    self.put_links::<DagCborCodec>(&cid, &block).await?;
-                }
-                codec_id if codec_id == u64::from(RawCodec) => {
-                    self.put_links::<RawCodec>(&cid, &block).await?;
-                }
-                codec_id => warn!("Unrecognized codec {}; skipping...", codec_id),
-            }
-        }
-
-        trace!("Loaded {stream_count} blocks from stream...");
-
-        Ok(())
-    }
-
     /// Get an owned copy of the underlying primitive [BlockStore] for this
     /// [SphereDb]
     pub fn to_block_store(&self) -> S::BlockStore {
@@ -278,23 +237,23 @@ where
 {
     async fn set_key<K, V>(&mut self, key: K, value: V) -> Result<()>
     where
-        K: AsRef<[u8]> + BlockStoreSend,
-        V: Serialize + BlockStoreSend,
+        K: AsRef<[u8]> + ConditionalSend,
+        V: Serialize + ConditionalSend,
     {
         self.metadata_store.set_key(key, value).await
     }
 
     async fn unset_key<K>(&mut self, key: K) -> Result<()>
     where
-        K: AsRef<[u8]> + BlockStoreSend,
+        K: AsRef<[u8]> + ConditionalSend,
     {
         self.metadata_store.unset_key(key).await
     }
 
     async fn get_key<K, V>(&self, key: K) -> Result<Option<V>>
     where
-        K: AsRef<[u8]> + BlockStoreSend,
-        V: DeserializeOwned + BlockStoreSend,
+        K: AsRef<[u8]> + ConditionalSend,
+        V: DeserializeOwned + ConditionalSend,
     {
         self.metadata_store.get_key(key).await
     }
@@ -310,7 +269,7 @@ where
         self.get::<RawCodec, T>(cid).await
     }
 
-    async fn write<T: Encode<RawCodec> + UcanStoreConditionalSend + Debug>(
+    async fn write<T: Encode<RawCodec> + ConditionalSend + Debug>(
         &mut self,
         token: T,
     ) -> Result<Cid> {

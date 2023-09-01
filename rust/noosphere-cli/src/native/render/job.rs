@@ -2,11 +2,11 @@
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere_core::data::{Did, Link, LinkRecord, MemoIpld};
-use noosphere_sphere::{
+use noosphere_core::context::{
     HasSphereContext, SphereContentRead, SphereCursor, SpherePetnameRead, SphereReplicaRead,
     SphereWalker,
 };
+use noosphere_core::data::{Did, Link, LinkRecord, MemoIpld};
 use noosphere_storage::Storage;
 use std::{marker::PhantomData, sync::Arc};
 use tokio::sync::mpsc::Sender;

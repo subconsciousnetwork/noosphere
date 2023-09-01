@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use noosphere_core::{authority::Authorization, data::Did};
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 
-use noosphere_sphere::{SphereContext, SphereCursor};
+use noosphere_core::context::{SphereContext, SphereCursor};
 use tokio::sync::Mutex;
 use url::Url;
 

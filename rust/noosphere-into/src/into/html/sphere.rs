@@ -2,7 +2,7 @@ use std::{collections::BTreeSet, io::Cursor, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
-use noosphere_sphere::{HasSphereContext, SphereContentRead, SphereCursor};
+use noosphere_core::context::{HasSphereContext, SphereContentRead, SphereCursor};
 use noosphere_storage::Storage;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
@@ -160,17 +160,16 @@ where
 pub mod tests {
     use std::path::PathBuf;
 
-    use noosphere_core::data::{ContentType, Header};
-
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
     use crate::write::MemoryWriteTarget;
-    use noosphere_sphere::{
+    use noosphere_core::{
+        context::{HasMutableSphereContext, SphereContentWrite, SphereCursor},
+        data::{ContentType, Header},
         helpers::{simulated_sphere_context, SimulationAccess},
-        HasMutableSphereContext, SphereContentWrite, SphereCursor,
     };
 
     use super::sphere_into_html;

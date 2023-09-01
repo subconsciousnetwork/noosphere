@@ -1,9 +1,9 @@
 use anyhow::{anyhow, Result};
 use axum::{error_handling::HandleErrorLayer, http::StatusCode, routing::get_service};
-use noosphere_into::{sphere_into_html, NativeFs};
-use noosphere_sphere::{
+use noosphere_core::context::{
     HasMutableSphereContext, SphereContentWrite, SphereContext, SphereContextKey, SphereCursor,
 };
+use noosphere_into::{sphere_into_html, NativeFs};
 use std::{ffi::OsStr, net::SocketAddr, path::Path, sync::Arc};
 use tempfile::TempDir;
 use tokio::{

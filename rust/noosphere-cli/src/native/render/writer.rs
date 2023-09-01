@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use noosphere_core::context::{AsyncFileBody, SphereFile};
 use noosphere_core::data::Did;
-use noosphere_sphere::{AsyncFileBody, SphereFile};
 use pathdiff::diff_paths;
 use std::{
     path::{Path, PathBuf},

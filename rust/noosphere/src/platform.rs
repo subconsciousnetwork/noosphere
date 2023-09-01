@@ -146,7 +146,7 @@ mod inner {
 use std::sync::Arc;
 
 pub use inner::*;
-use noosphere_sphere::{SphereContext, SphereCursor};
+use noosphere_core::context::{SphereContext, SphereCursor};
 use tokio::sync::Mutex;
 
 use crate::sphere::SphereChannel;

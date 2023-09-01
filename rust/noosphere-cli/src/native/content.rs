@@ -11,7 +11,7 @@ use subtext::util::to_slug;
 use tokio::fs;
 use tokio_stream::StreamExt;
 
-use noosphere_sphere::SphereWalker;
+use noosphere_core::context::SphereWalker;
 
 use super::{extension::infer_content_type, paths::SpherePaths, workspace::Workspace};
 

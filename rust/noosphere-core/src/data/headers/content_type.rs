@@ -1,13 +1,21 @@
 use std::{convert::Infallible, fmt::Display, ops::Deref, str::FromStr};
 
+/// Various well-known mimes in Noosphere
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Debug)]
 pub enum ContentType {
+    /// Plain text
     Text,
+    /// Subtext
     Subtext,
+    /// A sphere
     Sphere,
+    /// Raw bytes
     Bytes,
+    /// CBOR bytes
     Cbor,
+    /// JSON
     Json,
+    /// All others
     Unknown(String),
 }
 

@@ -1,4 +1,4 @@
-use noosphere_sphere::HasSphereContext;
+use noosphere_core::context::HasSphereContext;
 use noosphere_storage::Storage;
 
 use crate::{Resolver, SphereContentTranscluder, StaticHtmlResolver, Transcluder};

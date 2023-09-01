@@ -5,8 +5,8 @@ use std::{ffi::c_void, str::FromStr};
 
 use anyhow::anyhow;
 use cid::Cid;
+use noosphere_core::context::{SpherePetnameRead, SpherePetnameWrite, SphereWalker};
 use noosphere_core::data::Did;
-use noosphere_sphere::{SpherePetnameRead, SpherePetnameWrite, SphereWalker};
 use safer_ffi::{char_p::InvalidNulTerminator, prelude::*};
 
 use crate::ffi::{NsError, TryOrInitialize};

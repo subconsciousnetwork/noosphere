@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
+use noosphere_core::context::{HasMutableSphereContext, SphereContentWrite, SphereCursor};
 use noosphere_core::data::Header;
-use noosphere_sphere::{HasMutableSphereContext, SphereContentWrite, SphereCursor};
 use noosphere_storage::BlockStore;
 
 use crate::native::{

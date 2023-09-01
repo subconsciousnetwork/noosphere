@@ -1,8 +1,11 @@
 use anyhow::anyhow;
 use std::{convert::Infallible, fmt::Display, str::FromStr};
 
+/// The Noosphere protocol version
 pub enum Version {
+    #[allow(missing_docs)]
     V0,
+    /// All others
     Unknown(String),
 }
 

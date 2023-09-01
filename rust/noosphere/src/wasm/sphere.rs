@@ -2,7 +2,7 @@ use anyhow::Result;
 use cid::Cid;
 
 use crate::{platform::PlatformSphereChannel, wasm::SphereFs};
-use noosphere_sphere::SphereCursor;
+use noosphere_core::context::SphereCursor;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]

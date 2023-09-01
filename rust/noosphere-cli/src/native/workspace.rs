@@ -5,8 +5,10 @@ use cid::Cid;
 use directories::ProjectDirs;
 use noosphere::sphere::SphereContextBuilder;
 use noosphere_core::authority::Author;
+use noosphere_core::context::{
+    SphereContentRead, SphereContext, SphereCursor, COUNTERPART, GATEWAY_URL,
+};
 use noosphere_core::data::{Did, Link, LinkRecord, MemoIpld};
-use noosphere_sphere::{SphereContentRead, SphereContext, SphereCursor, COUNTERPART, GATEWAY_URL};
 use noosphere_storage::{KeyValueStore, NativeStorage, SphereDb};
 use serde_json::Value;
 use std::path::{Path, PathBuf};

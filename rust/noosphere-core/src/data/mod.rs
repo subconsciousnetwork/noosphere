@@ -1,3 +1,7 @@
+//! Core data types in use by the Noosphere protocol. Data types in here
+//! represent the canonical structure of Noosphere data as expressed by
+//! block-encoded IPLD.
+
 mod address;
 mod authority;
 mod body_chunk;

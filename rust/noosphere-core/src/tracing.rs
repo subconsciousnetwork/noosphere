@@ -9,6 +9,7 @@ pub static NOOSPHERE_LOG_LEVEL_CRATES: &[&str] = &[
     "noosphere",
     "noosphere_core",
     "noosphere_storage",
+    "noosphere_common",
     "noosphere_sphere",
     "noosphere_into",
     "noosphere_gateway",
@@ -116,16 +117,22 @@ impl Default for NoosphereLogFormat {
 /// [`env-filter`](https://docs.rs/env_logger/0.10.0/env_logger/#enabling-logging)
 #[derive(Clone, Display, EnumString)]
 pub enum NoosphereLogLevel {
+    /// Equivalent to [tracing::Level::TRACE]
     #[strum(serialize = "trace")]
     Trace,
+    /// Equivalent to [tracing::Level::DEBUG]
     #[strum(serialize = "debug")]
     Debug,
+    /// Equivalent to [tracing::Level::INFO]
     #[strum(serialize = "info")]
     Info,
+    /// Equivalent to [tracing::Level::WARN]
     #[strum(serialize = "warn")]
     Warn,
+    /// Equivalent to [tracing::Level::ERROR]
     #[strum(serialize = "error")]
     Error,
+    /// Disables logging entirely
     #[strum(serialize = "off")]
     Off,
 }
@@ -159,6 +166,8 @@ mod inner {
     use std::sync::Once;
     static INITIALIZE_TRACING: Once = Once::new();
 
+    /// Initialize tracing-based logging throughout the Noosphere body of code,
+    /// as well as dependencies that implement tracing-based logging.
     pub fn initialize_tracing(_noosphere_log: Option<NoosphereLog>) {
         INITIALIZE_TRACING.call_once(|| {
             console_error_panic_hook::set_once();

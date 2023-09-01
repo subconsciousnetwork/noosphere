@@ -1,6 +1,6 @@
 use anyhow::Result;
+use noosphere_core::context::metadata::{COUNTERPART, GATEWAY_URL};
 use noosphere_core::data::Did;
-use noosphere_sphere::metadata::{COUNTERPART, GATEWAY_URL};
 use noosphere_storage::KeyValueStore;
 
 use url::Url;

@@ -2,15 +2,15 @@ use std::{io::Cursor, sync::Arc};
 
 use anyhow::Result;
 use libipld_cbor::DagCborCodec;
+use noosphere_core::context::{
+    metadata::COUNTERPART, HasMutableSphereContext, SphereContentRead, SphereContentWrite,
+    SphereCursor,
+};
 use noosphere_core::{
     data::{ContentType, Did, Link, MemoIpld},
     view::Timeline,
 };
 use noosphere_ipfs::{IpfsClient, KuboClient};
-use noosphere_sphere::{
-    metadata::COUNTERPART, HasMutableSphereContext, SphereContentRead, SphereContentWrite,
-    SphereCursor,
-};
 use noosphere_storage::{block_deserialize, block_serialize, BlockStore, KeyValueStore, Storage};
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -158,11 +158,10 @@ where
 
         let stream = db.query_links(&cid, {
             let filter = Arc::new(syndicated_blocks.clone());
-            let kubo_client = kubo_client.clone();
 
             move |cid| {
                 let filter = filter.clone();
-                let kubo_client = kubo_client.clone();
+                // let kubo_client = kubo_client.clone();
                 let cid = *cid;
 
                 async move {
@@ -177,11 +176,7 @@ where
                         return Ok(true);
                     }
 
-                    // This will probably end up being rather noisy for the
-                    // IPFS node, but hopefully checking for a pin is not
-                    // overly costly. We may have to come up with a
-                    // different strategy if this turns out to be too noisy.
-                    Ok(!kubo_client.block_is_pinned(&cid).await?)
+                    Ok(false)
                 }
             }
         });

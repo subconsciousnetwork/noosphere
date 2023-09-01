@@ -263,7 +263,7 @@ pub mod test {
             assert_eq!(&socket.to_string(), expectation);
         }
 
-        for failure_addr in vec![
+        for failure_addr in [
             CLIAddress::Url("http://127.0.0.1:6666".parse()?),
             CLIAddress::Multiaddr("/ip4/127.0.0.1/tcp/6666".parse()?),
         ] {
@@ -303,7 +303,8 @@ pub mod test {
             );
         }
 
-        for failure_addr in vec![CLIAddress::Url("http://127.0.0.1:6666".parse()?)] {
+        {
+            let failure_addr = CLIAddress::Url("http://127.0.0.1:6666".parse()?);
             let result: Result<Multiaddr> = failure_addr.try_into();
             assert!(result.is_err());
         }
@@ -329,7 +330,8 @@ pub mod test {
             assert_eq!(&url.to_string(), expectation);
         }
 
-        for failure_addr in vec![CLIAddress::Multiaddr("/ip4/127.0.0.1/tcp/6666".parse()?)] {
+        {
+            let failure_addr = CLIAddress::Multiaddr("/ip4/127.0.0.1/tcp/6666".parse()?);
             let result: Result<Url> = failure_addr.try_into();
             assert!(result.is_err());
         }

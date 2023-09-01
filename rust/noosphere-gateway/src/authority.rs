@@ -10,7 +10,7 @@ use axum::{
 };
 use libipld_core::cid::Cid;
 use noosphere_core::authority::{SphereAbility, SphereReference, SPHERE_SEMANTICS};
-use noosphere_sphere::SphereContext;
+use noosphere_core::context::SphereContext;
 use noosphere_storage::NativeStorage;
 
 use tokio::sync::Mutex;

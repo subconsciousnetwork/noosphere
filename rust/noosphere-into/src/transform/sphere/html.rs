@@ -1,9 +1,9 @@
 use crate::{html_document_envelope, subtext_to_html_fragment_stream, Transform, TransformStream};
 use async_stream::stream;
 use futures::Stream;
+use noosphere_core::context::{HasSphereContext, SphereFile};
 use noosphere_core::data::{ContentType, Header};
 use noosphere_core::view::Sphere;
-use noosphere_sphere::{HasSphereContext, SphereFile};
 use noosphere_storage::{BlockStore, Storage};
 
 /// Given a [Transform] and a [Sphere], produce a stream that yields the file

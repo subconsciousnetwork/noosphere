@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{platform::PlatformStorage, wasm::SphereFile};
 use js_sys::{Array, Function};
-use noosphere_sphere::{
+use noosphere_core::context::{
     HasMutableSphereContext, SphereContentRead, SphereContentWrite, SphereContext, SphereCursor,
     SphereWalker,
 };
