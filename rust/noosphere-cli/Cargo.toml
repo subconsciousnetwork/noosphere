@@ -28,7 +28,7 @@ noosphere-ns = { version = "0.10.2", path = "../noosphere-ns" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tempfile = { workspace = true }
-clap = { version = "^4.3", features = ["derive", "cargo"] }
+clap = { version = "^4.4", features = ["derive", "cargo"] }
 anyhow = { workspace = true }
 
 tokio = { workspace = true, features = ["full"] }
