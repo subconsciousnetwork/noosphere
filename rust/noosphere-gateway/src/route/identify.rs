@@ -8,11 +8,11 @@ use noosphere_storage::Storage;
 pub async fn identify_route<C, S>(
     Extension(scope): Extension<GatewayScope>,
     Extension(sphere_context): Extension<C>,
-    authority: GatewayAuthority,
+    authority: GatewayAuthority<S>,
 ) -> Result<impl IntoResponse, StatusCode>
 where
     C: HasSphereContext<S>,
-    S: Storage,
+    S: Storage + 'static,
 {
     debug!("Invoking identify route...");
 

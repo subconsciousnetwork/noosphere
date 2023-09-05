@@ -35,7 +35,7 @@ pub type ReplicationCarStreamBody =
 /// fetch from the gateway.
 #[instrument(level = "debug", skip(authority, scope, sphere_context,))]
 pub async fn replicate_route<C, S>(
-    authority: GatewayAuthority,
+    authority: GatewayAuthority<S>,
     // NOTE: Cannot go from string to CID via serde
     Path(memo_version): Path<String>,
     Query(ReplicateParameters { since }): Query<ReplicateParameters>,

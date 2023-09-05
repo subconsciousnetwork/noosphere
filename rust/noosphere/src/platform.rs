@@ -8,7 +8,7 @@
     target_vendor = "apple"
 ))]
 mod inner {
-    use noosphere_storage::NativeStorage;
+    use noosphere_storage::SledStorage;
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
     use crate::key::InsecureKeyStorage;
@@ -19,13 +19,13 @@ mod inner {
     pub type PlatformKeyStorage = InsecureKeyStorage;
 
     #[cfg(not(feature = "ipfs-storage"))]
-    pub type PlatformStorage = NativeStorage;
+    pub type PlatformStorage = SledStorage;
 
     #[cfg(feature = "ipfs-storage")]
     use noosphere_ipfs::{IpfsStorage, KuboClient};
 
     #[cfg(feature = "ipfs-storage")]
-    pub type PlatformStorage = IpfsStorage<NativeStorage, KuboClient>;
+    pub type PlatformStorage = IpfsStorage<SledStorage, KuboClient>;
 
     #[cfg(test)]
     use anyhow::Result;
@@ -59,14 +59,14 @@ mod inner {
     pub type PlatformKeyMaterial = Arc<WebCryptoRsaKeyMaterial>;
     pub type PlatformKeyStorage = WebCryptoKeyStorage;
 
-    use noosphere_storage::WebStorage;
+    use noosphere_storage::IndexedDbStorage;
 
     #[cfg(feature = "ipfs-storage")]
     pub type PlatformStorage =
-        noosphere_ipfs::IpfsStorage<WebStorage, noosphere_ipfs::GatewayClient>;
+        noosphere_ipfs::IpfsStorage<IndexedDbStorage, noosphere_ipfs::GatewayClient>;
 
     #[cfg(not(feature = "ipfs-storage"))]
-    pub type PlatformStorage = WebStorage;
+    pub type PlatformStorage = IndexedDbStorage;
 
     #[cfg(test)]
     use anyhow::Result;
@@ -104,7 +104,7 @@ mod inner {
     ))
 ))]
 mod inner {
-    use noosphere_storage::NativeStorage;
+    use noosphere_storage::SledStorage;
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
     use crate::key::InsecureKeyStorage;
@@ -113,13 +113,13 @@ mod inner {
     pub type PlatformKeyStorage = InsecureKeyStorage;
 
     #[cfg(not(feature = "ipfs-storage"))]
-    pub type PlatformStorage = NativeStorage;
+    pub type PlatformStorage = SledStorage;
 
     #[cfg(feature = "ipfs-storage")]
     use noosphere_ipfs::{IpfsStorage, KuboClient};
 
     #[cfg(feature = "ipfs-storage")]
-    pub type PlatformStorage = IpfsStorage<NativeStorage, KuboClient>;
+    pub type PlatformStorage = IpfsStorage<SledStorage, KuboClient>;
 
     #[cfg(test)]
     use anyhow::Result;

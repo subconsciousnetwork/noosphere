@@ -11,8 +11,8 @@ use axum::{
 use libipld_core::cid::Cid;
 use noosphere_core::authority::{SphereAbility, SphereReference, SPHERE_SEMANTICS};
 use noosphere_sphere::SphereContext;
-use noosphere_storage::NativeStorage;
 
+use noosphere_storage::Storage;
 use tokio::sync::Mutex;
 use ucan::{capability::CapabilityView, chain::ProofChain, store::UcanJwtStore};
 
@@ -23,12 +23,16 @@ use super::GatewayScope;
 /// represented by a UCAN. Any request handler can use a GatewayAuthority
 /// to test if a required capability is satisfied by the authorization
 /// presented by the maker of the request.
-pub struct GatewayAuthority {
+pub struct GatewayAuthority<S> {
     proof: ProofChain,
     scope: GatewayScope,
+    marker: std::marker::PhantomData<S>,
 }
 
-impl GatewayAuthority {
+impl<S> GatewayAuthority<S>
+where
+    S: Storage + 'static,
+{
     pub fn try_authorize(
         &self,
         capability: &CapabilityView<SphereReference, SphereAbility>,
@@ -52,16 +56,17 @@ impl GatewayAuthority {
 }
 
 #[async_trait]
-impl<S> FromRequestParts<S> for GatewayAuthority
+impl<S, St> FromRequestParts<St> for GatewayAuthority<S>
 where
-    S: Send + Sync,
+    St: Send + Sync,
+    S: Storage + 'static,
 {
     type Rejection = StatusCode;
 
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &St) -> Result<Self, Self::Rejection> {
         let sphere_context = parts
             .extensions
-            .get::<Arc<Mutex<SphereContext<NativeStorage>>>>()
+            .get::<Arc<Mutex<SphereContext<S>>>>()
             .ok_or_else(|| {
                 error!("Could not find DidParser in extensions");
                 StatusCode::INTERNAL_SERVER_ERROR
@@ -141,6 +146,7 @@ where
         Ok(GatewayAuthority {
             scope: gateway_scope.clone(),
             proof: proof_chain,
+            marker: std::marker::PhantomData,
         })
     }
 }

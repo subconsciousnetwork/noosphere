@@ -42,22 +42,22 @@ impl From<StorageLayout> for PathBuf {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-use noosphere_storage::{NativeStorage, NativeStorageInit};
+use noosphere_storage::{SledStorage, SledStorageInit};
 
 #[cfg(not(target_arch = "wasm32"))]
 impl StorageLayout {
-    pub async fn to_storage(&self) -> Result<NativeStorage> {
-        NativeStorage::new(NativeStorageInit::Path(PathBuf::from(self)))
+    pub async fn to_storage(&self) -> Result<SledStorage> {
+        SledStorage::new(SledStorageInit::Path(PathBuf::from(self)))
     }
 }
 
 #[cfg(target_arch = "wasm32")]
-use noosphere_storage::WebStorage;
+use noosphere_storage::IndexedDbStorage;
 
 #[cfg(target_arch = "wasm32")]
 impl StorageLayout {
-    pub async fn to_storage(&self) -> Result<WebStorage> {
-        WebStorage::new(&self.to_string()).await
+    pub async fn to_storage(&self) -> Result<IndexedDbStorage> {
+        IndexedDbStorage::new(&self.to_string()).await
     }
 }
 

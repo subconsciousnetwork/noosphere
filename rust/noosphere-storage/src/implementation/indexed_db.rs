@@ -12,17 +12,17 @@ use wasm_bindgen::{JsCast, JsValue};
 pub const INDEXEDDB_STORAGE_VERSION: u32 = 1;
 
 #[derive(Clone)]
-pub struct WebStorage {
+pub struct IndexedDbStorage {
     db: Rc<Rexie>,
 }
 
-impl Debug for WebStorage {
+impl Debug for IndexedDbStorage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WebStorage").finish()
+        f.debug_struct("IndexedDbStorage").finish()
     }
 }
 
-impl WebStorage {
+impl IndexedDbStorage {
     pub async fn new(db_name: &str) -> Result<Self> {
         Self::configure(INDEXEDDB_STORAGE_VERSION, db_name, SPHERE_DB_STORE_NAMES).await
     }
@@ -39,10 +39,10 @@ impl WebStorage {
             .await
             .map_err(|error| anyhow!("{:?}", error))?;
 
-        Ok(WebStorage { db: Rc::new(db) })
+        Ok(IndexedDbStorage { db: Rc::new(db) })
     }
 
-    async fn get_store(&self, name: &str) -> Result<WebStore> {
+    async fn get_store(&self, name: &str) -> Result<IndexedDbStore> {
         if self
             .db
             .store_names()
@@ -53,7 +53,7 @@ impl WebStorage {
             return Err(anyhow!("No such store named {}", name));
         }
 
-        Ok(WebStore {
+        Ok(IndexedDbStore {
             db: self.db.clone(),
             store_name: name.to_string(),
         })
@@ -61,10 +61,10 @@ impl WebStorage {
 }
 
 #[async_trait(?Send)]
-impl Storage for WebStorage {
-    type BlockStore = WebStore;
+impl Storage for IndexedDbStorage {
+    type BlockStore = IndexedDbStore;
 
-    type KeyValueStore = WebStore;
+    type KeyValueStore = IndexedDbStore;
 
     async fn get_block_store(&self, name: &str) -> Result<Self::BlockStore> {
         self.get_store(name).await
@@ -76,12 +76,12 @@ impl Storage for WebStorage {
 }
 
 #[derive(Clone)]
-pub struct WebStore {
+pub struct IndexedDbStore {
     db: Rc<Rexie>,
     store_name: String,
 }
 
-impl WebStore {
+impl IndexedDbStore {
     fn start_transaction(&self, mode: TransactionMode) -> Result<(IdbStore, Transaction)> {
         let tx = self
             .db
@@ -116,7 +116,7 @@ impl WebStore {
     }
 
     async fn read(key: &JsValue, store: &IdbStore) -> Result<Option<Vec<u8>>> {
-        Ok(match WebStore::contains(&key, &store).await? {
+        Ok(match IndexedDbStore::contains(&key, &store).await? {
             true => Some(
                 store
                     .get(&key)
@@ -132,14 +132,14 @@ impl WebStore {
 }
 
 #[async_trait(?Send)]
-impl Store for WebStore {
+impl Store for IndexedDbStore {
     async fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let (store, tx) = self.start_transaction(TransactionMode::ReadOnly)?;
-        let key = WebStore::bytes_to_typed_array(key)?;
+        let key = IndexedDbStore::bytes_to_typed_array(key)?;
 
-        let maybe_dag = WebStore::read(&key, &store).await?;
+        let maybe_dag = IndexedDbStore::read(&key, &store).await?;
 
-        WebStore::finish_transaction(tx).await?;
+        IndexedDbStore::finish_transaction(tx).await?;
 
         Ok(maybe_dag)
     }
@@ -147,17 +147,17 @@ impl Store for WebStore {
     async fn write(&mut self, key: &[u8], bytes: &[u8]) -> Result<Option<Vec<u8>>> {
         let (store, tx) = self.start_transaction(TransactionMode::ReadWrite)?;
 
-        let key = WebStore::bytes_to_typed_array(key)?;
-        let value = WebStore::bytes_to_typed_array(bytes)?;
+        let key = IndexedDbStore::bytes_to_typed_array(key)?;
+        let value = IndexedDbStore::bytes_to_typed_array(bytes)?;
 
-        let old_bytes = WebStore::read(&key, &store).await?;
+        let old_bytes = IndexedDbStore::read(&key, &store).await?;
 
         store
             .put(&value, Some(&key))
             .await
             .map_err(|error| anyhow!("{:?}", error))?;
 
-        WebStore::finish_transaction(tx).await?;
+        IndexedDbStore::finish_transaction(tx).await?;
 
         Ok(old_bytes)
     }
@@ -165,16 +165,16 @@ impl Store for WebStore {
     async fn remove(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let (store, tx) = self.start_transaction(TransactionMode::ReadWrite)?;
 
-        let key = WebStore::bytes_to_typed_array(key)?;
+        let key = IndexedDbStore::bytes_to_typed_array(key)?;
 
-        let old_value = WebStore::read(&key, &store).await?;
+        let old_value = IndexedDbStore::read(&key, &store).await?;
 
         store
             .delete(&key)
             .await
             .map_err(|error| anyhow!("{:?}", error))?;
 
-        WebStore::finish_transaction(tx).await?;
+        IndexedDbStore::finish_transaction(tx).await?;
 
         Ok(old_value)
     }

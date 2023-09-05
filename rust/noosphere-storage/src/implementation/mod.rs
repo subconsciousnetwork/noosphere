@@ -5,13 +5,13 @@ pub use memory::*;
 pub use tracking::*;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod native;
+mod sled;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use native::*;
+pub use self::sled::*;
 
 #[cfg(target_arch = "wasm32")]
-mod web;
+mod indexed_db;
 
 #[cfg(target_arch = "wasm32")]
-pub use web::*;
+pub use indexed_db::*;

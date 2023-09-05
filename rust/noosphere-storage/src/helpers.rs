@@ -2,10 +2,10 @@ use crate::Storage;
 use anyhow::Result;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::{NativeStorage, NativeStorageInit, NativeStore};
+use crate::{SledStorage, SledStorageInit, SledStore};
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn make_disposable_store() -> Result<NativeStore> {
+pub async fn make_disposable_store() -> Result<SledStore> {
     let temp_dir = std::env::temp_dir();
     let temp_name: String = witty_phrase_generator::WPGen::new()
         .with_words(3)
@@ -13,16 +13,15 @@ pub async fn make_disposable_store() -> Result<NativeStore> {
         .into_iter()
         .map(String::from)
         .collect();
-    let db = sled::open(temp_dir.join(temp_name)).unwrap();
-    let provider = NativeStorage::new(NativeStorageInit::Db(db))?;
+    let provider = SledStorage::new(SledStorageInit::Path(temp_dir.join(temp_name)))?;
     provider.get_block_store("foo").await
 }
 
 #[cfg(target_arch = "wasm32")]
-use crate::{WebStorage, WebStore};
+use crate::{IndexedDbStorage, IndexedDbStore};
 
 #[cfg(target_arch = "wasm32")]
-pub async fn make_disposable_store() -> Result<WebStore> {
+pub async fn make_disposable_store() -> Result<IndexedDbStore> {
     let temp_name: String = witty_phrase_generator::WPGen::new()
         .with_words(3)
         .unwrap()
@@ -30,6 +29,6 @@ pub async fn make_disposable_store() -> Result<WebStore> {
         .map(|word| String::from(word))
         .collect();
 
-    let provider = WebStorage::new(&temp_name).await?;
+    let provider = IndexedDbStorage::new(&temp_name).await?;
     provider.get_block_store(crate::db::BLOCK_STORE).await
 }

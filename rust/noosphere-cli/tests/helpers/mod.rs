@@ -8,19 +8,19 @@ pub use cli::*;
 
 use anyhow::Result;
 use noosphere_ipfs::{IpfsStore, KuboClient};
-use noosphere_storage::{BlockStoreRetry, MemoryStore, NativeStorage, UcanStore};
+use noosphere_storage::{BlockStoreRetry, MemoryStore, UcanStore};
 use std::{net::TcpListener, sync::Arc, time::Duration};
 use tempfile::TempDir;
 
 use noosphere_cli::{
     cli::ConfigSetCommand,
     commands::{key::key_create, sphere::config_set, sphere::sphere_create},
-    workspace::Workspace,
+    workspace::{CliSphereContext, Workspace},
 };
 use noosphere_core::data::Did;
 use noosphere_gateway::{start_gateway, GatewayScope};
 use noosphere_ns::{helpers::NameSystemNetwork, server::start_name_system_api_server};
-use noosphere_sphere::{HasSphereContext, SphereContext};
+use noosphere_sphere::HasSphereContext;
 use tokio::{sync::Mutex, task::JoinHandle};
 use url::Url;
 
@@ -222,14 +222,14 @@ impl SpherePair {
     }
 
     /// Returns a [SphereContext] for the client sphere.
-    pub async fn sphere_context(&self) -> Result<Arc<Mutex<SphereContext<NativeStorage>>>> {
+    pub async fn sphere_context(&self) -> Result<Arc<Mutex<CliSphereContext>>> {
         self.client.workspace.sphere_context().await
     }
 
     pub async fn spawn<T, F, Fut>(&self, f: F) -> Result<T>
     where
         T: Send + 'static,
-        F: FnOnce(Arc<Mutex<SphereContext<NativeStorage>>>) -> Fut + Send + 'static,
+        F: FnOnce(Arc<Mutex<CliSphereContext>>) -> Fut + Send + 'static,
         Fut: std::future::Future<Output = Result<T>> + Send + 'static,
     {
         let context = self.sphere_context().await?;

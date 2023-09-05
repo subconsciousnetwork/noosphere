@@ -7,39 +7,39 @@ use anyhow::Result;
 use async_trait::async_trait;
 use sled::{Db, Tree};
 
-pub enum NativeStorageInit {
+pub enum SledStorageInit {
     Path(PathBuf),
     Db(Db),
 }
 
 #[derive(Clone, Debug)]
-pub struct NativeStorage {
+pub struct SledStorage {
     db: Db,
 }
 
-impl NativeStorage {
-    pub fn new(init: NativeStorageInit) -> Result<Self> {
+impl SledStorage {
+    pub fn new(init: SledStorageInit) -> Result<Self> {
         let db: Db = match init {
-            NativeStorageInit::Path(path) => {
+            SledStorageInit::Path(path) => {
                 std::fs::create_dir_all(&path)?;
                 sled::open(path)?
             }
-            NativeStorageInit::Db(db) => db,
+            SledStorageInit::Db(db) => db,
         };
 
-        Ok(NativeStorage { db })
+        Ok(SledStorage { db })
     }
 
-    async fn get_store(&self, name: &str) -> Result<NativeStore> {
-        Ok(NativeStore::new(&self.db.open_tree(name)?))
+    async fn get_store(&self, name: &str) -> Result<SledStore> {
+        Ok(SledStore::new(&self.db.open_tree(name)?))
     }
 }
 
 #[async_trait]
-impl Storage for NativeStorage {
-    type BlockStore = NativeStore;
+impl Storage for SledStorage {
+    type BlockStore = SledStore;
 
-    type KeyValueStore = NativeStore;
+    type KeyValueStore = SledStore;
 
     async fn get_block_store(&self, name: &str) -> Result<Self::BlockStore> {
         self.get_store(name).await
@@ -51,18 +51,18 @@ impl Storage for NativeStorage {
 }
 
 #[derive(Clone)]
-pub struct NativeStore {
+pub struct SledStore {
     db: Tree,
 }
 
-impl NativeStore {
+impl SledStore {
     pub fn new(db: &Tree) -> Self {
-        NativeStore { db: db.clone() }
+        SledStore { db: db.clone() }
     }
 }
 
 #[async_trait]
-impl Store for NativeStore {
+impl Store for SledStore {
     async fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         Ok(self.db.get(key)?.map(|entry| entry.to_vec()))
     }
@@ -94,7 +94,7 @@ impl Store for NativeStore {
     }
 }
 
-impl Drop for NativeStorage {
+impl Drop for SledStorage {
     fn drop(&mut self) {
         let _ = self.db.flush();
     }

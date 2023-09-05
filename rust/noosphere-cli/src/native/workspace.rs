@@ -3,11 +3,11 @@
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use directories::ProjectDirs;
-use noosphere::sphere::SphereContextBuilder;
+use noosphere::{platform::PlatformStorage, sphere::SphereContextBuilder};
 use noosphere_core::authority::Author;
 use noosphere_core::data::{Did, Link, LinkRecord, MemoIpld};
 use noosphere_sphere::{SphereContentRead, SphereContext, SphereCursor, COUNTERPART, GATEWAY_URL};
-use noosphere_storage::{KeyValueStore, NativeStorage, SphereDb};
+use noosphere_storage::{KeyValueStore, SphereDb};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -24,7 +24,7 @@ use super::paths::SpherePaths;
 use super::render::SphereRenderer;
 
 /// The flavor of [SphereContext] used through the CLI
-pub type CliSphereContext = SphereContext<NativeStorage>;
+pub type CliSphereContext = SphereContext<PlatformStorage>;
 
 /// Metadata about a given sphere, including the sphere ID, a [Link]
 /// to it and a corresponding [LinkRecord] (if one is available).
@@ -68,7 +68,7 @@ impl Workspace {
     /// Get an owned referenced to the [SphereDb] that backs the local sphere.
     /// Note that this will initialize the [SphereContext] if it has not been
     /// already.
-    pub async fn db(&self) -> Result<SphereDb<NativeStorage>> {
+    pub async fn db(&self) -> Result<SphereDb<PlatformStorage>> {
         let context = self.sphere_context().await?;
         let context = context.lock().await;
         Ok(context.db().clone())
