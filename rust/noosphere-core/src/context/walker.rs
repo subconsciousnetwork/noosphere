@@ -454,18 +454,19 @@ mod tests {
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
     use crate::{
+        authority::Access,
         context::{
             HasMutableSphereContext, SphereAuthorityWrite, SphereContentWrite, SphereCursor,
             SphereWalker,
         },
         data::{ContentType, Did},
-        helpers::{simulated_sphere_context, SimulationAccess},
+        helpers::simulated_sphere_context,
     };
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_be_initialized_with_a_context_or_a_cursor() {
-        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context.clone());
@@ -501,7 +502,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_list_all_slugs_currently_in_a_sphere() {
-        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -541,8 +542,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_list_all_authorizations_currently_in_a_sphere() -> Result<()> {
-        let (sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
 
         let mut cursor = SphereCursor::latest(sphere_context);
         let authorizations_to_add = 10;
@@ -565,7 +565,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_stream_the_whole_index() {
-        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);

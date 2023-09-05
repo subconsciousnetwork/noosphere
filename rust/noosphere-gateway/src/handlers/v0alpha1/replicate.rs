@@ -34,7 +34,7 @@ pub type ReplicationCarStreamBody =
 /// fetch from the gateway.
 #[instrument(level = "debug", skip(authority, scope, sphere_context,))]
 pub async fn replicate_route<C, S>(
-    authority: GatewayAuthority,
+    authority: GatewayAuthority<S>,
     // NOTE: Cannot go from string to CID via serde
     Path(memo_version): Path<String>,
     Query(ReplicateParameters { since }): Query<ReplicateParameters>,
@@ -158,10 +158,11 @@ mod tests {
 
     use super::is_allowed_to_replicate_incrementally;
     use anyhow::Result;
+    use noosphere_core::authority::Access;
     use noosphere_core::context::{
         HasMutableSphereContext, HasSphereContext, SphereContext, SphereContextKey, SphereCursor,
     };
-    use noosphere_core::helpers::{simulated_sphere_context, SimulationAccess};
+    use noosphere_core::helpers::simulated_sphere_context;
     use noosphere_core::{
         authority::{
             generate_capability, generate_ed25519_key, Author, Authorization, SphereAbility,
@@ -173,8 +174,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_only_allows_incremental_replication_of_causally_ordered_revisions() -> Result<()> {
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
         let db = sphere_context.sphere_context().await?.db().clone();
 
         let version_1 = sphere_context
@@ -204,8 +204,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_only_allows_incremental_replication_of_revisions_from_same_sphere() -> Result<()> {
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
         let db = sphere_context.sphere_context().await?.db().clone();
 
         let version_1 = sphere_context
@@ -220,7 +219,7 @@ mod tests {
         let memo_2 = version_2.load_from(&db).await?;
 
         let (mut other_sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, Some(db.clone())).await?;
+            simulated_sphere_context(Access::ReadWrite, Some(db.clone())).await?;
 
         let other_version_1 = other_sphere_context
             .save(Some(vec![("V".into(), "1".into())]))
@@ -264,8 +263,7 @@ mod tests {
         let to_be_revoked_key: SphereContextKey = Arc::new(Box::new(generate_ed25519_key()));
         let to_be_revoked_did = to_be_revoked_key.get_did().await?;
 
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
         let db = sphere_context.sphere_context().await?.db().clone();
 
         let _ = sphere_context

@@ -72,7 +72,7 @@ jobs:
         with:
           brew: protobuf cmake
       - name: 'Cargo Build'
-        run: cargo build --package noosphere --release --locked --target ${{ matrix.target }}
+        run: cargo build --package noosphere --release --locked --target ${{ matrix.target }} --features rocksdb
       - run: |
           cd target/${{ matrix.target }}/release
       - uses: actions/upload-artifact@v3

@@ -36,7 +36,7 @@ use crate::{
     )
 )]
 pub async fn push_route<C, S>(
-    authority: GatewayAuthority,
+    authority: GatewayAuthority<S>,
     Extension(sphere_context): Extension<C>,
     Extension(gateway_scope): Extension<GatewayScope>,
     Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<C>>>,

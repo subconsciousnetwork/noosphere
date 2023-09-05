@@ -17,9 +17,10 @@ crate-type = ["rlib", "staticlib", "cdylib"]
 
 [features]
 default = []
+test-kubo = []
 headers = ["safer-ffi/headers"]
 ipfs-storage = ["noosphere-ipfs"]
-test-kubo = []
+rocksdb = ["noosphere-storage/rocksdb"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -84,3 +85,6 @@ wasm-bindgen-test = { workspace = true }
 witty-phrase-generator = "~0.2"
 instant = { version = "0.1.12", features = ["wasm-bindgen"] }
 gloo-timers = { workspace = true }
+
+[build-dependencies]
+cfg_aliases = "0.1.0"

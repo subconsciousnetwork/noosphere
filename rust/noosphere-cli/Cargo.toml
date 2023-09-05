@@ -17,7 +17,9 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [features]
+default = []
 helpers = ["tracing-subscriber", "noosphere-ns"]
+rocksdb = ["noosphere/rocksdb"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -56,8 +58,7 @@ cid = { workspace = true }
 symlink = { workspace = true }
 pathdiff = { workspace = true }
 subtext = "0.3.2"
-rand = {workspace = true }
-
+rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 libipld-core = { workspace = true }

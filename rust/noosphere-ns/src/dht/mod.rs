@@ -1,4 +1,3 @@
-mod channel;
 mod config;
 mod errors;
 mod node;

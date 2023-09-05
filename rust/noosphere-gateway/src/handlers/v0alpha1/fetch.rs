@@ -20,7 +20,7 @@ use crate::{authority::GatewayAuthority, GatewayScope};
 
 #[instrument(level = "debug", skip(authority, scope, sphere_context, ipfs_client))]
 pub async fn fetch_route<C, S>(
-    authority: GatewayAuthority,
+    authority: GatewayAuthority<S>,
     Query(FetchParameters { since }): Query<FetchParameters>,
     Extension(scope): Extension<GatewayScope>,
     Extension(ipfs_client): Extension<KuboClient>,

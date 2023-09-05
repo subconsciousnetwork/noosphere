@@ -1,7 +1,7 @@
-use crate::dht::channel::{Message, MessageClient, MessageProcessor};
 use crate::dht::errors::DhtError;
 use crate::dht::types::{DhtRecord, NetworkInfo, Peer};
 use libp2p::Multiaddr;
+use noosphere_common::channel::{Message, MessageClient, MessageProcessor};
 
 use std::{fmt, str};
 

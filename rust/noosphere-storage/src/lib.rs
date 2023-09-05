@@ -29,6 +29,11 @@ pub use storage::*;
 pub use store::*;
 pub use tap::*;
 
+#[cfg(feature = "performance")]
+mod space;
+#[cfg(feature = "performance")]
+pub use space::*;
+
 #[cfg(test)]
 pub mod helpers;
 

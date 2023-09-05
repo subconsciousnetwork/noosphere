@@ -346,9 +346,9 @@ async fn generate_db(
         false => StorageLayout::Unscoped(storage_path),
     };
 
-    #[cfg(not(all(target_arch = "wasm32", feature = "ipfs-storage")))]
+    #[cfg(not(all(wasm, ipfs_storage)))]
     let storage = storage_layout.to_storage().await?;
-    #[cfg(all(target_arch = "wasm32", feature = "ipfs-storage"))]
+    #[cfg(all(wasm, ipfs_storage))]
     let storage = IpfsStorage::new(
         storage_layout.to_storage().await?,
         ipfs_gateway_url.map(|url| GatewayClient::new(url)),

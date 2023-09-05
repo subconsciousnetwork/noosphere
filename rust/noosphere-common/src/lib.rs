@@ -4,6 +4,7 @@
 #[macro_use]
 extern crate tracing;
 
+pub mod channel;
 mod sync;
 mod task;
 mod unshared;

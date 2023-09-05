@@ -3,12 +3,8 @@
 ///! secure key management. This module lays out the concrete strategies we will
 ///! use on a per-platform basis.
 
-#[cfg(all(
-    any(target_arch = "aarch64", target_arch = "x86_64"),
-    target_vendor = "apple"
-))]
+#[cfg(apple)]
 mod inner {
-    use noosphere_storage::NativeStorage;
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
     use crate::key::InsecureKeyStorage;
@@ -18,14 +14,16 @@ mod inner {
     pub type PlatformKeyMaterial = Ed25519KeyMaterial;
     pub type PlatformKeyStorage = InsecureKeyStorage;
 
-    #[cfg(not(feature = "ipfs-storage"))]
-    pub type PlatformStorage = NativeStorage;
+    #[cfg(sled)]
+    pub(crate) type PrimitiveStorage = noosphere_storage::SledStorage;
+    #[cfg(rocksdb)]
+    pub(crate) type PrimitiveStorage = noosphere_storage::RocksDbStorage;
 
-    #[cfg(feature = "ipfs-storage")]
-    use noosphere_ipfs::{IpfsStorage, KuboClient};
-
-    #[cfg(feature = "ipfs-storage")]
-    pub type PlatformStorage = IpfsStorage<NativeStorage, KuboClient>;
+    #[cfg(not(ipfs_storage))]
+    pub type PlatformStorage = PrimitiveStorage;
+    #[cfg(ipfs_storage)]
+    pub type PlatformStorage =
+        noosphere_ipfs::IpfsStorage<PrimitiveStorage, noosphere_ipfs::KuboClient>;
 
     #[cfg(test)]
     use anyhow::Result;
@@ -49,7 +47,7 @@ mod inner {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(wasm)]
 mod inner {
     use crate::key::WebCryptoKeyStorage;
 
@@ -59,14 +57,16 @@ mod inner {
     pub type PlatformKeyMaterial = Arc<WebCryptoRsaKeyMaterial>;
     pub type PlatformKeyStorage = WebCryptoKeyStorage;
 
-    use noosphere_storage::WebStorage;
+    use noosphere_storage::IndexedDbStorage;
 
-    #[cfg(feature = "ipfs-storage")]
+    pub(crate) type PrimitiveStorage = IndexedDbStorage;
+
+    #[cfg(ipfs_storage)]
     pub type PlatformStorage =
-        noosphere_ipfs::IpfsStorage<WebStorage, noosphere_ipfs::GatewayClient>;
+        noosphere_ipfs::IpfsStorage<PrimitiveStorage, noosphere_ipfs::GatewayClient>;
 
-    #[cfg(not(feature = "ipfs-storage"))]
-    pub type PlatformStorage = WebStorage;
+    #[cfg(not(ipfs_storage))]
+    pub type PlatformStorage = PrimitiveStorage;
 
     #[cfg(test)]
     use anyhow::Result;
@@ -96,30 +96,24 @@ mod inner {
     }
 }
 
-#[cfg(all(
-    not(target_arch = "wasm32"),
-    not(all(
-        any(target_arch = "aarch64", target_arch = "x86_64"),
-        target_vendor = "apple"
-    ))
-))]
+#[cfg(all(native, not(apple)))]
 mod inner {
-    use noosphere_storage::NativeStorage;
-    use ucan_key_support::ed25519::Ed25519KeyMaterial;
-
     use crate::key::InsecureKeyStorage;
+    use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
     pub type PlatformKeyMaterial = Ed25519KeyMaterial;
     pub type PlatformKeyStorage = InsecureKeyStorage;
 
-    #[cfg(not(feature = "ipfs-storage"))]
-    pub type PlatformStorage = NativeStorage;
+    #[cfg(sled)]
+    pub(crate) type PrimitiveStorage = noosphere_storage::SledStorage;
+    #[cfg(rocksdb)]
+    pub(crate) type PrimitiveStorage = noosphere_storage::RocksDbStorage;
 
-    #[cfg(feature = "ipfs-storage")]
-    use noosphere_ipfs::{IpfsStorage, KuboClient};
-
-    #[cfg(feature = "ipfs-storage")]
-    pub type PlatformStorage = IpfsStorage<NativeStorage, KuboClient>;
+    #[cfg(not(ipfs_storage))]
+    pub type PlatformStorage = PrimitiveStorage;
+    #[cfg(ipfs_storage)]
+    pub type PlatformStorage =
+        noosphere_ipfs::IpfsStorage<PrimitiveStorage, noosphere_ipfs::KuboClient>;
 
     #[cfg(test)]
     use anyhow::Result;

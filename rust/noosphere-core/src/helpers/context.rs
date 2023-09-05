@@ -4,12 +4,12 @@
 use std::sync::Arc;
 
 use crate::{
-    authority::{generate_capability, generate_ed25519_key, Author, SphereAbility},
+    authority::{generate_capability, generate_ed25519_key, Access, Author, SphereAbility},
     data::{ContentType, Did, LinkRecord, Mnemonic, LINK_RECORD_FACT_NAME},
     view::Sphere,
 };
 use anyhow::Result;
-use noosphere_storage::{BlockStore, MemoryStorage, SphereDb, TrackingStorage, UcanStore};
+use noosphere_storage::{BlockStore, MemoryStorage, SphereDb, Storage, TrackingStorage, UcanStore};
 use tokio::{io::AsyncReadExt, sync::Mutex};
 use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
@@ -21,27 +21,19 @@ use crate::{
     stream::{walk_versioned_map_elements, walk_versioned_map_elements_and},
 };
 
-/// Access levels available when simulating a [SphereContext]
-pub enum SimulationAccess {
-    /// Access to the related [SphereContext] is read-only
-    Readonly,
-    /// Access to the related [SphereContext] is read+write
-    ReadWrite,
-}
-
 /// Create a temporary, non-persisted [SphereContext] that tracks usage
 /// internally. This is intended for use in docs and tests, and should otherwise
-/// be ignored. When creating the simulated [SphereContext], you can pass a
-/// [SimulationAccess] to control the kind of access the emphemeral credentials
+/// be ignored. When creating the simulated [SphereContext], you can pass an
+/// [Access] to control the kind of access the emphemeral credentials
 /// have to the [SphereContext].
 pub async fn simulated_sphere_context(
-    profile: SimulationAccess,
+    profile: Access,
     db: Option<SphereDb<TrackingStorage<MemoryStorage>>>,
 ) -> Result<(
     Arc<Mutex<SphereContext<TrackingStorage<MemoryStorage>>>>,
     Mnemonic,
 )> {
-    let mut db = match db {
+    let db = match db {
         Some(db) => db,
         None => {
             let storage_provider = TrackingStorage::wrap(MemoryStorage::default());
@@ -49,6 +41,15 @@ pub async fn simulated_sphere_context(
         }
     };
 
+    generate_sphere_context(profile, db).await
+}
+
+/// Generate a [SphereContext] using the storage provided, intended for tests and
+/// benchmarks. You can pass a [Access] to control access.
+pub async fn generate_sphere_context<S: Storage>(
+    profile: Access,
+    mut db: SphereDb<S>,
+) -> Result<(Arc<Mutex<SphereContext<S>>>, Mnemonic)> {
     let owner_key: SphereContextKey = Arc::new(Box::new(generate_ed25519_key()));
     let owner_did = owner_key.get_did().await?;
 
@@ -58,8 +59,8 @@ pub async fn simulated_sphere_context(
     let author = Author {
         key: owner_key,
         authorization: match profile {
-            SimulationAccess::Readonly => None,
-            SimulationAccess::ReadWrite => Some(proof),
+            Access::ReadOnly => None,
+            Access::ReadWrite => Some(proof),
         },
     };
 
@@ -130,7 +131,7 @@ pub type TrackedHasMutableSphereContext = Arc<Mutex<SphereContext<TrackingStorag
 pub async fn make_sphere_context_with_peer_chain(
     peer_chain: &[String],
 ) -> Result<(TrackedHasMutableSphereContext, Vec<Did>)> {
-    let (origin_sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+    let (origin_sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None)
         .await
         .unwrap();
 
@@ -144,10 +145,9 @@ pub async fn make_sphere_context_with_peer_chain(
     let mut contexts = vec![origin_sphere_context.clone()];
 
     for name in peer_chain.iter() {
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, Some(db.clone()))
-                .await
-                .unwrap();
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, Some(db.clone()))
+            .await
+            .unwrap();
 
         sphere_context
             .write("my-name", &ContentType::Subtext, name.as_bytes(), None)

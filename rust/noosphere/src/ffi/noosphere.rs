@@ -94,6 +94,9 @@ impl Drop for NsNoosphere {
 /// You can also initialize the ns_noosphere_t with an optional third
 /// argument: a URL string that refers to a Noosphere Gateway API somewhere on
 /// the network that one or more local spheres may have access to.
+///
+/// Note that storages (`global_storage_path`, `sphere_storage_path`) can only
+/// be opened by a single `ns_noosphere` at a time.
 pub fn ns_initialize(
     global_storage_path: char_p::Ref<'_>,
     sphere_storage_path: char_p::Ref<'_>,
