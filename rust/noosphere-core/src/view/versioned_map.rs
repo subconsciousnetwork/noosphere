@@ -20,9 +20,13 @@ use noosphere_storage::{block_serialize, BlockStore};
 
 use super::VersionedMapMutation;
 
+/// A [VersionedMap] that represents the content space of a sphere
 pub type Content<S> = VersionedMap<String, Link<MemoIpld>, S>;
+/// A [VersionedMap] that represents the petname space of a sphere
 pub type Identities<S> = VersionedMap<String, IdentityIpld, S>;
+/// A [VersionedMap] that represents the key authorizations in a sphere
 pub type Delegations<S> = VersionedMap<Link<Jwt>, DelegationIpld, S>;
+/// A [VersionedMap] that represents the authority revocations in a sphere
 pub type Revocations<S> = VersionedMap<Link<Jwt>, RevocationIpld, S>;
 
 /// A view over a [VersionedMapIpld] which provides high-level traversal of the
@@ -61,12 +65,16 @@ where
             .clone())
     }
 
+    /// Get the [ChangelogIpld] for the underlying [VersionedMapIpld], loading
+    /// it from storage if it is not available
     pub async fn get_changelog(&self) -> Result<&ChangelogIpld<MapOperation<K, V>>> {
         self.changelog
             .get_or_try_init(|| async { self.load_changelog().await })
             .await
     }
 
+    /// Load the [ChangelogIpld] for the underlying [VersionedMapIpld] from
+    /// storage
     pub async fn load_changelog(&self) -> Result<ChangelogIpld<MapOperation<K, V>>> {
         let ipld = self.to_body().await?;
         self.store
@@ -74,17 +82,22 @@ where
             .await
     }
 
+    /// Get the [Hamt] for the underlying [VersionedMapIpld], loading it from
+    /// storage if it is not available
     pub async fn get_hamt(&self) -> Result<&Hamt<S, V, K>> {
         self.hamt
             .get_or_try_init(|| async { self.load_hamt().await })
             .await
     }
 
+    /// Load the [Hamt] for the underlying [VersionedMapIpld] from storage
     async fn load_hamt(&self) -> Result<Hamt<S, V, K>> {
         let ipld = self.to_body().await?;
         ipld.load_hamt(&self.store).await
     }
 
+    /// Initialize the [VersionedMap] over a [VersionedMapIpld] referred to by its [Cid] if known, or else
+    /// a newly-initialized, empty [VersionedMapIpld].
     pub async fn at_or_empty<C>(cid: Option<C>, store: &mut S) -> Result<VersionedMap<K, V, S>>
     where
         C: Deref<Target = Cid>,
@@ -95,10 +108,12 @@ where
         })
     }
 
+    /// Get the [Cid] of the underlying [VersionedMapIpld]
     pub fn cid(&self) -> &Cid {
         &self.cid
     }
 
+    /// Initialize the [VersionedMap] over a [VersionedMapIpld] referred to by its [Cid]
     pub fn at(cid: &Cid, store: &S) -> VersionedMap<K, V, S> {
         VersionedMap {
             cid: *cid,
@@ -109,6 +124,8 @@ where
         }
     }
 
+    /// Initialize and store an empty [VersionedMapIpld], configuring a [VersionedMap] to
+    /// point to it by its [Cid]
     pub async fn empty(store: &mut S) -> Result<VersionedMap<K, V, S>> {
         let ipld = VersionedMapIpld::<K, V>::empty(store).await?;
         let cid = store.save::<DagCborCodec, _>(ipld).await?;
@@ -183,6 +200,8 @@ where
             .ok_or_else(|| anyhow!("Key {} not found!", key))
     }
 
+    /// Apply a [VersionedMapMutation] to the underlying [VersionedMapIpld] by iterating
+    /// over the changes in the mutation and performing them one at a time.
     pub async fn apply_with_cid<C>(
         cid: Option<C>,
         mutation: &VersionedMapMutation<K, V>,
@@ -219,6 +238,9 @@ where
         store.save::<DagCborCodec, _>(&links_ipld).await
     }
 
+    /// Iterate over the keys and values of the underlying [VersionedMapIpld]
+    /// sequentially. Note: consider using [VersionedMap::stream] instead for
+    /// better ergonomics.
     pub async fn for_each<ForEach>(&self, for_each: ForEach) -> Result<()>
     where
         ForEach: FnMut(&K, &V) -> Result<()>,
@@ -226,6 +248,8 @@ where
         self.get_hamt().await?.for_each(for_each).await
     }
 
+    /// Produce a [Stream] that yields `(key, value)` tuples for all entries
+    /// in the underlying [VersionedMapIpld].
     pub async fn stream<'a>(
         &'a self,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<(&'a K, &'a V)>> + 'a>>> {
@@ -239,6 +263,8 @@ where
     V: VersionedMapValue + 'static,
     S: BlockStore + 'static,
 {
+    /// Consume the [VersionedMap] and produce a [Stream] that yields `(key,
+    /// value)` tuples for all entries in the underlying [VersionedMapIpld].
     pub async fn into_stream(self) -> Result<impl Stream<Item = Result<(K, V)>>> {
         Ok(self.load_hamt().await?.into_stream())
     }

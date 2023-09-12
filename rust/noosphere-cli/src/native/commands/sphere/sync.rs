@@ -1,6 +1,6 @@
 use crate::native::{content::Content, workspace::Workspace};
 use anyhow::{anyhow, Result};
-use noosphere_sphere::{SphereSync, SyncRecovery};
+use noosphere_core::context::{SphereSync, SyncRecovery};
 
 /// Attempt to synchronize the local workspace with a configured gateway,
 /// optionally automatically retrying a fixed number of times in case a rebase

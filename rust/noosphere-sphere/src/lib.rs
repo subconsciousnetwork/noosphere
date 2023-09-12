@@ -11,42 +11,51 @@
 //! traversing the Noosphere content graph.
 //!
 //! ```rust
-//! use anyhow::Result;
-//! use noosphere_sphere::helpers::{simulated_sphere_context,SimulationAccess};
-//!
-//! use noosphere_sphere::{SphereCursor, HasMutableSphereContext, SphereContentWrite};
-//!
-//! #[tokio::main(flavor = "multi_thread")]
-//! async fn main() -> Result<()> {
-//!   let (mut sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
-//!
-//!   sphere_context.write("foo", "text/plain", "bar".as_ref(), None).await?;
-//!   sphere_context.save(None).await?;
-//!
-//!   Ok(())
-//! }
+//! # use anyhow::Result;
+//! # #[cfg(feature = "helpers")]
+//! # use noosphere_sphere::helpers::{simulated_sphere_context,SimulationAccess};
+//! #
+//! # use noosphere_sphere::{SphereCursor, HasMutableSphereContext, SphereContentWrite};
+//! #
+//! # #[cfg(feature = "helpers")]
+//! # #[tokio::main(flavor = "multi_thread")]
+//! # async fn main() -> Result<()> {
+//! #   let (mut sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+//! #
+//! sphere_context.write("foo", "text/plain", "bar".as_ref(), None).await?;
+//! sphere_context.save(None).await?;
+//! #
+//! #   Ok(())
+//! # }
+//! #
+//! # #[cfg(not(feature = "helpers"))]
+//! # fn main() {}
 //! ```
 //!
 //! You can also use a [SphereContext] to access petnames in the sphere:
 //!
 //! ```rust
-//! use anyhow::Result;
-//! use noosphere_sphere::helpers::{simulated_sphere_context,SimulationAccess};
-//! use noosphere_core::data::Did;
-//!
-//! use noosphere_sphere::{SphereCursor, HasMutableSphereContext, SpherePetnameWrite};
-//!
-//! #[tokio::main(flavor = "multi_thread")]
-//! async fn main() -> Result<()> {
-//!   let (mut sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
-//!
-//!   sphere_context.set_petname("cdata", Some("did:key:example".into())).await?;
-//!   sphere_context.save(None).await?;
-//!
-//!   Ok(())
-//! }
+//! # use anyhow::Result;
+//! # #[cfg(feature = "helpers")]
+//! # use noosphere_sphere::helpers::{simulated_sphere_context,SimulationAccess};
+//! # use noosphere_core::data::Did;
+//! #
+//! # use noosphere_sphere::{SphereCursor, HasMutableSphereContext, SpherePetnameWrite};
+//! #
+//! # #[cfg(feature = "helpers")]
+//! # #[tokio::main(flavor = "multi_thread")]
+//! # async fn main() -> Result<()> {
+//! #   let (mut sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+//! #
+//! sphere_context.set_petname("cdata", Some("did:key:example".into())).await?;
+//! sphere_context.save(None).await?;
+//! #
+//! #   Ok(())
+//! # }
+//! #
+//! # #[cfg(not(feature = "helpers"))]
+//! # fn main() {}
 //! ```
-//!
 //!
 
 #![warn(missing_docs)]
@@ -71,7 +80,7 @@ mod has;
 mod replication;
 mod walker;
 
-#[cfg(any(test, feature = "helpers"))]
+#[cfg(any(doctest, test, feature = "helpers"))]
 pub mod helpers;
 
 mod internal;

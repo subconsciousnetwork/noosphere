@@ -4,6 +4,7 @@ use libipld_core::{
     codec::{Codec, Decode, Encode},
     raw::RawCodec,
 };
+use noosphere_common::ConditionalSend;
 use std::fmt::Debug;
 use std::{
     fmt::{Display, Formatter},
@@ -17,18 +18,6 @@ use noosphere_storage::BlockStore;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use noosphere_collections::hamt::Hash as HamtHash;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub trait LinkSend: Send {}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl<T> LinkSend for T where T: Send {}
-
-#[cfg(target_arch = "wasm32")]
-pub trait LinkSend {}
-
-#[cfg(target_arch = "wasm32")]
-impl<T> LinkSend for T {}
 
 /// A [Link] is a [Cid] with a type attached. The type represents the data that
 /// the [Cid] refers to. This is a helpful construct to use to ensure that data
@@ -45,6 +34,7 @@ pub struct Link<T>
 where
     T: Clone,
 {
+    /// The wrapped [Cid] of this [Link]
     pub cid: Cid,
     linked_type: PhantomData<T>,
 }
@@ -105,6 +95,7 @@ impl<T> Link<T>
 where
     T: Clone,
 {
+    /// Wrap a given [Cid] in a typed [Link]
     pub fn new(cid: Cid) -> Self {
         Link {
             cid,
@@ -200,7 +191,7 @@ where
 
 impl<T> Link<T>
 where
-    T: Serialize + DeserializeOwned + Clone + LinkSend,
+    T: Serialize + DeserializeOwned + Clone + ConditionalSend,
 {
     /// Given a [BlockStore], attempt to load a value for the [Cid] of this
     /// [Link]. The loaded block will be interpretted as the type that is

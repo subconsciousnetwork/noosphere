@@ -19,7 +19,7 @@ use noosphere_storage::{KeyValueStore, MemoryStore, SphereDb};
 use ucan::crypto::KeyMaterial;
 use url::Url;
 
-use noosphere_sphere::{
+use noosphere_core::context::{
     metadata::{AUTHORIZATION, IDENTITY, USER_KEY_NAME},
     SphereContext, SphereContextKey,
 };
@@ -365,7 +365,7 @@ mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use crate::{key::KeyStorage, platform::make_temporary_platform_primitives};
-    use noosphere_sphere::SphereContext;
+    use noosphere_core::context::SphereContext;
 
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
@@ -373,7 +373,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_create_a_sphere_and_later_open_it() {
-        let (storage_path, key_storage, temporary_directories) =
+        let (storage_path, key_storage, _temporary_directories) =
             make_temporary_platform_primitives().await.unwrap();
 
         key_storage.create_key("foo").await.unwrap();
@@ -404,14 +404,12 @@ mod tests {
             .into();
 
         assert_eq!(&sphere_identity, context.identity());
-
-        drop(temporary_directories);
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_create_a_scoped_sphere_and_later_open_it() {
-        let (storage_path, key_storage, temporary_directories) =
+        let (storage_path, key_storage, _temporary_directories) =
             make_temporary_platform_primitives().await.unwrap();
 
         key_storage.create_key("foo").await.unwrap();
@@ -444,14 +442,12 @@ mod tests {
             .into();
 
         assert_eq!(&sphere_identity, context.identity());
-
-        drop(temporary_directories);
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_initialize_a_sphere_to_sync_from_elsewhere() {
-        let (storage_path, key_storage, temporary_directories) =
+        let (storage_path, key_storage, _temporary_directories) =
             make_temporary_platform_primitives().await.unwrap();
 
         key_storage.create_key("foo").await.unwrap();
@@ -469,7 +465,5 @@ mod tests {
         let context: SphereContext<_> = artifacts.into();
 
         assert_eq!(context.identity().as_str(), "did:key:foo");
-
-        drop(temporary_directories);
     }
 }

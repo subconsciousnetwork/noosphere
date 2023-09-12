@@ -12,9 +12,22 @@ use crate::{
 
 use noosphere_storage::{BlockStore, UcanStore};
 
+#[cfg(doc)]
+use crate::{
+    data::VersionedMapIpld,
+    view::versioned_map::{Content, Delegations, Identities, Revocations},
+};
+
+/// A [VersionedMapMutation] that corresponds to [Content]
 pub type ContentMutation = VersionedMapMutation<String, Link<MemoIpld>>;
+
+/// A [VersionedMapMutation] that corresponds to [Identities]
 pub type IdentitiesMutation = VersionedMapMutation<String, IdentityIpld>;
+
+/// A [VersionedMapMutation] that corresponds to [Delegations]
 pub type DelegationsMutation = VersionedMapMutation<Link<Jwt>, DelegationIpld>;
+
+/// A [VersionedMapMutation] that corresponds to [Revocations]
 pub type RevocationsMutation = VersionedMapMutation<Link<Jwt>, RevocationIpld>;
 
 #[cfg(doc)]
@@ -27,12 +40,19 @@ use crate::view::Sphere;
 /// history by the sphere's key.
 #[derive(Debug)]
 pub struct SphereRevision<S: BlockStore> {
+    /// The [Did] of the sphere that this revision corresponds to
     pub sphere_identity: Did,
+    /// A [BlockStore] that contains blocks assocaited with the sphere that this
+    /// revision corresponds to
     pub store: S,
+    /// The unsigned memo that wraps the root of the [SphereIpld] for this
+    /// sphere revision
     pub memo: MemoIpld,
 }
 
 impl<S: BlockStore> SphereRevision<S> {
+    /// Sign the [SphereRevision] with the provided credential and return the
+    /// [Link<MemoIpld>] pointing to the root of the new, signed revision
     pub async fn sign<Credential: KeyMaterial>(
         &mut self,
         credential: &Credential,
@@ -82,6 +102,8 @@ pub struct SphereMutation {
 }
 
 impl SphereMutation {
+    /// Initialize a new [SphereMutation] with the [Did] of the author of the
+    /// mutation
     pub fn new(did: &str) -> Self {
         SphereMutation {
             did: did.into(),
@@ -108,38 +130,55 @@ impl SphereMutation {
         self.revocations = RevocationsMutation::new(&self.did);
     }
 
+    /// The [Did] of the author of the mutation
     pub fn did(&self) -> &str {
         &self.did
     }
 
+    /// A mutable reference to the changes to sphere content, given as a
+    /// [ContentMutation]
     pub fn content_mut(&mut self) -> &mut ContentMutation {
         &mut self.content
     }
 
+    /// An immutable reference to the changes to sphere content, given as a
+    /// [ContentMutation]
     pub fn content(&self) -> &ContentMutation {
         &self.content
     }
 
+    /// A mutable reference to the changes to sphere identities (petnames),
+    /// given as a [IdentitiesMutation]
     pub fn identities_mut(&mut self) -> &mut IdentitiesMutation {
         &mut self.identities
     }
 
+    /// An immutable reference to the changes to sphere identities (petnames),
+    /// given as a [IdentitiesMutation]
     pub fn identities(&self) -> &IdentitiesMutation {
         &self.identities
     }
 
+    /// A mutable reference to the changes to sphere delegations (of authority),
+    /// given as a [DelegationsMutation]
     pub fn delegations_mut(&mut self) -> &mut DelegationsMutation {
         &mut self.delegations
     }
 
+    /// An immutable reference to the changes to sphere delegations (of
+    /// authority), given as a [DelegationsMutation]
     pub fn delegations(&self) -> &DelegationsMutation {
         &self.delegations
     }
 
+    /// A mutable reference to the changes to sphere revocations (of authority),
+    /// given as a [RevocationsMutation]
     pub fn revocations_mut(&mut self) -> &mut RevocationsMutation {
         &mut self.revocations
     }
 
+    /// An immutable reference to the changes to sphere revocations (of
+    /// authority), given as a [RevocationsMutation]
     pub fn revocations(&self) -> &RevocationsMutation {
         &self.revocations
     }
@@ -154,6 +193,7 @@ impl SphereMutation {
     }
 }
 
+/// A generalized expression of a mutation to a [VersionedMapIpld]
 #[derive(Default, Debug)]
 pub struct VersionedMapMutation<K, V>
 where
@@ -169,6 +209,9 @@ where
     K: VersionedMapKey,
     V: VersionedMapValue,
 {
+    /// Set the changes as expressed by a [ChangelogIpld] to this
+    /// [VersionedMapMutation]; the mutation will adopt the author of the
+    /// changelog as its own author
     pub fn apply_changelog(&mut self, changelog: &ChangelogIpld<MapOperation<K, V>>) -> Result<()> {
         let did = changelog
             .did
@@ -188,20 +231,26 @@ where
         Ok(())
     }
 
+    /// Initialize a new [VersionedMapMutation] whose author has the given [Did]
     pub fn new(did: &str) -> Self {
         VersionedMapMutation {
             did: did.into(),
             changes: Default::default(),
         }
     }
+
+    /// Get the [Did] of the author of the [VersionedMapMutation]
     pub fn did(&self) -> &str {
         &self.did
     }
 
+    /// Get the changes (as [MapOperation]s) represented by this
+    /// [VersionedMapMutation]
     pub fn changes(&self) -> &[MapOperation<K, V>] {
         &self.changes
     }
 
+    /// Record a change to the related [VersionedMapIpld] by key and value
     pub fn set(&mut self, key: &K, value: &V) {
         self.changes.push(MapOperation::Add {
             key: key.clone(),
@@ -209,6 +258,7 @@ where
         });
     }
 
+    /// Remove a change from the [VersionedMapMutation]
     pub fn remove(&mut self, key: &K) {
         self.changes.push(MapOperation::Remove { key: key.clone() });
     }

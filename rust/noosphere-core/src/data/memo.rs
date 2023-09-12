@@ -6,15 +6,17 @@ use std::{
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
+use noosphere_common::ConditionalSend;
 use serde::{Deserialize, Serialize};
 use ucan::{crypto::KeyMaterial, Ucan};
 
 use crate::data::Header;
 
-use noosphere_storage::{base64_encode, BlockStore, BlockStoreSend};
+use noosphere_storage::{base64_encode, BlockStore};
 
 use super::{ContentType, Link};
 
+/// A designated int for lamport order values in [MemoIpld] headers
 pub type LamportOrder = u32;
 
 /// A basic Memo. A Memo is a history-retaining structure that pairs
@@ -99,7 +101,7 @@ impl MemoIpld {
     /// Initializes a memo for the provided body, persisting the body to storage
     /// and returning the memo. Note that only the body is persisted, not the
     /// memo that wraps it.
-    pub async fn for_body<S: BlockStore, Body: Serialize + BlockStoreSend>(
+    pub async fn for_body<S: BlockStore, Body: Serialize + ConditionalSend>(
         store: &mut S,
         body: Body,
     ) -> Result<MemoIpld> {

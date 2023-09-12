@@ -14,34 +14,11 @@ use libipld_core::{
     codec::{Codec, Decode, Encode},
     ipld::Ipld,
 };
+use noosphere_common::{ConditionalSend, ConditionalSync};
 use serde::{de::DeserializeOwned, Serialize};
 
 #[cfg(doc)]
 use serde::Deserialize;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub trait BlockStoreSendSync: Send + Sync {}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl<T> BlockStoreSendSync for T where T: Send + Sync {}
-
-#[cfg(target_arch = "wasm32")]
-pub trait BlockStoreSendSync {}
-
-#[cfg(target_arch = "wasm32")]
-impl<T> BlockStoreSendSync for T {}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub trait BlockStoreSend: Send {}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl<T> BlockStoreSend for T where T: Send {}
-
-#[cfg(target_arch = "wasm32")]
-pub trait BlockStoreSend {}
-
-#[cfg(target_arch = "wasm32")]
-impl<T> BlockStoreSend for T {}
 
 /// An interface for storage backends that are suitable for storing blocks. A
 /// block is a chunk of bytes that can be addressed by a
@@ -50,7 +27,7 @@ impl<T> BlockStoreSend for T {}
 /// retrieve blocks given a [Cid].
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait BlockStore: Clone + BlockStoreSendSync {
+pub trait BlockStore: Clone + ConditionalSync {
     /// Given a CID and a block, store the links (any [Cid] that is part of the
     /// encoded data) in a suitable location for later retrieval. This method is
     /// optional, and its default implementation is a no-op. It should be
@@ -77,7 +54,7 @@ pub trait BlockStore: Clone + BlockStoreSendSync {
     async fn put<C, T>(&mut self, data: T) -> Result<Cid>
     where
         C: Codec + Default,
-        T: Encode<C> + BlockStoreSend,
+        T: Encode<C> + ConditionalSend,
         Ipld: References<C>,
     {
         let codec = C::default();
@@ -114,7 +91,7 @@ pub trait BlockStore: Clone + BlockStoreSendSync {
     async fn save<C, T>(&mut self, data: T) -> Result<Cid>
     where
         C: Codec + Default,
-        T: Serialize + BlockStoreSend,
+        T: Serialize + ConditionalSend,
         Ipld: Encode<C> + References<C>,
     {
         self.put::<C, Ipld>(to_ipld(data)?).await
@@ -127,7 +104,7 @@ pub trait BlockStore: Clone + BlockStoreSendSync {
     async fn load<C, T>(&self, cid: &Cid) -> Result<T>
     where
         C: Codec + Default,
-        T: DeserializeOwned + BlockStoreSend,
+        T: DeserializeOwned + ConditionalSend,
         u64: From<C>,
         Ipld: Decode<C>,
     {

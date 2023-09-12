@@ -1,5 +1,5 @@
 use anyhow::Result;
-use noosphere_sphere::HasSphereContext;
+use noosphere_core::context::HasSphereContext;
 use noosphere_storage::Storage;
 use std::{collections::BTreeSet, marker::PhantomData, sync::Arc, thread::available_parallelism};
 

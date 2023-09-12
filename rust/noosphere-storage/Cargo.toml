@@ -17,14 +17,13 @@ repository = "https://github.com/subconsciousnetwork/noosphere"
 homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 anyhow = { workspace = true }
 async-trait = "~0.1"
 async-stream = { workspace = true }
 tokio-stream = { workspace = true }
 cid = { workspace = true }
+noosphere-common = { version = "0.1.0", path = "../noosphere-common" }
 tracing = "~0.1"
 ucan = { workspace = true }
 libipld-core = { workspace = true }

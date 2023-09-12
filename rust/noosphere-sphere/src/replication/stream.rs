@@ -504,7 +504,7 @@ mod tests {
             simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
         let mut db = sphere_context.sphere_context().await?.db_mut().clone();
 
-        let chunks = vec![b"foo", b"bar", b"baz"];
+        let chunks = [b"foo", b"bar", b"baz"];
 
         let mut next_chunk_cid = None;
 

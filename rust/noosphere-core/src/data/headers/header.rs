@@ -1,14 +1,25 @@
 use std::{convert::Infallible, fmt::Display, ops::Deref, str::FromStr};
 
+/// Well-known headers in the Noosphere
 pub enum Header {
+    /// Content-type, for mimes
     ContentType,
+    /// A proof, typically a UCAN JWT
     Proof,
+    /// The author's DID
     Author,
+    /// A title for the associated content body
     Title,
+    /// A signature by the author's key
     Signature,
+    /// The Noosphere protocol version
     Version,
+    /// A file extension to use when rendering the content to
+    /// the file system
     FileExtension,
+    /// The logical order relative to any ancestors
     LamportOrder,
+    /// All others
     Unknown(String),
 }
 

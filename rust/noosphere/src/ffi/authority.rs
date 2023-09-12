@@ -1,11 +1,13 @@
 use anyhow::anyhow;
 use cid::Cid;
+use noosphere_core::context::{
+    HasSphereContext, SphereAuthorityRead, SphereAuthorityWrite, SphereWalker,
+};
 use noosphere_core::{
     authority::Authorization,
     data::{Did, Jwt, Link, Mnemonic},
     error::NoosphereError,
 };
-use noosphere_sphere::{HasSphereContext, SphereAuthorityRead, SphereAuthorityWrite, SphereWalker};
 use safer_ffi::{char_p::InvalidNulTerminator, prelude::*};
 use std::ffi::c_void;
 

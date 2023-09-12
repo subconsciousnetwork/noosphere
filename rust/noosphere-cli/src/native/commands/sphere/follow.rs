@@ -2,10 +2,10 @@ use std::collections::BTreeMap;
 
 use crate::native::{commands::sphere::save, workspace::Workspace};
 use anyhow::{anyhow, Result};
-use noosphere_core::data::Did;
-use noosphere_sphere::{
+use noosphere_core::context::{
     HasMutableSphereContext, SpherePetnameRead, SpherePetnameWrite, SphereWalker,
 };
+use noosphere_core::data::Did;
 use serde_json::{json, Value};
 use tokio_stream::StreamExt;
 

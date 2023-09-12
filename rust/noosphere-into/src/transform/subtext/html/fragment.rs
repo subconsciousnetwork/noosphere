@@ -6,8 +6,8 @@ use async_stream::stream;
 
 use futures::Stream;
 use horrorshow::{html, Raw};
+use noosphere_core::context::SphereFile;
 use noosphere_core::data::ContentType;
-use noosphere_sphere::SphereFile;
 
 use subtext::{block::Block, primitive::Entity, Slashlink};
 use tokio::io::AsyncRead;

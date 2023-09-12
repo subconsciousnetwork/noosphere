@@ -2,6 +2,7 @@ use crate::IpfsClient;
 use anyhow::Result;
 use async_trait::async_trait;
 use cid::Cid;
+use noosphere_common::ConditionalSync;
 use noosphere_storage::{BlockStore, Storage};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -36,24 +37,12 @@ where
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-pub trait IpfsStorageConditionalSendSync: Send + Sync {}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl<S> IpfsStorageConditionalSendSync for S where S: Send + Sync {}
-
-#[cfg(target_arch = "wasm32")]
-pub trait IpfsStorageConditionalSendSync {}
-
-#[cfg(target_arch = "wasm32")]
-impl<S> IpfsStorageConditionalSendSync for S {}
-
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl<S, C> Storage for IpfsStorage<S, C>
 where
-    S: Storage + IpfsStorageConditionalSendSync,
-    C: IpfsClient + IpfsStorageConditionalSendSync,
+    S: Storage + ConditionalSync,
+    C: IpfsClient + ConditionalSync,
 {
     type BlockStore = IpfsStore<S::BlockStore, C>;
 
@@ -79,7 +68,7 @@ where
 pub struct IpfsStore<B, C>
 where
     B: BlockStore,
-    C: IpfsClient + IpfsStorageConditionalSendSync,
+    C: IpfsClient + ConditionalSync,
 {
     local_store: Arc<RwLock<B>>,
     ipfs_client: Option<C>,
@@ -88,7 +77,7 @@ where
 impl<B, C> IpfsStore<B, C>
 where
     B: BlockStore,
-    C: IpfsClient + IpfsStorageConditionalSendSync,
+    C: IpfsClient + ConditionalSync,
 {
     pub fn new(block_store: B, ipfs_client: Option<C>) -> Self {
         IpfsStore {
@@ -103,7 +92,7 @@ where
 impl<B, C> BlockStore for IpfsStore<B, C>
 where
     B: BlockStore,
-    C: IpfsClient + IpfsStorageConditionalSendSync,
+    C: IpfsClient + ConditionalSync,
 {
     #[instrument(skip(self), level = "trace")]
     async fn put_block(&mut self, cid: &Cid, block: &[u8]) -> Result<()> {
@@ -141,7 +130,7 @@ where
 
 // Note that these tests require that there is a locally available IPFS Kubo
 // node running with the RPC API enabled
-#[cfg(all(test, feature = "test_kubo"))]
+#[cfg(all(test, feature = "test-kubo", not(target_arch = "wasm32")))]
 mod tests {
     use std::time::Duration;
 

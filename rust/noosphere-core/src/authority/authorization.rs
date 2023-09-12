@@ -23,14 +23,16 @@ use super::SUPPORTED_KEYS;
 /// similar construct to land in rs-ucan
 #[derive(Clone, Debug)]
 pub enum Authorization {
-    /// A fully instantiated UCAN
+    /// A fully instantiated [Ucan]
     Ucan(Ucan),
-    /// A CID that refers to a UCAN that may be looked up in storage at the
+    /// A [Cid] that refers to a [Ucan] that may be looked up in storage at the
     /// point of invocation
     Cid(Cid),
 }
 
 impl Authorization {
+    /// Attempt to resolve the [Authorization] as a fully deserialized [Ucan]
+    /// (if it is not one already).
     pub async fn as_ucan<S: UcanJwtStore>(&self, store: &S) -> Result<Ucan> {
         match self {
             Authorization::Ucan(ucan) => Ok(ucan.clone()),
@@ -38,6 +40,7 @@ impl Authorization {
         }
     }
 
+    /// Attempt to resolve the [Authorization] as a [ProofChain] (via its associated [Ucan])
     pub async fn as_proof_chain<S: UcanJwtStore>(&self, store: &S) -> Result<ProofChain> {
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
         Ok(match self {

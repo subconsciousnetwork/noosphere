@@ -2,8 +2,10 @@ use std::{collections::BTreeMap, convert::TryFrom};
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use noosphere_core::context::{
+    HasSphereContext, SphereAuthorityRead, SphereAuthorityWrite, SphereWalker,
+};
 use noosphere_core::data::{Did, Jwt, Link};
-use noosphere_sphere::{HasSphereContext, SphereAuthorityRead, SphereAuthorityWrite, SphereWalker};
 use serde_json::{json, Value};
 use ucan::{store::UcanJwtStore, Ucan};
 

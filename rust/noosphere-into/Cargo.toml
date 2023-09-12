@@ -19,7 +19,6 @@ readme = "README.md"
 [dependencies]
 noosphere-core = { version = "0.15.2", path = "../noosphere-core" }
 noosphere-storage = { version = "0.8.1", path = "../noosphere-storage" }
-noosphere-sphere = { version = "0.10.2", path = "../noosphere-sphere" }
 subtext = { version = "0.3.2", features = ["stream"] }
 async-trait = "~0.1"
 url = { workspace = true }
@@ -36,7 +35,7 @@ tokio-stream = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "macros", "test-util"] }
 
 async-stream = { workspace = true }
-futures = { version = "~0.3" }
+futures = { workspace = true }
 async-compat = { version = "~0.2" }
 async-utf8-decoder = { version = "~0.3" }
 
@@ -44,7 +43,7 @@ ucan = { workspace = true }
 ucan-key-support = { workspace = true }
 
 [dev-dependencies]
-noosphere-sphere = { version = "0.10.2", path = "../noosphere-sphere", features = ["helpers"] }
+noosphere-core = { version = "0.15.1", path = "../noosphere-core", features = ["helpers"] }
 wasm-bindgen-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

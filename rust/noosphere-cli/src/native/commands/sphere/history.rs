@@ -1,6 +1,6 @@
 use anyhow::Result;
+use noosphere_core::context::HasSphereContext;
 use noosphere_core::data::MapOperation;
-use noosphere_sphere::HasSphereContext;
 use tokio_stream::StreamExt;
 use ucan::Ucan;
 

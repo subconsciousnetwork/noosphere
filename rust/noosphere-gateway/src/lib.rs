@@ -1,4 +1,3 @@
-#[cfg(not(target_arch = "wasm32"))]
 #[macro_use]
 extern crate tracing;
 
@@ -15,7 +14,10 @@ mod extractor;
 mod worker;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod route;
+mod handlers;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod error;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod gateway;

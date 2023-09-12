@@ -3,19 +3,19 @@ use axum::extract::DefaultBodyLimit;
 use axum::http::{HeaderValue, Method};
 use axum::routing::{get, put};
 use axum::{Extension, Router, Server};
+use noosphere_core::context::HasMutableSphereContext;
 use noosphere_core::data::Did;
 use noosphere_ipfs::KuboClient;
-use noosphere_sphere::HasMutableSphereContext;
 use noosphere_storage::Storage;
 use std::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use url::Url;
 
-use noosphere_api::route::Route as GatewayRoute;
+use noosphere_core::api::{v0alpha1, v0alpha2};
 
 use crate::{
-    route::{did_route, fetch_route, identify_route, push_route, replicate_route},
+    handlers,
     worker::{
         start_ipfs_syndication, start_name_system, NameSystemConfiguration,
         NameSystemConnectionType,
@@ -85,17 +85,31 @@ where
     );
 
     let app = Router::new()
-        .route(&GatewayRoute::Did.to_string(), get(did_route))
         .route(
-            &GatewayRoute::Replicate(None).to_string(),
-            get(replicate_route::<C, S>),
+            &v0alpha1::Route::Did.to_string(),
+            get(handlers::v0alpha1::did_route),
         )
         .route(
-            &GatewayRoute::Identify.to_string(),
-            get(identify_route::<C, S>),
+            &v0alpha1::Route::Replicate(None).to_string(),
+            get(handlers::v0alpha1::replicate_route::<C, S>),
         )
-        .route(&GatewayRoute::Push.to_string(), put(push_route::<C, S>))
-        .route(&GatewayRoute::Fetch.to_string(), get(fetch_route::<C, S>))
+        .route(
+            &v0alpha1::Route::Identify.to_string(),
+            get(handlers::v0alpha1::identify_route::<C, S>),
+        )
+        .route(
+            &v0alpha1::Route::Push.to_string(),
+            #[allow(deprecated)]
+            put(handlers::v0alpha1::push_route::<C, S>),
+        )
+        .route(
+            &v0alpha2::Route::Push.to_string(),
+            put(handlers::v0alpha2::push_route::<C, S>),
+        )
+        .route(
+            &v0alpha1::Route::Fetch.to_string(),
+            get(handlers::v0alpha1::fetch_route::<C, S>),
+        )
         .layer(Extension(sphere_context.clone()))
         .layer(Extension(gateway_scope.clone()))
         .layer(Extension(ipfs_client))

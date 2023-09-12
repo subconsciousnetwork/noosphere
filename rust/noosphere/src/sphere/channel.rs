@@ -1,6 +1,8 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use noosphere_sphere::{HasMutableSphereContext, HasSphereContext, SphereContext, SphereCursor};
+use noosphere_core::context::{
+    HasMutableSphereContext, HasSphereContext, SphereContext, SphereCursor,
+};
 use noosphere_storage::Storage;
 use tokio::sync::Mutex;
 
@@ -14,7 +16,7 @@ use tokio::sync::Mutex;
 #[derive(Clone)]
 pub struct SphereChannel<S, Ci, Cm>
 where
-    S: Storage,
+    S: Storage + 'static,
     Ci: HasSphereContext<S>,
     Cm: HasMutableSphereContext<S>,
 {
@@ -25,7 +27,7 @@ where
 
 impl<S, Ci, Cm> SphereChannel<S, Ci, Cm>
 where
-    S: Storage,
+    S: Storage + 'static,
     Ci: HasSphereContext<S>,
     Cm: HasMutableSphereContext<S>,
 {

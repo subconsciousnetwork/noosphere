@@ -11,6 +11,6 @@
     ]
   },
   "rust-analyzer.cargo.features": [
-    "test_kubo"
+    "test-kubo"
   ]
 }

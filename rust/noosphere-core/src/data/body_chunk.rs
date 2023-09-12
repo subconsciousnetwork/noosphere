@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use noosphere_storage::BlockStore;
 
+/// The maximum size of a body chunk as produced by [BodyChunkIpld]
 pub const BODY_CHUNK_MAX_SIZE: u32 = 1024 * 1024; // ~1mb/chunk worst case, ~.5mb/chunk average case
 
 /// A body chunk is a simplified flexible byte layout used for linking
@@ -21,6 +22,8 @@ pub struct BodyChunkIpld {
 }
 
 impl BodyChunkIpld {
+    /// Chunk and encode a slice of bytes as linked [BodyChunkIpld], storing the chunks in storage
+    /// and returning the [Cid] of the head of the list.
     // TODO(#498): Re-write to address potentially unbounded memory overhead
     pub async fn store_bytes<S: BlockStore>(bytes: &[u8], store: &mut S) -> Result<Cid> {
         let chunks = FastCDC::new(
@@ -56,6 +59,7 @@ impl BodyChunkIpld {
         next_chunk_cid.ok_or_else(|| anyhow!("No CID; did you try to store zero bytes?"))
     }
 
+    /// Fold all bytes in the [BodyChunkIpld] chain into a single buffer and return it
     // TODO(#498): Re-write to address potentially unbounded memory overhead
     pub async fn load_all_bytes<S: BlockStore>(&self, store: &S) -> Result<Vec<u8>> {
         let mut all_bytes = self.bytes.clone();

@@ -5,6 +5,7 @@ use ucan::capability::{
 };
 use url::Url;
 
+/// The ordinal levels of authority allowed within Noosphere
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub enum SphereAbility {
     /// May read information about a sphere from a counterpart
@@ -45,8 +46,13 @@ impl TryFrom<String> for SphereAbility {
     }
 }
 
+#[cfg(doc)]
+use crate::data::Did;
+
+/// A reference to a sphere, by its [Did]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SphereReference {
+    /// The [Did] of the sphere
     pub did: String,
 }
 
@@ -78,10 +84,12 @@ impl TryFrom<Url> for SphereReference {
     }
 }
 
+/// A struct that implements [CapabilitySemantics] for spheres
 pub struct SphereSemantics {}
 
 impl CapabilitySemantics<SphereReference, SphereAbility> for SphereSemantics {}
 
+/// A shared instance of [SphereSemantics]
 pub const SPHERE_SEMANTICS: SphereSemantics = SphereSemantics {};
 
 /// Generates a [Capability] struct representing permissions in a [LinkRecord].

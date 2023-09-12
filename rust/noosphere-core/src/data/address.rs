@@ -15,12 +15,15 @@ use super::{Did, IdentitiesIpld, Jwt, Link, MemoIpld};
 #[cfg(docs)]
 use crate::data::SphereIpld;
 
+/// The name of the fact (as defined for a [Ucan]) that contains the link for a
+/// [LinkRecord].
 pub const LINK_RECORD_FACT_NAME: &str = "link";
 
 /// A subdomain of a [SphereIpld] that pertains to the management and recording of
 /// the petnames associated with the sphere.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize, Hash)]
 pub struct AddressBookIpld {
+    /// A pointer to the [IdentitiesIpld] associated with this address book
     pub identities: Link<IdentitiesIpld>,
 }
 
@@ -42,7 +45,9 @@ impl AddressBookIpld {
 /// value if one has ever been resolved.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize, Hash)]
 pub struct IdentityIpld {
+    /// The [Did] of a peer
     pub did: Did,
+    /// An optional pointer to a known [LinkRecord] for the peer
     pub link_record: Option<Link<LinkRecord>>,
 }
 

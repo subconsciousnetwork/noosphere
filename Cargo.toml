@@ -4,6 +4,7 @@ members = [
   "rust/noosphere-api",
   "rust/noosphere-cli",
   "rust/noosphere-collections",
+  "rust/noosphere-common",
   "rust/noosphere-core",
   "rust/noosphere-gateway",
   "rust/noosphere-into",
@@ -20,9 +21,13 @@ resolver = "2"
 anyhow = { version = "1" }
 async-stream = { version = "0.3" }
 axum = { version = "^0.6.18" }
+bytes = { version = "^1" }
 cid = { version = "0.10" }
 directories = { version = "5" }
 fastcdc = { version = "3.1" }
+futures = { version = "0.3" }
+futures-util = { version = "0.3" }
+gloo-net = { version = "0.4" }
 gloo-timers = { version = "0.2", features = ["futures"] }
 ignore = { version = "0.4.20" }
 iroh-car = { version = "^0.3.0" }
@@ -32,9 +37,11 @@ libipld-core = { version = "0.16" }
 libipld-cbor = { version = "0.16" }
 pathdiff = { version = "0.2.1" }
 rand = { version = "0.8" }
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls", "stream"] }
 sentry-tracing = { version = "0.31.5" }
 serde = { version = "^1" }
 serde_json = { version = "^1" }
+serde_urlencoded = { version = "~0.7" }
 strum = { version = "0.25" }
 strum_macros = { version = "0.25" }
 subtext = { version = "0.3.4" }
@@ -43,6 +50,7 @@ tempfile = { version = "^3" }
 thiserror = { version = "1" }
 tokio = { version = "^1" }
 tokio-stream = { version = "~0.1" }
+tokio-util = { version = "0.7" }
 tower = { version = "^0.4.13" }
 tower-http = { version = "^0.4.3" }
 tracing = { version = "0.1" }
@@ -54,7 +62,10 @@ void = { version = "1" }
 wasm-bindgen = { version = "^0.2" }
 wasm-bindgen-test = { version = "^0.3" }
 wasm-bindgen-futures = { version = "^0.4" }
-wnfs-namefilter = { version = "0.1.21" }
+wasm-streams = { version = "0.3.0" }
+web-sys = { version = "0.3" }
+# TODO(#626): Migrate off of this crate
+wnfs-namefilter = { version = "0.1.23" }
 
 [profile.release]
 opt-level = 'z'

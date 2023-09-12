@@ -15,7 +15,7 @@ use crate::{
     platform::{PlatformSphereChannel, PlatformStorage},
 };
 
-use noosphere_sphere::{
+use noosphere_core::context::{
     AsyncFileBody, HasMutableSphereContext, HasSphereContext, SphereContentRead,
     SphereContentWrite, SphereContext, SphereCursor, SphereFile, SphereReplicaRead, SphereWalker,
 };

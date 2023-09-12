@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use crate::native::{content::Content, Workspace};
 use anyhow::Result;
+use noosphere_core::context::{HasSphereContext, SphereCursor};
 use noosphere_core::data::ContentType;
-use noosphere_sphere::{HasSphereContext, SphereCursor};
 
 fn status_section(
     name: &str,

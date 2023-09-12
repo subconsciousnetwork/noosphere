@@ -19,6 +19,7 @@ crate-type = ["rlib", "staticlib", "cdylib"]
 default = []
 headers = ["safer-ffi/headers"]
 ipfs-storage = ["noosphere-ipfs"]
+test-kubo = []
 
 [dependencies]
 anyhow = { workspace = true }
@@ -39,15 +40,19 @@ libipld-cbor = { workspace = true }
 bytes = "^1"
 
 noosphere-core = { version = "0.15.2", path = "../noosphere-core" }
-noosphere-sphere = { version = "0.10.2", path = "../noosphere-sphere" }
 noosphere-storage = { version = "0.8.1", path = "../noosphere-storage" }
-noosphere-api = { version = "0.12.2", path = "../noosphere-api" }
 noosphere-ipfs = { version = "0.7.4", path = "../noosphere-ipfs", optional = true }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
 
 [dev-dependencies]
 libipld-core = { workspace = true }
+rand = { workspace = true }
+serde_json = { workspace = true }
+noosphere-cli = { version = "0.14.1", path = "../noosphere-cli", features = ["helpers"] }
+noosphere-core = { version = "0.15.1", path = "../noosphere-core", features = ["helpers"] }
+noosphere-common = { version = "0.1.0", path = "../noosphere-common", features = ["helpers"] }
+noosphere-gateway = { version = "0.8.1", path = "../noosphere-gateway" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # TODO: We should eventually support gateway storage as a specialty target only,
@@ -60,7 +65,7 @@ js-sys = { workspace = true }
 noosphere-into = { version = "0.10.6", path = "../noosphere-into" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
-version = "~0.3"
+workspace = true
 features = [
   "CryptoKey",
 ]
@@ -71,6 +76,8 @@ tokio = { workspace = true, features = ["full"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tempfile = { workspace = true }
+reqwest = { workspace = true }
+noosphere-ns = { version = "0.10.1", path = "../noosphere-ns" }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = { workspace = true }

@@ -1,7 +1,7 @@
 use async_stream::stream;
 use futures::Stream;
+use noosphere_core::context::SphereFile;
 use noosphere_core::data::ContentType;
-use noosphere_sphere::SphereFile;
 use tokio::io::AsyncRead;
 
 use crate::{subtext_to_html_document_stream, subtext_to_html_fragment_stream, Transform};

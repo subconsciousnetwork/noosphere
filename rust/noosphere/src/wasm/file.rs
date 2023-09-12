@@ -9,7 +9,7 @@ use tokio_stream::StreamExt;
 
 use anyhow::{anyhow, Result};
 use js_sys::{Function, Promise, Uint8Array};
-use noosphere_sphere::{
+use noosphere_core::context::{
     AsyncFileBody, HasSphereContext, SphereContext, SphereCursor, SphereFile as SphereFileImpl,
 };
 use tokio::{io::AsyncReadExt, sync::Mutex};

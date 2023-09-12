@@ -11,16 +11,26 @@ use noosphere_storage::BlockStore;
 // Assumptions:
 // - network operations are _always_ mediated by a "remote" agent (no client-to-client syncing)
 // - the "remote" always has the authoritative state (we always rebase merge onto remote's tip)
+
+#[cfg(doc)]
+use tokio_stream::Stream;
+
+/// A helper for turning contiguous ranges of [Link<MemoIpld>]s into [Timeslice]s.
 #[derive(Debug)]
 pub struct Timeline<'a, S: BlockStore> {
+    /// The [BlockStore] that will be shared with any [Timeslice]s produced by
+    /// this [Timeline]
     pub store: &'a S,
 }
 
 impl<'a, S: BlockStore> Timeline<'a, S> {
+    /// Initialize a new [Timeline] with a backing [BlockStore]
     pub fn new(store: &'a S) -> Self {
         Timeline { store }
     }
 
+    /// Produce a [Timeslice], which represents a reverse-chronological series
+    /// of [Link<MemoIpld>] that occur between a specified bounds.
     pub fn slice(
         &'a self,
         future: &'a Link<MemoIpld>,
@@ -37,6 +47,9 @@ impl<'a, S: BlockStore> Timeline<'a, S> {
     // TODO(#263): Consider using async-stream crate for this
     // TODO(tokio-rs/tracing#2503): instrument + impl trait causes clippy
     // warning
+    /// Produce a [TryStream] whose items are a series of [(Link<MemoIpld>,
+    /// MemoIpld)], each one the ancestor of the last, yielded in
+    /// reverse-chronological order.
     #[allow(clippy::let_with_type_underscore)]
     #[instrument(level = "trace", skip(self))]
     pub fn stream(
@@ -74,30 +87,46 @@ impl<'a, S: BlockStore> Timeline<'a, S> {
     }
 }
 
+/// A [Timeslice] represents a bounded chronological range of [Link<MemoIpld>]
+/// within a [Timeline].
 #[derive(Debug)]
 pub struct Timeslice<'a, S: BlockStore> {
+    /// The associated [Timeline] of this [Timeslice]
     pub timeline: &'a Timeline<'a, S>,
+    /// The bound in the chronological "past," e.g., the earliest version;
+    /// `None` means "the (inclusive) beginning"
     pub past: Option<&'a Link<MemoIpld>>,
+    /// The bound in the chronological "future" e.g.,  the most recent version
     pub future: &'a Link<MemoIpld>,
+    /// Whether or not to exclude the configured `past` from any iteration over
+    /// the series of versions
     pub exclude_past: bool,
 }
 
 impl<'a, S: BlockStore> Timeslice<'a, S> {
+    /// Produce a [TryStream] from this [Timeslice] that yields sphere versions
+    /// and their memos in reverse-chronological order
     pub fn stream(&self) -> impl TryStream<Item = Result<(Link<MemoIpld>, MemoIpld)>> {
         self.timeline
             .stream(self.future, self.past, self.exclude_past)
     }
 
+    /// Configure the [Timeslice] to be inclusive of the `past` bound
     pub fn include_past(mut self) -> Self {
         self.exclude_past = false;
         self
     }
 
+    /// Configure the [Timeslice] to be exclusive of the `past` bound
     pub fn exclude_past(mut self) -> Self {
         self.exclude_past = true;
         self
     }
 
+    /// Aggregate an array of versions in chronological order and return it;
+    /// note that this can be quite memory costly (depending on how much history
+    /// is being aggregated), so it is better to stream in reverse-chronological
+    /// order if possible.
     pub async fn to_chronological(&self) -> Result<Vec<(Link<MemoIpld>, MemoIpld)>> {
         let mut chronological = VecDeque::new();
         let mut stream = Box::pin(self.stream());

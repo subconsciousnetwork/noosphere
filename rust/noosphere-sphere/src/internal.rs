@@ -10,6 +10,7 @@ use cid::Cid;
 use noosphere_core::{
     authority::Access,
     data::{ContentType, Header, Link, MemoIpld},
+    stream::put_block_stream,
 };
 
 /// A module-private trait for internal trait methods; this is a workaround for
@@ -54,7 +55,7 @@ where
         sphere_revision: &Cid,
         memo_link: Link<MemoIpld>,
     ) -> Result<SphereFile<Box<dyn AsyncFileBody>>> {
-        let mut db = self.sphere_context().await?.db().clone();
+        let db = self.sphere_context().await?.db().clone();
         let memo = memo_link.load_from(&db).await?;
 
         // If we have a memo, but not the content it refers to, we should try to
@@ -76,7 +77,7 @@ where
             // into the local DB
             let stream = client.replicate(&memo_link, None).await?;
 
-            db.put_block_stream(stream).await?;
+            put_block_stream(db.clone(), stream).await?;
         }
 
         let content_type = match memo.get_first_header(&Header::ContentType) {

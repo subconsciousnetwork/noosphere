@@ -16,7 +16,12 @@ use crate::data::SphereIpld;
 /// access a sphere, as well as the revocations of that authority.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct AuthorityIpld {
+    /// A pointer to the [DelegationsIpld] for this [AuthorityIpld], embodying
+    /// all authorizations for keys that operate on this sphere
     pub delegations: Link<DelegationsIpld>,
+    /// A pointer to the [RevocationsIpld] for this [AuthorityIpld], embodying
+    /// revocations for any otherwise valid authorizations for keys issued by this
+    /// sphere in the past.
     pub revocations: Link<RevocationsIpld>,
 }
 
@@ -43,17 +48,24 @@ impl AuthorityIpld {
     }
 }
 
+#[cfg(doc)]
+use crate::data::Jwt;
+
 /// This delegation represents the sharing of access to resources within a
 /// sphere. The name of the delegation is for display purposes only, and helps
 /// the user identify the client device or application that the delegation is
 /// intended for.
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Serialize, Deserialize, Hash)]
 pub struct DelegationIpld {
+    /// The human-readable name of the delegation
     pub name: String,
+    /// A pointer to the [Jwt] created for this [DelegationIpld]
     pub jwt: Cid,
 }
 
 impl DelegationIpld {
+    /// Stores a [Ucan] that delegates authority to a key, and initializes a
+    /// [DelegationIpld] for it that is appropriate for storing in a sphere
     pub async fn register<S: BlockStore>(name: &str, jwt: &str, store: &S) -> Result<Self> {
         let mut store = UcanStore(store.clone());
         let cid = store.write_token(jwt).await?;
@@ -64,6 +76,8 @@ impl DelegationIpld {
         })
     }
 
+    /// Resolve a [Ucan] from storage via the pointer to a [Jwt] in this
+    /// [DelegationIpld]
     pub async fn resolve_ucan<S: BlockStore>(&self, store: &S) -> Result<Ucan> {
         let store = UcanStore(store.clone());
         let jwt = store.require_token(&self.jwt).await?;
@@ -87,6 +101,8 @@ pub struct RevocationIpld {
 }
 
 impl RevocationIpld {
+    /// Revoke a delegation by the [Cid] of its associated [Jwt], using a key credential
+    /// of an authorizing ancestor of the original delegation
     pub async fn revoke<K: KeyMaterial>(cid: &Cid, issuer: &K) -> Result<Self> {
         Ok(RevocationIpld {
             iss: issuer.get_did().await?,
@@ -95,6 +111,8 @@ impl RevocationIpld {
         })
     }
 
+    /// Verify that the [RevocationIpld] is valid compared to the public key of
+    /// the issuer
     pub async fn verify<K: KeyMaterial + ?Sized>(&self, claimed_issuer: &K) -> Result<()> {
         let cid = Cid::try_from(self.revoke.as_str())?;
         let challenge_payload = Self::make_challenge_payload(&cid);

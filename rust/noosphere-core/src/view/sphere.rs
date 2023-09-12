@@ -31,6 +31,10 @@ use noosphere_storage::{base64_decode, block_serialize, BlockStore, SphereDb, St
 
 use super::{address::AddressBook, Authority, Delegations, Identities, Revocations, Timeslice};
 
+/// An arbitrarily long value for sphere authorizations that should outlive the
+/// keys they authorize
+// TODO: Recent UCAN versions allow setting a null expiry; we should use that
+// instead
 pub const SPHERE_LIFETIME: u64 = 315360000000; // 10,000 years (arbitrarily high)
 
 /// High-level Sphere I/O
@@ -224,10 +228,14 @@ impl<S: BlockStore> Sphere<S> {
         })
     }
 
+    /// Get an immutable reference to the [BlockStore] that is in use by this
+    /// [Sphere] view
     pub fn store(&self) -> &S {
         &self.store
     }
 
+    /// Get a mutable reference to the [BlockStore] that is in use by this
+    /// [Sphere] view
     pub fn store_mut(&mut self) -> &mut S {
         &mut self.store
     }
@@ -307,6 +315,8 @@ impl<S: BlockStore> Sphere<S> {
         Ok(Authority::at(&sphere.authority, &self.store.clone()))
     }
 
+    /// Attempt to load the [AddressBook] of this sphere. If no address book is
+    /// found, an empty one is initialized.
     pub async fn get_address_book(&self) -> Result<AddressBook<S>> {
         let sphere = self.to_body().await?;
 

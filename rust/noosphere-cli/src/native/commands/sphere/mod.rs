@@ -27,8 +27,8 @@ use noosphere::{
     key::KeyStorage,
     sphere::{SphereContextBuilder, SphereContextBuilderArtifacts},
 };
+use noosphere_core::context::{HasMutableSphereContext, SphereContext, SphereSync, SyncRecovery};
 use noosphere_core::{authority::Authorization, data::Did};
-use noosphere_sphere::{HasMutableSphereContext, SphereContext, SphereSync, SyncRecovery};
 
 use tokio::sync::Mutex;
 use ucan::crypto::KeyMaterial;

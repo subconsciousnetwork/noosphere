@@ -163,7 +163,7 @@ impl IpfsClient for KuboClient {
 
 // Note that these tests require that there is a locally available IPFS Kubo
 // node running with the RPC API enabled
-#[cfg(all(test, feature = "test_kubo"))]
+#[cfg(all(test, feature = "test-kubo"))]
 mod tests {
     use std::io::Cursor;
 

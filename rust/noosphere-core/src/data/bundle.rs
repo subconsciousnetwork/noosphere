@@ -1,3 +1,6 @@
+// We are removing this module, so not gonna bother documenting...
+#![allow(missing_docs)]
+
 use std::{collections::BTreeMap, str::FromStr};
 
 use anyhow::{anyhow, Result};
