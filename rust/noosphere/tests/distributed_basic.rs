@@ -4,6 +4,9 @@
 //! name system and block syndication backend (e.g., IPFS Kubo). The tests in this
 //! module represent basic distributed system scenarios.
 
+// TODO(#629): Remove this when we migrate off of `release-please`
+extern crate noosphere_cli_dev as noosphere_cli;
+
 #[macro_use]
 extern crate tracing;
 

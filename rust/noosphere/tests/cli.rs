@@ -3,9 +3,11 @@
 //! Integration tests to demonstrate that the Noosphere CLI, aka "orb", works
 //! end-to-end in concert with the name system and backing block syndication
 
+// TODO(#629): Remove this when we migrate off of `release-please`
+extern crate noosphere_cli_dev as noosphere_cli;
+
 use anyhow::Result;
-use noosphere_cli::helpers::CliSimulator;
-use noosphere_cli::paths::SPHERE_DIRECTORY;
+use noosphere_cli::{helpers::CliSimulator, paths::SPHERE_DIRECTORY};
 use noosphere_common::helpers::wait;
 use noosphere_core::tracing::initialize_tracing;
 use serde_json::Value;
