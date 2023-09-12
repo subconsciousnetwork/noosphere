@@ -19,7 +19,7 @@
     "test": "wireit"
   },
   "dependencies": {
-    "@web/dev-server": "^0.3.0",
+    "@web/dev-server": "^0.3.1",
     "esbuild": "^0.18.19",
     "typescript": "~5.1.6",
     "wireit": "^0.10.0"
