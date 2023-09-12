@@ -6,6 +6,7 @@
 
 // TODO(#629): Remove this when we migrate off of `release-please`
 extern crate noosphere_cli_dev as noosphere_cli;
+extern crate noosphere_ns_dev as noosphere_ns;
 
 #[macro_use]
 extern crate tracing;
