@@ -6,6 +6,7 @@
 
 // TODO(#629): Remove this when we migrate off of `release-please`
 extern crate noosphere_cli_dev as noosphere_cli;
+extern crate noosphere_gateway_dev as noosphere_gateway;
 
 use anyhow::Result;
 use noosphere::key::KeyStorage;

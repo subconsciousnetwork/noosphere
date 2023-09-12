@@ -52,7 +52,6 @@ serde_json = { workspace = true }
 
 noosphere-core = { version = "0.15.1", path = "../noosphere-core", features = ["helpers"] }
 noosphere-common = { version = "0.1.0", path = "../noosphere-common", features = ["helpers"] }
-noosphere-gateway = { version = "0.8.1", path = "../noosphere-gateway" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # TODO: We should eventually support gateway storage as a specialty target only,
@@ -80,6 +79,7 @@ reqwest = { workspace = true }
 # TODO(#629): This is a dependency cycle hack that we need until we can get off of release-please
 noosphere-cli-dev = { path = "../noosphere-cli", features = ["helpers"], package = "noosphere-cli" }
 noosphere-ns-dev = { path = "../noosphere-ns", package = "noosphere-ns" }
+noosphere-gateway-dev = { path = "../noosphere-gateway", package = "noosphere-gateway" }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = { workspace = true }
