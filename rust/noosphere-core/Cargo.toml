@@ -32,7 +32,7 @@ async-recursion = "^1"
 async-stream = { workspace = true }
 
 # NOTE: async-once-cell 0.4.0 shipped unstable feature usage
-async-once-cell = "~0.4"
+async-once-cell = "~0.5"
 anyhow = { workspace = true }
 bytes = { workspace = true }
 iroh-car = { workspace = true }

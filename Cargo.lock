@@ -362,6 +362,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b49bd4c5b769125ea6323601c39815848972880efd33ffb2d01f9f909adc699"
 
 [[package]]
+name = "async-once-cell"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9338790e78aa95a416786ec8389546c4b6a1dfc3dc36071ed9518a9413a542eb"
+
+[[package]]
 name = "async-recursion"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3449,7 +3455,7 @@ name = "noosphere-collections"
 version = "0.6.3"
 dependencies = [
  "anyhow",
- "async-once-cell",
+ "async-once-cell 0.5.3",
  "async-recursion",
  "async-stream",
  "byteorder",
@@ -3487,7 +3493,7 @@ name = "noosphere-core"
 version = "0.15.2"
 dependencies = [
  "anyhow",
- "async-once-cell",
+ "async-once-cell 0.5.3",
  "async-recursion",
  "async-stream",
  "async-trait",
@@ -6617,7 +6623,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a64f5fae2a182d0264a424b8be448b7c9798ba1eff2fa260b479da54d86d6bbe"
 dependencies = [
  "anyhow",
- "async-once-cell",
+ "async-once-cell 0.4.4",
  "async-trait",
  "bytes",
  "chrono",
@@ -6637,7 +6643,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "523d5a2c7f5fd4977ddef3287bb00349a842adc68f5f0de6dfe79ea7c351b70d"
 dependencies = [
  "anyhow",
- "async-once-cell",
+ "async-once-cell 0.4.4",
  "async-trait",
  "bitvec",
  "chrono",
