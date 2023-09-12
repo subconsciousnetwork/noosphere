@@ -32,7 +32,7 @@ pub enum Authorization {
 
 impl Authorization {
     /// Attempt to resolve the [Authorization] as a fully deserialized [Ucan]
-    /// (if it is not one already.
+    /// (if it is not one already).
     pub async fn as_ucan<S: UcanJwtStore>(&self, store: &S) -> Result<Ucan> {
         match self {
             Authorization::Ucan(ucan) => Ok(ucan.clone()),

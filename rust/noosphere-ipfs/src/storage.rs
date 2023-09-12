@@ -37,18 +37,6 @@ where
     }
 }
 
-// #[cfg(not(target_arch = "wasm32"))]
-// pub trait IpfsStorageConditionalSendSync: Send + Sync {}
-
-// #[cfg(not(target_arch = "wasm32"))]
-// impl<S> IpfsStorageConditionalSendSync for S where S: Send + Sync {}
-
-// #[cfg(target_arch = "wasm32")]
-// pub trait IpfsStorageConditionalSendSync {}
-
-// #[cfg(target_arch = "wasm32")]
-// impl<S> IpfsStorageConditionalSendSync for S {}
-
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl<S, C> Storage for IpfsStorage<S, C>

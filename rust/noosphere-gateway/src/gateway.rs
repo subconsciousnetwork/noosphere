@@ -13,7 +13,6 @@ use tower_http::trace::TraceLayer;
 use url::Url;
 
 use noosphere_core::api::{v0alpha1, v0alpha2};
-// use noosphere_core::api::route::Route as GatewayRoute;
 
 use crate::{
     handlers,

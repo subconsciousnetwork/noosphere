@@ -16,7 +16,7 @@ use super::{Did, IdentitiesIpld, Jwt, Link, MemoIpld};
 use crate::data::SphereIpld;
 
 /// The name of the fact (as defined for a [Ucan]) that contains the link for a
-/// [LinkRecord]
+/// [LinkRecord].
 pub const LINK_RECORD_FACT_NAME: &str = "link";
 
 /// A subdomain of a [SphereIpld] that pertains to the management and recording of

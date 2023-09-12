@@ -3570,7 +3570,6 @@ dependencies = [
  "ucan-key-support",
  "url",
  "wasm-bindgen",
- "wnfs-common",
  "wnfs-namefilter",
 ]
 
@@ -6613,9 +6612,9 @@ dependencies = [
 
 [[package]]
 name = "wnfs-common"
-version = "0.1.23"
+version = "0.1.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dfcb4584f3866ead49adae8c05cec6f633139d19283448aa7807280612e24b7"
+checksum = "a64f5fae2a182d0264a424b8be448b7c9798ba1eff2fa260b479da54d86d6bbe"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -6633,9 +6632,9 @@ dependencies = [
 
 [[package]]
 name = "wnfs-namefilter"
-version = "0.1.21"
+version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7b3c8f19557eccf4fc3369197d525d7618d1585ed1f37ee210cbc6bb4b4cab6"
+checksum = "523d5a2c7f5fd4977ddef3287bb00349a842adc68f5f0de6dfe79ea7c351b70d"
 dependencies = [
  "anyhow",
  "async-once-cell",

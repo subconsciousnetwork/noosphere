@@ -1,6 +1,6 @@
 //! These constants represent the metadata keys used when a [SphereContext] is
 //! is initialized. Since these represent somewhat free-form key/values in the
-//! storage layer, we are make a best effort to document them here.
+//! storage layer, we make a best effort to document them here.
 
 #[cfg(doc)]
 use crate::context::SphereContext;

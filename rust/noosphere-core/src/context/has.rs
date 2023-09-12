@@ -5,6 +5,7 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use noosphere_common::ConditionalSync;
 use noosphere_storage::{SphereDb, Storage};
 use std::{
     ops::{Deref, DerefMut},
@@ -16,20 +17,6 @@ use crate::context::SphereContextKey;
 
 use super::SphereContext;
 
-#[allow(missing_docs)]
-#[cfg(not(target_arch = "wasm32"))]
-pub trait HasConditionalSendSync: Send + Sync {}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl<S> HasConditionalSendSync for S where S: Send + Sync {}
-
-#[allow(missing_docs)]
-#[cfg(target_arch = "wasm32")]
-pub trait HasConditionalSendSync {}
-
-#[cfg(target_arch = "wasm32")]
-impl<S> HasConditionalSendSync for S {}
-
 /// Any container that can provide non-mutable access to a [SphereContext]
 /// should implement [HasSphereContext]. The most common example of something
 /// that may implement this trait is an `Arc<SphereContext<_, _>>`. Implementors
@@ -38,12 +25,12 @@ impl<S> HasConditionalSendSync for S {}
 /// content and petnames.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait HasSphereContext<S>: Clone + HasConditionalSendSync
+pub trait HasSphereContext<S>: Clone + ConditionalSync
 where
     S: Storage + 'static,
 {
     /// The type of the internal read-only [SphereContext]
-    type SphereContext: Deref<Target = SphereContext<S>> + HasConditionalSendSync;
+    type SphereContext: Deref<Target = SphereContext<S>> + ConditionalSync;
 
     /// Get the [SphereContext] that is made available by this container.
     async fn sphere_context(&self) -> Result<Self::SphereContext>;
@@ -85,14 +72,14 @@ where
 /// aspects of a sphere.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait HasMutableSphereContext<S>: HasSphereContext<S> + HasConditionalSendSync
+pub trait HasMutableSphereContext<S>: HasSphereContext<S> + ConditionalSync
 where
     S: Storage + 'static,
 {
     /// The type of the internal mutable [SphereContext]
     type MutableSphereContext: Deref<Target = SphereContext<S>>
         + DerefMut<Target = SphereContext<S>>
-        + HasConditionalSendSync;
+        + ConditionalSync;
 
     /// Get a mutable reference to the [SphereContext] that is wrapped by this
     /// container.

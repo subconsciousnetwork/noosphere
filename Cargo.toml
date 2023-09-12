@@ -64,7 +64,8 @@ wasm-bindgen-test = { version = "^0.3" }
 wasm-bindgen-futures = { version = "^0.4" }
 wasm-streams = { version = "0.3.0" }
 web-sys = { version = "0.3" }
-wnfs-namefilter = { version = "0.1.21" }
+# TODO(#626): Migrate off of this crate
+wnfs-namefilter = { version = "0.1.23" }
 
 [profile.release]
 opt-level = 'z'

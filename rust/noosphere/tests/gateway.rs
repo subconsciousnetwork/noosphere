@@ -390,60 +390,6 @@ async fn gateway_receives_sphere_revisions_from_a_client() -> Result<()> {
     Ok(())
 }
 
-// #[tokio::test]
-// async fn all_of_client_history_is_made_manifest_on_the_gateway_after_sync() -> Result<()> {
-//     initialize_tracing(None);
-
-//     let mut sphere_pair = SpherePair::new(
-//         "one",
-//         &Url::parse("http://127.0.0.1:5001")?,
-//         &Url::parse("http://127.0.0.1:6667")?,
-//     )
-//     .await?;
-
-//     sphere_pair.start_gateway().await?;
-
-//     let final_client_version = sphere_pair
-//         .spawn(move |mut client_sphere_context| async move {
-//             for value in ["one", "two", "three"] {
-//                 client_sphere_context
-//                     .write(value, &ContentType::Text, value.as_bytes(), None)
-//                     .await?;
-//                 client_sphere_context.save(None).await?;
-//             }
-
-//             client_sphere_context.sync(SyncRecovery::None).await?;
-
-//             for value in ["one", "two", "three"] {
-//                 client_sphere_context
-//                     .set_petname(value, Some(Did(format!("did:key:{}", value))))
-//                     .await?;
-//                 client_sphere_context.save(None).await?;
-//             }
-
-//             client_sphere_context.sync(SyncRecovery::None).await?;
-
-//             wait(1).await;
-
-//             Ok(client_sphere_context.sync(SyncRecovery::None).await?)
-//         })
-//         .await?;
-
-//     // Stream all of the blocks of client history as represented in gateway's storage
-//     let block_stream = memo_history_stream(
-//         sphere_pair.gateway.workspace.db().await?,
-//         &final_client_version,
-//         None,
-//         true,
-//     );
-
-//     tokio::pin!(block_stream);
-
-//     while let Some(_) = block_stream.try_next().await? {}
-
-//     Ok(())
-// }
-
 #[tokio::test]
 async fn gateway_can_sync_an_authorized_sphere_across_multiple_replicas() -> Result<()> {
     initialize_tracing(None);
