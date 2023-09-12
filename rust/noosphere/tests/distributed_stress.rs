@@ -5,6 +5,9 @@
 //! module represent sophisticated, complicated, nuanced or high-latency scenarios.
 
 mod latency {
+    // TODO(#629): Remove this when we migrate off of `release-please`
+    extern crate noosphere_cli_dev as noosphere_cli;
+
     use anyhow::Result;
     use noosphere_cli::helpers::{start_name_system_server, SpherePair};
     use noosphere_common::helpers::TestEntropy;
@@ -130,6 +133,8 @@ mod latency {
 }
 
 mod multiplayer {
+    // TODO(#629): Remove this when we migrate off of `release-please`
+    extern crate noosphere_cli_dev as noosphere_cli;
 
     use anyhow::Result;
     use noosphere_cli::helpers::{start_name_system_server, CliSimulator, SpherePair};

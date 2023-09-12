@@ -4,6 +4,9 @@
 //! tests in this module should be able to run without an available backing
 //! IPFS-like block syndication layer.
 
+// TODO(#629): Remove this when we migrate off of `release-please`
+extern crate noosphere_cli_dev as noosphere_cli;
+
 use anyhow::Result;
 use noosphere::key::KeyStorage;
 use noosphere_core::context::{
