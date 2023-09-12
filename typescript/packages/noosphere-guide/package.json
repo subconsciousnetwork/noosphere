@@ -16,7 +16,7 @@
     "markdown-it": "^13.0.1",
     "markdown-it-anchor": "^8.6.7",
     "slugify": "^1.6.6",
-    "wireit": "^0.10.0"
+    "wireit": "^0.14.0"
   },
   "wireit": {
     "build": {

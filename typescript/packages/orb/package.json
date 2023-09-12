@@ -22,7 +22,7 @@
     "@web/dev-server": "^0.3.1",
     "esbuild": "^0.18.19",
     "typescript": "~5.2.2",
-    "wireit": "^0.10.0"
+    "wireit": "^0.14.0"
   },
   "wireit": {
     "build": {
