@@ -42,13 +42,14 @@ impl TryFrom<Vec<Duration>> for PerformanceAnalysis {
 impl TryFrom<InternalStoreStats> for PerformanceStats {
     type Error = Error;
     fn try_from(value: InternalStoreStats) -> Result<Self> {
-        let mut stats = PerformanceStats::default();
-        stats.reads = value.reads.try_into()?;
-        stats.writes = value.writes.try_into()?;
-        stats.removes = value.removes.try_into()?;
-        stats.flushes = value.flushes.try_into()?;
-        stats.logical_bytes_stored = value.logical_bytes_stored;
-        Ok(stats)
+        Ok(PerformanceStats {
+            reads: value.reads.try_into()?,
+            writes: value.writes.try_into()?,
+            removes: value.removes.try_into()?,
+            flushes: value.flushes.try_into()?,
+            logical_bytes_stored: value.logical_bytes_stored,
+            ..Default::default()
+        })
     }
 }
 
@@ -109,7 +110,7 @@ where
 {
     /// Drains the storage stats and returns a summary
     /// of operations as [PerformanceStats].
-    pub async fn to_stats(&mut self) -> Result<PerformanceStats> {
+    pub async fn as_stats(&mut self) -> Result<PerformanceStats> {
         let storage_stats = self.stats.lock().await;
         let mut agg = InternalStoreStats::default();
         for (_, store_stats) in storage_stats.iter() {

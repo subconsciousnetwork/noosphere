@@ -37,10 +37,6 @@ url = { version = "^2" }
 witty-phrase-generator = "~0.2"
 wasm-bindgen-test = { workspace = true }
 rand = { workspace = true }
-# examples/bench
-noosphere-core = { version = "0.15.2", path = "../noosphere-core", features = ["helpers"] }
-# examples/bench
-noosphere-common = { version = "0.1.0", path = "../noosphere-common", features = ["helpers"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tempfile = { workspace = true }
@@ -71,6 +67,3 @@ default = []
 rocksdb = ["dep:rocksdb"]
 rocksdb-multi-thread = ["dep:rocksdb"]
 performance = ["dep:instant"]
-
-[[example]]
-name = "bench"

@@ -1,14 +1,3 @@
-//! Benchmarking suite for comparing [Storage] providers.
-//! Even though the `performance` feature is defined in the example manifest,
-//! it still needs to be passed in when invoking from the parent crate.
-//!
-//! Run Sled:
-//! `cargo run --example bench --features performance`
-//! Run RocksDB:
-//! `cargo run --example bench --features performance --features rocksdb`
-//! Run IndexedDb (open `http://localhost:8000` in a browser)
-//! `NO_HEADLESS=1 cargo run --example bench --features performance --target wasm32-unknown-unknown`
-
 use anyhow::Result;
 use noosphere_common::helpers::TestEntropy;
 use noosphere_core::{
@@ -180,8 +169,8 @@ impl BenchmarkStorage {
         SphereDb::new(&self.storage).await
     }
 
-    pub async fn to_stats(&mut self) -> Result<PerformanceStats> {
-        self.storage.to_stats().await
+    pub async fn as_stats(&mut self) -> Result<PerformanceStats> {
+        self.storage.as_stats().await
     }
 
     /// Cleanup the storage. Tempdirs handle native implementations,
@@ -227,7 +216,7 @@ async fn bench_sphere_writing_long_history() {
 
     let db = storage.sphere_db().await.unwrap();
     create_sphere_with_long_history(db).await.unwrap();
-    let stats = storage.to_stats().await.unwrap();
+    let stats = storage.as_stats().await.unwrap();
     log_perf_stats(&stats).await;
     storage.dispose().await.unwrap();
 }
@@ -238,7 +227,7 @@ async fn bench_sphere_writing_large_files() {
 
     let db = storage.sphere_db().await.unwrap();
     create_sphere_with_large_files(db).await.unwrap();
-    let stats = storage.to_stats().await.unwrap();
+    let stats = storage.as_stats().await.unwrap();
     log_perf_stats(&stats).await;
     storage.dispose().await.unwrap();
 }

@@ -12,6 +12,7 @@ members = [
   "rust/noosphere-ns",
   "rust/noosphere-sphere",
   "rust/noosphere-storage",
+  "rust/examples/*",
 ]
 
 # See: https://github.com/rust-lang/rust/issues/90148#issuecomment-949194352

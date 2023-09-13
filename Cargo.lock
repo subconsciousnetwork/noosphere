@@ -3834,7 +3834,6 @@ dependencies = [
  "libipld-cbor",
  "libipld-core",
  "noosphere-common",
- "noosphere-core",
  "rand",
  "rexie",
  "rocksdb",
@@ -5351,6 +5350,24 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "storage-bench"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "noosphere-common",
+ "noosphere-core",
+ "noosphere-storage",
+ "rand",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test",
+ "witty-phrase-generator",
+]
 
 [[package]]
 name = "strsim"
