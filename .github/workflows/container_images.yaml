@@ -51,8 +51,8 @@ jobs:
         uses: 'google-github-actions/auth@v1'
         with:
           token_format: 'access_token'
-          workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/build-pipeline/providers/build-pipeline-provider'
-          service_account: 'build-pipeline@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/base-default/providers/github-provider'
+          service_account: 'artifact-writer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
       - name: 'Set up Google Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
         with:
