@@ -1,26 +1,21 @@
 use anyhow::{anyhow, Result};
+use async_stream::try_stream;
 use async_trait::async_trait;
 use cid::Cid;
+use noosphere_common::ConditionalSend;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 use crate::storage::Storage;
 use crate::store::Store;
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait StoreContainsCid {
-    async fn contains_cid(&self, cid: &Cid) -> Result<bool>;
+async fn contains_cid<S: Store>(store: &S, cid: &Cid) -> Result<bool> {
+    Ok(store.read(&cid.to_bytes()).await?.is_some())
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-impl<S: Store> StoreContainsCid for S {
-    async fn contains_cid(&self, cid: &Cid) -> Result<bool> {
-        Ok(self.read(&cid.to_bytes()).await?.is_some())
-    }
-}
-
+/// A memory-backed [Storage] implementation.
+///
+/// Useful for small, short-lived storages and testing.
 #[derive(Default, Clone, Debug)]
 pub struct MemoryStorage {
     stores: Arc<Mutex<HashMap<String, MemoryStore>>>,
@@ -57,12 +52,23 @@ impl Storage for MemoryStorage {
     }
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl crate::ops::OpenStorage for MemoryStorage {
+    async fn open<P: AsRef<std::path::Path> + ConditionalSend>(_: P) -> Result<Self> {
+        Ok(MemoryStorage::default())
+    }
+}
+
+/// [Store] implementation for [MemoryStorage].
 #[derive(Clone, Default, Debug)]
 pub struct MemoryStore {
+    /// Underlying key-value store.
     pub entries: Arc<Mutex<HashMap<Vec<u8>, Vec<u8>>>>,
 }
 
 impl MemoryStore {
+    /// Return all [Cid] keys from the store.
     pub async fn get_stored_cids(&self) -> Vec<Cid> {
         self.entries
             .lock()
@@ -75,6 +81,7 @@ impl MemoryStore {
             .collect()
     }
 
+    /// Returns `Ok` if all entries in this store are replicated by `other`.
     pub async fn expect_replica_in<S: Store>(&self, other: &S) -> Result<()> {
         let cids = self.get_stored_cids().await;
         let mut missing = Vec::new();
@@ -82,7 +89,7 @@ impl MemoryStore {
         for cid in cids {
             trace!("Checking for {}", cid);
 
-            if !other.contains_cid(&cid).await? {
+            if !contains_cid(other, &cid).await? {
                 trace!("Not found!");
                 missing.push(cid);
             }
@@ -101,6 +108,7 @@ impl MemoryStore {
         Ok(())
     }
 
+    /// Clones this store, sharing the underlying data.
     pub async fn fork(&self) -> Self {
         MemoryStore {
             entries: Arc::new(Mutex::new(self.entries.lock().await.clone())),
@@ -131,7 +139,19 @@ impl Store for MemoryStore {
     }
 }
 
-#[cfg(feature = "performance")]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl crate::IterableStore for MemoryStore {
+    fn get_all_entries(&self) -> std::pin::Pin<Box<crate::IterableStoreStream<'_>>> {
+        Box::pin(try_stream! {
+            let dags = self.entries.lock().await;
+            for key in dags.keys() {
+                yield (key.to_owned(), dags.get(key).cloned());
+            }
+        })
+    }
+}
+
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl crate::Space for MemoryStorage {

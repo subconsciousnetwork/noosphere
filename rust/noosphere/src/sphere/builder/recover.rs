@@ -41,7 +41,7 @@ pub async fn recover_a_sphere(
     #[cfg(not(target_arch = "wasm32"))]
     {
         use crate::storage::StorageLayout;
-        use rand::Rng;
+        use noosphere_storage::BackupStorage;
         use std::path::PathBuf;
 
         let storage_layout: StorageLayout = (
@@ -51,21 +51,13 @@ pub async fn recover_a_sphere(
         )
             .try_into()?;
 
-        let database_root: PathBuf = storage_layout.into();
+        let database_root = PathBuf::from(storage_layout);
 
         debug!(?database_root);
 
         if database_root.exists() {
-            let timestamp = std::time::SystemTime::UNIX_EPOCH.elapsed()?;
-            let nonce = rand::thread_rng().gen::<u32>();
-            let backup_id = format!("backup.{}-{}", timestamp.as_nanos(), nonce);
-
-            let mut backup_root = database_root.clone();
-            backup_root.set_extension(backup_id);
-
             info!("Backing up existing database...");
-
-            tokio::fs::rename(database_root, backup_root).await?;
+            crate::platform::PrimitiveStorage::backup(&database_root).await?;
         }
     }
 

@@ -1,7 +1,7 @@
 use crate::ConditionalSend;
 use futures_util::Stream;
 
-/// NOTE: This type was adapted from https://github.com/Nullus157/async-compression/blob/main/src/unshared.rs
+/// NOTE: This type was adapted from <https://github.com/Nullus157/async-compression/blob/main/src/unshared.rs>
 /// Original implementation licensed MIT/Apache 2
 ///
 /// Wraps a type and only allows unique borrowing, the main usecase is to wrap a `!Sync` type and

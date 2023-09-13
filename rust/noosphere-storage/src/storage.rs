@@ -14,7 +14,9 @@ use std::fmt::Debug;
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 pub trait Storage: Clone + ConditionalSync + Debug {
+    /// Type of [BlockStore] used in [Storage::get_block_store].
     type BlockStore: BlockStore;
+    /// Type of [KeyValueStore] used in [Storage::get_key_value_store].
     type KeyValueStore: KeyValueStore;
 
     /// Get a [BlockStore] where all values stored in it are scoped to the given

@@ -5,20 +5,26 @@ use tokio::sync::Mutex;
 
 use crate::{store::Store, MemoryStorage, MemoryStore, Storage};
 
+/// Stats derived from a [TrackingStore].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StoreStats {
+    /// Number of reads performed.
     pub reads: usize,
+    /// Number of writes performed.
     pub writes: usize,
+    /// Number of removes performed.
     pub removes: usize,
+    /// Number of bytes read.
     pub bytes_read: usize,
+    /// Number of bytes written.
     pub bytes_written: usize,
+    /// Number of bytes removed.
     pub bytes_removed: usize,
+    /// Number of flushes.
     pub flushes: usize,
 }
 
-/// This is a store wrapper that tracks I/O. It is inspired by the testing
-/// utility originally created for the Forest HAMT implementation. This wrapper
-/// is all runtime overhead and should only be used for testing.
+/// A [Store] implementation for [TrackingStorage].
 #[derive(Debug, Clone)]
 pub struct TrackingStore<S: Store> {
     stats: Arc<Mutex<StoreStats>>,
@@ -26,10 +32,12 @@ pub struct TrackingStore<S: Store> {
 }
 
 impl<S: Store> TrackingStore<S> {
+    /// Returns the current [StoreStats] snapshot.
     pub async fn to_stats(&self) -> StoreStats {
         self.stats.lock().await.clone()
     }
 
+    /// Create a new [TrackingStore] wrapping a [Store].
     pub fn wrap(store: S) -> Self {
         TrackingStore {
             store,
@@ -75,12 +83,18 @@ impl<S: Store> Store for TrackingStore<S> {
     }
 }
 
+/// A [Storage] wrapper that tracks I/O.
+///
+/// It is inspired by the testing utility originally created for
+/// the Forest HAMT implementation. This wrapper is all runtime
+/// overhead and should only be used for testing.
 #[derive(Clone, Debug)]
 pub struct TrackingStorage<S: Storage> {
     storage: S,
 }
 
 impl TrackingStorage<MemoryStorage> {
+    /// Create a new [TrackingStorage] wrapping a [MemoryStorage].
     pub fn wrap(other: MemoryStorage) -> Self {
         TrackingStorage { storage: other }
     }

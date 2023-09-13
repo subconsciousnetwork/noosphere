@@ -4,10 +4,10 @@ use async_trait::async_trait;
 use cid::Cid;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
-/// Wraps any [BlockStore] and "taps" it by cloning any block successfully
-/// retrieved from the store and sending over an MPSC channel. This allows an
-/// observer to record all the blocks needed to load arbitrarily deep and
-/// complex DAGs into memory without orchestrating a dedicated callback for the
+/// Instruments a [BlockStore], sending a copy of each block read to a [Receiver].
+///
+/// This allows an observer to record all the blocks needed to load arbitrarily deep
+/// and complex DAGs into memory without orchestrating a dedicated callback for the
 /// DAG implementations to invoke.
 ///
 /// Note that the [Receiver] end of the channel will consider the channel open
@@ -29,6 +29,8 @@ impl<S> BlockStoreTap<S>
 where
     S: BlockStore,
 {
+    /// Wraps a [BlockStore], setting the channel capacity to `capacity`, returning
+    /// the wrapped store and [Receiver].
     pub fn new(store: S, capacity: usize) -> (Self, Receiver<(Cid, Vec<u8>)>) {
         let (tx, rx) = channel(capacity);
         (BlockStoreTap { store, tx }, rx)

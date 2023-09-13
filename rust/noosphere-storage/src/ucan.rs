@@ -10,6 +10,7 @@ use ucan::store::{UcanStore as UcanStoreTrait, UcanStoreConditionalSend};
 
 use crate::block::BlockStore;
 
+/// [BlockStore] wrapper implementing [ucan::store::UcanStore].
 pub struct UcanStore<S: BlockStore>(pub S);
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

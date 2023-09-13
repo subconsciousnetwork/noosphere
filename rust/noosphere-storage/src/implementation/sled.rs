@@ -1,35 +1,28 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::storage::Storage;
 use crate::store::Store;
 
 use anyhow::Result;
+use async_stream::try_stream;
 use async_trait::async_trait;
+use noosphere_common::ConditionalSend;
 use sled::{Db, Tree};
 
-pub enum SledStorageInit {
-    Path(PathBuf),
-    Db(Db),
-}
-
+/// A [Sled](https://github.com/spacejam/sled) [Storage] implementation.
 #[derive(Clone, Debug)]
 pub struct SledStorage {
     db: Db,
     #[allow(unused)]
-    path: Option<PathBuf>,
+    path: PathBuf,
 }
 
 impl SledStorage {
-    pub fn new(init: SledStorageInit) -> Result<Self> {
-        let mut db_path = None;
-        let db: Db = match init {
-            SledStorageInit::Path(path) => {
-                std::fs::create_dir_all(&path)?;
-                db_path = Some(path.clone().canonicalize()?);
-                sled::open(path)?
-            }
-            SledStorageInit::Db(db) => db,
-        };
+    /// Open or create a database at directory `path`.
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        std::fs::create_dir_all(path.as_ref())?;
+        let db_path = path.as_ref().canonicalize()?;
+        let db = sled::open(&db_path)?;
 
         Ok(SledStorage { db, path: db_path })
     }
@@ -54,13 +47,31 @@ impl Storage for SledStorage {
     }
 }
 
+#[async_trait]
+impl crate::FsBackedStorage for SledStorage {}
+
+#[async_trait]
+impl crate::OpenStorage for SledStorage {
+    async fn open<P: AsRef<Path> + ConditionalSend>(path: P) -> Result<Self> {
+        SledStorage::new(path)
+    }
+}
+
+#[async_trait]
+impl crate::Space for SledStorage {
+    async fn get_space_usage(&self) -> Result<u64> {
+        self.db.size_on_disk().map_err(|e| e.into())
+    }
+}
+
+/// [Store] implementation for [SledStorage].
 #[derive(Clone)]
 pub struct SledStore {
     db: Tree,
 }
 
 impl SledStore {
-    pub fn new(db: &Tree) -> Self {
+    pub(crate) fn new(db: &Tree) -> Self {
         SledStore { db: db.clone() }
     }
 }
@@ -98,15 +109,13 @@ impl Store for SledStore {
     }
 }
 
-impl Drop for SledStorage {
-    fn drop(&mut self) {
-        let _ = self.db.flush();
-    }
-}
-
-#[async_trait]
-impl crate::Space for SledStorage {
-    async fn get_space_usage(&self) -> Result<u64> {
-        self.db.size_on_disk().map_err(|e| e.into())
+impl crate::IterableStore for SledStore {
+    fn get_all_entries(&self) -> std::pin::Pin<Box<crate::IterableStoreStream<'_>>> {
+        Box::pin(try_stream! {
+            for entry in self.db.iter() {
+                let (key, value) = entry?;
+                yield (Vec::from(key.as_ref()), Some(Vec::from(value.as_ref())));
+            }
+        })
     }
 }
