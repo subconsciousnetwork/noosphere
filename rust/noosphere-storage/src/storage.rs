@@ -2,19 +2,8 @@ use crate::block::BlockStore;
 use crate::key_value::KeyValueStore;
 use anyhow::Result;
 use async_trait::async_trait;
+use noosphere_common::ConditionalSync;
 use std::fmt::Debug;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub trait StorageSendSync: Send + Sync {}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl<T> StorageSendSync for T where T: Send + Sync {}
-
-#[cfg(target_arch = "wasm32")]
-pub trait StorageSendSync {}
-
-#[cfg(target_arch = "wasm32")]
-impl<T> StorageSendSync for T {}
 
 /// [Storage] is a general trait for composite storage backends. It is often the
 /// case that we are able to use a single storage primitive for all forms of
@@ -24,7 +13,7 @@ impl<T> StorageSendSync for T {}
 /// other Noosphere constructs.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait Storage: Clone + StorageSendSync + Debug {
+pub trait Storage: Clone + ConditionalSync + Debug {
     type BlockStore: BlockStore;
     type KeyValueStore: KeyValueStore;
 

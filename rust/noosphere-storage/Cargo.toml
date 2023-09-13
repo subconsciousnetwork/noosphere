@@ -24,6 +24,7 @@ async-stream = { workspace = true }
 tokio-stream = { workspace = true }
 cid = { workspace = true }
 noosphere-common = { version = "0.1.0", path = "../noosphere-common" }
+instant = { version = "0.1.12", features = ["wasm-bindgen"], optional = true }
 tracing = "~0.1"
 ucan = { workspace = true }
 libipld-core = { workspace = true }
@@ -35,14 +36,24 @@ url = { version = "^2" }
 [dev-dependencies]
 witty-phrase-generator = "~0.2"
 wasm-bindgen-test = { workspace = true }
+rand = { workspace = true }
+# examples/bench
+noosphere-core = { version = "0.15.2", path = "../noosphere-core", features = ["helpers"] }
+# examples/bench
+noosphere-common = { version = "0.1.0", path = "../noosphere-common", features = ["helpers"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+tempfile = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sled = "~0.34"
 tokio = { workspace = true, features = ["full"] }
+rocksdb = { version = "0.21.0", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tokio = { workspace = true, features = ["sync", "macros"] }
-wasm-bindgen = { workspace = true }
+wasm-bindgen = { workspace = true, features = ["serde-serialize"] }
+wasm-bindgen-futures = { workspace = true }
 js-sys = { workspace = true }
 rexie = { version = "~0.4" }
 
@@ -51,4 +62,15 @@ version = "~0.3"
 features = [
   "Window",
   "DedicatedWorkerGlobalScope",
+  "StorageManager",
+  "Navigator",
 ]
+
+[features]
+default = []
+rocksdb = ["dep:rocksdb"]
+rocksdb-multi-thread = ["dep:rocksdb"]
+performance = ["dep:instant"]
+
+[[example]]
+name = "bench"

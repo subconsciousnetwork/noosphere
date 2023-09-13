@@ -1,3 +1,7 @@
+//! Utility wrapper around [tokio::sync::mpsc] channels, enabling multiple
+//! producers to send messages to a single subscriber, with each message
+//! able to be responded to by the subscriber.
+
 use core::{fmt, result::Result};
 use tokio;
 use tokio::sync::{mpsc, mpsc::error::SendError, oneshot, oneshot::error::RecvError};
@@ -15,7 +19,11 @@ impl fmt::Display for ChannelError {
 /// and distinguish between user-land respond errors.
 #[derive(Debug)]
 pub enum ChannelError {
+    /// An occurred during sending a message.
+    /// From [tokio::sync::mpsc::error::SendError].
     SendError,
+    /// An occurred during the receiving of a message.
+    /// From [tokio::sync::mpsc::error::RecvError].
     RecvError,
 }
 
@@ -31,14 +39,17 @@ impl From<RecvError> for ChannelError {
     }
 }
 
-/// Represents a request to be processed in `MessageProcessor`,
-/// sent from the associated `MessageClient`.
+/// Represents a request to be processed in [MessageProcessor],
+/// sent from the associated [MessageClient].
 pub struct Message<Q, S, E> {
+    /// The initial request the [Message] is wrapping.
     pub request: Q,
     sender: oneshot::Sender<Result<S, E>>,
 }
 
 impl<Q, S, E> Message<Q, S, E> {
+    /// Send `response` to the originator of this [Message].
+    /// Each message can only be responded to once.
     pub fn respond(self, response: Result<S, E>) -> bool {
         self.sender.send(response).map_or_else(|_| false, |_| true)
     }
@@ -56,20 +67,24 @@ impl<Q: std::fmt::Debug, S, E> fmt::Debug for Message<Q, S, E> {
 ///
 /// Instances are created by the
 /// [`message_channel`](message_channel) function.
+#[derive(Debug)]
 pub struct MessageClient<Q, S, E> {
     tx: mpsc::UnboundedSender<Message<Q, S, E>>,
 }
 
 impl<Q, S, E> MessageClient<Q, S, E> {
-    // TBD if/how "synchronous" requests will work.
+    /// Sends a one-way request to the corresponding receiver. Use
+    /// [MessageClient::send] if the receiver should be able to respond.
     #[allow(dead_code)]
-    pub fn send_request(&self, request: Q) -> Result<(), ChannelError> {
+    pub fn send_oneshot(&self, request: Q) -> Result<(), ChannelError> {
         self.send_request_impl(request)
             .map(|_| Ok(()))
             .map_err(ChannelError::from)?
     }
 
-    pub async fn send_request_async(&self, request: Q) -> Result<Result<S, E>, ChannelError> {
+    /// Sends a request to the corresponding receiver where it can be
+    /// responded to.
+    pub async fn send(&self, request: Q) -> Result<Result<S, E>, ChannelError> {
         let rx = self
             .send_request_impl(request)
             .map_err(ChannelError::from)?;
@@ -91,16 +106,27 @@ impl<Q, S, E> MessageClient<Q, S, E> {
     }
 }
 
+// Manually implement `Clone` so that the generics do not need
+// also implement.
+impl<Q, S, E> Clone for MessageClient<Q, S, E> {
+    fn clone(&self) -> Self {
+        MessageClient {
+            tx: self.tx.clone(),
+        }
+    }
+}
+
 /// Receives requests from the associated `MessageClient`,
 /// and optionally sends a response.
 ///
-/// Instances are created by the
-/// [`message_channel`](message_channel) function.
+/// Instances are created by the [message_channel] function.
 pub struct MessageProcessor<Q, S, E> {
     rx: mpsc::UnboundedReceiver<Message<Q, S, E>>,
 }
 
 impl<Q, S, E> MessageProcessor<Q, S, E> {
+    /// Awaits until it can return a new message to process, or
+    /// [None] if all senders have been terminated.
     pub async fn pull_message(&mut self) -> Option<Message<Q, S, E>> {
         self.rx.recv().await
     }
@@ -171,14 +197,17 @@ mod tests {
             }
         });
 
-        let res = client.send_request_async(Request::Ping()).await?;
-        matches!(res, Ok(Response::Pong()));
+        let res = client.send(Request::Ping()).await?;
+        assert!(match res {
+            Ok(Response::Pong()) => true,
+            _ => false,
+        });
 
         for n in 0..10 {
-            client.send_request(Request::SetFlag(n))?;
+            client.send_oneshot(Request::SetFlag(n))?;
         }
 
-        let res = client.send_request_async(Request::Throw()).await?;
+        let res = client.send(Request::Throw()).await?;
         assert!(
             match res {
                 Ok(_) => false,
@@ -190,7 +219,7 @@ mod tests {
             "User Error propagates to client."
         );
 
-        let res = client.send_request_async(Request::Shutdown()).await?;
+        let res = client.send(Request::Shutdown()).await?;
         assert!(
             match res {
                 Ok(Response::GenericResult(success)) => success,

@@ -284,6 +284,7 @@ mod tests {
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
     use crate::{
+        authority::Access,
         context::{
             HasMutableSphereContext, HasSphereContext, SphereContentRead, SphereContentWrite,
             SpherePetnameRead, SpherePetnameWrite, SphereReplicaRead,
@@ -291,7 +292,6 @@ mod tests {
         data::{ContentType, Header},
         helpers::{
             make_sphere_context_with_peer_chain, make_valid_link_record, simulated_sphere_context,
-            SimulationAccess,
         },
         tracing::initialize_tracing,
     };
@@ -301,7 +301,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_unlink_slugs_from_the_content_space() {
-        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -329,7 +329,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_flushes_on_every_save() {
-        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None)
             .await
             .unwrap();
         let initial_stats = {
@@ -386,7 +386,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_does_not_allow_writes_when_an_author_has_read_only_access() {
-        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::Readonly, None)
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadOnly, None)
             .await
             .unwrap();
 
@@ -407,7 +407,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_write_a_file_and_read_it_back() {
-        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -439,7 +439,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_overwrite_a_file_with_new_contents_and_preserve_history() {
-        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -496,7 +496,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_throws_an_error_when_saving_without_changes() {
-        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -510,7 +510,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_throws_an_error_when_saving_with_empty_mutation_and_empty_headers() {
-        let (sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None)
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None)
             .await
             .unwrap();
         let mut cursor = SphereCursor::latest(sphere_context);
@@ -524,8 +524,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_get_all_petnames_assigned_to_an_identity() -> Result<()> {
-        let (sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
 
         let mut db = UcanStore(sphere_context.sphere_context().await?.db().clone());
 

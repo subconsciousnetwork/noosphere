@@ -18,14 +18,12 @@ mod tests {
     use ucan::store::UcanJwtStore;
 
     use crate::{
+        authority::Access,
         context::{
             HasMutableSphereContext, HasSphereContext, SphereContentWrite, SpherePetnameWrite,
         },
         data::{BodyChunkIpld, ContentType, LinkRecord, MemoIpld},
-        helpers::{
-            make_valid_link_record, simulated_sphere_context, touch_all_sphere_blocks,
-            SimulationAccess,
-        },
+        helpers::{make_valid_link_record, simulated_sphere_context, touch_all_sphere_blocks},
         stream::{from_car_stream, memo_body_stream, memo_history_stream, to_car_stream},
         tracing::initialize_tracing,
         view::{BodyChunkDecoder, Sphere},
@@ -45,8 +43,7 @@ mod tests {
     async fn it_includes_all_link_records_and_proofs_from_the_address_book() -> Result<()> {
         initialize_tracing(None);
 
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
         let mut db = sphere_context.sphere_context().await?.db().clone();
 
         let (foo_did, foo_link_record, foo_link_record_link) =
@@ -90,8 +87,7 @@ mod tests {
     async fn it_can_stream_all_blocks_in_a_sphere_version() -> Result<()> {
         initialize_tracing(None);
 
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
 
         let changes = vec![
             (vec!["dogs", "birds"], vec!["alice", "bob"]),
@@ -169,8 +165,7 @@ mod tests {
     async fn it_can_stream_all_delta_blocks_for_a_range_of_history() -> Result<()> {
         initialize_tracing(None);
 
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
 
         let changes = vec![
             (vec!["dogs", "birds"], vec!["alice", "bob"]),
@@ -256,8 +251,7 @@ mod tests {
     async fn it_can_stream_all_blocks_in_some_sphere_content() -> Result<()> {
         initialize_tracing(None);
 
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
         let mut db = sphere_context.sphere_context().await?.db_mut().clone();
 
         let chunks = [b"foo", b"bar", b"baz"];
@@ -312,8 +306,7 @@ mod tests {
     async fn it_can_stream_all_blocks_in_a_sphere_version_as_a_car() -> Result<()> {
         initialize_tracing(None);
 
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
 
         let changes = vec![
             (vec!["dogs", "birds"], vec!["alice", "bob"]),

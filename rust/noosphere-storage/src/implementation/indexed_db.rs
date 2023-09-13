@@ -1,6 +1,6 @@
 use crate::store::Store;
 use crate::{db::SPHERE_DB_STORE_NAMES, storage::Storage};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Error, Result};
 use async_trait::async_trait;
 use js_sys::Uint8Array;
 use rexie::{
@@ -12,17 +12,18 @@ use wasm_bindgen::{JsCast, JsValue};
 pub const INDEXEDDB_STORAGE_VERSION: u32 = 1;
 
 #[derive(Clone)]
-pub struct WebStorage {
+pub struct IndexedDbStorage {
     db: Rc<Rexie>,
+    name: String,
 }
 
-impl Debug for WebStorage {
+impl Debug for IndexedDbStorage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WebStorage").finish()
+        f.debug_struct("IndexedDbStorage").finish()
     }
 }
 
-impl WebStorage {
+impl IndexedDbStorage {
     pub async fn new(db_name: &str) -> Result<Self> {
         Self::configure(INDEXEDDB_STORAGE_VERSION, db_name, SPHERE_DB_STORE_NAMES).await
     }
@@ -39,10 +40,13 @@ impl WebStorage {
             .await
             .map_err(|error| anyhow!("{:?}", error))?;
 
-        Ok(WebStorage { db: Rc::new(db) })
+        Ok(IndexedDbStorage {
+            db: Rc::new(db),
+            name: db_name.to_owned(),
+        })
     }
 
-    async fn get_store(&self, name: &str) -> Result<WebStore> {
+    async fn get_store(&self, name: &str) -> Result<IndexedDbStore> {
         if self
             .db
             .store_names()
@@ -53,18 +57,29 @@ impl WebStorage {
             return Err(anyhow!("No such store named {}", name));
         }
 
-        Ok(WebStore {
+        Ok(IndexedDbStore {
             db: self.db.clone(),
             store_name: name.to_string(),
         })
     }
+
+    /// Closes and clears the database from origin storage.
+    pub async fn clear(self) -> Result<()> {
+        let name = self.name;
+        let db = Rc::into_inner(self.db)
+            .ok_or_else(|| anyhow!("Could not unwrap inner during database clear."))?;
+        db.close();
+        Rexie::delete(&name)
+            .await
+            .map_err(|error| anyhow!("{:?}", error))
+    }
 }
 
 #[async_trait(?Send)]
-impl Storage for WebStorage {
-    type BlockStore = WebStore;
+impl Storage for IndexedDbStorage {
+    type BlockStore = IndexedDbStore;
 
-    type KeyValueStore = WebStore;
+    type KeyValueStore = IndexedDbStore;
 
     async fn get_block_store(&self, name: &str) -> Result<Self::BlockStore> {
         self.get_store(name).await
@@ -76,12 +91,12 @@ impl Storage for WebStorage {
 }
 
 #[derive(Clone)]
-pub struct WebStore {
+pub struct IndexedDbStore {
     db: Rc<Rexie>,
     store_name: String,
 }
 
-impl WebStore {
+impl IndexedDbStore {
     fn start_transaction(&self, mode: TransactionMode) -> Result<(IdbStore, Transaction)> {
         let tx = self
             .db
@@ -116,7 +131,7 @@ impl WebStore {
     }
 
     async fn read(key: &JsValue, store: &IdbStore) -> Result<Option<Vec<u8>>> {
-        Ok(match WebStore::contains(&key, &store).await? {
+        Ok(match IndexedDbStore::contains(&key, &store).await? {
             true => Some(
                 store
                     .get(&key)
@@ -132,14 +147,14 @@ impl WebStore {
 }
 
 #[async_trait(?Send)]
-impl Store for WebStore {
+impl Store for IndexedDbStore {
     async fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let (store, tx) = self.start_transaction(TransactionMode::ReadOnly)?;
-        let key = WebStore::bytes_to_typed_array(key)?;
+        let key = IndexedDbStore::bytes_to_typed_array(key)?;
 
-        let maybe_dag = WebStore::read(&key, &store).await?;
+        let maybe_dag = IndexedDbStore::read(&key, &store).await?;
 
-        WebStore::finish_transaction(tx).await?;
+        IndexedDbStore::finish_transaction(tx).await?;
 
         Ok(maybe_dag)
     }
@@ -147,17 +162,17 @@ impl Store for WebStore {
     async fn write(&mut self, key: &[u8], bytes: &[u8]) -> Result<Option<Vec<u8>>> {
         let (store, tx) = self.start_transaction(TransactionMode::ReadWrite)?;
 
-        let key = WebStore::bytes_to_typed_array(key)?;
-        let value = WebStore::bytes_to_typed_array(bytes)?;
+        let key = IndexedDbStore::bytes_to_typed_array(key)?;
+        let value = IndexedDbStore::bytes_to_typed_array(bytes)?;
 
-        let old_bytes = WebStore::read(&key, &store).await?;
+        let old_bytes = IndexedDbStore::read(&key, &store).await?;
 
         store
             .put(&value, Some(&key))
             .await
             .map_err(|error| anyhow!("{:?}", error))?;
 
-        WebStore::finish_transaction(tx).await?;
+        IndexedDbStore::finish_transaction(tx).await?;
 
         Ok(old_bytes)
     }
@@ -165,17 +180,86 @@ impl Store for WebStore {
     async fn remove(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let (store, tx) = self.start_transaction(TransactionMode::ReadWrite)?;
 
-        let key = WebStore::bytes_to_typed_array(key)?;
+        let key = IndexedDbStore::bytes_to_typed_array(key)?;
 
-        let old_value = WebStore::read(&key, &store).await?;
+        let old_value = IndexedDbStore::read(&key, &store).await?;
 
         store
             .delete(&key)
             .await
             .map_err(|error| anyhow!("{:?}", error))?;
 
-        WebStore::finish_transaction(tx).await?;
+        IndexedDbStore::finish_transaction(tx).await?;
 
         Ok(old_value)
+    }
+}
+
+#[cfg(feature = "performance")]
+struct SpaceUsageError(Error);
+
+#[cfg(feature = "performance")]
+impl From<JsValue> for SpaceUsageError {
+    fn from(value: JsValue) -> SpaceUsageError {
+        if let Ok(js_string) = js_sys::JSON::stringify(&value) {
+            SpaceUsageError(anyhow!("{}", js_string.as_string().unwrap()))
+        } else {
+            SpaceUsageError(anyhow!("Could not parse JsValue error as string."))
+        }
+    }
+}
+
+#[cfg(feature = "performance")]
+impl From<SpaceUsageError> for Error {
+    fn from(value: SpaceUsageError) -> Self {
+        value.0
+    }
+}
+
+#[cfg(feature = "performance")]
+use serde;
+
+#[cfg(feature = "performance")]
+#[derive(Debug, serde::Deserialize)]
+pub struct StorageEstimate {
+    pub quota: u64,
+    pub usage: u64,
+    #[serde(rename = "usageDetails")]
+    pub usage_details: Option<UsageDetails>,
+}
+
+#[cfg(feature = "performance")]
+#[derive(Debug, serde::Deserialize)]
+pub struct UsageDetails {
+    #[serde(rename = "indexedDB")]
+    pub indexed_db: u64,
+}
+
+#[cfg(feature = "performance")]
+#[async_trait(?Send)]
+impl crate::Space for IndexedDbStorage {
+    /// Returns an estimate of disk usage of the IndexedDb instance.
+    /// Note this includes all storage usage for the active origin -- it is up
+    /// to the consumer to clear unwanted databases for more accurate reporting.
+    /// https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/estimate
+    ///
+    /// A benign(?) warning is emitted by an underlying dependency from this:
+    /// https://github.com/DioxusLabs/cli/issues/62
+    async fn get_space_usage(&self) -> Result<u64> {
+        let window = web_sys::window().ok_or_else(|| anyhow!("No window found."))?;
+        let storage = window.navigator().storage();
+        let promise = storage
+            .estimate()
+            .map_err(|e| <JsValue as Into<SpaceUsageError>>::into(e))?;
+        let estimate_obj = wasm_bindgen_futures::JsFuture::from(promise)
+            .await
+            .map_err(|e| <JsValue as Into<SpaceUsageError>>::into(e))?;
+        let estimate: StorageEstimate = estimate_obj.into_serde()?;
+
+        if let Some(details) = estimate.usage_details {
+            Ok(details.indexed_db)
+        } else {
+            Ok(estimate.usage)
+        }
     }
 }

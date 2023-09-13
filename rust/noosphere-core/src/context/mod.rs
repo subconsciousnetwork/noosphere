@@ -12,15 +12,15 @@
 //!
 //! ```rust
 //! # use anyhow::Result;
-//! # use noosphere_core::context::{SphereCursor, HasMutableSphereContext, SphereContentWrite};
+//! # use noosphere_core::{authority::Access, context::{SphereCursor, HasMutableSphereContext, SphereContentWrite}};
 //! #
 //! # #[cfg(feature = "helpers")]
-//! # use noosphere_core::helpers::{simulated_sphere_context,SimulationAccess};
+//! # use noosphere_core::helpers::simulated_sphere_context;
 //! #
 //! # #[cfg(feature = "helpers")]
 //! # #[tokio::main(flavor = "multi_thread")]
 //! # async fn main() -> Result<()> {
-//! #   let (mut sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+//! #   let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
 //! #
 //! sphere_context.write("foo", "text/plain", "bar".as_ref(), None).await?;
 //! sphere_context.save(None).await?;
@@ -38,7 +38,8 @@
 //! # use anyhow::Result;
 //! # #[cfg(feature = "helpers")]
 //! # use noosphere_core::{
-//! #   helpers::{simulated_sphere_context,SimulationAccess},
+//! #   authority::Access,
+//! #   helpers::simulated_sphere_context,
 //! #   data::Did,
 //! #   context::{SphereCursor, HasMutableSphereContext, SpherePetnameWrite}
 //! # };
@@ -46,7 +47,7 @@
 //! # #[cfg(feature = "helpers")]
 //! # #[tokio::main(flavor = "multi_thread")]
 //! # async fn main() -> Result<()> {
-//! #   let (mut sphere_context, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+//! #   let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
 //! #
 //! sphere_context.set_petname("cdata", Some("did:key:example".into())).await?;
 //! sphere_context.save(None).await?;

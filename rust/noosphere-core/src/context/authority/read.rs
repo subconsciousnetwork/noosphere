@@ -125,7 +125,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::data::Did;
+    use crate::{authority::Access, data::Did};
     use anyhow::Result;
 
     use ucan::crypto::KeyMaterial;
@@ -137,14 +137,13 @@ mod tests {
 
     use crate::{
         context::{HasSphereContext, SphereAuthorityRead},
-        helpers::{simulated_sphere_context, SimulationAccess},
+        helpers::simulated_sphere_context,
     };
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_get_an_authorization_by_did() -> Result<()> {
-        let (sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
 
         let author_did = Did(sphere_context
             .sphere_context()
@@ -169,8 +168,7 @@ mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_verify_an_authorization_to_write_to_a_sphere() -> Result<()> {
-        let (sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
 
         let author_did = Did(sphere_context
             .sphere_context()

@@ -1,5 +1,6 @@
 use std::io::Cursor;
 
+use crate::{block::BlockStore, key_value::KeyValueStore};
 use anyhow::Result;
 use async_trait::async_trait;
 use cid::Cid;
@@ -9,24 +10,8 @@ use libipld_core::{
     ipld::Ipld,
     serde::{from_ipld, to_ipld},
 };
+use noosphere_common::{ConditionalSend, ConditionalSync};
 use serde::{de::DeserializeOwned, Serialize};
-
-use crate::{
-    block::BlockStore,
-    key_value::{KeyValueStore, KeyValueStoreSend},
-};
-
-#[cfg(not(target_arch = "wasm32"))]
-pub trait StoreConditionalSendSync: Send + Sync {}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl<S> StoreConditionalSendSync for S where S: Send + Sync {}
-
-#[cfg(target_arch = "wasm32")]
-pub trait StoreConditionalSendSync {}
-
-#[cfg(target_arch = "wasm32")]
-impl<S> StoreConditionalSendSync for S {}
 
 /// A primitive interface for storage backends. A storage backend does not
 /// necessarily need to implement this trait to be used in Noosphere, but if it
@@ -35,7 +20,7 @@ impl<S> StoreConditionalSendSync for S {}
 /// backend.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait Store: Clone + StoreConditionalSendSync {
+pub trait Store: Clone + ConditionalSync {
     /// Read the bytes stored against a given key
     async fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>>;
 
@@ -80,8 +65,8 @@ where
 {
     async fn set_key<K, V>(&mut self, key: K, value: V) -> Result<()>
     where
-        K: AsRef<[u8]> + KeyValueStoreSend,
-        V: Serialize + KeyValueStoreSend,
+        K: AsRef<[u8]> + ConditionalSend,
+        V: Serialize + ConditionalSend,
     {
         let ipld = to_ipld(value)?;
         let codec = DagCborCodec;
@@ -93,7 +78,7 @@ where
 
     async fn unset_key<K>(&mut self, key: K) -> Result<()>
     where
-        K: AsRef<[u8]> + KeyValueStoreSend,
+        K: AsRef<[u8]> + ConditionalSend,
     {
         let key_bytes = K::as_ref(&key);
         self.remove(key_bytes).await?;
@@ -102,8 +87,8 @@ where
 
     async fn get_key<K, V>(&self, key: K) -> Result<Option<V>>
     where
-        K: AsRef<[u8]> + KeyValueStoreSend,
-        V: DeserializeOwned + KeyValueStoreSend,
+        K: AsRef<[u8]> + ConditionalSend,
+        V: DeserializeOwned + ConditionalSend,
     {
         let key_bytes = K::as_ref(&key);
         Ok(match self.read(key_bytes).await? {

@@ -226,7 +226,7 @@ where
 mod tests {
     use std::sync::Arc;
 
-    use crate::authority::{generate_ed25519_key, Author};
+    use crate::authority::{generate_ed25519_key, Access, Author};
     use crate::data::Did;
     use anyhow::Result;
 
@@ -243,14 +243,13 @@ mod tests {
             HasMutableSphereContext, HasSphereContext, SphereAuthorityRead, SphereAuthorityWrite,
             SphereContextKey,
         },
-        helpers::{simulated_sphere_context, SimulationAccess},
+        helpers::simulated_sphere_context,
     };
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_allows_an_authorized_key_to_authorize_other_keys() -> Result<()> {
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
 
         let other_key = generate_ed25519_key();
         let other_did = Did(other_key.get_did().await?);
@@ -270,7 +269,7 @@ mod tests {
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_implicitly_revokes_transitive_authorizations() -> Result<()> {
         let (mut sphere_context, mnemonic) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+            simulated_sphere_context(Access::ReadWrite, None).await?;
 
         let other_key: SphereContextKey = Arc::new(Box::new(generate_ed25519_key()));
         let other_did = Did(other_key.get_did().await?);
@@ -316,7 +315,7 @@ mod tests {
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_catches_revoked_authorizations_when_verifying() -> Result<()> {
         let (mut sphere_context, mnemonic) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+            simulated_sphere_context(Access::ReadWrite, None).await?;
 
         let other_key = generate_ed25519_key();
         let other_did = Did(other_key.get_did().await?);
@@ -343,7 +342,7 @@ mod tests {
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_can_perform_access_recovery_given_a_mnemonic() -> Result<()> {
         let (mut sphere_context, mnemonic) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+            simulated_sphere_context(Access::ReadWrite, None).await?;
 
         let owner = sphere_context.sphere_context().await?.author().clone();
 

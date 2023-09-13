@@ -1,10 +1,10 @@
+use crate::platform::PrimitiveStorage;
+use anyhow::Result;
+use noosphere_core::data::Did;
 use std::{
     fmt::Display,
     path::{Path, PathBuf},
 };
-
-use anyhow::Result;
-use noosphere_core::data::Did;
 
 #[cfg(doc)]
 use noosphere_storage::Storage;
@@ -41,23 +41,26 @@ impl From<StorageLayout> for PathBuf {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-use noosphere_storage::{NativeStorage, NativeStorageInit};
-
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(native)]
 impl StorageLayout {
-    pub async fn to_storage(&self) -> Result<NativeStorage> {
-        NativeStorage::new(NativeStorageInit::Path(PathBuf::from(self)))
+    pub async fn to_storage(&self) -> Result<PrimitiveStorage> {
+        #[cfg(sled)]
+        {
+            noosphere_storage::SledStorage::new(noosphere_storage::SledStorageInit::Path(
+                PathBuf::from(self),
+            ))
+        }
+        #[cfg(rocksdb)]
+        {
+            noosphere_storage::RocksDbStorage::new(PathBuf::from(self))
+        }
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-use noosphere_storage::WebStorage;
-
-#[cfg(target_arch = "wasm32")]
+#[cfg(wasm)]
 impl StorageLayout {
-    pub async fn to_storage(&self) -> Result<WebStorage> {
-        WebStorage::new(&self.to_string()).await
+    pub async fn to_storage(&self) -> Result<PrimitiveStorage> {
+        noosphere_storage::IndexedDbStorage::new(&self.to_string()).await
     }
 }
 

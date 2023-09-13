@@ -130,3 +130,19 @@ impl Store for MemoryStore {
         Ok(dags.remove(key))
     }
 }
+
+#[cfg(feature = "performance")]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl crate::Space for MemoryStorage {
+    async fn get_space_usage(&self) -> Result<u64> {
+        let mut size = 0;
+        for (_, store) in self.stores.lock().await.iter() {
+            for (key, entry) in store.entries.lock().await.iter() {
+                size += key.len() as u64;
+                size += entry.len() as u64;
+            }
+        }
+        Ok(size)
+    }
+}

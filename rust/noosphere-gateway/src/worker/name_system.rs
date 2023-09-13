@@ -511,9 +511,9 @@ where
 #[cfg(test)]
 mod tests {
     use noosphere_core::{
-        authority::{generate_capability, SphereAbility},
+        authority::{generate_capability, Access, SphereAbility},
         data::LINK_RECORD_FACT_NAME,
-        helpers::{simulated_sphere_context, SimulationAccess},
+        helpers::simulated_sphere_context,
     };
     use noosphere_ns::helpers::KeyValueNameResolver;
     use ucan::builder::UcanBuilder;
@@ -523,7 +523,7 @@ mod tests {
     #[tokio::test]
     async fn it_publishes_to_the_name_system() -> Result<()> {
         let ipfs_url: Url = "http://127.0.0.1:5000".parse()?;
-        let (sphere, _) = simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (sphere, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
         let record: LinkRecord = {
             let context = sphere.lock().await;
             let identity: &str = context.identity().into();

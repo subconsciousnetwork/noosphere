@@ -254,12 +254,12 @@ mod tests {
     use anyhow::Result;
 
     use crate::{
-        authority::{generate_capability, generate_ed25519_key, SphereAbility},
+        authority::{generate_capability, generate_ed25519_key, Access, SphereAbility},
         context::{
             HasMutableSphereContext, HasSphereContext, SphereContentWrite, SpherePetnameWrite,
         },
         data::{ContentType, LinkRecord, LINK_RECORD_FACT_NAME},
-        helpers::{make_valid_link_record, simulated_sphere_context, SimulationAccess},
+        helpers::{make_valid_link_record, simulated_sphere_context},
         tracing::initialize_tracing,
         view::Sphere,
     };
@@ -279,8 +279,7 @@ mod tests {
         let valid_names: &[&str] = &["j@__/_大", "/"];
         let invalid_names: &[&str] = &[""];
 
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
 
         for invalid_name in invalid_names {
             assert!(sphere_context
@@ -306,8 +305,7 @@ mod tests {
         let valid_names: &[&str] = &["j@__/_大"];
         let invalid_names: &[&str] = &["", "did:key:foo"];
 
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
         let mut db = sphere_context.sphere_context().await?.db().clone();
         let (other_identity, link_record, _) = make_valid_link_record(&mut db).await?;
 
@@ -342,8 +340,7 @@ mod tests {
     async fn it_disallows_adding_self_as_petname() -> Result<()> {
         initialize_tracing(None);
 
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
         let db = sphere_context.sphere_context().await?.db().clone();
         let sphere_identity = sphere_context.identity().await?;
 
@@ -387,8 +384,7 @@ mod tests {
     async fn it_disallows_adding_outdated_records() -> Result<()> {
         initialize_tracing(None);
 
-        let (mut sphere_context, _) =
-            simulated_sphere_context(SimulationAccess::ReadWrite, None).await?;
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None).await?;
         let mut store = sphere_context.sphere_context().await?.db().clone();
 
         // Generate two LinkRecords, the first one having a later expiry
