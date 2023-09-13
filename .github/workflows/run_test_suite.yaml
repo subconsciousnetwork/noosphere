@@ -55,7 +55,7 @@ jobs:
           ipfs_version: v0.17.0
           run_daemon: true
       - name: 'Run Rust native target tests'
-        run: cargo test --features test-kubo,helpers,performance
+        run: cargo test --features test-kubo,helpers
         env:
           NOOSPHERE_LOG: deafening
 
@@ -96,7 +96,7 @@ jobs:
           ipfs_version: v0.17.0
           run_daemon: true
       - name: 'Run Rust native target tests'
-        run: NOOSPHERE_LOG=deafening cargo test --features test-kubo,headers,performance
+        run: NOOSPHERE_LOG=deafening cargo test --features test-kubo,headers
   run-test-suite-linux-c:
     runs-on: ubuntu-latest
     steps:
@@ -160,7 +160,7 @@ jobs:
         shell: bash
       - name: 'Run Rust headless browser tests'
         working-directory: ./rust
-        run: CHROMEDRIVER=/usr/local/bin/chromedriver cargo test --target wasm32-unknown-unknown --features performance
+        run: CHROMEDRIVER=/usr/local/bin/chromedriver cargo test --target wasm32-unknown-unknown
         shell: bash
 
   run-test-suite-web-typescript:

@@ -22,6 +22,10 @@ wasm-bindgen-futures = { workspace = true }
 
 [features]
 default = []
+# The noosphere_storage/performance flag does not take effect in the dependencies.
+# Introduce a new feature "performance" here that can gate the "real" example such
+# that workspace commands do not all need `--feature performance`.
+performance = []
 rocksdb = ["noosphere-storage/rocksdb"]
 rocksdb-mt = ["noosphere-storage/rocksdb-mt"]
 sqlite = ["noosphere-storage/sqlite"]
