@@ -36,7 +36,7 @@ pub struct NsNoosphere {
 }
 
 impl NsNoosphere {
-    pub fn new(
+    pub(crate) fn new(
         global_storage_path: &str,
         sphere_storage_path: &str,
         gateway_api: Option<&Url>,
@@ -58,18 +58,14 @@ impl NsNoosphere {
         })
     }
 
-    pub fn async_runtime(&self) -> &TokioRuntime {
+    pub(crate) fn async_runtime(&self) -> &TokioRuntime {
         // NOTE: Unwrap is safe because we don't allow initializing
         // [NsNoosphere] with an empty [OnceCell]
         self.async_runtime.get().unwrap()
     }
 
-    pub fn inner(&self) -> &NoosphereContext {
+    pub(crate) fn inner(&self) -> &NoosphereContext {
         &self.inner
-    }
-
-    pub fn inner_mut(&mut self) -> &mut NoosphereContext {
-        &mut self.inner
     }
 }
 

@@ -1,40 +1,42 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+mod create;
+mod join;
+mod open;
+mod recover;
+
+use create::*;
+use join::*;
+use open::*;
+use recover::*;
+
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
-use cid::Cid;
 
 use noosphere_core::{
-    authority::{Author, Authorization},
+    authority::Authorization,
     data::{Did, Mnemonic},
-    view::Sphere,
 };
 
 #[cfg(all(target_arch = "wasm32", feature = "ipfs-storage"))]
 use noosphere_ipfs::{GatewayClient, IpfsStorage};
 
-use noosphere_storage::{KeyValueStore, MemoryStore, SphereDb};
-use ucan::crypto::KeyMaterial;
+use noosphere_storage::SphereDb;
+
 use url::Url;
 
-use noosphere_core::context::{
-    metadata::{AUTHORIZATION, IDENTITY, USER_KEY_NAME},
-    SphereContext, SphereContextKey,
-};
+use noosphere_core::context::SphereContext;
 
 use crate::{
-    key::KeyStorage,
     platform::{PlatformKeyStorage, PlatformStorage},
     storage::StorageLayout,
 };
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 enum SphereInitialization {
     #[default]
     Create,
     Join(Did),
+    Recover(Did),
     Open(Option<Did>),
 }
 
@@ -43,14 +45,24 @@ enum SphereInitialization {
 /// workflow of the API user. This enum encapsulates the various results that
 /// are possible.
 pub enum SphereContextBuilderArtifacts {
+    /// A sphere was newly created; the artifacts contain a [Mnemonic] which
+    /// must be saved in some secure storage medium on the side (it will not
+    /// be recorded in the user's sphere data).
     SphereCreated {
+        /// A [SphereContext] for the newly created sphere
         context: SphereContext<PlatformStorage>,
+        /// The recovery [Mnemonic] for the newly created sphere
         mnemonic: Mnemonic,
     },
+    /// A sphere that existed prior to using the [SphereContextBuilder] has
+    /// been opened for reading and writing.
     SphereOpened(SphereContext<PlatformStorage>),
 }
 
 impl SphereContextBuilderArtifacts {
+    /// Attempt to read a [Mnemonic] from the artifact, returning an error
+    /// result if no [Mnemonic] is present. Note that a [Mnemonic] is only
+    /// expected to be present at the time that a sphere is newly created.
     pub fn require_mnemonic(&self) -> Result<&str> {
         match self {
             SphereContextBuilderArtifacts::SphereCreated { mnemonic, .. } => Ok(mnemonic.as_str()),
@@ -77,13 +89,14 @@ impl From<SphereContextBuilderArtifacts> for SphereContext<PlatformStorage> {
 /// already been created or joined.
 pub struct SphereContextBuilder {
     initialization: SphereInitialization,
-    scoped_storage_layout: bool,
-    gateway_api: Option<Url>,
-    ipfs_gateway_url: Option<Url>,
-    storage_path: Option<PathBuf>,
-    authorization: Option<Authorization>,
-    key_storage: Option<PlatformKeyStorage>,
-    key_name: Option<String>,
+    pub(crate) scoped_storage_layout: bool,
+    pub(crate) gateway_api: Option<Url>,
+    pub(crate) ipfs_gateway_url: Option<Url>,
+    pub(crate) storage_path: Option<PathBuf>,
+    pub(crate) authorization: Option<Authorization>,
+    pub(crate) key_storage: Option<PlatformKeyStorage>,
+    pub(crate) key_name: Option<String>,
+    pub(crate) mnemonic: Option<Mnemonic>,
 }
 
 impl SphereContextBuilder {
@@ -96,6 +109,12 @@ impl SphereContextBuilder {
     /// Configure this builder to create a new sphere
     pub fn create_sphere(mut self) -> Self {
         self.initialization = SphereInitialization::Create;
+        self
+    }
+
+    /// Configure this builder to recover an existing sphere's data from the gateway
+    pub fn recover_sphere(mut self, sphere_id: &Did) -> Self {
+        self.initialization = SphereInitialization::Recover(sphere_id.to_owned());
         self
     }
 
@@ -141,6 +160,13 @@ impl SphereContextBuilder {
         self
     }
 
+    /// Specify a [Mnemonic] to use; currently only used when recovering a
+    /// sphere
+    pub fn using_mnemonic(mut self, mnemonic: Option<&Mnemonic>) -> Self {
+        self.mnemonic = mnemonic.cloned();
+        self
+    }
+
     /// Specify the key storage backend (a [KeyStorage] implementation) that
     /// manages keys on behalf of the local user
     pub fn reading_keys_from(mut self, key_storage: PlatformKeyStorage) -> Self {
@@ -163,156 +189,49 @@ impl SphereContextBuilder {
     /// invocations of this API to have side-effects that may need undoing if
     /// idempotence is required (e.g., in tests).
     pub async fn build(self) -> Result<SphereContextBuilderArtifacts> {
-        let storage_path = self
-            .storage_path
-            .ok_or_else(|| anyhow!("No storage path configured!"))?;
-        match self.initialization {
-            SphereInitialization::Create => {
-                let key_storage = self
-                    .key_storage
-                    .as_ref()
-                    .ok_or_else(|| anyhow!("No key storage configured!"))?;
-                let key_name = self
-                    .key_name
-                    .as_ref()
-                    .ok_or_else(|| anyhow!("No key name configured!"))?;
-                if self.authorization.is_some() {
-                    warn!("Creating a new sphere; the configured authorization will be ignored!");
-                }
-
-                let owner_key: SphereContextKey =
-                    Arc::new(Box::new(key_storage.require_key(key_name).await?));
-                let owner_did = owner_key.get_did().await?;
-
-                let mut memory_store = MemoryStore::default();
-                let (sphere, authorization, mnemonic) =
-                    Sphere::generate(&owner_did, &mut memory_store)
-                        .await
-                        .unwrap();
-
-                let sphere_did = sphere.get_identity().await.unwrap();
-                let mut db = generate_db(
-                    storage_path,
-                    self.scoped_storage_layout,
-                    Some(sphere_did.clone()),
-                    self.ipfs_gateway_url,
-                )
-                .await?;
-
-                db.persist(&memory_store).await?;
-
-                db.set_version(&sphere_did, sphere.cid()).await?;
-
-                db.set_key(IDENTITY, &sphere_did).await?;
-                db.set_key(USER_KEY_NAME, key_name.to_owned()).await?;
-                db.set_key(AUTHORIZATION, Cid::try_from(&authorization)?)
-                    .await?;
-
-                let mut context = SphereContext::new(
-                    sphere_did,
-                    Author {
-                        key: owner_key,
-                        authorization: Some(authorization),
-                    },
-                    db,
-                    None,
-                )
-                .await?;
-
-                if self.gateway_api.is_some() {
-                    context
-                        .configure_gateway_url(self.gateway_api.as_ref())
-                        .await?;
-                }
-
-                Ok(SphereContextBuilderArtifacts::SphereCreated { context, mnemonic })
-            }
+        let initialization = self.initialization.clone();
+        match initialization {
+            SphereInitialization::Create => create_a_sphere(self).await,
             SphereInitialization::Join(sphere_identity) => {
-                let key_storage = self
-                    .key_storage
-                    .as_ref()
-                    .ok_or_else(|| anyhow!("No key storage configured!"))?;
-                let key_name = self
-                    .key_name
-                    .as_ref()
-                    .ok_or_else(|| anyhow!("No key name configured!"))?;
-
-                let user_key: SphereContextKey =
-                    Arc::new(Box::new(key_storage.require_key(key_name).await?));
-
-                let mut db = generate_db(
-                    storage_path,
-                    self.scoped_storage_layout,
-                    Some(sphere_identity.clone()),
-                    self.ipfs_gateway_url,
-                )
-                .await?;
-
-                db.set_key(IDENTITY, &sphere_identity).await?;
-                db.set_key(USER_KEY_NAME, key_name.to_owned()).await?;
-
-                if let Some(authorization) = &self.authorization {
-                    db.set_key(AUTHORIZATION, Cid::try_from(authorization)?)
-                        .await?;
-                }
-
-                debug!("Initializing context...");
-
-                let mut context = SphereContext::new(
-                    sphere_identity,
-                    Author {
-                        key: user_key,
-                        authorization: self.authorization,
-                    },
-                    db,
-                    None,
-                )
-                .await?;
-
-                debug!("Configuring gateway URL...");
-
-                if self.gateway_api.is_some() {
-                    context
-                        .configure_gateway_url(self.gateway_api.as_ref())
-                        .await?;
-                }
-
-                Ok(SphereContextBuilderArtifacts::SphereOpened(context))
+                join_a_sphere(self, sphere_identity).await
+            }
+            SphereInitialization::Recover(sphere_identity) => {
+                recover_a_sphere(self, sphere_identity).await
             }
             SphereInitialization::Open(sphere_identity) => {
-                let db = generate_db(
-                    storage_path,
-                    self.scoped_storage_layout,
-                    sphere_identity,
-                    self.ipfs_gateway_url,
-                )
-                .await?;
-
-                let user_key_name: String = db.require_key(USER_KEY_NAME).await?;
-                let authorization = db.get_key(AUTHORIZATION).await?.map(Authorization::Cid);
-
-                let author = match self.key_storage {
-                    Some(key_storage) => {
-                        let key: SphereContextKey =
-                            Arc::new(Box::new(key_storage.require_key(&user_key_name).await?));
-
-                        Author { key, authorization }
-                    }
-                    _ => return Err(anyhow!("Unable to resolve sphere author")),
-                };
-
-                let sphere_identity = db.require_key(IDENTITY).await?;
-                let mut context = SphereContext::new(sphere_identity, author, db, None).await?;
-
-                if self.gateway_api.is_some() {
-                    context
-                        .configure_gateway_url(self.gateway_api.as_ref())
-                        .await?;
-                }
-
-                Ok(SphereContextBuilderArtifacts::SphereOpened(context))
+                open_a_sphere(self, sphere_identity).await
             }
         }
+    }
+
+    pub(crate) fn require_storage_path(&self) -> Result<&Path> {
+        self.storage_path
+            .as_deref()
+            .ok_or_else(|| anyhow!("Storage path required but not configured"))
+    }
+
+    pub(crate) fn require_gateway_api(&self) -> Result<&Url> {
+        self.gateway_api
+            .as_ref()
+            .ok_or_else(|| anyhow!("Gateway API URL required but not configured"))
+    }
+
+    pub(crate) fn require_mnemonic(&self) -> Result<&Mnemonic> {
+        self.mnemonic
+            .as_ref()
+            .ok_or_else(|| anyhow!("Mnemonic required but not configured"))
+    }
+
+    pub(crate) fn require_key_storage(&self) -> Result<&PlatformKeyStorage> {
+        self.key_storage
+            .as_ref()
+            .ok_or_else(|| anyhow!("Key storage required but not configured"))
+    }
+
+    pub(crate) fn require_key_name(&self) -> Result<&str> {
+        self.key_name
+            .as_deref()
+            .ok_or_else(|| anyhow!("Key name required but not configured"))
     }
 }
 
@@ -327,24 +246,36 @@ impl Default for SphereContextBuilder {
             authorization: None,
             key_storage: None as Option<PlatformKeyStorage>,
             key_name: None,
+            mnemonic: None,
         }
     }
 }
 
+impl TryFrom<(PathBuf, bool, Option<Did>)> for StorageLayout {
+    type Error = anyhow::Error;
+
+    fn try_from(
+        (storage_path, scoped_storage_layout, sphere_identity): (PathBuf, bool, Option<Did>),
+    ) -> std::result::Result<Self, Self::Error> {
+        Ok(match scoped_storage_layout {
+            true => StorageLayout::Scoped(
+                storage_path,
+                sphere_identity.ok_or_else(|| anyhow!("A sphere identity must be provided!"))?,
+            ),
+            false => StorageLayout::Unscoped(storage_path),
+        })
+    }
+}
+
 #[allow(unused_variables)]
-async fn generate_db(
+pub(crate) async fn generate_db(
     storage_path: PathBuf,
     scoped_storage_layout: bool,
     sphere_identity: Option<Did>,
     ipfs_gateway_url: Option<Url>,
 ) -> Result<SphereDb<PlatformStorage>> {
-    let storage_layout = match scoped_storage_layout {
-        true => StorageLayout::Scoped(
-            storage_path,
-            sphere_identity.ok_or_else(|| anyhow!("A sphere identity must be provided!"))?,
-        ),
-        false => StorageLayout::Unscoped(storage_path),
-    };
+    let storage_layout: StorageLayout =
+        (storage_path, scoped_storage_layout, sphere_identity).try_into()?;
 
     #[cfg(not(all(wasm, ipfs_storage)))]
     let storage = storage_layout.to_storage().await?;

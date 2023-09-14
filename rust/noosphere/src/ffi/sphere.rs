@@ -2,7 +2,8 @@ use std::ffi::c_void;
 
 use anyhow::anyhow;
 use cid::Cid;
-use noosphere_core::context::{HasSphereContext, SphereSync, SyncRecovery};
+use noosphere_core::context::{HasSphereContext, SphereSync};
+use noosphere_core::data::Mnemonic;
 use noosphere_core::{authority::Authorization, data::Did};
 use safer_ffi::char_p::InvalidNulTerminator;
 use safer_ffi::prelude::*;
@@ -71,7 +72,7 @@ pub fn ns_sphere_receipt_free(sphere_receipt: repr_c::Box<NsSphereReceipt>) {
 }
 
 #[ffi_export]
-/// @memberof ns_sphere_t
+/// @memberof ns_noosphere_t
 /// Initialize a brand new sphere, authorizing the given key to administer it.
 ///
 /// The returned value is a ns_sphere_receipt_t, containing the DID of the sphere
@@ -94,7 +95,7 @@ pub fn ns_sphere_create(
 }
 
 #[ffi_export]
-/// @memberof ns_sphere_t
+/// @memberof ns_noosphere_t
 ///
 /// Join a sphere by initializing it and configuring it to use the specified key
 /// and authorization.
@@ -190,7 +191,7 @@ pub fn ns_sphere_sync(
 
     noosphere.async_runtime().spawn(async move {
         let result: Result<char_p::Box, anyhow::Error> = async {
-            sphere_channel.mutable().sync(SyncRecovery::None).await?;
+            sphere_channel.mutable().sync().await?;
 
             sphere_channel
                 .immutable()
@@ -233,7 +234,7 @@ pub fn ns_sphere_sync_blocking(
                 .get_sphere_channel(&Did(sphere_identity.to_str().into()))
                 .await?;
 
-            sphere_channel.mutable().sync(SyncRecovery::None).await?;
+            sphere_channel.mutable().sync().await?;
 
             Ok(sphere_channel
                 .immutable()
@@ -247,4 +248,48 @@ pub fn ns_sphere_sync_blocking(
             .try_into()
             .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?)
     })
+}
+
+#[ffi_export]
+/// @memberof ns_noosphere_t
+///
+/// Recover a sphere by fetching is history from a gateway.
+///
+/// This is intended to be used in cases when local data has been corrupted or
+/// is otherwise unavailable. If the user knows their gateway URL, their sphere
+/// ID and has their mnemonic handy, they can exchange these pieces of
+/// information to perform a recovery operation. The existing block storage
+/// layer is backed up and a new one is initialized and populated from the
+/// gateway.
+///
+/// The callback arguments are (in order):
+///
+///  1. The context argument provided in the original call to ns_sphere_recover
+///  2. An owned pointer to an ns_error_t if there was an error, otherwise NULL
+///
+pub fn ns_sphere_recover(
+    noosphere: &NsNoosphere,
+    sphere_identity: char_p::Ref<'_>,
+    local_key_name: char_p::Ref<'_>,
+    mnemonic: char_p::Ref<'_>,
+    context: Option<repr_c::Box<c_void>>,
+    callback: extern "C" fn(Option<repr_c::Box<c_void>>, Option<repr_c::Box<NsError>>),
+) {
+    let noosphere_inner = noosphere.inner().clone();
+    let sphere_identity = Did(sphere_identity.to_string());
+    let mnemonic = Mnemonic(mnemonic.to_string());
+    let local_key_name = local_key_name.to_string();
+
+    noosphere.async_runtime().spawn(async move {
+        let result = noosphere_inner
+            .recover_sphere(&local_key_name, &sphere_identity, &mnemonic)
+            .await;
+
+        match result {
+            Ok(_) => tokio::task::spawn_blocking(move || callback(context, None)),
+            Err(error) => tokio::task::spawn_blocking(move || {
+                callback(context, Some(NsError::from(error).into()))
+            }),
+        };
+    });
 }

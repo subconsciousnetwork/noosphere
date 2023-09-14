@@ -125,7 +125,7 @@ impl NoosphereContext {
 
         Ok(SphereReceipt {
             identity: receipt.identity.into(),
-            mnemonic: receipt.mnemonic,
+            mnemonic: receipt.mnemonic.into(),
         })
     }
 

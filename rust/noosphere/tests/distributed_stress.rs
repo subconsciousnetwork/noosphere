@@ -14,7 +14,7 @@ mod latency {
     use noosphere_core::{
         context::{
             HasMutableSphereContext, SphereContentRead, SphereContentWrite, SpherePetnameWrite,
-            SphereSync, SyncRecovery,
+            SphereSync,
         },
         data::ContentType,
         tracing::initialize_tracing,
@@ -66,7 +66,7 @@ mod latency {
                     ctx.save(None).await?;
                 }
 
-                Ok(ctx.sync(SyncRecovery::Retry(3)).await?)
+                Ok(ctx.sync().await?)
             })
             .await?;
 
@@ -100,20 +100,20 @@ mod latency {
                     ctx.save(None).await?;
                 }
 
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
 
                 ctx.set_petname("peer2", Some(peer_2_identity)).await?;
 
                 ctx.save(None).await?;
 
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
 
                 // TODO(#606): Implement this part of the test when we "fix" latency asymmetry between
                 // name system and syndication workers. We should be able to test traversing to a peer
                 // after a huge update as been added to the name system.
                 // wait(1).await;
 
-                // ctx.sync(SyncRecovery::Retry(3)).await?;
+                // ctx.sync().await?;
 
                 // wait(1).await;
 
@@ -142,7 +142,7 @@ mod multiplayer {
     use noosphere_core::{
         context::{
             HasMutableSphereContext, SphereAuthorityWrite, SphereContentWrite, SpherePetnameWrite,
-            SphereSync, SyncRecovery,
+            SphereSync,
         },
         data::Did,
         tracing::initialize_tracing,
@@ -190,7 +190,7 @@ mod multiplayer {
                 .await?;
 
                 ctx.save(None).await?;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
 
                 Ok(())
             })
@@ -205,9 +205,9 @@ mod multiplayer {
                     ctx.set_petname("peer3-of-peer2", Some(sphere_3_id)).await?;
                     ctx.set_petname("peer4", Some(sphere_4_id)).await?;
                     ctx.save(None).await?;
-                    ctx.sync(SyncRecovery::Retry(3)).await?;
+                    ctx.sync().await?;
                     wait(1).await;
-                    ctx.sync(SyncRecovery::Retry(3)).await?;
+                    ctx.sync().await?;
                     Ok(())
                 })
                 .await?;
@@ -221,9 +221,9 @@ mod multiplayer {
                     ctx.set_petname("peer2", Some(sphere_2_id)).await?;
                     ctx.set_petname("peer3", Some(sphere_3_id)).await?;
                     ctx.save(None).await?;
-                    ctx.sync(SyncRecovery::Retry(3)).await?;
+                    ctx.sync().await?;
                     wait(1).await;
-                    ctx.sync(SyncRecovery::Retry(3)).await?;
+                    ctx.sync().await?;
                     Ok(())
                 })
                 .await?;
@@ -247,7 +247,7 @@ mod multiplayer {
             .spawn(move |mut ctx| async move {
                 let authorization = ctx.authorize("cli", &Did(cli_id)).await?;
                 ctx.save(None).await?;
-                let version = ctx.sync(SyncRecovery::Retry(3)).await?;
+                let version = ctx.sync().await?;
                 wait(1).await;
                 Ok((authorization, version))
             })
@@ -296,10 +296,10 @@ mod multiplayer {
                 .await?;
                 ctx.set_petname("peer5", Some(sphere_5_id)).await?;
                 ctx.save(None).await?;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
                 wait(1).await;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
+                ctx.sync().await?;
 
                 Ok(())
             })
@@ -310,9 +310,9 @@ mod multiplayer {
             .spawn(move |mut ctx| async move {
                 ctx.set_petname("peer4-of-peer3", Some(sphere_4_id)).await?;
                 ctx.save(None).await?;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
                 wait(1).await;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
 
                 Ok(())
             })
@@ -325,9 +325,9 @@ mod multiplayer {
                     .await?;
                 ctx.set_petname("peer4", None).await?;
                 ctx.save(None).await?;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
                 wait(1).await;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
 
                 Ok(())
             })
@@ -353,9 +353,9 @@ mod multiplayer {
                 ctx.remove("never-seen").await?;
                 ctx.save(None).await?;
 
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
                 wait(2).await;
-                let version = ctx.sync(SyncRecovery::Retry(3)).await?;
+                let version = ctx.sync().await?;
 
                 Ok(version)
             })

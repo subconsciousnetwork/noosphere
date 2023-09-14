@@ -1,15 +1,23 @@
 use anyhow::Result;
 use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_storage::{BlockStoreRetry, MemoryStore, UcanStore};
-use std::{net::TcpListener, sync::Arc};
+use std::{net::TcpListener, path::Path, sync::Arc};
 use tempfile::TempDir;
 
 use crate::{
     cli::ConfigSetCommand,
     commands::{key::key_create, sphere::config_set, sphere::sphere_create},
+    paths::STORAGE_DIRECTORY,
     workspace::{CliSphereContext, Workspace},
 };
-use noosphere_core::{context::HasSphereContext, data::Did};
+use noosphere::{
+    NoosphereContext, NoosphereContextConfiguration, NoosphereNetwork, NoosphereSecurity,
+    NoosphereStorage,
+};
+use noosphere_core::{
+    context::HasSphereContext,
+    data::{Did, Mnemonic},
+};
 use noosphere_gateway::{start_gateway, GatewayScope};
 use noosphere_ns::{helpers::NameSystemNetwork, server::start_name_system_api_server};
 use tokio::{sync::Mutex, task::JoinHandle};
@@ -105,9 +113,61 @@ pub async fn start_name_system_server(ipfs_url: &Url) -> Result<(Url, JoinHandle
 pub struct SphereData {
     /// The identity of the sphere
     pub identity: Did,
+    /// The recovery mnemonic of the sphere
+    pub mnemonic: Mnemonic,
     /// The temporary [Workspace] of the sphere
     pub workspace: Workspace,
-    _temp_dirs: (tempfile::TempDir, tempfile::TempDir),
+    /// The name of the device key in use when the sphere was created
+    pub key_name: String,
+    temp_dirs: (tempfile::TempDir, tempfile::TempDir),
+}
+
+impl SphereData {
+    /// Simulate storage corruption events by writing critical block store
+    /// database files with zeroes
+    pub async fn simulate_storage_corruption(&self) -> Result<()> {
+        let paths = self.workspace.require_sphere_paths()?;
+        let storage_path = paths.sphere().join(STORAGE_DIRECTORY);
+
+        let mut file_entries = tokio::fs::read_dir(storage_path).await?;
+        let zeroes: [u8; 1024] = [0; 1024];
+
+        while let Some(entry) = file_entries.next_entry().await? {
+            if entry.file_type().await?.is_file() {
+                tokio::fs::write(entry.path(), &zeroes).await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// The temporary directory in use as the sphere root
+    pub fn sphere_root(&self) -> &Path {
+        self.temp_dirs.0.path()
+    }
+
+    /// The temporary directory in use as the global Noosphere
+    /// configuration root
+    pub fn global_root(&self) -> &Path {
+        self.temp_dirs.1.path()
+    }
+
+    /// Initialize a [NoosphereContext] based on the internal
+    /// state of this [SphereData]
+    pub async fn as_noosphere_context(&self) -> Result<NoosphereContext> {
+        NoosphereContext::new(NoosphereContextConfiguration {
+            storage: NoosphereStorage::Unscoped {
+                path: self.sphere_root().to_owned(),
+            },
+            security: NoosphereSecurity::Insecure {
+                path: self.global_root().to_owned(),
+            },
+            network: NoosphereNetwork::Http {
+                gateway_api: Some(self.workspace.gateway_url().await?),
+                ipfs_gateway_url: None,
+            },
+        })
+    }
 }
 
 /// A test helper struct that represents both client and gateway spheres,
@@ -138,10 +198,10 @@ impl SpherePair {
         let gateway_key_name = format!("{}-GATEWAY_KEY", name);
         key_create(&client_key_name, &client_workspace).await?;
         key_create(&gateway_key_name, &gateway_workspace).await?;
-        sphere_create(&client_key_name, &mut client_workspace).await?;
-        sphere_create(&gateway_key_name, &mut gateway_workspace).await?;
-        let client_identity = client_workspace.sphere_identity().await.unwrap();
-        let gateway_identity = gateway_workspace.sphere_identity().await.unwrap();
+        let (client_identity, client_mnemonic) =
+            sphere_create(&client_key_name, &mut client_workspace).await?;
+        let (gateway_identity, gateway_mnemonic) =
+            sphere_create(&gateway_key_name, &mut gateway_workspace).await?;
 
         config_set(
             ConfigSetCommand::Counterpart {
@@ -152,13 +212,17 @@ impl SpherePair {
         .await?;
         let client = SphereData {
             identity: client_identity,
+            mnemonic: client_mnemonic,
+            key_name: client_key_name,
             workspace: client_workspace,
-            _temp_dirs: client_temp_dirs,
+            temp_dirs: client_temp_dirs,
         };
         let gateway = SphereData {
             identity: gateway_identity,
+            mnemonic: gateway_mnemonic,
+            key_name: gateway_key_name,
             workspace: gateway_workspace,
-            _temp_dirs: gateway_temp_dirs,
+            temp_dirs: gateway_temp_dirs,
         };
         Ok(SpherePair {
             name: name.into(),

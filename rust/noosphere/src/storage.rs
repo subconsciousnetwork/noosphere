@@ -1,3 +1,5 @@
+//! Intermediate constructs to normalize how storage is initialized
+
 use crate::platform::PrimitiveStorage;
 use anyhow::Result;
 use noosphere_core::data::Did;
@@ -14,7 +16,10 @@ use noosphere_storage::Storage;
 /// is a convenience that can be directly transformed into a [Storage]
 /// implementation that is suitable for the current platform
 pub enum StorageLayout {
+    /// Storage will be automatically scoped by the [Did] of the sphere
     Scoped(PathBuf, Did),
+    /// Storage will be initialized in a .sphere folder within the configured
+    /// path
     Unscoped(PathBuf),
 }
 
@@ -43,7 +48,7 @@ impl From<StorageLayout> for PathBuf {
 
 #[cfg(native)]
 impl StorageLayout {
-    pub async fn to_storage(&self) -> Result<PrimitiveStorage> {
+    pub(crate) async fn to_storage(&self) -> Result<PrimitiveStorage> {
         #[cfg(sled)]
         {
             noosphere_storage::SledStorage::new(noosphere_storage::SledStorageInit::Path(
@@ -59,6 +64,8 @@ impl StorageLayout {
 
 #[cfg(wasm)]
 impl StorageLayout {
+    /// Convert this [StorageLayout] to a [noosphere_storage::Storage] based on the
+    /// defaults configured for the current platform.
     pub async fn to_storage(&self) -> Result<PrimitiveStorage> {
         noosphere_storage::IndexedDbStorage::new(&self.to_string()).await
     }

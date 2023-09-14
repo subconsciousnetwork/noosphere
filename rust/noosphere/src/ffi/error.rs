@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use noosphere_core::error::NoosphereError;
 use safer_ffi::prelude::*;
 

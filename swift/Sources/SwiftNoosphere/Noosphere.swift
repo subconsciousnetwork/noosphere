@@ -242,3 +242,23 @@ public func nsSphereAuthorityAuthorizationIdentity(_ noosphere: OpaquePointer!, 
         handler.contents(error, identity)
     }
 }
+
+
+public typealias NsSphereRecoverHandler = (OpaquePointer?) -> ()
+
+/// See: ns_sphere_recover
+public func nsSphereRecover(_ noosphere: OpaquePointer!, _ sphereIdentity: UnsafePointer<CChar>!, _ localKeyName: UnsafePointer<CChar>!, _ mnemonic: UnsafePointer<CChar>!, handler: @escaping NsSphereRecoverHandler) {
+    let context = Unmanaged.passRetained(Box(contents: handler)).toOpaque()
+
+    ns_sphere_recover(noosphere, sphereIdentity, localKeyName, mnemonic, context) {
+        (context, error) in
+
+        guard let context = context else {
+            return
+        }
+
+        let handler = Unmanaged<Box<NsSphereRecoverHandler>>.fromOpaque(context).takeRetainedValue()
+
+        handler.contents(error)
+    }
+}

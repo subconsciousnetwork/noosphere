@@ -27,8 +27,11 @@ use noosphere::{
     key::KeyStorage,
     sphere::{SphereContextBuilder, SphereContextBuilderArtifacts},
 };
-use noosphere_core::context::{HasMutableSphereContext, SphereContext, SphereSync, SyncRecovery};
 use noosphere_core::{authority::Authorization, data::Did};
+use noosphere_core::{
+    context::{HasMutableSphereContext, SphereContext, SphereSync},
+    data::Mnemonic,
+};
 
 use tokio::sync::Mutex;
 use ucan::crypto::KeyMaterial;
@@ -36,7 +39,7 @@ use url::Url;
 
 /// Create a sphere, assigning authority to modify it to the given key
 /// (specified by nickname)
-pub async fn sphere_create(owner_key: &str, workspace: &mut Workspace) -> Result<()> {
+pub async fn sphere_create(owner_key: &str, workspace: &mut Workspace) -> Result<(Did, Mnemonic)> {
     workspace.ensure_sphere_uninitialized()?;
 
     let sphere_paths = SpherePaths::intialize(workspace.working_directory()).await?;
@@ -73,7 +76,7 @@ You will be asked to enter them if you ever need to transfer ownership of the sp
 
     workspace.initialize(sphere_paths)?;
 
-    Ok(())
+    Ok((sphere_identity.clone(), mnemonic.into()))
 }
 
 /// Join an existing sphere
@@ -144,7 +147,7 @@ Type or paste the code here and press enter:"#
             .await?
             .configure_gateway_url(Some(gateway_url))
             .await?;
-        sphere_context.sync(SyncRecovery::None).await?;
+        sphere_context.sync().await?;
     }
 
     workspace.initialize(sphere_paths)?;

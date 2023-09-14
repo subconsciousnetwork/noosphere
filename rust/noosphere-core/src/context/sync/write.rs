@@ -3,7 +3,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use noosphere_storage::Storage;
 
-use crate::context::{HasMutableSphereContext, SyncError, SyncRecovery};
+use crate::context::{HasMutableSphereContext, SyncError, SyncExtent, SyncRecovery};
 
 use crate::context::GatewaySyncStrategy;
 
@@ -22,7 +22,19 @@ where
     ///
     /// The returned [Link] is the latest version of the local
     /// sphere lineage after the sync has completed.
-    async fn sync(&mut self, recovery: SyncRecovery) -> Result<Link<MemoIpld>, SyncError>;
+    async fn sync(&mut self) -> Result<Link<MemoIpld>, SyncError> {
+        self.sync_with_options(SyncExtent::FetchAndPush, SyncRecovery::Retry(3))
+            .await
+    }
+
+    /// Same as [SphereSync::sync], except it lets you customize the
+    /// [SyncExtent] and [SyncRecovery] properties of the synchronization
+    /// routine.
+    async fn sync_with_options(
+        &mut self,
+        extent: SyncExtent,
+        recovery: SyncRecovery,
+    ) -> Result<Link<MemoIpld>, SyncError>;
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -33,19 +45,23 @@ where
     S: Storage + 'static,
 {
     #[instrument(level = "debug", skip(self))]
-    async fn sync(&mut self, recovery: SyncRecovery) -> Result<Link<MemoIpld>, SyncError> {
+    async fn sync_with_options(
+        &mut self,
+        extent: SyncExtent,
+        recovery: SyncRecovery,
+    ) -> Result<Link<MemoIpld>, SyncError> {
         debug!("Attempting to sync...");
 
         let sync_strategy = GatewaySyncStrategy::default();
 
         let version = match recovery {
-            SyncRecovery::None => sync_strategy.sync(self).await?,
+            SyncRecovery::None => sync_strategy.sync(self, extent).await?,
             SyncRecovery::Retry(max_retries) => {
                 let mut retries = 0;
                 let version;
 
                 loop {
-                    match sync_strategy.sync(self).await {
+                    match sync_strategy.sync(self, extent).await {
                         Ok(result) => {
                             debug!("Sync success with {retries} retries");
                             version = result;

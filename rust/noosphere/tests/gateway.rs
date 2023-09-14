@@ -8,11 +8,13 @@
 extern crate noosphere_cli_dev as noosphere_cli;
 extern crate noosphere_gateway_dev as noosphere_gateway;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use noosphere::key::KeyStorage;
+use noosphere::sphere::SphereContextBuilder;
+
 use noosphere_core::context::{
     HasMutableSphereContext, HasSphereContext, SphereAuthorityWrite, SphereContentRead,
-    SphereContentWrite, SphereCursor, SphereSync, SyncRecovery,
+    SphereContentWrite, SphereCursor, SphereSync,
 };
 use noosphere_storage::BlockStore;
 use std::net::TcpListener;
@@ -38,6 +40,7 @@ use noosphere_gateway::{start_gateway, GatewayScope};
 #[tokio::test]
 async fn gateway_tells_you_its_identity() -> Result<()> {
     initialize_tracing(None);
+
     let (mut gateway_workspace, _gateway_temporary_directories) = temporary_workspace()?;
     let (mut client_workspace, _client_temporary_directories) = temporary_workspace()?;
 
@@ -229,10 +232,7 @@ async fn gateway_receives_a_newly_initialized_sphere_from_the_client() -> Result
                 .unwrap();
         }
 
-        let sphere_cid = client_sphere_context
-            .sync(SyncRecovery::None)
-            .await
-            .unwrap();
+        let sphere_cid = client_sphere_context.sync().await.unwrap();
         let db = client_sphere_context
             .sphere_context()
             .await
@@ -328,7 +328,7 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() -> Re
             );
         }
 
-        let _ = client_sphere_context.sync(SyncRecovery::None).await?;
+        let _ = client_sphere_context.sync().await?;
 
         for value in ["one", "two", "three"] {
             client_sphere_context
@@ -337,7 +337,7 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() -> Re
             client_sphere_context.save(None).await?;
         }
 
-        let sphere_cid = client_sphere_context.sync(SyncRecovery::None).await?;
+        let sphere_cid = client_sphere_context.sync().await?;
 
         let db = client_sphere_context.sphere_context().await?.db().clone();
         let block_stream = db.stream_links(&sphere_cid);
@@ -385,7 +385,7 @@ async fn gateway_receives_sphere_revisions_from_a_client() -> Result<()> {
                 client_sphere_context.save(None).await?;
             }
 
-            client_sphere_context.sync(SyncRecovery::None).await?;
+            client_sphere_context.sync().await?;
 
             Ok(())
         })
@@ -438,7 +438,7 @@ async fn gateway_can_sync_an_authorized_sphere_across_multiple_replicas() -> Res
 
             client_sphere_context.save(None).await?;
 
-            client_sphere_context.sync(SyncRecovery::None).await?;
+            client_sphere_context.sync().await?;
 
             sphere_join(
                 client_replica_key_name,
@@ -460,15 +460,83 @@ async fn gateway_can_sync_an_authorized_sphere_across_multiple_replicas() -> Res
                     .await?;
             }
 
-            client_replica_sphere_context
-                .sync(SyncRecovery::None)
-                .await?;
+            client_replica_sphere_context.sync().await?;
 
             for value in ["one", "two", "three"] {
                 let mut file = client_replica_sphere_context.read(value).await?.unwrap();
                 let mut contents = String::new();
                 file.contents.read_to_string(&mut contents).await?;
                 assert_eq!(value, &contents);
+            }
+            Ok(())
+        })
+        .await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn gateway_enables_the_client_to_recover_a_sphere() -> Result<()> {
+    initialize_tracing(None);
+
+    let mut sphere_pair = SpherePair::new(
+        "one",
+        &Url::parse("http://127.0.0.1:5001")?,
+        &Url::parse("http://127.0.0.1:6667")?,
+    )
+    .await?;
+
+    sphere_pair.start_gateway().await?;
+
+    sphere_pair
+        .spawn(move |mut client_sphere_context| async move {
+            for value in ["one", "two", "three"] {
+                client_sphere_context
+                    .write(value, &ContentType::Text, value.as_bytes(), None)
+                    .await?;
+                client_sphere_context.save(None).await?;
+            }
+
+            client_sphere_context.sync().await?;
+
+            Ok(())
+        })
+        .await?;
+
+    {
+        // NOTE: We initialize the builder before simulating corruption because
+        // we don't have a convenient way to get the critical inputs (e.g.,
+        // gateway URL) otherwise. In practice, these values should be recorded
+        // on the side by the embedder for use in recovery scenarios such as
+        // this.
+        let recovery_builder = SphereContextBuilder::default()
+            .recover_sphere(&sphere_pair.client.identity)
+            .at_storage_path(sphere_pair.client.sphere_root())
+            .reading_keys_from(sphere_pair.client.workspace.key_storage().clone())
+            .using_mnemonic(Some(&sphere_pair.client.mnemonic))
+            .using_key(&sphere_pair.client.key_name)
+            .syncing_to(Some(&sphere_pair.client.workspace.gateway_url().await?));
+
+        sphere_pair.client.workspace.release_sphere_context();
+
+        sphere_pair.client.simulate_storage_corruption().await?;
+
+        assert!(sphere_pair.client.workspace.sphere_context().await.is_err());
+
+        // Perform the recovery:
+        recovery_builder.build().await?;
+    }
+
+    sphere_pair
+        .spawn(move |ctx| async move {
+            for value in ["one", "two", "three"] {
+                let mut contents = String::new();
+                let mut file = ctx
+                    .read(value)
+                    .await?
+                    .ok_or_else(|| anyhow!("Could not read file"))?;
+                file.contents.read_to_string(&mut contents).await?;
+                assert_eq!(value, contents);
             }
             Ok(())
         })
