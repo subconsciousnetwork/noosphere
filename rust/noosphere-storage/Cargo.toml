@@ -24,7 +24,6 @@ async-stream = { workspace = true }
 tokio-stream = { workspace = true }
 cid = { workspace = true }
 noosphere-common = { version = "0.1.0", path = "../noosphere-common" }
-instant = { version = "0.1.12", features = ["wasm-bindgen"], optional = true }
 tracing = "~0.1"
 ucan = { workspace = true }
 libipld-core = { workspace = true }
@@ -37,10 +36,9 @@ url = { version = "^2" }
 witty-phrase-generator = "~0.2"
 wasm-bindgen-test = { workspace = true }
 rand = { workspace = true }
-# examples/bench
 noosphere-core-dev = { path = "../noosphere-core", features = ["helpers"], package = "noosphere-core" }
-# examples/bench
 noosphere-common = { path = "../noosphere-common", features = ["helpers"] }
+instant = { version = "0.1.12", features = ["wasm-bindgen"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tempfile = { workspace = true }
@@ -54,6 +52,7 @@ rocksdb = { version = "0.21.0", optional = true }
 tokio = { workspace = true, features = ["sync", "macros"] }
 wasm-bindgen = { workspace = true, features = ["serde-serialize"] }
 wasm-bindgen-futures = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
 js-sys = { workspace = true }
 rexie = { version = "~0.5" }
 
@@ -70,7 +69,6 @@ features = [
 default = []
 rocksdb = ["dep:rocksdb"]
 rocksdb-multi-thread = ["dep:rocksdb"]
-performance = ["dep:instant"]
 
 [[example]]
 name = "bench"

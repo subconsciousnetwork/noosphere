@@ -1,11 +1,12 @@
 use crate::store::Store;
 use crate::{db::SPHERE_DB_STORE_NAMES, storage::Storage};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Error, Result};
 use async_trait::async_trait;
 use js_sys::Uint8Array;
 use rexie::{
     KeyRange, ObjectStore, Rexie, RexieBuilder, Store as IdbStore, Transaction, TransactionMode,
 };
+use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, rc::Rc};
 use wasm_bindgen::{JsCast, JsValue};
 
@@ -195,32 +196,32 @@ impl Store for IndexedDbStore {
     }
 }
 
-#[cfg(feature = "performance")]
-struct SpaceUsageError(anyhow::Error);
+struct JsError(Error);
 
-#[cfg(feature = "performance")]
-impl From<JsValue> for SpaceUsageError {
-    fn from(value: JsValue) -> SpaceUsageError {
+impl From<JsValue> for JsError {
+    fn from(value: JsValue) -> JsError {
         if let Ok(js_string) = js_sys::JSON::stringify(&value) {
-            SpaceUsageError(anyhow!("{}", js_string.as_string().unwrap()))
+            JsError(anyhow!("{}", js_string.as_string().unwrap()))
         } else {
-            SpaceUsageError(anyhow!("Could not parse JsValue error as string."))
+            JsError(anyhow!("Could not parse JsValue error as string."))
         }
     }
 }
 
-#[cfg(feature = "performance")]
-impl From<SpaceUsageError> for anyhow::Error {
-    fn from(value: SpaceUsageError) -> Self {
+impl From<serde_wasm_bindgen::Error> for JsError {
+    fn from(value: serde_wasm_bindgen::Error) -> JsError {
+        let js_value: JsValue = value.into();
+        js_value.into()
+    }
+}
+
+impl From<JsError> for Error {
+    fn from(value: JsError) -> Self {
         value.0
     }
 }
 
-#[cfg(feature = "performance")]
-use serde;
-
-#[cfg(feature = "performance")]
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StorageEstimate {
     pub quota: u64,
     pub usage: u64,
@@ -228,14 +229,12 @@ pub struct StorageEstimate {
     pub usage_details: Option<UsageDetails>,
 }
 
-#[cfg(feature = "performance")]
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct UsageDetails {
     #[serde(rename = "indexedDB")]
     pub indexed_db: u64,
 }
 
-#[cfg(feature = "performance")]
 #[async_trait(?Send)]
 impl crate::Space for IndexedDbStorage {
     /// Returns an estimate of disk usage of the IndexedDb instance.
@@ -250,11 +249,12 @@ impl crate::Space for IndexedDbStorage {
         let storage = window.navigator().storage();
         let promise = storage
             .estimate()
-            .map_err(|e| <JsValue as Into<SpaceUsageError>>::into(e))?;
+            .map_err(|e| <JsValue as Into<JsError>>::into(e))?;
         let estimate_obj = wasm_bindgen_futures::JsFuture::from(promise)
             .await
-            .map_err(|e| <JsValue as Into<SpaceUsageError>>::into(e))?;
-        let estimate: StorageEstimate = estimate_obj.into_serde()?;
+            .map_err(|e| <JsValue as Into<JsError>>::into(e))?;
+        let estimate: StorageEstimate = serde_wasm_bindgen::from_value(estimate_obj)
+            .map_err(|e| <serde_wasm_bindgen::Error as Into<JsError>>::into(e))?;
 
         if let Some(details) = estimate.usage_details {
             Ok(details.indexed_db)

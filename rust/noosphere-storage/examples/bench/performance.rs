@@ -1,7 +1,7 @@
-use crate::{store::Store, Space, Storage};
 use anyhow::{Error, Result};
 use async_trait::async_trait;
 use instant::{Duration, Instant};
+use noosphere_storage::{Space, Storage, Store};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
@@ -42,13 +42,14 @@ impl TryFrom<Vec<Duration>> for PerformanceAnalysis {
 impl TryFrom<InternalStoreStats> for PerformanceStats {
     type Error = Error;
     fn try_from(value: InternalStoreStats) -> Result<Self> {
-        let mut stats = PerformanceStats::default();
-        stats.reads = value.reads.try_into()?;
-        stats.writes = value.writes.try_into()?;
-        stats.removes = value.removes.try_into()?;
-        stats.flushes = value.flushes.try_into()?;
-        stats.logical_bytes_stored = value.logical_bytes_stored;
-        Ok(stats)
+        Ok(PerformanceStats {
+            reads: value.reads.try_into()?,
+            writes: value.writes.try_into()?,
+            removes: value.removes.try_into()?,
+            flushes: value.flushes.try_into()?,
+            logical_bytes_stored: value.logical_bytes_stored,
+            ..Default::default()
+        })
     }
 }
 
@@ -63,7 +64,7 @@ struct InternalStoreStats {
 
 /// A wrapper for [Storage] types that tracks performance
 /// of various operations.
-/// If [Storage] is also [Space], [PerformanceStorage::to_stats] can be
+/// If [Storage] is also [Space], [PerformanceStorage::as_stats] can be
 /// called to get performance data as [PerformanceStats].
 #[derive(Clone, Debug)]
 pub struct PerformanceStorage<S: Storage> {
@@ -96,6 +97,7 @@ where
         }
     }
 
+    #[allow(unused)]
     pub fn to_inner(self) -> S {
         self.storage
     }
@@ -109,7 +111,7 @@ where
 {
     /// Drains the storage stats and returns a summary
     /// of operations as [PerformanceStats].
-    pub async fn to_stats(&mut self) -> Result<PerformanceStats> {
+    pub async fn as_stats(&mut self) -> Result<PerformanceStats> {
         let storage_stats = self.stats.lock().await;
         let mut agg = InternalStoreStats::default();
         for (_, store_stats) in storage_stats.iter() {

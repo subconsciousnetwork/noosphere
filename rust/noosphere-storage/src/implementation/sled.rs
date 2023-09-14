@@ -104,16 +104,9 @@ impl Drop for SledStorage {
     }
 }
 
-#[cfg(feature = "performance")]
 #[async_trait]
 impl crate::Space for SledStorage {
     async fn get_space_usage(&self) -> Result<u64> {
-        if let Some(path) = &self.path {
-            crate::get_dir_size(path).await
-        } else {
-            Err(anyhow::anyhow!(
-                "Could not calculate storage space, requires usage of a path constructor."
-            ))
-        }
+        self.db.size_on_disk().map_err(|e| e.into())
     }
 }
