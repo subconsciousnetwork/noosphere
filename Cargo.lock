@@ -3489,7 +3489,7 @@ dependencies = [
 
 [[package]]
 name = "noosphere-api"
-version = "0.12.3"
+version = "0.13.0+deprecated"
 dependencies = [
  "anyhow",
  "cid",
