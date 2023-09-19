@@ -3571,7 +3571,6 @@ name = "noosphere-collections"
 version = "0.6.3"
 dependencies = [
  "anyhow",
- "async-once-cell",
  "async-recursion",
  "async-stream",
  "byteorder",

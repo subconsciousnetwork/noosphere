@@ -15,9 +15,9 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use tokio_stream::Stream;
 
-use async_once_cell::OnceCell;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tokio::sync::OnceCell;
 
 use forest_hash_utils::Hash;
 
@@ -176,7 +176,7 @@ where
                             }?;
 
                             // Ignore error intentionally, the cache value will always be the same
-                            let cache_node = cache.get_or_init(async { node }).await;
+                            let cache_node = cache.get_or_init(|| async { node }).await;
                             let stream = cache_node.stream(store);
                             tokio::pin!(stream);
                             for await item in stream {
@@ -297,7 +297,7 @@ where
                     };
 
                     // Intentionally ignoring error, cache will always be the same.
-                    let cache_node = cache.get_or_init(async { node }).await;
+                    let cache_node = cache.get_or_init(|| async { node }).await;
                     cache_node
                         .get_value(hashed_key, bit_width, depth + 1, key, store)
                         .await
@@ -342,7 +342,7 @@ where
         match child {
             Pointer::Link { cid, cache } => {
                 cache
-                    .get_or_try_init(async { store.load::<DagCborCodec, _>(cid).await })
+                    .get_or_try_init(|| async { store.load::<DagCborCodec, _>(cid).await })
                     .await?;
                 let child_node = cache.get_mut().expect("filled line above");
 
@@ -471,7 +471,7 @@ where
         match child {
             Pointer::Link { cid, cache } => {
                 cache
-                    .get_or_try_init(async { store.load::<DagCborCodec, _>(cid).await })
+                    .get_or_try_init(|| async { store.load::<DagCborCodec, _>(cid).await })
                     .await?;
                 let child_node = cache.get_mut().expect("filled line above");
 
