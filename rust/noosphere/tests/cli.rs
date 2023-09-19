@@ -38,6 +38,28 @@ async fn orb_sphere_create_initializes_a_sphere() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn orb_sphere_create_failure_cleans_directory() -> Result<()> {
+    initialize_tracing(None);
+    let client = CliSimulator::new()?;
+
+    client.orb(&["key", "create", "foobar"]).await?;
+    if client
+        .orb(&["sphere", "create", "--owner-key", "not-foo"])
+        .await
+        .is_ok()
+    {
+        panic!("Unexpected success.");
+    }
+
+    assert!(client
+        .orb(&["sphere", "create", "--owner-key", "foobar"])
+        .await
+        .is_ok());
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn orb_can_enable_multiple_replicas_to_synchronize() -> Result<()> {
     initialize_tracing(None);
 

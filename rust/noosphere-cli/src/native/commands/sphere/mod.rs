@@ -42,7 +42,7 @@ use url::Url;
 pub async fn sphere_create(owner_key: &str, workspace: &mut Workspace) -> Result<(Did, Mnemonic)> {
     workspace.ensure_sphere_uninitialized()?;
 
-    let sphere_paths = SpherePaths::initialize(workspace.working_directory()).await?;
+    let sphere_paths = SpherePaths::new(workspace.working_directory());
 
     let sphere_context_artifacts = SphereContextBuilder::default()
         .create_sphere()
@@ -74,7 +74,7 @@ You will be asked to enter them if you ever need to transfer ownership of the sp
         mnemonic
     );
 
-    workspace.initialize(sphere_paths)?;
+    workspace.initialize(sphere_paths).await?;
 
     Ok((sphere_identity.clone(), mnemonic.into()))
 }
@@ -124,7 +124,7 @@ Type or paste the code here and press enter:"#
     let cid = Cid::from_str(cid_string.trim())
         .map_err(|_| anyhow!("Could not parse the authorization identity as a CID"))?;
 
-    let sphere_paths = SpherePaths::initialize(workspace.working_directory()).await?;
+    let sphere_paths = SpherePaths::new(workspace.working_directory());
 
     {
         let mut sphere_context = Arc::new(Mutex::new(
@@ -150,7 +150,7 @@ Type or paste the code here and press enter:"#
         sphere_context.sync().await?;
     }
 
-    workspace.initialize(sphere_paths)?;
+    workspace.initialize(sphere_paths).await?;
     workspace.render(render_depth, true).await?;
 
     // TODO(#103): Recovery path if the auth needs to change for some reason

@@ -138,7 +138,7 @@ impl Workspace {
         }
     }
 
-    /// Asserts that a local sphere has been intiialized
+    /// Asserts that a local sphere has been initialized
     pub fn ensure_sphere_initialized(&self) -> Result<()> {
         let sphere_paths = self.require_sphere_paths()?;
         if !sphere_paths.sphere().exists() {
@@ -150,7 +150,7 @@ impl Workspace {
         Ok(())
     }
 
-    /// Asserts that a local sphere has _not_ been intiialized
+    /// Asserts that a local sphere has _not_ been initialized
     pub fn ensure_sphere_uninitialized(&self) -> Result<()> {
         if let Some(sphere_paths) = self.sphere_paths() {
             match sphere_paths.sphere().exists() {
@@ -291,11 +291,11 @@ impl Workspace {
     }
 
     /// Initialize a [Workspace] in place with a given set of [SpherePaths].
-    pub fn initialize(&mut self, sphere_paths: SpherePaths) -> Result<()> {
+    pub async fn initialize(&mut self, sphere_paths: SpherePaths) -> Result<()> {
         self.ensure_sphere_uninitialized()?;
 
+        sphere_paths.initialize().await?;
         self.sphere_paths = Some(Arc::new(sphere_paths));
-
         Ok(())
     }
 
