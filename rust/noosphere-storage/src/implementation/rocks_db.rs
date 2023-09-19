@@ -139,7 +139,6 @@ impl Store for RocksDbStore {
     }
 }
 
-#[cfg(feature = "performance")]
 #[async_trait]
 impl crate::Space for RocksDbStorage {
     async fn get_space_usage(&self) -> Result<u64> {

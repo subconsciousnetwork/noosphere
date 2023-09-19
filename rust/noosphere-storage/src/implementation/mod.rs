@@ -18,8 +18,3 @@ pub use rocks_db::*;
 mod indexed_db;
 #[cfg(target_arch = "wasm32")]
 pub use indexed_db::*;
-
-#[cfg(feature = "performance")]
-mod performance;
-#[cfg(feature = "performance")]
-pub use performance::*;

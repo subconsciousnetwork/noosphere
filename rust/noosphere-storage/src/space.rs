@@ -11,6 +11,7 @@ pub trait Space: ConditionalSend {
     async fn get_space_usage(&self) -> Result<u64>;
 }
 
+#[allow(unused)]
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn get_dir_size(path: impl Into<std::path::PathBuf>) -> Result<u64> {
     use std::{future::Future, pin::Pin};
