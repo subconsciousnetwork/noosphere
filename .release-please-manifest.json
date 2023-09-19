@@ -1,5 +1,5 @@
 {
-  "rust/noosphere-api": "0.12.3",
+  "rust/noosphere-api": "0.13.0+deprecated",
   "rust/noosphere-cli": "0.15.0",
   "rust/noosphere-collections": "0.6.4",
   "rust/noosphere-core": "0.16.0",
