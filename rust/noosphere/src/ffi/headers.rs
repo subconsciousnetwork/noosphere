@@ -11,12 +11,8 @@ pub struct NsHeaders {
 }
 
 impl NsHeaders {
-    pub fn inner(&self) -> &Vec<(String, String)> {
+    pub(crate) fn inner(&self) -> &Vec<(String, String)> {
         &self.inner
-    }
-
-    pub fn inner_mut(&mut self) -> &mut Vec<(String, String)> {
-        &mut self.inner
     }
 }
 

@@ -18,7 +18,7 @@ use noosphere_core::{
     context::{
         HasMutableSphereContext, HasSphereContext, SphereContentRead, SphereContentWrite,
         SphereCursor, SpherePetnameRead, SpherePetnameWrite, SphereReplicaRead, SphereSync,
-        SphereWalker, SyncRecovery,
+        SphereWalker,
     },
     data::{ContentType, Did, Link, MemoIpld},
     stream::memo_history_stream,
@@ -48,7 +48,7 @@ async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() -> R
         .spawn(|mut ctx| async move {
             ctx.write("foo", "text/plain", "bar".as_ref(), None).await?;
             let version = ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
             Ok(version)
         })
@@ -61,10 +61,10 @@ async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() -> R
                 ctx.set_petname("thirdparty", Some(other_pair_identity))
                     .await?;
                 ctx.save(None).await?;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
                 wait(1).await;
 
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
                 ctx.resolve_petname("thirdparty").await
             })
             .await?;
@@ -126,7 +126,7 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() -> R
         ctx.write("my-name", "text/plain", name.as_ref(), None)
             .await?;
         ctx.save(None).await?;
-        ctx.sync(SyncRecovery::Retry(3)).await?;
+        ctx.sync().await?;
     }
     wait(1).await;
 
@@ -137,9 +137,9 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() -> R
         .spawn(|mut ctx| async move {
             ctx.set_petname("pair_3".into(), Some(id_3)).await?;
             ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             assert!(ctx.resolve_petname("pair_3").await?.is_some());
             Ok(ctx.version().await?)
         })
@@ -149,9 +149,9 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() -> R
         .spawn(move |mut ctx| async move {
             ctx.set_petname("pair_2".into(), Some(id_2)).await?;
             ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             assert_eq!(ctx.resolve_petname("pair_2").await?, Some(pair_2_version));
             Ok(())
         })
@@ -159,7 +159,7 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() -> R
 
     pair_1
         .spawn(|mut ctx| async move {
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             let cursor = SphereCursor::latest(Arc::new(ctx.sphere_context().await?.clone()));
             let pair_2_context = cursor
                 .traverse_by_petnames(&["pair_2".to_string()])
@@ -219,7 +219,7 @@ async fn synchronize_petnames_as_they_are_added_and_removed() -> Result<()> {
         .spawn(|mut ctx| async move {
             ctx.write("foo", "text/plain", "bar".as_ref(), None).await?;
             let version = ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
             Ok(version)
         })
@@ -230,7 +230,7 @@ async fn synchronize_petnames_as_they_are_added_and_removed() -> Result<()> {
         .spawn(|mut ctx| async move {
             ctx.write("bar", "text/plain", "baz".as_ref(), None).await?;
             let version = ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
             Ok(version)
         })
@@ -240,10 +240,10 @@ async fn synchronize_petnames_as_they_are_added_and_removed() -> Result<()> {
         .spawn(move |mut ctx| async move {
             ctx.set_petname("thirdparty", Some(other_pair_id)).await?;
             ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
 
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             let other_link = ctx.resolve_petname("thirdparty").await?;
             assert_eq!(other_link, Some(other_version.clone()));
 
@@ -253,9 +253,9 @@ async fn synchronize_petnames_as_they_are_added_and_removed() -> Result<()> {
             info!("UNSETTING 'thirdparty' as a petname and syncing again...");
             ctx.set_petname("thirdparty", None).await?;
             ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             let resolved = ctx.resolve_petname("thirdparty").await?;
             assert!(resolved.is_none());
             let recorded = ctx.get_petname("thirdparty").await?;
@@ -265,9 +265,9 @@ async fn synchronize_petnames_as_they_are_added_and_removed() -> Result<()> {
             ctx.set_petname("thirdparty", Some(third_pair_id.clone()))
                 .await?;
             ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
 
             let saved_id = ctx.get_petname("thirdparty").await?;
             assert_eq!(saved_id, Some(third_pair_id));
@@ -304,7 +304,7 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
         ctx.write("my-name", "text/plain", name.as_ref(), None)
             .await?;
         ctx.save(None).await?;
-        ctx.sync(SyncRecovery::Retry(3)).await?;
+        ctx.sync().await?;
     }
     wait(1).await;
 
@@ -315,9 +315,9 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
         .spawn(move |mut ctx| async move {
             ctx.set_petname("pair_2".into(), Some(id_2)).await?;
             ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             assert_eq!(ctx.resolve_petname("pair_2").await?, Some(pair_2_version));
             Ok(())
         })
@@ -326,7 +326,7 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
     pair_1
         .spawn(|mut ctx| async move {
             wait(1).await;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             let cursor = SphereCursor::latest(Arc::new(ctx.sphere_context().await?.clone()));
             let pair_2_context = cursor
                 .traverse_by_petnames(&["pair_2".to_string()])
@@ -364,7 +364,7 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
             ctx.remove("my-name").await?;
             ctx.save(None).await?;
 
-            let latest_version = ctx.sync(SyncRecovery::Retry(3)).await?;
+            let latest_version = ctx.sync().await?;
             info!("Expect version: {}", latest_version);
 
             wait(1).await;
@@ -381,9 +381,9 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
             ctx.set_petname("foo", Some(Did("did:key:foo".into())))
                 .await?;
             ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
 
             let cursor = SphereCursor::latest(Arc::new(ctx.sphere_context().await?.clone()));
             let pair_2_context = cursor
@@ -431,7 +431,7 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
 
     pair_3
         .spawn(|mut ctx| async move {
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             Ok(())
         })
         .await?;
@@ -441,9 +441,9 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
         .spawn(|mut ctx| async move {
             ctx.set_petname("pair_3".into(), Some(id_3)).await?;
             ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             assert!(ctx.resolve_petname("pair_3").await?.is_some());
             Ok(ctx.version().await?)
         })
@@ -458,7 +458,7 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
             ctx.write("foo", &ContentType::Text, "foo".as_bytes(), None)
                 .await?;
             ctx.save(None).await?;
-            let cid = ctx.sync(SyncRecovery::Retry(3)).await?;
+            let cid = ctx.sync().await?;
             Ok(cid)
         })
         .await?;
@@ -472,9 +472,9 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
                 ctx.set_petname("foo", Some(Did("did:key:foo".into())))
                     .await?;
                 ctx.save(None).await?;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
                 wait(1).await;
-                ctx.sync(SyncRecovery::Retry(3)).await?;
+                ctx.sync().await?;
                 assert_eq!(
                     ctx.resolve_petname("pair_3").await?,
                     Some(sphere_3_first_version)
@@ -498,7 +498,7 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
             ctx.save(None).await?;
             ctx.remove("bar").await?;
             ctx.save(None).await?;
-            let cid = ctx.sync(SyncRecovery::Retry(3)).await?;
+            let cid = ctx.sync().await?;
             Ok(cid)
         })
         .await?;
@@ -512,9 +512,9 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
             ctx.set_petname("pair_2".into(), Some(id_2)).await?;
             ctx.set_petname("pair_3".into(), Some(id_3)).await?;
             ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             let cid = ctx.resolve_petname("pair_3").await?.unwrap();
 
             assert_eq!(cid, sphere_3_newest_version);
@@ -594,7 +594,7 @@ async fn local_lineage_remains_sparse_as_graph_changes_accrue_over_time() -> Res
                 .await?;
 
             ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             Ok(())
         })
         .await?;
@@ -607,20 +607,20 @@ async fn local_lineage_remains_sparse_as_graph_changes_accrue_over_time() -> Res
                 .await?;
 
             ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
 
             ctx.write("new-content", "text/plain", "foobar2".as_bytes(), None)
                 .await?;
 
             ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
 
             ctx.set_petname("my-peer", Some(sphere_2_id)).await?;
             ctx.save(None).await?;
 
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
 
             Ok(())
         })
@@ -631,7 +631,7 @@ async fn local_lineage_remains_sparse_as_graph_changes_accrue_over_time() -> Res
             ctx.write("peer-content", "text/plain", "baz".as_bytes(), None)
                 .await?;
             ctx.save(None).await?;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
 
             Ok(())
         })
@@ -639,9 +639,9 @@ async fn local_lineage_remains_sparse_as_graph_changes_accrue_over_time() -> Res
 
     pair_1
         .spawn(|mut ctx| async move {
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
             wait(1).await;
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
 
             let walker = SphereWalker::from(&ctx);
 
@@ -699,7 +699,7 @@ async fn all_of_client_history_is_made_manifest_on_the_gateway_after_sync() -> R
             ctx.write("foo", &ContentType::Text, "bar".as_bytes(), None)
                 .await?;
             ctx.save(None).await?;
-            Ok(ctx.sync(SyncRecovery::Retry(3)).await?)
+            Ok(ctx.sync().await?)
         })
         .await?;
 
@@ -713,13 +713,13 @@ async fn all_of_client_history_is_made_manifest_on_the_gateway_after_sync() -> R
                 ctx.save(None).await?;
             }
 
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
 
             ctx.set_petname("two", Some(sphere_2_identity)).await?;
 
             ctx.save(None).await?;
 
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
 
             for value in ["one", "two", "three"] {
                 ctx.set_petname(value, Some(Did(format!("did:key:{}", value))))
@@ -727,11 +727,11 @@ async fn all_of_client_history_is_made_manifest_on_the_gateway_after_sync() -> R
                 ctx.save(None).await?;
             }
 
-            ctx.sync(SyncRecovery::Retry(3)).await?;
+            ctx.sync().await?;
 
             wait(1).await;
 
-            Ok(ctx.sync(SyncRecovery::Retry(3)).await?)
+            Ok(ctx.sync().await?)
         })
         .await?;
 

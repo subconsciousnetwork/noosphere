@@ -67,6 +67,13 @@ impl Workspace {
             .clone())
     }
 
+    /// Release the internally-held [SphereContext] (if any), causing its
+    /// related resources to be dropped (e.g., database locks). Accessing it
+    /// via [Workspace::sphere_context] will initialize it again.
+    pub fn release_sphere_context(&mut self) {
+        self.sphere_context = OnceCell::new();
+    }
+
     /// Get an owned referenced to the [SphereDb] that backs the local sphere.
     /// Note that this will initialize the [SphereContext] if it has not been
     /// already.

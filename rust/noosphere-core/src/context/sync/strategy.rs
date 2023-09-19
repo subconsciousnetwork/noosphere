@@ -30,6 +30,15 @@ type FetchResults = (
 );
 type CounterpartHistory<S> = Vec<Result<(Link<MemoIpld>, Sphere<SphereDb<S>>)>>;
 
+/// This enum describes the breadth of the synchronization action
+#[derive(Debug, Clone, Copy)]
+pub enum SyncExtent {
+    /// Only perform the fetch half of the synchronization with a gateway
+    FetchOnly,
+    /// Perform both fetch and push when synchronizing with the gateway
+    FetchAndPush,
+}
+
 /// The default synchronization strategy is a git-like fetch->rebase->push flow.
 /// It depends on the corresponding history of a "counterpart" sphere that is
 /// owned by a gateway server. As revisions are pushed to the gateway server, it
@@ -69,7 +78,11 @@ where
     /// Synchronize a local sphere's data with the data in a gateway, and rollback
     /// if there is an error. The returned [Link] is the latest version of the local
     /// sphere lineage after the sync has completed.
-    pub async fn sync(&self, context: &mut C) -> Result<Link<MemoIpld>, SyncError>
+    pub async fn sync(
+        &self,
+        context: &mut C,
+        extent: SyncExtent,
+    ) -> Result<Link<MemoIpld>, SyncError>
     where
         C: HasMutableSphereContext<S>,
     {
@@ -90,13 +103,15 @@ where
                 local_sphere_version = version;
             }
 
-            self.push_local_changes(
-                context,
-                &local_sphere_version,
-                &counterpart_sphere_identity,
-                &counterpart_sphere_version,
-            )
-            .await?;
+            if let SyncExtent::FetchAndPush = extent {
+                self.push_local_changes(
+                    context,
+                    &local_sphere_version,
+                    &counterpart_sphere_identity,
+                    &counterpart_sphere_version,
+                )
+                .await?;
+            }
 
             Ok(local_sphere_version)
         };

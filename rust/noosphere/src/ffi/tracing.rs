@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use noosphere_core::tracing::{initialize_tracing, NoosphereLog};
 use safer_ffi::prelude::*;
 
@@ -11,7 +13,7 @@ use safer_ffi::prelude::*;
 // representation that will be used via a specialty [`NS_ENUM`][3] macro.
 // However, this macro is built-for-purpose by Apple and Safer FFI has no
 // knowledge of it. So, using it would require specialized header generation
-// behavior for the Apple case, and that creates a lot of complexity and room
+// behaSyncRecoveryvior for the Apple case, and that creates a lot of complexity and room
 // for error on our part.
 //
 // TODO(#345): Add support for `NS_ENUM` and use a more compact representation

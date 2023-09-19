@@ -26,19 +26,21 @@ use noosphere_core::context::{
 ///
 /// An opaque struct representing a sphere.
 pub struct NsSphere {
-    pub inner: PlatformSphereChannel,
+    pub(crate) inner: PlatformSphereChannel,
 }
 
 impl NsSphere {
-    pub fn inner(&self) -> &SphereCursor<Arc<SphereContext<PlatformStorage>>, PlatformStorage> {
+    pub(crate) fn inner(
+        &self,
+    ) -> &SphereCursor<Arc<SphereContext<PlatformStorage>>, PlatformStorage> {
         self.inner.immutable()
     }
 
-    pub fn inner_mut(&mut self) -> &mut Arc<Mutex<SphereContext<PlatformStorage>>> {
+    pub(crate) fn inner_mut(&mut self) -> &mut Arc<Mutex<SphereContext<PlatformStorage>>> {
         self.inner.mutable()
     }
 
-    pub fn to_channel(&self) -> PlatformSphereChannel {
+    pub(crate) fn to_channel(&self) -> PlatformSphereChannel {
         self.inner.clone()
     }
 }
@@ -56,11 +58,7 @@ pub struct NsSphereFile {
 }
 
 impl NsSphereFile {
-    pub fn inner(&self) -> &SphereFile<Pin<Box<dyn AsyncFileBody>>> {
-        &self.inner
-    }
-
-    pub fn inner_mut(&mut self) -> &mut SphereFile<Pin<Box<dyn AsyncFileBody>>> {
+    pub(crate) fn inner_mut(&mut self) -> &mut SphereFile<Pin<Box<dyn AsyncFileBody>>> {
         &mut self.inner
     }
 }

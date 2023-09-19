@@ -23,6 +23,10 @@ pub const INDEXEDDB_STORAGE_VERSION: u32 = 1;
 pub const STORE_NAME: &str = "keys";
 
 impl WebCryptoKeyStorage {
+    /// Initialize a new [WebCryptoKeyStorage] using the given name. This name
+    /// will correspond to an underlying IndexedDB database name, so
+    /// initializing the storage again using the same name will typically enable
+    /// cross-session persistance.
     pub async fn new(db_name: &str) -> Result<Self> {
         Self::configure(INDEXEDDB_STORAGE_VERSION, db_name, &[STORE_NAME]).await
     }

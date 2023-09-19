@@ -1,6 +1,6 @@
 use crate::store::Store;
 use crate::{db::SPHERE_DB_STORE_NAMES, storage::Storage};
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use js_sys::Uint8Array;
 use rexie::{
@@ -196,7 +196,7 @@ impl Store for IndexedDbStore {
 }
 
 #[cfg(feature = "performance")]
-struct SpaceUsageError(Error);
+struct SpaceUsageError(anyhow::Error);
 
 #[cfg(feature = "performance")]
 impl From<JsValue> for SpaceUsageError {
@@ -210,7 +210,7 @@ impl From<JsValue> for SpaceUsageError {
 }
 
 #[cfg(feature = "performance")]
-impl From<SpaceUsageError> for Error {
+impl From<SpaceUsageError> for anyhow::Error {
     fn from(value: SpaceUsageError) -> Self {
         value.0
     }

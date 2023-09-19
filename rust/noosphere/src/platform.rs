@@ -1,10 +1,12 @@
-///! Platform-specific types and bindings
-///! Platforms will vary in capabilities for things like block storage and
-///! secure key management. This module lays out the concrete strategies we will
-///! use on a per-platform basis.
+//! Platform-specific types and bindings
+//! Platforms will vary in capabilities for things like block storage and
+//! secure key management. This module lays out the concrete strategies we will
+//! use on a per-platform basis.
 
 #[cfg(apple)]
 mod inner {
+    #![allow(missing_docs)]
+
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
     use crate::key::InsecureKeyStorage;
@@ -49,6 +51,8 @@ mod inner {
 
 #[cfg(wasm)]
 mod inner {
+    #![allow(missing_docs)]
+
     use crate::key::WebCryptoKeyStorage;
 
     use std::sync::Arc;
@@ -101,7 +105,10 @@ mod inner {
     use crate::key::InsecureKeyStorage;
     use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
+    /// The default key type produced by the [crate::key::KeyStorage]
+    /// implementation in use for this platform
     pub type PlatformKeyMaterial = Ed25519KeyMaterial;
+    /// The default [crate::key::KeyStorage] in use for this platform
     pub type PlatformKeyStorage = InsecureKeyStorage;
 
     #[cfg(sled)]
@@ -109,6 +116,8 @@ mod inner {
     #[cfg(rocksdb)]
     pub(crate) type PrimitiveStorage = noosphere_storage::RocksDbStorage;
 
+    /// The default backing [noosphere_storage::Storage] in use for this
+    /// platform
     #[cfg(not(ipfs_storage))]
     pub type PlatformStorage = PrimitiveStorage;
     #[cfg(ipfs_storage)]
@@ -148,8 +157,14 @@ use crate::sphere::SphereChannel;
 // NOTE: We may someday define the 3rd and 4th terms of this type differently on
 // web, where `Arc` and `Mutex` are currently overkill for our needs and may be
 // substituted for `Rc` and `RwLock`, respectively.
-pub type PlatformSphereContext = SphereCursor<Arc<SphereContext<PlatformStorage>>, PlatformStorage>;
-pub type PlatformMutableSphereContext = Arc<Mutex<SphereContext<PlatformStorage>>>;
 
+/// A type alias for the kind of [noosphere_core::context::HasSphereContext] in use
+/// by the Noosphere implementation on the current platform
+pub type PlatformSphereContext = SphereCursor<Arc<SphereContext<PlatformStorage>>, PlatformStorage>;
+/// A type alias for the kind of [noosphere_core::context::HasMutableSphereContext] in use
+/// by the Noosphere implementation on the current platform
+pub type PlatformMutableSphereContext = Arc<Mutex<SphereContext<PlatformStorage>>>;
+/// A type alias for the kind of [SphereChannel] in use by the Noosphere
+/// implementation on the current platform
 pub type PlatformSphereChannel =
     SphereChannel<PlatformStorage, PlatformSphereContext, PlatformMutableSphereContext>;

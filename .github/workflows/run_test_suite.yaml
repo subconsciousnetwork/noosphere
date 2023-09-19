@@ -97,6 +97,27 @@ jobs:
           run_daemon: true
       - name: 'Run Rust native target tests'
         run: NOOSPHERE_LOG=deafening cargo test --features test-kubo,headers,performance
+
+  run-test-suite-linux-rocksdb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - name: 'Setup Rust'
+        run: |
+          curl -sSf https://sh.rustup.rs | sh -s -- -y
+      - name: 'Install environment packages'
+        run: |
+          sudo apt-get update -qqy
+          sudo apt-get install jq protobuf-compiler cmake libclang-dev
+      - name: 'Install IPFS Kubo'
+        uses: ibnesayeed/setup-ipfs@master
+        with:
+          ipfs_version: v0.17.0
+          run_daemon: true
+      - name: 'Run Rust native target tests (RocksDB)'
+        run: NOOSPHERE_LOG=defeaning cargo test -p noosphere -p noosphere-storage --features rocksdb,test-kubo,performance
+
   run-test-suite-linux-c:
     runs-on: ubuntu-latest
     steps:
@@ -115,6 +136,7 @@ jobs:
       - name: 'Run C integration tests'
         run: |
           make run -C ./c/example
+
   run-test-suite-web-wasm:
     runs-on: ubuntu-latest
     steps:

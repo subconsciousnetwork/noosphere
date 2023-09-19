@@ -1,7 +1,10 @@
 //! A high-level, batteries-included API for Noosphere embedders
 
 use anyhow::{anyhow, Result};
-use noosphere_core::{authority::Authorization, data::Did};
+use noosphere_core::{
+    authority::Authorization,
+    data::{Did, Mnemonic},
+};
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 
 use noosphere_core::context::{SphereContext, SphereCursor};
@@ -21,12 +24,18 @@ pub enum NoosphereStorage {
     /// Scoped storage implies that the given path is a root and that spheres
     /// should be stored in a sub-path that includes the sphere identity at the
     /// trailing end
-    Scoped { path: PathBuf },
+    Scoped {
+        /// The path where storage should be rooted
+        path: PathBuf,
+    },
 
     /// Unscoped storage implies that sphere data should be kept at the given
     /// path. Note that this is typically only appropriate when dealing with a
     /// single sphere.
-    Unscoped { path: PathBuf },
+    Unscoped {
+        /// The path where storage should be rooted
+        path: PathBuf,
+    },
 }
 
 /// This enum exists so that we can incrementally layer on support for secure
@@ -37,7 +46,10 @@ pub enum NoosphereStorage {
 pub enum NoosphereSecurity {
     /// Insecure configuration should be used on a platform where no TPM or
     /// similar secure key storage is available.
-    Insecure { path: PathBuf },
+    Insecure {
+        /// The path where keys should be stored
+        path: PathBuf,
+    },
 
     /// Opaque security configuration may be used in the case where there is
     /// some kind of protected keyring-like API layer where secret key material
@@ -52,7 +64,11 @@ pub enum NoosphereSecurity {
 pub enum NoosphereNetwork {
     /// Uses an HTTP REST client to interact with various network resources
     Http {
+        /// The URL of the Noosphere Gateway REST API that should be used for
+        /// synchronizing with the network
         gateway_api: Option<Url>,
+        /// The URL of an IPFS Kubo RPC API that may be used when initializing
+        /// IPFS-based storage primitives
         ipfs_gateway_url: Option<Url>,
     },
 }
@@ -62,8 +78,12 @@ pub enum NoosphereNetwork {
 /// platform and use case of the implementing application.
 #[derive(Clone)]
 pub struct NoosphereContextConfiguration {
+    /// Storage configuration which affects how Noosphere data is persisted
     pub storage: NoosphereStorage,
+    /// Security configuration which controls how device keys are created and used
     pub security: NoosphereSecurity,
+    /// Network configuration which controls the transport and protocol for moving
+    /// blocks into and out of the Noosphere network
     pub network: NoosphereNetwork,
 }
 
@@ -71,6 +91,7 @@ pub struct NoosphereContextConfiguration {
 /// Noosphere data. It also keeps a running list of active [SphereContext]
 /// instances to avoid the expensive action of repeatedly opening and closing
 /// a handle to backing storage for spheres that are being accessed regularly.
+#[derive(Clone)]
 pub struct NoosphereContext {
     configuration: NoosphereContextConfiguration,
     sphere_channels: Arc<Mutex<BTreeMap<Did, PlatformSphereChannel>>>,
@@ -139,6 +160,48 @@ impl NoosphereContext {
         Ok(key_storage.read_key(key_name).await?.is_some())
     }
 
+    /// Recover a sphere that was previously initialized (created or joined) on
+    /// this device. You must have access to the key that was originally
+    /// authorized to access the sphere. You must also provide the recovery
+    /// [Mnemonic] for the sphere. The recovery process will backup the existing
+    /// local sphere database and then re-initialize it and attempt to populate
+    /// it with data from an existing gateway.
+    pub async fn recover_sphere(
+        &self,
+        local_key_name: &str,
+        sphere_id: &Did,
+        mnemonic: &Mnemonic,
+    ) -> Result<()> {
+        {
+            let mut sphere_contexts = self.sphere_channels.lock().await;
+            sphere_contexts.remove(sphere_id);
+        }
+
+        let artifacts = SphereContextBuilder::default()
+            .recover_sphere(sphere_id)
+            .at_storage_path(self.sphere_storage_path())
+            .using_scoped_storage_layout()
+            .reading_keys_from(self.key_storage().await?)
+            .using_mnemonic(Some(mnemonic))
+            .using_key(local_key_name)
+            .syncing_to(self.gateway_api())
+            .reading_ipfs_from(self.ipfs_gateway_url())
+            .build()
+            .await?;
+
+        let context = SphereContext::from(artifacts);
+        let sphere_identity = context.identity().to_owned();
+        let mut sphere_contexts = self.sphere_channels.lock().await;
+        sphere_contexts.insert(
+            sphere_identity.clone(),
+            SphereChannel::new(
+                SphereCursor::latest(Arc::new(context.clone())),
+                Arc::new(Mutex::new(context)),
+            ),
+        );
+        Ok(())
+    }
+
     /// Create a sphere, generating an authorization for the specified owner key
     /// to administer the sphere over time
     pub async fn create_sphere(&self, owner_key_name: &str) -> Result<SphereReceipt> {
@@ -168,7 +231,7 @@ impl NoosphereContext {
 
         Ok(SphereReceipt {
             identity: sphere_identity,
-            mnemonic,
+            mnemonic: mnemonic.into(),
         })
     }
 

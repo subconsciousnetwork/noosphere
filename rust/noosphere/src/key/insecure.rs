@@ -35,6 +35,8 @@ pub struct InsecureKeyStorage {
 }
 
 impl InsecureKeyStorage {
+    /// Initialize a new [InsecureKeyStorage] at the provided path. Keys will be
+    /// stored in the clear on disk at the configured path.
     pub fn new(global_storage_path: &Path) -> Result<Self> {
         let storage_path = global_storage_path.join("keys");
 

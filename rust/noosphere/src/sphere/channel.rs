@@ -31,6 +31,8 @@ where
     Ci: HasSphereContext<S>,
     Cm: HasMutableSphereContext<S>,
 {
+    /// Initialize a new [SphereChannel] by providing it with a
+    /// [HasSphereContext] and [HasMutableSphereContext] over the same sphere.
     pub fn new(immutable: Ci, mutable: Cm) -> Self {
         Self {
             immutable,
