@@ -36,7 +36,7 @@ tower = { workspace = true }
 tower-http = { workspace = true, features = ["cors", "trace"] }
 async-trait = "~0.1"
 async-stream = { workspace = true }
-wnfs-namefilter = { workspace = true }
+deterministic-bloom = { workspace = true }
 
 url = { workspace = true, features = ["serde"] }
 mime_guess = "^2"

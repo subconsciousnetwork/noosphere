@@ -23,6 +23,7 @@ async-stream = { version = "0.3" }
 axum = { version = "^0.6.18" }
 bytes = { version = "^1" }
 cid = { version = "0.10" }
+deterministic-bloom = { version = "0.1.0" }
 directories = { version = "5" }
 fastcdc = { version = "3.1" }
 futures = { version = "0.3" }
@@ -64,8 +65,6 @@ wasm-bindgen-test = { version = "^0.3" }
 wasm-bindgen-futures = { version = "^0.4" }
 wasm-streams = { version = "0.3.0" }
 web-sys = { version = "0.3" }
-# TODO(#626): Migrate off of this crate
-wnfs-namefilter = { version = "0.1.23" }
 
 [profile.release]
 opt-level = 'z'
