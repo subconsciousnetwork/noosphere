@@ -38,9 +38,9 @@ witty-phrase-generator = "~0.2"
 wasm-bindgen-test = { workspace = true }
 rand = { workspace = true }
 # examples/bench
-noosphere-core-dev = { version = "0.15.2", path = "../noosphere-core", features = ["helpers"], package = "noosphere-core" }
+noosphere-core-dev = { path = "../noosphere-core", features = ["helpers"], package = "noosphere-core" }
 # examples/bench
-noosphere-common = { version = "0.1.0", path = "../noosphere-common", features = ["helpers"] }
+noosphere-common = { path = "../noosphere-common", features = ["helpers"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tempfile = { workspace = true }
