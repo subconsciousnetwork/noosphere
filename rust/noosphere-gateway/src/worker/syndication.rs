@@ -21,8 +21,8 @@ use tokio::{
 use tokio_stream::StreamExt;
 use url::Url;
 
+use deterministic_bloom::const_size::BloomFilter;
 use iroh_car::{CarHeader, CarWriter};
-use wnfs_namefilter::BloomFilter;
 
 /// A [SyndicationJob] is a request to syndicate the blocks of a _counterpart_
 /// sphere to the broader IPFS network.
@@ -198,7 +198,7 @@ where
                     // TODO(#176): We need to build-up a list of blocks that aren't
                     // able to be loaded so that we can be resilient to incomplete
                     // data when syndicating to IPFS
-                    syndicated_blocks.add(&cid.to_bytes());
+                    syndicated_blocks.insert(&cid.to_bytes());
 
                     let block = db.require_block(&cid).await?;
 
