@@ -9,6 +9,8 @@
 //! Run IndexedDb (open `http://localhost:8000` in a browser)
 //! `NO_HEADLESS=1 cargo run --example bench --features performance --target wasm32-unknown-unknown`
 
+extern crate noosphere_core_dev as noosphere_core;
+
 use anyhow::Result;
 use noosphere_common::helpers::TestEntropy;
 use noosphere_core::{

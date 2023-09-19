@@ -38,7 +38,7 @@ witty-phrase-generator = "~0.2"
 wasm-bindgen-test = { workspace = true }
 rand = { workspace = true }
 # examples/bench
-noosphere-core = { version = "0.15.2", path = "../noosphere-core", features = ["helpers"] }
+noosphere-core-dev = { version = "0.15.2", path = "../noosphere-core", features = ["helpers"], package = "noosphere-core" }
 # examples/bench
 noosphere-common = { version = "0.1.0", path = "../noosphere-common", features = ["helpers"] }
 
