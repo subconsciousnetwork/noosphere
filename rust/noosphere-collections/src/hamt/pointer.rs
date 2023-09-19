@@ -7,11 +7,11 @@ use anyhow::{anyhow, Result};
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 
-use async_once_cell::OnceCell;
 use cid::Cid;
 use libipld_core::ipld::Ipld;
 use serde::de::{self, DeserializeOwned};
 use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
+use tokio::sync::OnceCell;
 
 use forest_hash_utils::Hash;
 
