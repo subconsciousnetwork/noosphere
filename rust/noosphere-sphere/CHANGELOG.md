@@ -47,7 +47,7 @@
   * dependencies
     * noosphere-core bumped from 0.15.2 to 0.16.0
     * noosphere-storage bumped from 0.8.1 to 0.9.0
-    * noosphere-api bumped from 0.12.2 to 0.12.3
+    * noosphere-api bumped from 0.12.2 to 0.13.0+deprecated
   * dev-dependencies
     * noosphere-core bumped from 0.15.2 to 0.16.0
 
