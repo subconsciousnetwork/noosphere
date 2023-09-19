@@ -54,6 +54,26 @@
     * noosphere-storage bumped from 0.7.1 to 0.8.0
     * noosphere-core bumped from 0.14.0 to 0.15.0
 
+## [0.8.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.7.4...noosphere-ipfs-v0.8.0) (2023-09-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* Replace `Bundle` with CAR streams in push ([#624](https://github.com/subconsciousnetwork/noosphere/issues/624))
+
+### Features
+
+* Replace `Bundle` with CAR streams in push ([#624](https://github.com/subconsciousnetwork/noosphere/issues/624)) ([9390797](https://github.com/subconsciousnetwork/noosphere/commit/9390797eb6653fdecd41c3a54225ffd55945bb89))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.8.1 to 0.9.0
+  * dev-dependencies
+    * noosphere-core bumped from 0.15.2 to 0.16.0
+
 ## [0.7.4](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.7.3...noosphere-ipfs-v0.7.4) (2023-08-29)
 
 

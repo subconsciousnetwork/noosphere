@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.8.1...noosphere-storage-v0.9.0) (2023-09-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* Disaster recovery via gateway ([#637](https://github.com/subconsciousnetwork/noosphere/issues/637))
+* Replace `Bundle` with CAR streams in push ([#624](https://github.com/subconsciousnetwork/noosphere/issues/624))
+
+### Features
+
+* Disaster recovery via gateway ([#637](https://github.com/subconsciousnetwork/noosphere/issues/637)) ([70e7331](https://github.com/subconsciousnetwork/noosphere/commit/70e7331767f65e0976ee5843229f765dc6ace7fb))
+* Introduce RocksDbStorage, genericize storage throughout. ([#623](https://github.com/subconsciousnetwork/noosphere/issues/623)) ([7155f86](https://github.com/subconsciousnetwork/noosphere/commit/7155f860c2f5ee481d923941dca95981cd7f4b38))
+* Replace `Bundle` with CAR streams in push ([#624](https://github.com/subconsciousnetwork/noosphere/issues/624)) ([9390797](https://github.com/subconsciousnetwork/noosphere/commit/9390797eb6653fdecd41c3a54225ffd55945bb89))
+
 ## [0.8.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.8.0...noosphere-storage-v0.8.1) (2023-08-10)
 
 

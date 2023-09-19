@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-sphere"
-version = "0.10.2"
+version = "0.11.0+deprecated"
 edition = "2021"
 description = "High-level access to content, address books and other features of spheres"
 keywords = []
@@ -23,9 +23,9 @@ iroh-car = { workspace = true }
 url = { version = "^2", features = ["serde"] }
 tracing = { workspace = true }
 
-noosphere-core = { version = "0.15.2", path = "../noosphere-core" }
-noosphere-storage = { version = "0.8.1", path = "../noosphere-storage" }
-noosphere-api = { version = "0.12.2", path = "../noosphere-api" }
+noosphere-core = { version = "0.16.0", path = "../noosphere-core" }
+noosphere-storage = { version = "0.9.0", path = "../noosphere-storage" }
+noosphere-api = { version = "0.12.3", path = "../noosphere-api" }
 
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
@@ -43,7 +43,7 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-noosphere-core = { version = "0.15.2", path = "../noosphere-core", features = ["helpers"] }
+noosphere-core = { version = "0.16.0", path = "../noosphere-core", features = ["helpers"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # TODO: We should eventually support gateway storage as a specialty target only,

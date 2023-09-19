@@ -142,6 +142,28 @@
   * dev-dependencies
     * noosphere-sphere bumped from 0.10.1 to 0.10.2
 
+## [0.11.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.10.6...noosphere-into-v0.11.0) (2023-09-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* Replace `Bundle` with CAR streams in push ([#624](https://github.com/subconsciousnetwork/noosphere/issues/624))
+
+### Features
+
+* Introduce RocksDbStorage, genericize storage throughout. ([#623](https://github.com/subconsciousnetwork/noosphere/issues/623)) ([7155f86](https://github.com/subconsciousnetwork/noosphere/commit/7155f860c2f5ee481d923941dca95981cd7f4b38))
+* Replace `Bundle` with CAR streams in push ([#624](https://github.com/subconsciousnetwork/noosphere/issues/624)) ([9390797](https://github.com/subconsciousnetwork/noosphere/commit/9390797eb6653fdecd41c3a54225ffd55945bb89))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.15.2 to 0.16.0
+    * noosphere-storage bumped from 0.8.1 to 0.9.0
+  * dev-dependencies
+    * noosphere-core bumped from 0.15.1 to 0.16.0
+
 ## [0.10.5](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.10.4...noosphere-into-v0.10.5) (2023-08-10)
 
 
