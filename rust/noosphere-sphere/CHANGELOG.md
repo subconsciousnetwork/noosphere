@@ -29,6 +29,28 @@
     * noosphere-storage bumped from 0.7.0 to 0.7.1
     * noosphere-api bumped from 0.9.0 to 0.9.1
 
+## [0.11.0+deprecated](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.10.2...noosphere-sphere-v0.11.0+deprecated) (2023-09-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* Replace `Bundle` with CAR streams in push ([#624](https://github.com/subconsciousnetwork/noosphere/issues/624))
+
+### Features
+
+* Replace `Bundle` with CAR streams in push ([#624](https://github.com/subconsciousnetwork/noosphere/issues/624)) ([9390797](https://github.com/subconsciousnetwork/noosphere/commit/9390797eb6653fdecd41c3a54225ffd55945bb89))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.15.2 to 0.16.0
+    * noosphere-storage bumped from 0.8.1 to 0.9.0
+    * noosphere-api bumped from 0.12.2 to 0.13.0+deprecated
+  * dev-dependencies
+    * noosphere-core bumped from 0.15.2 to 0.16.0
+
 ## [0.10.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-sphere-v0.10.1...noosphere-sphere-v0.10.2) (2023-08-29)
 
 

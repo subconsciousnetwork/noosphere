@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-api"
-version = "0.12.2"
+version = "0.13.0+deprecated"
 edition = "2021"
 description = "Type information pertinent to the REST API of the gateway server that is a part of the Noosphere CLI"
 keywords = ["rest", "api", "noosphere", "p2p"]
@@ -26,8 +26,8 @@ url = { workspace = true }
 serde = { workspace = true }
 serde_urlencoded = "~0.7"
 tracing = { workspace = true }
-noosphere-core = { version = "0.15.2", path = "../noosphere-core" }
-noosphere-storage = { version = "0.8.1", path = "../noosphere-storage" }
+noosphere-core = { version = "0.16.0", path = "../noosphere-core" }
+noosphere-storage = { version = "0.9.0", path = "../noosphere-storage" }
 iroh-car = { workspace = true }
 reqwest = { version = "0.11.15", default-features = false, features = ["json", "rustls-tls", "stream"] }
 tokio-stream = { workspace = true }
