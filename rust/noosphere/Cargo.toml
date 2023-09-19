@@ -58,7 +58,7 @@ noosphere-common = { version = "0.1.0", path = "../noosphere-common", features =
 # TODO: We should eventually support gateway storage as a specialty target only,
 # as it is a specialty use-case
 tokio = { workspace = true, features = ["sync"] }
-rexie = { version = "~0.4" }
+rexie = { version = "~0.5" }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 js-sys = { workspace = true }
