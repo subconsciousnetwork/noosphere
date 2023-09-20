@@ -13,6 +13,6 @@
   "rust-analyzer.cargo.features": [
     "test-kubo",
     "helpers",
-    "performance"
+    "rocksdb"
   ]
 }

@@ -57,7 +57,7 @@ impl StorageLayout {
         }
         #[cfg(rocksdb)]
         {
-            noosphere_storage::RocksDbStorage::new(PathBuf::from(self))
+            noosphere_storage::RocksDbStorage::new(&PathBuf::from(self))
         }
     }
 }

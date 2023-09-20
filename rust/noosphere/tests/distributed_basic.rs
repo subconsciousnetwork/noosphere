@@ -11,7 +11,8 @@ extern crate noosphere_ns_dev as noosphere_ns;
 #[macro_use]
 extern crate tracing;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use noosphere::sphere::SphereContextBuilder;
 use noosphere_cli::helpers::{start_name_system_server, SpherePair};
 use noosphere_common::helpers::wait;
 use noosphere_core::{
@@ -746,6 +747,111 @@ async fn all_of_client_history_is_made_manifest_on_the_gateway_after_sync() -> R
     tokio::pin!(block_stream);
 
     while let Some(_) = block_stream.try_next().await? {}
+
+    ns_task.abort();
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn gateway_enables_the_client_with_peers_to_recover_a_sphere() -> Result<()> {
+    initialize_tracing(None);
+
+    let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
+    let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
+
+    let mut sphere_pair_one = SpherePair::new("one", &ipfs_url, &ns_url).await?;
+    let mut sphere_pair_two = SpherePair::new("two", &ipfs_url, &ns_url).await?;
+
+    sphere_pair_one.start_gateway().await?;
+    sphere_pair_two.start_gateway().await?;
+
+    sphere_pair_two
+        .spawn(move |mut ctx| async move {
+            for value in ["one", "two", "three"] {
+                ctx.write(value, &ContentType::Text, value.as_bytes(), None)
+                    .await?;
+                ctx.save(None).await?;
+            }
+
+            ctx.sync().await?;
+            Ok(())
+        })
+        .await?;
+
+    let sphere_two_identity = sphere_pair_two.client.identity.clone();
+
+    sphere_pair_one
+        .spawn(move |mut ctx| async move {
+            for value in ["one", "two", "three"] {
+                ctx.write(value, &ContentType::Text, value.as_bytes(), None)
+                    .await?;
+                ctx.save(None).await?;
+            }
+
+            ctx.set_petname("peer2", Some(sphere_two_identity)).await?;
+            ctx.save(None).await?;
+
+            ctx.sync().await?;
+            wait(1).await;
+            ctx.sync().await?;
+            ctx.sync().await?;
+
+            Ok(())
+        })
+        .await?;
+
+    {
+        // NOTE: We initialize the builder before simulating corruption because
+        // we don't have a convenient way to get the critical inputs (e.g.,
+        // gateway URL) otherwise. In practice, these values should be recorded
+        // on the side by the embedder for use in recovery scenarios such as
+        // this.
+        let recovery_builder = SphereContextBuilder::default()
+            .recover_sphere(&sphere_pair_one.client.identity)
+            .at_storage_path(sphere_pair_one.client.sphere_root())
+            .reading_keys_from(sphere_pair_one.client.workspace.key_storage().clone())
+            .using_mnemonic(Some(&sphere_pair_one.client.mnemonic))
+            .using_key(&sphere_pair_one.client.key_name)
+            .syncing_to(Some(&sphere_pair_one.client.workspace.gateway_url().await?));
+
+        sphere_pair_one.client.workspace.release_sphere_context();
+
+        sphere_pair_one.client.simulate_storage_corruption().await?;
+
+        assert!(sphere_pair_one
+            .client
+            .workspace
+            .sphere_context()
+            .await
+            .is_err());
+
+        // Perform the recovery:
+        recovery_builder.build().await?;
+    }
+
+    sphere_pair_one
+        .spawn(move |ctx| async move {
+            for value in ["one", "two", "three"] {
+                let mut contents = String::new();
+                let mut file = ctx
+                    .read(value)
+                    .await?
+                    .ok_or_else(|| anyhow!("Could not read file"))?;
+                file.contents.read_to_string(&mut contents).await?;
+                assert_eq!(value, contents);
+            }
+
+            let cursor = SphereCursor::latest(ctx);
+
+            assert!(cursor
+                .traverse_by_petnames(&["peer2".into()])
+                .await?
+                .is_some());
+
+            Ok(())
+        })
+        .await?;
 
     ns_task.abort();
 

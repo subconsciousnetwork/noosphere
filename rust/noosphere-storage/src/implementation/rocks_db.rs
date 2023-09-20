@@ -29,8 +29,9 @@ pub struct RocksDbStorage {
 }
 
 impl RocksDbStorage {
-    pub fn new(path: PathBuf) -> Result<Self> {
-        std::fs::create_dir_all(&path)?;
+    pub fn new(path: &Path) -> Result<Self> {
+        debug!(?path, "Initializing RocksDB...");
+        std::fs::create_dir_all(path)?;
         let canonicalized = path.canonicalize()?;
         let db = Arc::new(RocksDbStorage::init_db(canonicalized.clone())?);
         Ok(RocksDbStorage {
@@ -143,5 +144,34 @@ impl Store for RocksDbStore {
 impl crate::Space for RocksDbStorage {
     async fn get_space_usage(&self) -> Result<u64> {
         crate::get_dir_size(&self.path).await
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use tempfile::TempDir;
+
+    use crate::{RocksDbStorage, BLOCK_STORE};
+
+    #[test]
+    #[should_panic]
+    fn it_does_not_allow_multiple_concurrent_initializations_of_storage() {
+        let db_root = TempDir::new().unwrap();
+        let _storage = RocksDbStorage::new(db_root.path()).unwrap();
+        let _concurrent_storage = RocksDbStorage::new(db_root.path()).unwrap();
+    }
+
+    #[tokio::test]
+    async fn it_releases_the_lock_over_the_database_when_it_is_dropped() {
+        let db_root = TempDir::new().unwrap();
+
+        {
+            let storage = RocksDbStorage::new(db_root.path()).unwrap();
+            let _store = storage.get_store(BLOCK_STORE).await.unwrap();
+        }
+
+        {
+            let _hopefully_not_concurrent_storage = RocksDbStorage::new(db_root.path()).unwrap();
+        }
     }
 }
