@@ -3488,32 +3488,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "noosphere-api"
-version = "0.13.0+deprecated"
-dependencies = [
- "anyhow",
- "cid",
- "iroh-car",
- "libipld-cbor",
- "libipld-core",
- "noosphere-core",
- "noosphere-storage",
- "reqwest",
- "serde",
- "serde_urlencoded",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tracing",
- "ucan",
- "ucan-key-support",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-test",
-]
-
-[[package]]
 name = "noosphere-cli"
 version = "0.15.0"
 dependencies = [
@@ -3774,37 +3748,6 @@ dependencies = [
  "ucan-key-support",
  "url",
  "void",
-]
-
-[[package]]
-name = "noosphere-sphere"
-version = "0.11.0+deprecated"
-dependencies = [
- "anyhow",
- "async-stream",
- "async-trait",
- "bytes",
- "cid",
- "futures-util",
- "iroh-car",
- "libipld-cbor",
- "libipld-core",
- "noosphere-api",
- "noosphere-core",
- "noosphere-storage",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tracing",
- "ucan",
- "ucan-key-support",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-bindgen-test",
 ]
 
 [[package]]

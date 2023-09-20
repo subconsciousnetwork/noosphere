@@ -1,5 +1,4 @@
 {
-  "rust/noosphere-api": "0.13.0+deprecated",
   "rust/noosphere-cli": "0.15.0",
   "rust/noosphere-collections": "0.6.4",
   "rust/noosphere-core": "0.16.0",
@@ -9,6 +8,5 @@
   "rust/noosphere": "0.15.0",
   "rust/noosphere-ipfs": "0.8.0",
   "rust/noosphere-gateway": "0.9.0",
-  "rust/noosphere-sphere": "0.11.0+deprecated",
   "rust/noosphere-common": "0.1.0"
 }

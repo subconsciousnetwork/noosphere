@@ -8,9 +8,6 @@
   "bump-patch-for-minor-pre-major": true,
   "last-release-sha": "d1fd253414cf6852653baa08ab1074bde7e57538",
   "packages": {
-    "rust/noosphere-api": {
-      "release-as": "0.13.0+deprecated"
-    },
     "rust/noosphere-common": {},
     "rust/noosphere-cli": {
       "draft": true
@@ -21,9 +18,6 @@
     "rust/noosphere-ipfs": {},
     "rust/noosphere-into": {},
     "rust/noosphere-ns": {},
-    "rust/noosphere-sphere": {
-      "release-as": "0.11.0+deprecated"
-    },
     "rust/noosphere-storage": {},
     "rust/noosphere": {
       "draft": true

@@ -1,7 +1,6 @@
 [workspace]
 members = [
   "rust/noosphere",
-  "rust/noosphere-api",
   "rust/noosphere-cli",
   "rust/noosphere-collections",
   "rust/noosphere-common",
@@ -10,7 +9,6 @@ members = [
   "rust/noosphere-into",
   "rust/noosphere-ipfs",
   "rust/noosphere-ns",
-  "rust/noosphere-sphere",
   "rust/noosphere-storage",
 ]
 
