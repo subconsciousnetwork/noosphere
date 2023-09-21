@@ -14,7 +14,7 @@ use std::{collections::BTreeSet, fmt::Debug};
 use tokio_stream::Stream;
 use ucan::store::UcanStore;
 
-use crate::{BlockStore, KeyValueStore, MemoryStore, Storage};
+use crate::{BlockStore, EphemeralStorage, EphemeralStore, KeyValueStore, MemoryStore, Storage};
 
 use async_stream::try_stream;
 
@@ -22,9 +22,15 @@ pub const BLOCK_STORE: &str = "blocks";
 pub const LINK_STORE: &str = "links";
 pub const VERSION_STORE: &str = "versions";
 pub const METADATA_STORE: &str = "metadata";
+pub const EPHEMERAL_STORE: &str = "ephemeral";
 
-pub const SPHERE_DB_STORE_NAMES: &[&str] =
-    &[BLOCK_STORE, LINK_STORE, VERSION_STORE, METADATA_STORE];
+pub const SPHERE_DB_STORE_NAMES: &[&str] = &[
+    BLOCK_STORE,
+    LINK_STORE,
+    VERSION_STORE,
+    METADATA_STORE,
+    EPHEMERAL_STORE,
+];
 
 /// A [SphereDb] is a high-level storage primitive for Noosphere's APIs. It
 /// takes a [Storage] and implements [BlockStore] and [KeyValueStore],
@@ -40,18 +46,20 @@ where
     link_store: S::KeyValueStore,
     version_store: S::KeyValueStore,
     metadata_store: S::KeyValueStore,
+    storage: S,
 }
 
 impl<S> SphereDb<S>
 where
     S: Storage,
 {
-    pub async fn new(storage: &S) -> Result<SphereDb<S>> {
+    pub async fn new(storage: S) -> Result<SphereDb<S>> {
         Ok(SphereDb {
             block_store: storage.get_block_store(BLOCK_STORE).await?,
             link_store: storage.get_key_value_store(LINK_STORE).await?,
             version_store: storage.get_key_value_store(VERSION_STORE).await?,
             metadata_store: storage.get_key_value_store(METADATA_STORE).await?,
+            storage,
         })
     }
 
@@ -277,6 +285,19 @@ where
     }
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<S> EphemeralStorage for SphereDb<S>
+where
+    S: Storage,
+{
+    type EphemeralStoreType = <S as EphemeralStorage>::EphemeralStoreType;
+
+    async fn get_ephemeral_store(&self) -> Result<EphemeralStore<Self::EphemeralStoreType>> {
+        self.storage.get_ephemeral_store().await
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -297,7 +318,7 @@ mod tests {
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     pub async fn it_stores_links_when_a_block_is_saved() {
         let storage_provider = MemoryStorage::default();
-        let mut db = SphereDb::new(&storage_provider).await.unwrap();
+        let mut db = SphereDb::new(storage_provider).await.unwrap();
 
         let list1 = vec!["cats", "dogs", "pigeons"];
         let list2 = vec!["apples", "oranges", "starfruit"];
@@ -318,7 +339,7 @@ mod tests {
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     pub async fn it_can_stream_all_blocks_in_a_dag() {
         let storage_provider = MemoryStorage::default();
-        let mut db = SphereDb::new(&storage_provider).await.unwrap();
+        let mut db = SphereDb::new(storage_provider).await.unwrap();
 
         let list1 = vec!["cats", "dogs", "pigeons"];
         let list2 = vec!["apples", "oranges", "starfruit"];
@@ -353,7 +374,7 @@ mod tests {
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     pub async fn it_can_put_a_raw_block_and_read_it_as_a_token() {
         let storage_provider = MemoryStorage::default();
-        let mut db = SphereDb::new(&storage_provider).await.unwrap();
+        let mut db = SphereDb::new(storage_provider).await.unwrap();
 
         let (cid, block) = block_encode::<RawCodec, _>(&Ipld::Bytes(b"foobar".to_vec())).unwrap();
 

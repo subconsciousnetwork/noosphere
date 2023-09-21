@@ -37,7 +37,7 @@ pub async fn simulated_sphere_context(
         Some(db) => db,
         None => {
             let storage_provider = TrackingStorage::wrap(MemoryStorage::default());
-            SphereDb::new(&storage_provider).await?
+            SphereDb::new(storage_provider).await?
         }
     };
 

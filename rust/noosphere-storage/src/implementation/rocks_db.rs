@@ -1,7 +1,11 @@
-use crate::{storage::Storage, store::Store, SPHERE_DB_STORE_NAMES};
+use crate::{
+    storage::Storage, store::Store, PartitionedStore, EPHEMERAL_STORE, SPHERE_DB_STORE_NAMES,
+};
 use anyhow::{anyhow, Result};
+use async_stream::try_stream;
 use async_trait::async_trait;
-use rocksdb::{ColumnFamilyDescriptor, DBWithThreadMode, Options};
+use noosphere_common::ConditionalSend;
+use rocksdb::{ColumnFamilyDescriptor, DBWithThreadMode, IteratorMode, Options};
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -29,14 +33,16 @@ pub struct RocksDbStorage {
 }
 
 impl RocksDbStorage {
-    pub fn new(path: PathBuf) -> Result<Self> {
-        std::fs::create_dir_all(&path)?;
-        let canonicalized = path.canonicalize()?;
+    pub async fn new<P: AsRef<Path> + ConditionalSend>(path: P) -> Result<Self> {
+        std::fs::create_dir_all(path.as_ref())?;
+        let canonicalized = path.as_ref().canonicalize()?;
         let db = Arc::new(RocksDbStorage::init_db(canonicalized.clone())?);
-        Ok(RocksDbStorage {
+        let storage = RocksDbStorage {
             db,
             path: canonicalized,
-        })
+        };
+        storage.clear_ephemeral().await?;
+        Ok(storage)
     }
 
     async fn get_store(&self, name: &str) -> Result<RocksDbStore> {
@@ -67,6 +73,12 @@ impl RocksDbStorage {
 
         Ok(DbInner::open_cf_descriptors(&db_opts, path, cfs)?)
     }
+
+    /// Wipes the "ephemeral" column family.
+    async fn clear_ephemeral(&self) -> Result<()> {
+        let ephemeral_store = self.get_store(EPHEMERAL_STORE).await?;
+        ephemeral_store.remove_range(&[0], &[u8::MAX]).await
+    }
 }
 
 #[async_trait]
@@ -83,6 +95,31 @@ impl Storage for RocksDbStorage {
     }
 }
 
+#[async_trait]
+impl crate::EphemeralStorage for RocksDbStorage {
+    type EphemeralStoreType = EphemeralRocksDbStore;
+
+    async fn get_ephemeral_store(&self) -> Result<crate::EphemeralStore<Self::EphemeralStoreType>> {
+        let inner = self.get_store(crate::EPHEMERAL_STORE).await?;
+        let mapped = crate::PartitionedStore::new(inner);
+        Ok(EphemeralRocksDbStore::new(mapped).into())
+    }
+}
+
+#[async_trait]
+impl crate::OpenStorage for RocksDbStorage {
+    async fn open<P: AsRef<Path> + ConditionalSend>(path: P) -> Result<Self> {
+        RocksDbStorage::new(path).await
+    }
+}
+
+#[async_trait]
+impl crate::Space for RocksDbStorage {
+    async fn get_space_usage(&self) -> Result<u64> {
+        crate::get_dir_size(&self.path).await
+    }
+}
+
 #[derive(Clone)]
 pub struct RocksDbStore {
     name: String,
@@ -90,8 +127,15 @@ pub struct RocksDbStore {
 }
 
 impl RocksDbStore {
-    pub fn new(db: Arc<DbInner>, name: String) -> Result<Self> {
+    pub(crate) fn new(db: Arc<DbInner>, name: String) -> Result<Self> {
         Ok(RocksDbStore { db, name })
+    }
+
+    async fn remove_range(&self, from: &[u8], to: &[u8]) -> Result<()> {
+        let cf = self.cf_handle()?;
+        #[cfg(feature = "rocksdb-multi-thread")]
+        let cf = &cf;
+        self.db.delete_range_cf(cf, from, to).map_err(|e| e.into())
     }
 
     /// Returns the column family handle. Unfortunately generated on every call
@@ -140,8 +184,70 @@ impl Store for RocksDbStore {
 }
 
 #[async_trait]
-impl crate::Space for RocksDbStorage {
-    async fn get_space_usage(&self) -> Result<u64> {
-        crate::get_dir_size(&self.path).await
+impl crate::IterableStore for RocksDbStore {
+    fn get_all_entries(&self) -> std::pin::Pin<Box<crate::IterableStoreStream<'_>>> {
+        // handle is not Sync; generate the iterator before
+        // async stream work.
+        let cf_option = self.db.cf_handle(&self.name);
+        let iter = if let Some(cf) = cf_option {
+            #[cfg(feature = "rocksdb-multi-thread")]
+            let cf = &cf;
+            Some(self.db.iterator_cf(cf, IteratorMode::Start))
+        } else {
+            None
+        };
+        Box::pin(try_stream! {
+            let iter = iter.ok_or_else(|| anyhow!("Could not get cf handle."))?;
+            for entry in iter {
+                let (key, value) = entry?;
+                yield (Vec::from(key.as_ref()), Vec::from(value.as_ref()));
+            }
+        })
+    }
+}
+
+/// A [RocksDbStore] that does not persist data after dropping.
+/// Can be created from [IndexedDbStorage::get_ephemeral_store].
+#[derive(Clone)]
+pub struct EphemeralRocksDbStore {
+    store: PartitionedStore<RocksDbStore>,
+}
+
+impl EphemeralRocksDbStore {
+    pub(crate) fn new(store: PartitionedStore<RocksDbStore>) -> Self {
+        EphemeralRocksDbStore { store }
+    }
+}
+
+#[async_trait]
+impl Store for EphemeralRocksDbStore {
+    async fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        self.store.read(key).await
+    }
+
+    async fn write(&mut self, key: &[u8], bytes: &[u8]) -> Result<Option<Vec<u8>>> {
+        self.store.write(key, bytes).await
+    }
+
+    async fn remove(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        self.store.remove(key).await
+    }
+
+    async fn flush(&self) -> Result<()> {
+        self.store.flush().await
+    }
+}
+
+#[async_trait]
+impl crate::Disposable for EphemeralRocksDbStore {
+    async fn dispose(&mut self) -> Result<()> {
+        let (start_key, end_key) = self.store.get_key_range();
+        self.store.inner().remove_range(start_key, end_key).await
+    }
+}
+
+impl crate::IterableStore for EphemeralRocksDbStore {
+    fn get_all_entries(&self) -> std::pin::Pin<Box<crate::IterableStoreStream<'_>>> {
+        self.store.get_all_entries()
     }
 }

@@ -132,9 +132,7 @@ impl BenchmarkStorage {
         ))]
         let (storage, storage_name) = {
             (
-                noosphere_storage::SledStorage::new(noosphere_storage::SledStorageInit::Path(
-                    storage_path.into(),
-                ))?,
+                noosphere_storage::SledStorage::new(&storage_path)?,
                 "SledDbStorage",
             )
         };
@@ -142,7 +140,7 @@ impl BenchmarkStorage {
         #[cfg(all(not(target_arch = "wasm32"), feature = "rocksdb"))]
         let (storage, storage_name) = {
             (
-                noosphere_storage::RocksDbStorage::new(storage_path.into())?,
+                noosphere_storage::RocksDbStorage::new(&storage_path).await?,
                 "RocksDbStorage",
             )
         };
@@ -181,7 +179,7 @@ impl BenchmarkStorage {
     }
 
     pub async fn sphere_db(&self) -> Result<SphereDb<ActiveStorageType>> {
-        SphereDb::new(&self.storage).await
+        SphereDb::new(self.storage.clone()).await
     }
 
     pub async fn as_stats(&mut self) -> Result<PerformanceStats> {

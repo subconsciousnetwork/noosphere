@@ -285,7 +285,7 @@ pub(crate) async fn generate_db(
         ipfs_gateway_url.map(|url| GatewayClient::new(url)),
     );
 
-    SphereDb::new(&storage).await
+    SphereDb::new(storage).await
 }
 
 #[cfg(test)]

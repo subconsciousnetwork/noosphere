@@ -75,7 +75,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
     initialize_tracing(None);
     // Create two NameSystems, where `ns_1` is publishing for `sphere_1`
     // and `ns_2` is publishing for `sphere_2`.
-    let mut db = SphereDb::new(&MemoryStorage::default()).await?;
+    let mut db = SphereDb::new(MemoryStorage::default()).await?;
     let network = NameSystemNetwork::generate(3, Some(db.clone())).await?;
     let sphere_1_cid_1 = derive_cid::<DagCborCodec>(b"00000000");
     let sphere_1_cid_2 = derive_cid::<DagCborCodec>(b"11111111");
@@ -172,7 +172,7 @@ async fn test_name_system_peer_propagation() -> Result<()> {
 #[tokio::test]
 async fn test_name_system_validation() -> Result<()> {
     initialize_tracing(None);
-    let mut db = SphereDb::new(&MemoryStorage::default()).await?;
+    let mut db = SphereDb::new(MemoryStorage::default()).await?;
     let network = NameSystemNetwork::generate(2, Some(db.clone())).await?;
 
     let ns_1 = network.get(1).unwrap();

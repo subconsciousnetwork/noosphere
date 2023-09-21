@@ -27,7 +27,7 @@ impl<S: BlockStore> UcanStoreTrait<RawCodec> for UcanStore<S> {
     }
 }
 
-impl<S: BlockStore + Clone> Clone for UcanStore<S> {
+impl<S: BlockStore> Clone for UcanStore<S> {
     fn clone(&self) -> Self {
         UcanStore(self.0.clone())
     }

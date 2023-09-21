@@ -403,7 +403,7 @@ mod tests {
         let sphere_identity = Did::from(sphere_key.get_did().await?);
         let link = "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i";
         let cid_link: Link<MemoIpld> = link.parse()?;
-        let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+        let store = SphereDb::new(MemoryStorage::default()).await.unwrap();
 
         let record = from_issuer(&sphere_key, &sphere_identity, &cid_link, None).await?;
 
@@ -422,7 +422,7 @@ mod tests {
         let sphere_identity = Did::from(sphere_key.get_did().await?);
         let link = "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i";
         let cid_link: Cid = link.parse()?;
-        let mut store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+        let mut store = SphereDb::new(MemoryStorage::default()).await.unwrap();
 
         // First verify that `owner` cannot publish for `sphere`
         // without delegation.
@@ -486,7 +486,7 @@ mod tests {
         let sphere_key = generate_ed25519_key();
         let sphere_identity = Did::from(sphere_key.get_did().await?);
         let cid_address = "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i";
-        let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+        let store = SphereDb::new(MemoryStorage::default()).await.unwrap();
 
         expect_failure(
             "fails when expect `fact` is missing",
@@ -676,7 +676,7 @@ mod tests {
         let delegatee_key = generate_ed25519_key();
         let delegatee_did = delegatee_key.get_did().await?;
 
-        let mut db = SphereDb::new(&MemoryStorage::default()).await?;
+        let mut db = SphereDb::new(MemoryStorage::default()).await?;
         let mut ucan_store = UcanStore(db.clone());
 
         let (sphere, proof, _) = Sphere::generate(&owner_did, &mut db).await?;

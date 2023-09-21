@@ -51,13 +51,11 @@ impl StorageLayout {
     pub(crate) async fn to_storage(&self) -> Result<PrimitiveStorage> {
         #[cfg(sled)]
         {
-            noosphere_storage::SledStorage::new(noosphere_storage::SledStorageInit::Path(
-                PathBuf::from(self),
-            ))
+            noosphere_storage::SledStorage::new(PathBuf::from(self))
         }
         #[cfg(rocksdb)]
         {
-            noosphere_storage::RocksDbStorage::new(PathBuf::from(self))
+            noosphere_storage::RocksDbStorage::new(PathBuf::from(self)).await
         }
     }
 }

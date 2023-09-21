@@ -1,7 +1,7 @@
 use anyhow::{Error, Result};
 use async_trait::async_trait;
 use instant::{Duration, Instant};
-use noosphere_storage::{Space, Storage, Store};
+use noosphere_storage::{EphemeralStorage, EphemeralStore, Space, Storage, Store};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
@@ -206,5 +206,18 @@ impl<S: Store> Store for PerformanceStore<S> {
         let mut stats = self.stats.lock().await;
         stats.flushes.push(duration);
         result
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<S> EphemeralStorage for PerformanceStorage<S>
+where
+    S: Storage,
+{
+    type EphemeralStoreType = <S as EphemeralStorage>::EphemeralStoreType;
+
+    async fn get_ephemeral_store(&self) -> Result<EphemeralStore<Self::EphemeralStoreType>> {
+        self.storage.get_ephemeral_store().await
     }
 }

@@ -179,7 +179,7 @@ mod tests {
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_gives_read_only_access_when_there_is_no_authorization() -> Result<()> {
         let author = Author::anonymous();
-        let mut db = SphereDb::new(&MemoryStorage::default()).await?;
+        let mut db = SphereDb::new(MemoryStorage::default()).await?;
 
         let (sphere, _, _) = Sphere::generate("did:key:foo", &mut db).await?;
 
@@ -201,7 +201,7 @@ mod tests {
     async fn it_gives_read_write_access_if_the_key_is_authorized() -> Result<()> {
         let owner_key = generate_ed25519_key();
         let owner_did = Did(owner_key.get_did().await.unwrap());
-        let mut db = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+        let mut db = SphereDb::new(MemoryStorage::default()).await.unwrap();
 
         let (sphere, authorization, _) = Sphere::generate(&owner_did, &mut db).await.unwrap();
 
@@ -227,7 +227,7 @@ mod tests {
     async fn it_gives_read_write_access_to_the_root_sphere_credential() -> Result<()> {
         let owner_key = generate_ed25519_key();
         let owner_did = Did(owner_key.get_did().await.unwrap());
-        let mut db = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+        let mut db = SphereDb::new(MemoryStorage::default()).await.unwrap();
 
         let (sphere, authorization, mnemonic) =
             Sphere::generate(&owner_did, &mut db).await.unwrap();
@@ -256,7 +256,7 @@ mod tests {
     async fn it_can_find_itself_in_an_authorization_lineage() -> Result<()> {
         let owner_key = generate_ed25519_key();
         let owner_did = Did(owner_key.get_did().await.unwrap());
-        let mut db = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+        let mut db = SphereDb::new(MemoryStorage::default()).await.unwrap();
 
         let (sphere, authorization, _) = Sphere::generate(&owner_did, &mut db).await.unwrap();
 

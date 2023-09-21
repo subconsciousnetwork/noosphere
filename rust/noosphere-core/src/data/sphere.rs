@@ -78,7 +78,7 @@ mod tests {
         let identity_credential = generate_ed25519_key();
         let identity = Did(identity_credential.get_did().await?);
 
-        let mut store = SphereDb::new(&MemoryStorage::default()).await?;
+        let mut store = SphereDb::new(MemoryStorage::default()).await?;
 
         let sphere = SphereIpld::new(&identity, &mut store).await?;
 
@@ -127,7 +127,7 @@ mod tests {
         let identity = Did(identity_credential.get_did().await?);
         let authorized = Did(authorized_credential.get_did().await?);
 
-        let mut store = SphereDb::new(&MemoryStorage::default()).await?;
+        let mut store = SphereDb::new(MemoryStorage::default()).await?;
 
         let sphere = SphereIpld::new(&identity, &mut store).await?;
 

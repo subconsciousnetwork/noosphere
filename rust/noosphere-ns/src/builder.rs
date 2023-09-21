@@ -23,7 +23,7 @@ use libp2p::kad::KademliaConfig;
 /// #[tokio::main(flavor = "multi_thread")]
 /// async fn main() {
 ///     let key_material = generate_ed25519_key();
-///     let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+///     let store = SphereDb::new(MemoryStorage::default()).await.unwrap();
 ///
 ///     let ns = NameSystemBuilder::default()
 ///         .ucan_store(store)
@@ -190,7 +190,7 @@ mod tests {
             let keypair = key_material.to_dht_keypair()?;
             PeerId::from(keypair.public())
         };
-        let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+        let store = SphereDb::new(MemoryStorage::default()).await.unwrap();
         let bootstrap_peers: Vec<Multiaddr> = vec![
             "/ip4/127.0.0.50/tcp/33333/p2p/12D3KooWH8WgH9mgbMXrKX4veokUznvEn6Ycwg4qaGNi83nLkoUK"
                 .parse()?,

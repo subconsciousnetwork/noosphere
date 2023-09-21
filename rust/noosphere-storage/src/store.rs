@@ -1,9 +1,10 @@
-use std::io::Cursor;
+use std::{io::Cursor, pin::Pin};
 
 use crate::{block::BlockStore, key_value::KeyValueStore};
 use anyhow::Result;
 use async_trait::async_trait;
 use cid::Cid;
+use futures::Stream;
 use libipld_cbor::DagCborCodec;
 use libipld_core::{
     codec::{Codec, Decode},
@@ -35,6 +36,21 @@ pub trait Store: Clone + ConditionalSync {
     async fn flush(&self) -> Result<()> {
         Ok(())
     }
+}
+
+/// An async stream of key/value pairs from an [IterableStore].
+#[cfg(not(target_arch = "wasm32"))]
+pub type IterableStoreStream<'a> = dyn Stream<Item = Result<(Vec<u8>, Vec<u8>)>> + Send + 'a;
+/// An async stream of key/value pairs from an [IterableStore].
+#[cfg(target_arch = "wasm32")]
+pub type IterableStoreStream<'a> = dyn Stream<Item = Result<(Vec<u8>, Vec<u8>)>> + 'a;
+
+/// A store that can iterate over all of its entries.
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+pub trait IterableStore {
+    /// Retrieve all key/value pairs from this store as an async stream.
+    fn get_all_entries(&self) -> Pin<Box<IterableStoreStream<'_>>>;
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -102,5 +118,39 @@ where
 
     async fn flush(&self) -> Result<()> {
         Store::flush(self).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{NonPersistentStorage, PreferredPlatformStorage, Storage, LINK_STORE};
+    use std::collections::HashMap;
+    use tokio_stream::StreamExt;
+
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    pub async fn iterable_stores_get_all_entries() -> Result<()> {
+        let storage = NonPersistentStorage::<PreferredPlatformStorage>::new().await?;
+        let mut store = storage.get_key_value_store(LINK_STORE).await?;
+        store.write(&[1], &[11]).await?;
+        store.write(&[2], &[22]).await?;
+        store.write(&[3], &[33]).await?;
+        let mut stream = store.get_all_entries();
+
+        let mut results = HashMap::new();
+        while let Some((key, value)) = stream.try_next().await? {
+            results.insert(key, value);
+        }
+        assert_eq!(results.len(), 3);
+        assert_eq!(results.get(&vec![1]), Some(&vec![11u8]));
+        assert_eq!(results.get(&vec![2]), Some(&vec![22u8]));
+        assert_eq!(results.get(&vec![3]), Some(&vec![33u8]));
+        Ok(())
     }
 }

@@ -32,3 +32,4 @@ tokio = { workspace = true, features = ["sync", "macros"] }
 futures = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
+gloo-timers = { workspace = true, features = ["futures"] }
