@@ -1,17 +1,21 @@
 use crate::store::Store;
 use crate::{db::SPHERE_DB_STORE_NAMES, storage::Storage};
 use anyhow::{anyhow, Error, Result};
+use async_stream::try_stream;
 use async_trait::async_trait;
 use js_sys::Uint8Array;
+use noosphere_common::ConditionalSend;
 use rexie::{
     KeyRange, ObjectStore, Rexie, RexieBuilder, Store as IdbStore, Transaction, TransactionMode,
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, rc::Rc};
+use std::{fmt::Debug, path::Path, rc::Rc};
 use wasm_bindgen::{JsCast, JsValue};
 
+/// Current SphereDb migration version.
 pub const INDEXEDDB_STORAGE_VERSION: u32 = 1;
 
+/// An [IndexedDB](https://web.dev/indexeddb/)-backed implementation for `wasm32-unknown-unknown` targets.
 #[derive(Clone)]
 pub struct IndexedDbStorage {
     db: Rc<Rexie>,
@@ -25,6 +29,7 @@ impl Debug for IndexedDbStorage {
 }
 
 impl IndexedDbStorage {
+    /// Open or create a database with key `db_name`.
     pub async fn new(db_name: &str) -> Result<Self> {
         Self::configure(INDEXEDDB_STORAGE_VERSION, db_name, SPHERE_DB_STORE_NAMES).await
     }
@@ -70,7 +75,12 @@ impl IndexedDbStorage {
         let db = Rc::into_inner(self.db)
             .ok_or_else(|| anyhow!("Could not unwrap inner during database clear."))?;
         db.close();
-        Rexie::delete(&name)
+        Self::delete(&name).await
+    }
+
+    /// Deletes database with key `db_name` from origin storage.
+    pub async fn delete(db_name: &str) -> Result<()> {
+        Rexie::delete(db_name)
             .await
             .map_err(|error| anyhow!("{:?}", error))
     }
@@ -91,7 +101,32 @@ impl Storage for IndexedDbStorage {
     }
 }
 
+#[async_trait(?Send)]
+impl crate::ops::OpenStorage for IndexedDbStorage {
+    async fn open<P: AsRef<Path> + ConditionalSend>(path: P) -> Result<Self> {
+        IndexedDbStorage::new(
+            path.as_ref()
+                .to_str()
+                .ok_or_else(|| anyhow!("Could not stringify path."))?,
+        )
+        .await
+    }
+}
+
+#[async_trait(?Send)]
+impl crate::ops::DeleteStorage for IndexedDbStorage {
+    async fn delete<P: AsRef<Path> + ConditionalSend>(path: P) -> Result<()> {
+        Self::delete(
+            path.as_ref()
+                .to_str()
+                .ok_or_else(|| anyhow!("Could not stringify path."))?,
+        )
+        .await
+    }
+}
+
 #[derive(Clone)]
+/// A [Store] implementation for [IndexedDbStorage].
 pub struct IndexedDbStore {
     db: Rc<Rexie>,
     store_name: String,
@@ -115,35 +150,47 @@ impl IndexedDbStore {
         Ok(())
     }
 
-    fn bytes_to_typed_array(bytes: &[u8]) -> Result<JsValue> {
-        let array = Uint8Array::new_with_length(bytes.len() as u32);
-        array.copy_from(&bytes);
-        Ok(JsValue::from(array))
-    }
-
-    async fn contains(key: &JsValue, store: &IdbStore) -> Result<bool> {
+    async fn contains(key: &[u8], store: &IdbStore) -> Result<bool> {
+        let key_js = bytes_to_typed_array(key)?;
         let count = store
             .count(Some(
-                &KeyRange::only(key).map_err(|error| anyhow!("{:?}", error))?,
+                &KeyRange::only(&key_js).map_err(|error| anyhow!("{:?}", error))?,
             ))
             .await
             .map_err(|error| anyhow!("{:?}", error))?;
         Ok(count > 0)
     }
 
-    async fn read(key: &JsValue, store: &IdbStore) -> Result<Option<Vec<u8>>> {
+    async fn read(key: &[u8], store: &IdbStore) -> Result<Option<Vec<u8>>> {
+        let key_js = bytes_to_typed_array(key)?;
         Ok(match IndexedDbStore::contains(&key, &store).await? {
-            true => Some(
+            true => Some(typed_array_to_bytes(
                 store
-                    .get(&key)
+                    .get(&key_js)
                     .await
-                    .map_err(|error| anyhow!("{:?}", error))?
-                    .dyn_into::<Uint8Array>()
-                    .map_err(|error| anyhow!("{:?}", error))?
-                    .to_vec(),
-            ),
+                    .map_err(|error| anyhow!("{:?}", error))?,
+            )?),
             false => None,
         })
+    }
+
+    async fn put(key: &[u8], value: &[u8], store: &IdbStore) -> Result<()> {
+        let key_js = bytes_to_typed_array(key)?;
+        let value_js = bytes_to_typed_array(value)?;
+        store
+            .put(&value_js, Some(&key_js))
+            .await
+            .map_err(|error| anyhow!("{:?}", error))?;
+        Ok(())
+    }
+
+    async fn delete(key: &[u8], store: &IdbStore) -> Result<()> {
+        let key_js = bytes_to_typed_array(key)?;
+        store
+            .delete(&key_js)
+            .await
+            .map_err(|error| anyhow!("{:?}", error))?;
+        Ok(())
     }
 }
 
@@ -151,48 +198,53 @@ impl IndexedDbStore {
 impl Store for IndexedDbStore {
     async fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let (store, tx) = self.start_transaction(TransactionMode::ReadOnly)?;
-        let key = IndexedDbStore::bytes_to_typed_array(key)?;
-
-        let maybe_dag = IndexedDbStore::read(&key, &store).await?;
-
+        let maybe_dag = IndexedDbStore::read(key, &store).await?;
         IndexedDbStore::finish_transaction(tx).await?;
-
         Ok(maybe_dag)
     }
 
     async fn write(&mut self, key: &[u8], bytes: &[u8]) -> Result<Option<Vec<u8>>> {
         let (store, tx) = self.start_transaction(TransactionMode::ReadWrite)?;
-
-        let key = IndexedDbStore::bytes_to_typed_array(key)?;
-        let value = IndexedDbStore::bytes_to_typed_array(bytes)?;
-
         let old_bytes = IndexedDbStore::read(&key, &store).await?;
-
-        store
-            .put(&value, Some(&key))
-            .await
-            .map_err(|error| anyhow!("{:?}", error))?;
-
+        IndexedDbStore::put(key, bytes, &store).await?;
         IndexedDbStore::finish_transaction(tx).await?;
-
         Ok(old_bytes)
     }
 
     async fn remove(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let (store, tx) = self.start_transaction(TransactionMode::ReadWrite)?;
-
-        let key = IndexedDbStore::bytes_to_typed_array(key)?;
-
-        let old_value = IndexedDbStore::read(&key, &store).await?;
-
-        store
-            .delete(&key)
-            .await
-            .map_err(|error| anyhow!("{:?}", error))?;
-
+        let old_value = IndexedDbStore::read(key, &store).await?;
+        IndexedDbStore::delete(key, &store).await?;
         IndexedDbStore::finish_transaction(tx).await?;
-
         Ok(old_value)
+    }
+}
+
+impl crate::IterableStore for IndexedDbStore {
+    fn get_all_entries(&self) -> std::pin::Pin<Box<crate::IterableStoreStream<'_>>> {
+        Box::pin(try_stream! {
+            let (store, tx) = self.start_transaction(TransactionMode::ReadWrite)?;
+            let limit = 100;
+            let mut offset = 0;
+            loop {
+                let results = store.get_all(None, Some(limit), Some(offset), None).await
+                    .map_err(|error| anyhow!("{:?}", error))?;
+                let count = results.len();
+                if count == 0 {
+                    IndexedDbStore::finish_transaction(tx).await?;
+                    break;
+                }
+
+                offset += count as u32;
+
+                for (key_js, value_js) in results {
+                    yield (
+                        typed_array_to_bytes(JsValue::from(Uint8Array::new(&key_js)))?,
+                        Some(typed_array_to_bytes(value_js)?)
+                    );
+                }
+            }
+        })
     }
 }
 
@@ -222,7 +274,7 @@ impl From<JsError> for Error {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct StorageEstimate {
+struct StorageEstimate {
     pub quota: u64,
     pub usage: u64,
     #[serde(rename = "usageDetails")]
@@ -230,7 +282,7 @@ pub struct StorageEstimate {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct UsageDetails {
+struct UsageDetails {
     #[serde(rename = "indexedDB")]
     pub indexed_db: u64,
 }
@@ -262,4 +314,17 @@ impl crate::Space for IndexedDbStorage {
             Ok(estimate.usage)
         }
     }
+}
+
+fn bytes_to_typed_array(bytes: &[u8]) -> Result<JsValue> {
+    let array = Uint8Array::new_with_length(bytes.len() as u32);
+    array.copy_from(&bytes);
+    Ok(JsValue::from(array))
+}
+
+fn typed_array_to_bytes(js_value: JsValue) -> Result<Vec<u8>> {
+    Ok(js_value
+        .dyn_into::<Uint8Array>()
+        .map_err(|error| anyhow!("{:?}", error))?
+        .to_vec())
 }

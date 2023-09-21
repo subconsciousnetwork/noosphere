@@ -18,11 +18,16 @@ use crate::{BlockStore, KeyValueStore, MemoryStore, Storage};
 
 use async_stream::try_stream;
 
+/// Key for the block store in a [SphereDb]'s [Storage].
 pub const BLOCK_STORE: &str = "blocks";
+/// Key for the link store in a [SphereDb]'s [Storage].
 pub const LINK_STORE: &str = "links";
+/// Key for the version store in a [SphereDb]'s [Storage].
 pub const VERSION_STORE: &str = "versions";
+/// Key for the metadata store in a [SphereDb]'s [Storage].
 pub const METADATA_STORE: &str = "metadata";
 
+/// All store keys used by [SphereDb].
 pub const SPHERE_DB_STORE_NAMES: &[&str] =
     &[BLOCK_STORE, LINK_STORE, VERSION_STORE, METADATA_STORE];
 
@@ -46,6 +51,7 @@ impl<S> SphereDb<S>
 where
     S: Storage,
 {
+    /// Creates a new [SphereDb] using underlying `storage`.
     pub async fn new(storage: &S) -> Result<SphereDb<S>> {
         Ok(SphereDb {
             block_store: storage.get_block_store(BLOCK_STORE).await?,

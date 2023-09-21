@@ -54,8 +54,8 @@ impl Backoff {
 /// will be made to load the block.
 ///
 /// Local [BlockStore] implementations won't benefit a lot from this, but
-/// network implementations such as [IpfsStore] can be made more reliable with a
-/// modest retry policy (and timeouts will help make sure we don't hang
+/// network implementations such as [noosphere_ipfs::IpfsStore](https://docs.rs/noosphere-ipfs/latest/noosphere_ipfs/struct.IpfsStore.html)
+/// can be made more reliable with a modest retry policy (and timeouts will help make sure we don't hang
 /// indefinitely waiting for an implementation like Kubo to get its act
 /// together).
 #[derive(Clone)]

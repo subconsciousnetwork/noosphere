@@ -1,6 +1,7 @@
 use crate::{storage::Storage, store::Store, SPHERE_DB_STORE_NAMES};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use noosphere_common::ConditionalSend;
 use rocksdb::{ColumnFamilyDescriptor, DBWithThreadMode, Options};
 use std::{
     path::{Path, PathBuf},
@@ -16,11 +17,11 @@ type DbInner = DBWithThreadMode<rocksdb::MultiThreaded>;
 #[cfg(feature = "rocksdb-multi-thread")]
 type ColumnType<'a> = Arc<rocksdb::BoundColumnFamily<'a>>;
 
-/// A RocksDB implementation of [Storage].
+/// A [RocksDB](https://rocksdb.org/) [Storage] implementation.
 ///
 /// Caveats:
-/// * Values are limited to 4GB(?) [https://github.com/facebook/rocksdb/wiki/Basic-Operations#reads]
-/// TODO(#631): Further improvements to the implementation.
+/// * [Values are limited to 4GB](https://github.com/facebook/rocksdb/wiki/Basic-Operations#reads)?
+/// * TODO(#631): Further improvements to the implementation.
 #[derive(Clone, Debug)]
 pub struct RocksDbStorage {
     db: Arc<DbInner>,
@@ -29,9 +30,10 @@ pub struct RocksDbStorage {
 }
 
 impl RocksDbStorage {
-    pub fn new(path: PathBuf) -> Result<Self> {
-        std::fs::create_dir_all(&path)?;
-        let canonicalized = path.canonicalize()?;
+    /// Open or create a database at directory `path`.
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        std::fs::create_dir_all(path.as_ref())?;
+        let canonicalized = path.as_ref().canonicalize()?;
         let db = Arc::new(RocksDbStorage::init_db(canonicalized.clone())?);
         Ok(RocksDbStorage {
             db,
@@ -51,7 +53,7 @@ impl RocksDbStorage {
         RocksDbStore::new(self.db.clone(), name.to_owned())
     }
 
-    /// Configures a databasea at `path` and initializes the expected configurations.
+    /// Configures a database at `path` and initializes the expected configurations.
     fn init_db<P: AsRef<Path>>(path: P) -> Result<DbInner> {
         let mut cfs: Vec<ColumnFamilyDescriptor> = Vec::with_capacity(SPHERE_DB_STORE_NAMES.len());
 
@@ -83,6 +85,17 @@ impl Storage for RocksDbStorage {
     }
 }
 
+#[async_trait]
+impl crate::FsBackedStorage for RocksDbStorage {}
+
+#[async_trait]
+impl crate::OpenStorage for RocksDbStorage {
+    async fn open<P: AsRef<Path> + ConditionalSend>(path: P) -> Result<Self> {
+        RocksDbStorage::new(path)
+    }
+}
+
+/// A [Store] implementation for [RocksDbStorage].
 #[derive(Clone)]
 pub struct RocksDbStore {
     name: String,
@@ -90,7 +103,7 @@ pub struct RocksDbStore {
 }
 
 impl RocksDbStore {
-    pub fn new(db: Arc<DbInner>, name: String) -> Result<Self> {
+    pub(crate) fn new(db: Arc<DbInner>, name: String) -> Result<Self> {
         Ok(RocksDbStore { db, name })
     }
 
