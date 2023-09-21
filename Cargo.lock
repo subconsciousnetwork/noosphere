@@ -3709,6 +3709,7 @@ dependencies = [
  "async-trait",
  "base64 0.21.4",
  "cid",
+ "futures",
  "instant",
  "js-sys",
  "libipld-cbor",

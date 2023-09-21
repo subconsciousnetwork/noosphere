@@ -146,7 +146,7 @@ mod test {
     async fn before_each() -> Result<(DataPlaceholder, Arc<Mutex<HttpClient>>)> {
         let (bootstrap, bootstrap_address) = {
             let key_material = generate_ed25519_key();
-            let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+            let store = SphereDb::new(MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
                 .ucan_store(store)
                 .key_material(&key_material)
@@ -164,7 +164,7 @@ mod test {
         let api_port = api_listener.local_addr().unwrap().port();
         let api_url = Url::parse(&format!("http://127.0.0.1:{}", api_port))?;
         let key_material = generate_ed25519_key();
-        let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+        let store = SphereDb::new(MemoryStorage::default()).await.unwrap();
 
         let ns = NameSystemBuilder::default()
             .ucan_store(store)

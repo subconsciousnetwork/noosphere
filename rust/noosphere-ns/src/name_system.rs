@@ -172,7 +172,7 @@ mod test {
     async fn before_name_resolver_tests() -> Result<NameSystem> {
         let ns = {
             let key_material = generate_ed25519_key();
-            let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+            let store = SphereDb::new(MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
                 .ucan_store(store)
                 .key_material(&key_material)
@@ -205,7 +205,7 @@ mod test {
     async fn before_each() -> Result<(DataPlaceholder, Arc<Mutex<NameSystem>>)> {
         let (bootstrap, bootstrap_address) = {
             let key_material = generate_ed25519_key();
-            let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+            let store = SphereDb::new(MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
                 .ucan_store(store)
                 .key_material(&key_material)
@@ -221,7 +221,7 @@ mod test {
 
         let ns = {
             let key_material = generate_ed25519_key();
-            let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+            let store = SphereDb::new(MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
                 .ucan_store(store)
                 .key_material(&key_material)

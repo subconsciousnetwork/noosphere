@@ -1,5 +1,4 @@
-use crate::block::BlockStore;
-use crate::key_value::KeyValueStore;
+use crate::{block::BlockStore, ephemeral::EphemeralStorage, key_value::KeyValueStore};
 use anyhow::Result;
 use async_trait::async_trait;
 use noosphere_common::ConditionalSync;
@@ -13,7 +12,7 @@ use std::fmt::Debug;
 /// other Noosphere constructs.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-pub trait Storage: Clone + ConditionalSync + Debug {
+pub trait Storage: EphemeralStorage + Clone + ConditionalSync + Debug {
     type BlockStore: BlockStore;
     type KeyValueStore: KeyValueStore;
 

@@ -131,7 +131,24 @@ impl Store for MemoryStore {
     }
 }
 
-#[cfg(feature = "performance")]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl crate::EphemeralStorage for MemoryStorage {
+    type EphemeralStoreType = MemoryStore;
+
+    async fn get_ephemeral_store(&self) -> Result<crate::EphemeralStore<Self::EphemeralStoreType>> {
+        Ok(MemoryStore::default().into())
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl crate::Disposable for MemoryStore {
+    async fn dispose(&mut self) -> Result<()> {
+        Ok(())
+    }
+}
+
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl crate::Space for MemoryStorage {

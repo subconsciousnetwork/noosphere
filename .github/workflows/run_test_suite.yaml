@@ -36,7 +36,7 @@ jobs:
           export MallocScribble=1 
           swift build --sanitize=address
           swift test --sanitize=address
-
+  
   run-linting-linux:
     runs-on: ubuntu-latest
     strategy:
@@ -88,9 +88,9 @@ jobs:
           rustup toolchain install ${{matrix.toolchain}}
       - name: 'Install environment packages (Windows)'
         if: ${{ matrix.platform == 'windows-latest' }}
+        shell: sh
         run: |
           choco install -y cmake protoc openssl
-        shell: sh
       - name: 'Install environment packages (Linux)'
         if: ${{ matrix.platform == 'ubuntu-latest' }}
         run: |
@@ -119,6 +119,21 @@ jobs:
 
           if [ -n "${{matrix.features}}" ]; then
             FEATURES="--features ${{matrix.features}}"
+          fi
+
+          # Increase stack size on Windows tests; (non-main) threads are spawned with 2MB
+          # default stack size, which `orb_can_render_peers_in_the_sphere_address_book`
+          # uses (at time of writing) slightly more than 2MB. While we could set the thread
+          # stack size at runtime (via tokio's `thread_stack_size`), it appears to not solve the
+          # problem, possibly due to the harness thread overflowing (e.g. a non-main thread that
+          # we can't configure within the test). In lieu of that, set RUST_MIN_STACK to increase
+          # the stack sizes of threads created by tokio within tests, as well as the test harness
+          # threads themselves.
+          #
+          # While our main thread isn't under fire here, notating this for future use:
+          # https://users.rust-lang.org/t/stack-overflow-when-compiling-on-windows-10/50818/8
+          if [ "${{matrix.platform}}" = "windows-latest" ]; then
+            export RUST_MIN_STACK=4000000
           fi
 
           cargo +${{ matrix.toolchain }} nextest run $FEATURES --retries 5 --color always 2>&1 | tee test-results/log

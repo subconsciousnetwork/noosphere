@@ -13,6 +13,8 @@ use futures::future::join_all;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::task::JoinSet;
 
+use crate::ConditionalSend;
+
 #[cfg(target_arch = "wasm32")]
 /// Spawn a future by scheduling it with the local executor. The returned
 /// future will be pending until the spawned future completes.
@@ -41,6 +43,18 @@ where
     F::Output: Send + 'static,
 {
     Ok(tokio::spawn(future).await?)
+}
+
+/// Spawns a [ConditionalSend] future without requiring `await`.
+/// The future will immediately start processing.
+pub fn spawn_no_wait<F>(future: F)
+where
+    F: Future<Output = ()> + ConditionalSend + 'static,
+{
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_futures::spawn_local(future);
+    #[cfg(not(target_arch = "wasm32"))]
+    tokio::task::spawn(future);
 }
 
 /// An aggregator of async work that can be used to observe the moment when all

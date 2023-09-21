@@ -279,7 +279,7 @@ pub(crate) async fn generate_db(
         (storage_path, scoped_storage_layout, sphere_identity).try_into()?;
     let storage = create_platform_storage(storage_layout, ipfs_gateway_url, storage_config).await?;
 
-    SphereDb::new(&storage).await
+    SphereDb::new(storage).await
 }
 
 #[cfg(test)]

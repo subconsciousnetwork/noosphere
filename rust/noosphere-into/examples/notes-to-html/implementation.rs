@@ -27,7 +27,7 @@ use ucan::crypto::KeyMaterial;
 
 pub async fn main() -> Result<()> {
     let storage_provider = MemoryStorage::default();
-    let mut db = SphereDb::new(&storage_provider).await.unwrap();
+    let mut db = SphereDb::new(storage_provider).await.unwrap();
 
     let owner_key: SphereContextKey = Arc::new(Box::new(generate_ed25519_key()));
     let owner_did = owner_key.get_did().await?;
