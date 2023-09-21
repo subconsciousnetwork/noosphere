@@ -251,9 +251,10 @@ where
         self.metadata_store.set_key(key, value).await
     }
 
-    async fn unset_key<K>(&mut self, key: K) -> Result<()>
+    async fn unset_key<K, V>(&mut self, key: K) -> Result<Option<V>>
     where
         K: AsRef<[u8]> + ConditionalSend,
+        V: DeserializeOwned + ConditionalSend,
     {
         self.metadata_store.unset_key(key).await
     }

@@ -173,7 +173,7 @@ where
                 self.db.set_key(GATEWAY_URL, url.to_string()).await?;
             }
             None => {
-                self.db.unset_key(GATEWAY_URL).await?;
+                self.db.unset_key::<&str, String>(GATEWAY_URL).await?;
             }
         }
 
