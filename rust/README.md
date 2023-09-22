@@ -89,13 +89,13 @@ Additional dependencies needed to build the WASM artifact:
 #### Linux (apt)
 
 ```sh
-sudo apt install libssl-dev protobuf-compiler cmake jq binaryen
+sudo apt install libssl-dev protobuf-compiler cmake jq binaryen nodejs
 ```
 
 #### MacOS (homebrew)
 
 ```sh
-brew install openssl protobuf cmake jq binaryen
+brew install openssl protobuf cmake jq binaryen node
 ```
 
 ### Rust
