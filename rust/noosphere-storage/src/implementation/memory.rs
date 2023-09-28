@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use async_stream::try_stream;
 use async_trait::async_trait;
 use cid::Cid;
 use std::{collections::HashMap, sync::Arc};
@@ -161,5 +162,20 @@ impl crate::Space for MemoryStorage {
             }
         }
         Ok(size)
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl crate::IterableStore for MemoryStore {
+    fn get_all_entries(&self) -> std::pin::Pin<Box<crate::IterableStoreStream<'_>>> {
+        Box::pin(try_stream! {
+            let dags = self.entries.lock().await;
+            for key in dags.keys() {
+                if let Some(value) = dags.get(key).cloned() {
+                    yield (key.to_owned(), value);
+                }
+            }
+        })
     }
 }

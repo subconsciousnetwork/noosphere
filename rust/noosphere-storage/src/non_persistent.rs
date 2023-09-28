@@ -1,5 +1,6 @@
 use crate::{ops::OpenStorage, storage::Storage};
 use anyhow::Result;
+use async_trait::async_trait;
 use std::ops::{Deref, DerefMut};
 
 #[cfg(doc)]
@@ -84,5 +85,18 @@ where
 {
     fn as_ref(&self) -> &S {
         &self.inner
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<S> crate::EphemeralStorage for NonPersistentStorage<S>
+where
+    S: Storage + OpenStorage + crate::EphemeralStorage,
+{
+    type EphemeralStoreType = <S as crate::EphemeralStorage>::EphemeralStoreType;
+
+    async fn get_ephemeral_store(&self) -> Result<crate::EphemeralStore<Self::EphemeralStoreType>> {
+        self.inner.get_ephemeral_store().await
     }
 }

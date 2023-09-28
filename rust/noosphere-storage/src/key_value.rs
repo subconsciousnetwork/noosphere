@@ -26,9 +26,10 @@ pub trait KeyValueStore: Clone + ConditionalSync {
 
     /// Given some key that can be realized as bytes, unset the value stored
     /// against that key (if any)
-    async fn unset_key<K>(&mut self, key: K) -> Result<()>
+    async fn unset_key<K, V>(&mut self, key: K) -> Result<Option<V>>
     where
-        K: AsRef<[u8]> + ConditionalSend;
+        K: AsRef<[u8]> + ConditionalSend,
+        V: DeserializeOwned + ConditionalSend;
 
     /// Same as get_key, but returns an error if no value is found to be stored
     /// against the key

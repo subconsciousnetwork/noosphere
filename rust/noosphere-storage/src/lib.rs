@@ -7,12 +7,12 @@
 extern crate tracing;
 
 mod block;
-mod implementation;
-mod key_value;
-
+mod buffer;
 mod db;
 mod encoding;
 mod ephemeral;
+mod implementation;
+mod key_value;
 mod non_persistent;
 mod ops;
 mod partitioned;
@@ -25,6 +25,7 @@ mod ucan;
 
 pub use crate::ucan::*;
 pub use block::*;
+pub use buffer::*;
 pub use db::*;
 pub use encoding::*;
 pub use ephemeral::*;

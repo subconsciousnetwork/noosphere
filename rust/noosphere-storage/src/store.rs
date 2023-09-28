@@ -92,13 +92,19 @@ where
         Ok(())
     }
 
-    async fn unset_key<K>(&mut self, key: K) -> Result<()>
+    async fn unset_key<K, V>(&mut self, key: K) -> Result<Option<V>>
     where
         K: AsRef<[u8]> + ConditionalSend,
+        V: DeserializeOwned + ConditionalSend,
     {
         let key_bytes = K::as_ref(&key);
-        self.remove(key_bytes).await?;
-        Ok(())
+        Ok(match self.remove(key_bytes).await? {
+            Some(bytes) => Some(from_ipld(Ipld::decode(
+                DagCborCodec,
+                &mut Cursor::new(bytes),
+            )?)?),
+            None => None,
+        })
     }
 
     async fn get_key<K, V>(&self, key: K) -> Result<Option<V>>
