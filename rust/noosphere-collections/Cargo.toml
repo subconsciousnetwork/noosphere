@@ -24,7 +24,7 @@ forest_hash_utils = "0.1.0"
 serde = { workspace = true }
 serde_bytes = "0.11"
 byteorder = "^1.4"
-async-recursion = "^1"
+async-recursion = { workspace = true }
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
 noosphere-storage = { version = "0.9.0", path = "../noosphere-storage" }

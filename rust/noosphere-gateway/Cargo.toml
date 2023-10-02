@@ -15,6 +15,9 @@ repository = "https://github.com/subconsciousnetwork/noosphere"
 homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
+[features]
+test-kubo = []
+
 [dependencies]
 tracing = { workspace = true }
 
@@ -34,11 +37,11 @@ bytes = { workspace = true }
 
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = { workspace = true }
+tokio-util = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true, features = ["cors", "trace"] }
 async-trait = "~0.1"
 async-stream = { workspace = true }
-deterministic-bloom = { workspace = true }
 
 url = { workspace = true, features = ["serde"] }
 mime_guess = "^2"
@@ -47,6 +50,7 @@ noosphere-ipfs = { version = "0.8.1", path = "../noosphere-ipfs" }
 noosphere-core = { version = "0.17.0", path = "../noosphere-core" }
 noosphere-ns = { version = "0.11.1", path = "../noosphere-ns" }
 noosphere-storage = { version = "0.9.0", path = "../noosphere-storage" }
+noosphere-common = { version = "0.1.0", path = "../noosphere-common" }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
 cid = { workspace = true }

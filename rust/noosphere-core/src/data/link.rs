@@ -39,6 +39,8 @@ where
     linked_type: PhantomData<T>,
 }
 
+impl<T> Copy for Link<T> where T: Clone {}
+
 impl<T> Debug for Link<T>
 where
     T: Clone,

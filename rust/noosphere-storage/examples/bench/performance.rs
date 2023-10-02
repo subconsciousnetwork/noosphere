@@ -98,7 +98,7 @@ where
     }
 
     #[allow(unused)]
-    pub fn to_inner(self) -> S {
+    pub fn into_inner(self) -> S {
         self.storage
     }
 }

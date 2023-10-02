@@ -6,6 +6,7 @@ use crate::{
     view::Sphere,
 };
 use anyhow::{anyhow, Result};
+use async_recursion::async_recursion;
 use async_stream::try_stream;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
@@ -36,7 +37,7 @@ where
 {
     debug!("Streaming history via memo...");
 
-    let latest = latest.clone();
+    let latest = *latest;
     let since = since.cloned();
 
     try_stream! {
@@ -122,11 +123,10 @@ where
                         if replicate_content {
                             debug!("Replicating content...");
                             let content = sphere.get_content().await?;
-                            let include_content = include_content;
 
                             tasks.spawn(walk_versioned_map_changes_and(content, store.clone(), move |_, link, store| async move {
                                 if include_content {
-                                    walk_memo_body(store, &link).await?;
+                                    walk_memo_body(store, &link, include_content).await?;
                                 } else {
                                     link.load_from(&store).await?;
                                 };
@@ -190,7 +190,8 @@ where
 #[instrument(level = "trace", skip(store))]
 pub fn memo_body_stream<S>(
     store: S,
-    memo_version: &Cid,
+    memo_version: &Link<MemoIpld>,
+    include_content: bool,
 ) -> impl Stream<Item = Result<(Cid, Vec<u8>)>> + ConditionalSend
 where
     S: BlockStore + 'static,
@@ -204,7 +205,7 @@ where
 
         let mut receiver_is_open = true;
         let mut walk_memo_finished = false;
-        let mut walk_memo_finishes = Box::pin(walk_memo_body(store, &memo_version));
+        let mut walk_memo_finishes = Box::pin(walk_memo_body(store, &memo_version, include_content));
 
         while receiver_is_open {
             select! {
@@ -228,7 +229,13 @@ where
 
 #[allow(clippy::let_with_type_underscore)]
 #[instrument(level = "trace", skip(store))]
-async fn walk_memo_body<S>(store: S, memo_version: &Cid) -> Result<()>
+#[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
+async fn walk_memo_body<S>(
+    store: S,
+    memo_version: &Link<MemoIpld>,
+    include_content: bool,
+) -> Result<()>
 where
     S: BlockStore + 'static,
 {
@@ -256,15 +263,42 @@ where
                     Ok(())
                 },
             ));
+
             tasks.spawn(walk_versioned_map_elements_and(
                 content,
                 store.clone(),
                 move |_, link, store| async move {
-                    link.load_from(&store).await?;
+                    if include_content {
+                        walk_memo_body(store, &link, true).await?;
+                    } else {
+                        link.load_from(&store).await?;
+                    }
+
                     Ok(())
                 },
             ));
-            tasks.spawn(walk_versioned_map_elements(delegations));
+
+            tasks.spawn(async move {
+                walk_versioned_map_elements_and(
+                    delegations,
+                    store,
+                    |_, delegation, store| async move {
+                        let ucan_store = UcanStore(store);
+
+                        collect_ucan_proofs(
+                            &Ucan::from_str(&ucan_store.require_token(&delegation.jwt).await?)?,
+                            &ucan_store,
+                        )
+                        .await?;
+
+                        Ok(())
+                    },
+                )
+                .await?;
+
+                Ok(()) as Result<_, anyhow::Error>
+            });
+
             tasks.spawn(walk_versioned_map_elements(revocations));
 
             tasks.join().await?;

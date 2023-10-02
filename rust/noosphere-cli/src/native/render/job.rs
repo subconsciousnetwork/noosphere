@@ -212,7 +212,7 @@ where
 
             // Create a symlink to each peer (they will be rendered later, if
             // they haven't been already)
-            petname_change_buffer.add(name.clone(), (did.clone(), cid.clone().into()))?;
+            petname_change_buffer.add(name.clone(), (did.clone(), cid.into()))?;
 
             if petname_change_buffer.is_full() {
                 petname_change_buffer.flush_to_writer(&self.writer).await?;
@@ -278,10 +278,8 @@ where
                     Some(identity) => match cursor.get_petname_record(&petname).await? {
                         Some(link_record) => {
                             if let Some(version) = link_record.get_link() {
-                                petname_change_buffer.add(
-                                    petname.clone(),
-                                    (identity.clone(), Cid::from(version.clone())),
-                                )?;
+                                petname_change_buffer
+                                    .add(petname.clone(), (identity.clone(), Cid::from(version)))?;
 
                                 let mut petname_path = self.petname_path.clone();
                                 petname_path.push(petname);

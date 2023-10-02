@@ -195,7 +195,7 @@ where
         if replication_required {
             debug!("Attempting to replicate from gateway...");
 
-            replicate(link_record_version.clone(), local_version).await?;
+            replicate(link_record_version, local_version).await?;
         }
 
         Ok(Some(Sphere::at(&link_record_version, self.store())))
@@ -210,7 +210,7 @@ impl<S: BlockStore> Sphere<S> {
     pub fn at(cid: &Link<MemoIpld>, store: &S) -> Sphere<S> {
         Sphere {
             store: store.clone(),
-            cid: cid.clone(),
+            cid: *cid,
             body: OnceCell::new(),
             memo: OnceCell::new(),
         }
@@ -639,7 +639,7 @@ impl<S: BlockStore> Sphere<S> {
         let timeslice = timeline.slice(self.cid(), Some(old_base)).exclude_past();
         let rebase_revisions = timeslice.to_chronological().await?;
 
-        let mut next_base = new_base.clone();
+        let mut next_base = *new_base;
 
         for cid in rebase_revisions.iter() {
             let mut revision = Sphere::rebase_version(cid, &next_base, &mut store).await?;
@@ -1082,7 +1082,7 @@ mod tests {
             let owner_did = owner_key.get_did().await.unwrap();
             let (sphere, _, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
-            (sphere.cid().clone(), sphere.get_identity().await.unwrap())
+            (*sphere.cid(), sphere.get_identity().await.unwrap())
         };
 
         let restored_sphere = Sphere::at(&sphere_cid, &store);
@@ -1162,7 +1162,7 @@ mod tests {
         let owner_did = owner_key.get_did().await.unwrap();
 
         let (mut sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
-        let mut lineage = vec![sphere.cid().clone()];
+        let mut lineage = vec![*sphere.cid()];
         let foo_key = String::from("foo");
 
         for i in 0..2u8 {
@@ -1198,7 +1198,7 @@ mod tests {
         let owner_did = owner_key.get_did().await.unwrap();
 
         let (mut sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
-        let mut lineage = vec![sphere.cid().clone()];
+        let mut lineage = vec![*sphere.cid()];
 
         for i in 0..5u8 {
             let mut mutation = SphereMutation::new(&owner_did);
@@ -1215,7 +1215,7 @@ mod tests {
             lineage.push(next_cid);
         }
 
-        let since = lineage[2].clone();
+        let since = lineage[2];
 
         let stream = sphere.into_content_changelog_stream(Some(&since));
 
@@ -1666,8 +1666,8 @@ mod tests {
 
         let (sphere, authorization, _) = Sphere::generate(&owner_did, &mut store).await?;
 
-        let base = sphere.cid().clone();
-        let mut long_history_version = base.clone();
+        let base = *sphere.cid();
+        let mut long_history_version = base;
 
         for content in ["foo", "bar", "baz"] {
             let memo = MemoIpld::for_body(&mut store, content.as_bytes()).await?;
@@ -1747,8 +1747,8 @@ mod tests {
 
         let (sphere, authorization, _) = Sphere::generate(&owner_did, &mut store).await?;
 
-        let base = sphere.cid().clone();
-        let mut long_history_version = base.clone();
+        let base = *sphere.cid();
+        let mut long_history_version = base;
 
         for i in 0..100 {
             let petname_id = (i / 6 - 1) * 6;

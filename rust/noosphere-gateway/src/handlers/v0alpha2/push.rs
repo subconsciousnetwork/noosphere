@@ -110,10 +110,10 @@ where
         // These steps are order-independent
         let _ = tokio::join!(
             self.notify_name_resolver(&push_body),
-            self.notify_ipfs_syndicator(next_version.clone())
+            self.notify_ipfs_syndicator(next_version)
         );
 
-        let roots = vec![next_version.clone().into()];
+        let roots = vec![next_version.into()];
 
         let block_stream = try_stream! {
             yield block_serialize::<DagCborCodec, _>(PushResponse::Accepted {
@@ -155,7 +155,7 @@ where
         let db = gateway_sphere_context.db();
 
         let local_sphere_base_cid = db.get_version(sphere_identity).await?.map(|cid| cid.into());
-        let request_sphere_base_cid = push_body.local_base.clone();
+        let request_sphere_base_cid = push_body.local_base;
 
         match (local_sphere_base_cid, request_sphere_base_cid) {
             (Some(mine), theirs) => {
@@ -351,7 +351,7 @@ where
 
         if let Err(error) = self.name_system_tx.send(NameSystemJob::ResolveSince {
             context: self.sphere_context.clone(),
-            since: push_body.local_base.clone(),
+            since: push_body.local_base,
         }) {
             warn!("Failed to request name system resolutions: {}", error);
         };

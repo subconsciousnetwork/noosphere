@@ -192,7 +192,7 @@ impl BenchmarkStorage {
     /// wipe any IndexedDb usage here.
     pub async fn dispose(self) -> Result<()> {
         #[cfg(target_arch = "wasm32")]
-        self.storage.to_inner().clear().await?;
+        self.storage.into_inner().clear().await?;
         Ok(())
     }
 }

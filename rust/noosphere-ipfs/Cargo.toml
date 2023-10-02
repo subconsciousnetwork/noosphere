@@ -52,4 +52,6 @@ ipfs-api-prelude = "0.6"
 rand = { workspace = true }
 iroh-car = { workspace = true }
 libipld-cbor = { workspace = true }
+libipld-json = { workspace = true }
+multihash = { workspace = true }
 noosphere-core = { version = "0.17.0", path = "../noosphere-core" }

@@ -105,7 +105,7 @@ where
     // Always fall back to a full replication
     Ok(StreamBody::new(Box::pin(to_car_stream(
         vec![memo_version],
-        memo_body_stream(store, &memo_version),
+        memo_body_stream(store, &memo_version.into(), false),
     ))))
 }
 

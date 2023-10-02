@@ -46,7 +46,7 @@ where
         SphereCursor {
             has_sphere_context,
             storage: PhantomData,
-            sphere_version: Some(sphere_version.clone()),
+            sphere_version: Some(*sphere_version),
         }
     }
 
@@ -66,7 +66,7 @@ where
     /// version it is mounted to even when the latest version of the sphere
     /// changes.
     pub async fn mount_at(&mut self, sphere_version: &Link<MemoIpld>) -> Result<&Self> {
-        self.sphere_version = Some(sphere_version.clone());
+        self.sphere_version = Some(*sphere_version);
 
         Ok(self)
     }
@@ -112,7 +112,7 @@ where
 
         match sphere.get_parent().await? {
             Some(parent) => {
-                self.sphere_version = Some(parent.cid().clone());
+                self.sphere_version = Some(*parent.cid());
                 Ok(self.sphere_version.as_ref())
             }
             None => Ok(None),
@@ -140,7 +140,7 @@ where
         let new_version = self.has_sphere_context.save(additional_headers).await?;
 
         if self.sphere_version.is_some() {
-            self.sphere_version = Some(new_version.clone());
+            self.sphere_version = Some(new_version);
         }
 
         Ok(new_version)
@@ -162,7 +162,7 @@ where
 
     async fn version(&self) -> Result<Link<MemoIpld>> {
         match &self.sphere_version {
-            Some(sphere_version) => Ok(sphere_version.clone()),
+            Some(sphere_version) => Ok(*sphere_version),
             None => self.has_sphere_context.version().await,
         }
     }
@@ -191,7 +191,7 @@ where
 
                 async move {
                     let replicate_parameters = since.as_ref().map(|since| ReplicateParameters {
-                        since: Some(since.clone()),
+                        since: Some(*since),
                     });
                     let (db, client) = {
                         let sphere_context = cursor.sphere_context().await?;

@@ -120,7 +120,7 @@ impl MemoIpld {
     pub async fn branch_from<S: BlockStore>(cid: &Link<MemoIpld>, store: &S) -> Result<Self> {
         match store.load::<DagCborCodec, MemoIpld>(cid).await {
             Ok(mut memo) => {
-                memo.parent = Some(cid.clone());
+                memo.parent = Some(*cid);
                 memo.remove_header(&Header::Signature);
                 memo.remove_header(&Header::Proof);
 

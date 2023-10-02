@@ -59,7 +59,7 @@ impl<'a, S: BlockStore> Timeline<'a, S> {
         exclude_past: bool,
     ) -> impl TryStream<Item = Result<(Link<MemoIpld>, MemoIpld)>> {
         stream::try_unfold(
-            (Some(future.clone()), past.cloned(), self.store.clone()),
+            (Some(*future), past.cloned(), self.store.clone()),
             move |(from, to, storage)| async move {
                 match &from {
                     Some(from) => {
@@ -73,12 +73,12 @@ impl<'a, S: BlockStore> Timeline<'a, S> {
                                 if exclude_past && to.as_ref() == next_dag.parent.as_ref() {
                                     None
                                 } else {
-                                    next_dag.parent.clone()
+                                    next_dag.parent
                                 }
                             }
                         };
 
-                        Ok(Some(((cid.clone(), next_dag), (next_from, to, storage))))
+                        Ok(Some(((*cid, next_dag), (next_from, to, storage))))
                     }
                     None => Ok(None),
                 }
@@ -177,7 +177,7 @@ mod tests {
         let owner_did = owner_key.get_did().await?;
 
         let (mut sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await?;
-        let mut lineage = vec![sphere.cid().clone()];
+        let mut lineage = vec![*sphere.cid()];
 
         for i in 0..5u8 {
             let mut mutation = SphereMutation::new(&owner_did);
@@ -192,8 +192,8 @@ mod tests {
             lineage.push(next_cid);
         }
 
-        let past = lineage[4].clone();
-        let future = lineage[4].clone();
+        let past = lineage[4];
+        let future = lineage[4];
 
         let timeline = Timeline::new(&store);
         let timeslice = timeline.slice(&future, Some(&past));
@@ -216,7 +216,7 @@ mod tests {
         let owner_did = owner_key.get_did().await?;
 
         let (mut sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await?;
-        let mut lineage = vec![sphere.cid().clone()];
+        let mut lineage = vec![*sphere.cid()];
 
         for i in 0..5u8 {
             let mut mutation = SphereMutation::new(&owner_did);
@@ -231,8 +231,8 @@ mod tests {
             lineage.push(next_cid);
         }
 
-        let past = lineage[1].clone();
-        let future = lineage[3].clone();
+        let past = lineage[1];
+        let future = lineage[3];
 
         let timeline = Timeline::new(&store);
         let timeslice = timeline.slice(&future, Some(&past));

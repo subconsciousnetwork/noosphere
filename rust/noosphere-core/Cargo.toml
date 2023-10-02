@@ -28,7 +28,7 @@ tracing = { workspace = true }
 cid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 async-trait = "~0.1"
-async-recursion = "^1"
+async-recursion = { workspace = true }
 async-stream = { workspace = true }
 
 # NOTE: async-once-cell 0.4.0 shipped unstable feature usage

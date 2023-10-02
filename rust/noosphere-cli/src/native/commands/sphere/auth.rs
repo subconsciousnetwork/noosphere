@@ -139,7 +139,7 @@ pub async fn auth_list(tree: bool, as_json: bool, workspace: &Workspace) -> Resu
     while let Some((name, identity, link)) = authorization_stream.try_next().await? {
         let jwt = Jwt(db.require_token(&link).await?);
         max_name_length = max_name_length.max(name.len());
-        authorization_meta.insert(link.clone(), (name, identity, jwt));
+        authorization_meta.insert(link, (name, identity, jwt));
     }
 
     if tree {
@@ -162,13 +162,13 @@ pub async fn auth_list(tree: bool, as_json: bool, workspace: &Workspace) -> Resu
             if *ucan.issuer() == sphere_identity {
                 // TODO(#554): Such an authorization ought not have any topical proofs,
                 // but perhaps we should verify that
-                authorization_roots.push(link.clone())
+                authorization_roots.push(*link)
             } else {
                 for proof in proofs {
                     let items = match authorization_hierarchy.get_mut(&proof) {
                         Some(items) => items,
                         None => {
-                            authorization_hierarchy.insert(proof.clone(), Vec::new());
+                            authorization_hierarchy.insert(proof, Vec::new());
                             authorization_hierarchy.get_mut(&proof).ok_or_else(|| {
                                 anyhow!(
                                     "Could not access list of child authorizations for {}",
@@ -177,7 +177,7 @@ pub async fn auth_list(tree: bool, as_json: bool, workspace: &Workspace) -> Resu
                             })?
                         }
                     };
-                    items.push(link.clone());
+                    items.push(*link);
                 }
             }
         }

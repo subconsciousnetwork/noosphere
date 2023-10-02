@@ -42,7 +42,7 @@ where
         let hamt = links.get_hamt().await?;
 
         Ok(match hamt.get(&slug.to_string()).await? {
-            Some(memo) => Some(self.get_file(&revision, memo.clone()).await?),
+            Some(memo) => Some(self.get_file(&revision, *memo).await?),
             None => None,
         })
     }

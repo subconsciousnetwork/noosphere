@@ -699,7 +699,7 @@ mod tests {
 
         let (sphere, ucan, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
-        let original_cid = sphere.cid().clone();
+        let original_cid = *sphere.cid();
 
         let foo_key = String::from("foo");
         let foo_memo = MemoIpld::for_body(&mut store, b"foo").await.unwrap();
