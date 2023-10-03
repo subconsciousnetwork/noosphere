@@ -232,8 +232,13 @@ where
                 context,
                 republish,
             } => {
-                if let Err(error) = set_counterpart_record(context, &record).await {
-                    warn!("Could not set counterpart record on sphere: {error}");
+                // NOTE: Very important not to update this record on every
+                // re-publish, otherwise we will generate a new sphere revision
+                // on an on-going basis indefinitely
+                if !republish {
+                    if let Err(error) = set_counterpart_record(context, &record).await {
+                        warn!("Could not set counterpart record on sphere: {error}");
+                    }
                 }
                 if republish || record.has_publishable_timeframe() {
                     client.publish(record).await?;

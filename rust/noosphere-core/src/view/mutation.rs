@@ -191,6 +191,58 @@ impl SphereMutation {
             && self.delegations.changes.len() == 0
             && self.revocations.changes.len() == 0
     }
+
+    /// Consume a [SphereMutation], appending its changes to this one
+    pub fn append(&mut self, other: SphereMutation) {
+        self.content.changes = append_changes(
+            std::mem::take(&mut self.content.changes),
+            other.content.changes,
+        );
+
+        self.identities.changes = append_changes(
+            std::mem::take(&mut self.identities.changes),
+            other.identities.changes,
+        );
+
+        self.delegations.changes = append_changes(
+            std::mem::take(&mut self.delegations.changes),
+            other.delegations.changes,
+        );
+
+        self.revocations.changes = append_changes(
+            std::mem::take(&mut self.revocations.changes),
+            other.revocations.changes,
+        );
+    }
+}
+
+fn append_changes<K, V>(
+    mut destination: Vec<MapOperation<K, V>>,
+    source: Vec<MapOperation<K, V>>,
+) -> Vec<MapOperation<K, V>>
+where
+    K: VersionedMapKey,
+    V: VersionedMapValue,
+{
+    for change in source {
+        let op_key = match &change {
+            MapOperation::Add { key, .. } => key,
+            MapOperation::Remove { key } => key,
+        };
+
+        destination.retain(|op| {
+            let this_op_key = match &op {
+                MapOperation::Add { key, .. } => key,
+                MapOperation::Remove { key } => key,
+            };
+
+            this_op_key != op_key
+        });
+
+        destination.push(change);
+    }
+
+    destination
 }
 
 /// A generalized expression of a mutation to a [VersionedMapIpld]

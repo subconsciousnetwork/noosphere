@@ -127,12 +127,12 @@ impl<'a, S: BlockStore> Timeslice<'a, S> {
     /// note that this can be quite memory costly (depending on how much history
     /// is being aggregated), so it is better to stream in reverse-chronological
     /// order if possible.
-    pub async fn to_chronological(&self) -> Result<Vec<(Link<MemoIpld>, MemoIpld)>> {
+    pub async fn to_chronological(&self) -> Result<Vec<Link<MemoIpld>>> {
         let mut chronological = VecDeque::new();
         let mut stream = Box::pin(self.stream());
 
         while let Some(result) = stream.next().await {
-            chronological.push_front(result?);
+            chronological.push_front(result?.0);
         }
 
         Ok(chronological.into())
@@ -198,12 +198,7 @@ mod tests {
         let timeline = Timeline::new(&store);
         let timeslice = timeline.slice(&future, Some(&past));
 
-        let items: Vec<Link<MemoIpld>> = timeslice
-            .to_chronological()
-            .await?
-            .into_iter()
-            .map(|(cid, _)| cid)
-            .collect();
+        let items: Vec<Link<MemoIpld>> = timeslice.to_chronological().await?;
 
         assert_eq!(items.len(), 1);
 
@@ -242,12 +237,7 @@ mod tests {
         let timeline = Timeline::new(&store);
         let timeslice = timeline.slice(&future, Some(&past));
 
-        let items: Vec<Link<MemoIpld>> = timeslice
-            .to_chronological()
-            .await?
-            .into_iter()
-            .map(|(cid, _)| cid)
-            .collect();
+        let items: Vec<Link<MemoIpld>> = timeslice.to_chronological().await?;
 
         assert_eq!(items.len(), 3);
 
