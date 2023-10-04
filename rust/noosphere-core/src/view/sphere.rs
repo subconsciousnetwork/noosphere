@@ -1556,15 +1556,11 @@ mod tests {
         authorization: &Authorization,
         store: &mut Storage,
         (change_key, change_memo): (&str, &MemoIpld),
-    ) -> anyhow::Result<Link<MemoIpld>> {
+    ) -> Result<Link<MemoIpld>> {
         let mut mutation = SphereMutation::new(author_did);
         mutation.content_mut().set(
             &change_key.into(),
-            &store
-                .save::<DagCborCodec, _>(change_memo)
-                .await
-                .unwrap()
-                .into(),
+            &store.save::<DagCborCodec, _>(change_memo).await?.into(),
         );
 
         let mut base_revision = Sphere::apply_mutation_with_cid(base_cid, &mutation, store).await?;

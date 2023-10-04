@@ -194,32 +194,14 @@ impl SphereMutation {
 
     /// Consume a [SphereMutation], appending its changes to this one
     pub fn append(&mut self, other: SphereMutation) {
-        self.content.changes = append_changes(
-            std::mem::take(&mut self.content.changes),
-            other.content.changes,
-        );
-
-        self.identities.changes = append_changes(
-            std::mem::take(&mut self.identities.changes),
-            other.identities.changes,
-        );
-
-        self.delegations.changes = append_changes(
-            std::mem::take(&mut self.delegations.changes),
-            other.delegations.changes,
-        );
-
-        self.revocations.changes = append_changes(
-            std::mem::take(&mut self.revocations.changes),
-            other.revocations.changes,
-        );
+        append_changes(&mut self.content.changes, other.content.changes);
+        append_changes(&mut self.identities.changes, other.identities.changes);
+        append_changes(&mut self.delegations.changes, other.delegations.changes);
+        append_changes(&mut self.revocations.changes, other.revocations.changes);
     }
 }
 
-fn append_changes<K, V>(
-    mut destination: Vec<MapOperation<K, V>>,
-    source: Vec<MapOperation<K, V>>,
-) -> Vec<MapOperation<K, V>>
+fn append_changes<K, V>(destination: &mut Vec<MapOperation<K, V>>, source: Vec<MapOperation<K, V>>)
 where
     K: VersionedMapKey,
     V: VersionedMapValue,
@@ -241,8 +223,6 @@ where
 
         destination.push(change);
     }
-
-    destination
 }
 
 /// A generalized expression of a mutation to a [VersionedMapIpld]

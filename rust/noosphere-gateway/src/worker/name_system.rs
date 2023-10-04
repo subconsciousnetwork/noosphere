@@ -517,6 +517,7 @@ where
 mod tests {
     use noosphere_core::{
         authority::{generate_capability, Access, SphereAbility},
+        context::HasSphereContext,
         data::LINK_RECORD_FACT_NAME,
         helpers::simulated_sphere_context,
     };
@@ -597,6 +598,8 @@ mod tests {
         .await
         .is_err());
 
+        let expected_sphere_version = sphere.version().await?;
+
         // Republished records however can be published if expired.
         assert!(process_job(
             NameSystemJob::Publish {
@@ -609,6 +612,11 @@ mod tests {
         )
         .await
         .is_ok());
+
+        let final_sphere_version = sphere.version().await?;
+
+        // Republishing a link record should not create new sphere history
+        assert_eq!(expected_sphere_version, final_sphere_version);
 
         Ok(())
     }
