@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-gateway"
-version = "0.9.0"
+version = "0.10.0"
 edition = "2021"
 description = "A geist on the network that enables user spheres to discover each other"
 keywords = ["http", "geist", "noosphere", "p2p", "ucan"]
@@ -21,7 +21,7 @@ tracing = { workspace = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 reqwest = { workspace = true }
 noosphere-common = { version = "0.1.0", path = "../noosphere-common", features = ["helpers"] }
-noosphere-core = { version = "0.16.0", path = "../noosphere-core", features = ["helpers"] }
+noosphere-core = { version = "0.17.0", path = "../noosphere-core", features = ["helpers"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow = { workspace = true }
@@ -43,9 +43,9 @@ deterministic-bloom = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 mime_guess = "^2"
 
-noosphere-ipfs = { version = "0.8.0", path = "../noosphere-ipfs" }
-noosphere-core = { version = "0.16.0", path = "../noosphere-core" }
-noosphere-ns = { version = "0.11.0", path = "../noosphere-ns" }
+noosphere-ipfs = { version = "0.8.1", path = "../noosphere-ipfs" }
+noosphere-core = { version = "0.17.0", path = "../noosphere-core" }
+noosphere-ns = { version = "0.11.1", path = "../noosphere-ns" }
 noosphere-storage = { version = "0.9.0", path = "../noosphere-storage" }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
