@@ -17,7 +17,7 @@ use ucan::{
 use crate::{
     authority::{
         ed25519_key_to_mnemonic, generate_capability, generate_ed25519_key, restore_ed25519_key,
-        Authorization, SphereAbility, SPHERE_SEMANTICS, SUPPORTED_KEYS,
+        Author, Authorization, SphereAbility, SPHERE_SEMANTICS, SUPPORTED_KEYS,
     },
     data::{
         Bundle, ChangelogIpld, ContentType, DelegationIpld, Did, Header, IdentityIpld, Link,
@@ -534,7 +534,7 @@ impl<S: BlockStore> Sphere<S> {
     pub async fn hydrate_timeslice<'a>(timeslice: &Timeslice<'a, S>) -> Result<()> {
         let items = timeslice.to_chronological().await?;
 
-        for (cid, _) in items {
+        for cid in items {
             Sphere::at(&cid, timeslice.timeline.store).hydrate().await?;
         }
 
@@ -580,6 +580,47 @@ impl<S: BlockStore> Sphere<S> {
         Ok(())
     }
 
+    /// Compact sphere history through a given version, producing a single
+    /// combined history that reflects all of the changes of the intermediate
+    /// versions. The given history version must have a parent version to base
+    /// the compacted history on top of. The new compacted history will be
+    /// signed by the given author (authorship of the intermediate versions will
+    /// be lost).
+    pub async fn compact<K>(
+        &self,
+        until: &Link<MemoIpld>,
+        author: &Author<K>,
+    ) -> Result<Link<MemoIpld>>
+    where
+        K: KeyMaterial + Clone + 'static,
+    {
+        let parent_sphere =
+            if let Some(parent_sphere) = Sphere::at(until, &self.store).get_parent().await? {
+                parent_sphere
+            } else {
+                return Err(anyhow!(
+                    "Cannot compact history; compound history must must have ancestral base"
+                ));
+            };
+
+        let timeline = Timeline::new(&self.store);
+        let timeslice = timeline.slice(&self.cid, Some(until)).include_past();
+
+        let history_to_compact = timeslice.to_chronological().await?;
+        let mut compact_mutation = SphereMutation::new(&author.did().await?);
+
+        for link in history_to_compact {
+            let mutation = Sphere::at(&link, &self.store).derive_mutation().await?;
+            compact_mutation.append(mutation);
+        }
+
+        let mut revision = parent_sphere.apply_mutation(&compact_mutation).await?;
+
+        revision
+            .sign(&author.key, author.authorization.as_ref())
+            .await
+    }
+
     /// Attempt to linearize the canonical history of the sphere by re-basing
     /// the history onto a branch with an implicitly common lineage.
     pub async fn rebase<Credential: KeyMaterial>(
@@ -600,7 +641,7 @@ impl<S: BlockStore> Sphere<S> {
 
         let mut next_base = new_base.clone();
 
-        for (cid, _) in rebase_revisions.iter() {
+        for cid in rebase_revisions.iter() {
             let mut revision = Sphere::rebase_version(cid, &next_base, &mut store).await?;
             next_base = revision.sign(credential, authorization).await?;
         }
@@ -1025,6 +1066,8 @@ mod tests {
     use crate::{
         authority::{generate_ed25519_key, Authorization, SphereAbility},
         data::{Bundle, DelegationIpld, IdentityIpld, Link, MemoIpld, RevocationIpld},
+        helpers::make_valid_link_record,
+        tracing::initialize_tracing,
         view::{Sphere, SphereMutation, Timeline, SPHERE_LIFETIME},
     };
     use noosphere_storage::{BlockStore, MemoryStore, Store, UcanStore};
@@ -1394,7 +1437,7 @@ mod tests {
         let timeslice = timeline.slice(sphere.cid(), None);
         let items = timeslice.to_chronological().await.unwrap();
 
-        for (cid, _) in items {
+        for cid in items {
             Sphere::at(&cid, &other_store).hydrate().await.unwrap();
         }
 
@@ -1433,7 +1476,7 @@ mod tests {
         let timeslice = timeline.slice(sphere.cid(), None);
         let items = timeslice.to_chronological().await.unwrap();
 
-        for (cid, _) in items {
+        for cid in items {
             Sphere::at(&cid, &other_store).hydrate().await.unwrap();
         }
 
@@ -1499,11 +1542,30 @@ mod tests {
         let timeslice = timeline.slice(sphere.cid(), None);
         let items = timeslice.to_chronological().await.unwrap();
 
-        for (cid, _) in items {
+        for cid in items {
             Sphere::at(&cid, &other_store).hydrate().await.unwrap();
         }
 
         store.expect_replica_in(&other_store).await.unwrap();
+    }
+
+    async fn make_content_revision<Credential: KeyMaterial, Storage: Store>(
+        base_cid: &Link<MemoIpld>,
+        author_did: &str,
+        credential: &Credential,
+        authorization: &Authorization,
+        store: &mut Storage,
+        (change_key, change_memo): (&str, &MemoIpld),
+    ) -> Result<Link<MemoIpld>> {
+        let mut mutation = SphereMutation::new(author_did);
+        mutation.content_mut().set(
+            &change_key.into(),
+            &store.save::<DagCborCodec, _>(change_memo).await?.into(),
+        );
+
+        let mut base_revision = Sphere::apply_mutation_with_cid(base_cid, &mutation, store).await?;
+
+        base_revision.sign(credential, Some(authorization)).await
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
@@ -1513,30 +1575,6 @@ mod tests {
         let owner_key = generate_ed25519_key();
         let owner_did = owner_key.get_did().await.unwrap();
 
-        async fn make_revision<Credential: KeyMaterial, Storage: Store>(
-            base_cid: &Link<MemoIpld>,
-            author_did: &str,
-            credential: &Credential,
-            authorization: &Authorization,
-            store: &mut Storage,
-            (change_key, change_memo): (&str, &MemoIpld),
-        ) -> anyhow::Result<Link<MemoIpld>> {
-            let mut mutation = SphereMutation::new(author_did);
-            mutation.content_mut().set(
-                &change_key.into(),
-                &store
-                    .save::<DagCborCodec, _>(change_memo)
-                    .await
-                    .unwrap()
-                    .into(),
-            );
-
-            let mut base_revision =
-                Sphere::apply_mutation_with_cid(base_cid, &mutation, store).await?;
-
-            base_revision.sign(credential, Some(authorization)).await
-        }
-
         let foo_memo = MemoIpld::for_body(&mut store, b"foo").await.unwrap();
         let bar_memo = MemoIpld::for_body(&mut store, b"bar").await.unwrap();
         let baz_memo = MemoIpld::for_body(&mut store, b"baz").await.unwrap();
@@ -1545,7 +1583,7 @@ mod tests {
 
         let (sphere, authorization, _) = Sphere::generate(&owner_did, &mut store).await.unwrap();
 
-        let base_cid = make_revision(
+        let base_cid = make_content_revision(
             sphere.cid(),
             &owner_did,
             &owner_key,
@@ -1558,7 +1596,7 @@ mod tests {
 
         let mut external_store = store.fork().await;
 
-        let external_cid_a = make_revision(
+        let external_cid_a = make_content_revision(
             &base_cid,
             &owner_did,
             &owner_key,
@@ -1569,7 +1607,7 @@ mod tests {
         .await
         .unwrap();
 
-        let external_cid_b = make_revision(
+        let external_cid_b = make_content_revision(
             &external_cid_a,
             &owner_did,
             &owner_key,
@@ -1587,7 +1625,7 @@ mod tests {
         .await
         .unwrap();
 
-        let local_cid_a = make_revision(
+        let local_cid_a = make_content_revision(
             &base_cid,
             &owner_did,
             &owner_key,
@@ -1598,7 +1636,7 @@ mod tests {
         .await
         .unwrap();
 
-        let local_cid_b = make_revision(
+        let local_cid_b = make_content_revision(
             &local_cid_a,
             &owner_did,
             &owner_key,
@@ -1617,5 +1655,217 @@ mod tests {
             .rebase(&base_cid, &external_cid_b, &owner_key, Some(&authorization))
             .await
             .unwrap();
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_compacts_basic_history_into_a_single_revision() -> Result<()> {
+        let mut store = MemoryStore::default();
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await?;
+
+        let (sphere, authorization, _) = Sphere::generate(&owner_did, &mut store).await?;
+
+        let base = sphere.cid().clone();
+        let mut long_history_version = base.clone();
+
+        for content in ["foo", "bar", "baz"] {
+            let memo = MemoIpld::for_body(&mut store, content.as_bytes()).await?;
+            long_history_version = make_content_revision(
+                &long_history_version,
+                &owner_did,
+                &owner_key,
+                &authorization,
+                &mut store,
+                (content, &memo),
+            )
+            .await?;
+        }
+
+        let long_history_sphere = Sphere::at(&long_history_version, &store);
+        let mut until_sphere = long_history_sphere.clone();
+
+        for _ in 0..2 {
+            until_sphere = until_sphere.get_parent().await?.unwrap();
+        }
+
+        let author = Author {
+            key: owner_key,
+            authorization: Some(authorization),
+        };
+
+        let compacted_history_version = long_history_sphere
+            .compact(until_sphere.cid(), &author)
+            .await?;
+
+        let compacted_history_sphere = Sphere::at(&compacted_history_version, &store);
+
+        let mutation = compacted_history_sphere.derive_mutation().await?;
+
+        assert_eq!(
+            mutation
+                .content()
+                .changes()
+                .iter()
+                .map(|op| match op {
+                    MapOperation::Add { key, .. } => key.as_str(),
+                    MapOperation::Remove { key } => key.as_str(),
+                })
+                .collect::<Vec<&str>>(),
+            vec!["foo", "bar", "baz"]
+        );
+
+        assert_eq!(
+            compacted_history_sphere.get_parent().await?.unwrap().cid(),
+            &base
+        );
+
+        for content in ["foo", "bar", "baz"] {
+            let compacted_content = compacted_history_sphere.get_content().await?;
+            let long_history_content = long_history_sphere.get_content().await?;
+            assert_eq!(
+                compacted_content
+                    .get_as_cid::<DagCborCodec>(&content.into())
+                    .await?,
+                long_history_content
+                    .get_as_cid::<DagCborCodec>(&content.into())
+                    .await?
+            );
+        }
+
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_compacts_nontrivial_history_into_a_single_revision() -> Result<()> {
+        initialize_tracing(None);
+
+        let mut store = MemoryStore::default();
+        let owner_key = generate_ed25519_key();
+        let owner_did = owner_key.get_did().await?;
+
+        let (sphere, authorization, _) = Sphere::generate(&owner_did, &mut store).await?;
+
+        let base = sphere.cid().clone();
+        let mut long_history_version = base.clone();
+
+        for i in 0..100 {
+            let petname_id = (i / 6 - 1) * 6;
+            let petname_change = i % 6 == 0;
+            let additive_change = i == 0 || i % 15 != 0;
+
+            let mut mutation = SphereMutation::new(&owner_did);
+
+            let memo = MemoIpld::for_body(&mut store, format!("content{i}")).await?;
+            let link = store.save::<DagCborCodec, _>(memo).await?;
+
+            mutation
+                .content_mut()
+                .set(&format!("slug{i}"), &link.into());
+
+            if additive_change {
+                mutation
+                    .content_mut()
+                    .set(&format!("slug{i}"), &link.into());
+            } else {
+                mutation.content_mut().remove(&format!("slug{}", i - 1));
+            }
+
+            if petname_change {
+                if additive_change {
+                    let (did, _, link) =
+                        make_valid_link_record(&mut UcanStore(store.clone())).await?;
+                    let identity = IdentityIpld {
+                        did,
+                        link_record: Some(link),
+                    };
+                    mutation
+                        .identities_mut()
+                        .set(&format!("petname{i}"), &identity);
+                } else {
+                    mutation
+                        .identities_mut()
+                        .remove(&format!("petname{}", petname_id));
+                }
+            }
+
+            let mut revision = Sphere::at(&long_history_version, &store)
+                .apply_mutation(&mutation)
+                .await?;
+
+            long_history_version = revision.sign(&owner_key, Some(&authorization)).await?;
+        }
+
+        let long_history_sphere = Sphere::at(&long_history_version, &store);
+        let mut until_sphere = long_history_sphere.clone();
+
+        for _ in 0..99 {
+            until_sphere = until_sphere.get_parent().await?.unwrap();
+        }
+
+        let author = Author {
+            key: owner_key,
+            authorization: Some(authorization),
+        };
+
+        let compacted_history_version = long_history_sphere
+            .compact(until_sphere.cid(), &author)
+            .await?;
+
+        let compacted_history_sphere = Sphere::at(&compacted_history_version, &store);
+
+        let mutation = compacted_history_sphere.derive_mutation().await?;
+
+        assert_eq!(mutation.identities().changes().len(), 14);
+        assert_eq!(mutation.content().changes().len(), 100);
+
+        let content = compacted_history_sphere.get_content().await?;
+        let identities = compacted_history_sphere
+            .get_address_book()
+            .await?
+            .get_identities()
+            .await?;
+
+        debug!("{:#?}", mutation.identities().changes());
+
+        for i in 0..99 {
+            let petname_change = i % 6 == 0;
+            let removed_petname_change = (i + 6) % 15 == 0;
+            let removed_content_change = (i + 1) % 15 == 0;
+            let added_change = i == 0 || i % 15 != 0;
+            let added_content_change = !removed_content_change && added_change;
+            let added_petname_change = !removed_petname_change && added_change;
+
+            debug!("i: {i}, added content: {added_content_change}, removed content: {removed_content_change}, added petname: {added_petname_change}, removed petname: {removed_petname_change}");
+
+            if added_content_change {
+                assert!(content
+                    .get_as_cid::<DagCborCodec>(&format!("slug{}", i))
+                    .await?
+                    .is_some());
+            } else if removed_content_change {
+                assert!(content
+                    .get_as_cid::<DagCborCodec>(&format!("slug{}", i))
+                    .await?
+                    .is_none());
+            }
+
+            if petname_change {
+                if added_petname_change {
+                    assert!(identities
+                        .get_as_cid::<DagCborCodec>(&format!("petname{}", i))
+                        .await?
+                        .is_some());
+                } else if removed_petname_change {
+                    assert!(identities
+                        .get_as_cid::<DagCborCodec>(&format!("petname{}", i))
+                        .await?
+                        .is_none());
+                }
+            }
+        }
+
+        Ok(())
     }
 }

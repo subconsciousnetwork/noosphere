@@ -150,7 +150,7 @@ where
     // For all CIDs since the last historical checkpoint, syndicate a CAR
     // of blocks that are unique to that revision to the backing IPFS
     // implementation
-    for (cid, _) in timeline {
+    for cid in timeline {
         // TODO(#175): At each increment, if there are sub-graphs of a
         // sphere that should *not* be syndicated (e.g., other spheres
         // referenced by this sphere that are probably syndicated

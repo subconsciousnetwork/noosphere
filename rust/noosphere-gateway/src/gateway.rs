@@ -17,15 +17,17 @@ use noosphere_core::api::{v0alpha1, v0alpha2};
 use crate::{
     handlers,
     worker::{
-        start_ipfs_syndication, start_name_system, NameSystemConfiguration,
+        start_cleanup, start_ipfs_syndication, start_name_system, NameSystemConfiguration,
         NameSystemConnectionType,
     },
 };
 
 use noosphere_core::tracing::initialize_tracing;
 
-pub const DEFAULT_BODY_LENGTH_LIMIT: usize = 100 /* MB */ * 1000 * 1000;
+const DEFAULT_BODY_LENGTH_LIMIT: usize = 100 /* MB */ * 1000 * 1000;
 
+/// A [GatewayScope] describes the pairing of a gateway and its designated user
+/// via their spheres' respective [Did]s
 #[derive(Clone, Debug)]
 pub struct GatewayScope {
     /// Identity of gateway sphere.
@@ -34,6 +36,7 @@ pub struct GatewayScope {
     pub counterpart: Did,
 }
 
+/// Start a Noosphere Gateway
 pub async fn start_gateway<C, S>(
     listener: TcpListener,
     gateway_scope: GatewayScope,
@@ -83,6 +86,7 @@ where
         },
         vec![sphere_context.clone()],
     );
+    let (cleanup_tx, cleanup_task) = start_cleanup::<C, S>(sphere_context.clone());
 
     let app = Router::new()
         .route(
@@ -116,6 +120,7 @@ where
         .layer(Extension(gateway_key_did))
         .layer(Extension(syndication_tx))
         .layer(Extension(name_system_tx))
+        .layer(Extension(cleanup_tx))
         .layer(DefaultBodyLimit::max(DEFAULT_BODY_LENGTH_LIMIT))
         .layer(cors)
         .layer(TraceLayer::new_for_http());
@@ -138,6 +143,7 @@ It awaits updates from sphere {}..."#,
 
     syndication_task.abort();
     name_system_task.abort();
+    cleanup_task.abort();
 
     Ok(())
 }

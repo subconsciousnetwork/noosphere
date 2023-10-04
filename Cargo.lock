@@ -3635,6 +3635,7 @@ dependencies = [
  "libipld-cbor",
  "libipld-core",
  "mime_guess",
+ "noosphere-common",
  "noosphere-core",
  "noosphere-ipfs",
  "noosphere-ns",
