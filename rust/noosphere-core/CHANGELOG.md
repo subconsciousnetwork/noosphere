@@ -10,6 +10,17 @@
     * noosphere-storage bumped from 0.7.0 to 0.7.1
     * noosphere-collections bumped from 0.6.0 to 0.6.1
 
+## [0.17.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.16.0...noosphere-core-v0.17.0) (2023-10-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* History compaction for spheres and gateways ([#661](https://github.com/subconsciousnetwork/noosphere/issues/661))
+
+### Features
+
+* History compaction for spheres and gateways ([#661](https://github.com/subconsciousnetwork/noosphere/issues/661)) ([b8f41b6](https://github.com/subconsciousnetwork/noosphere/commit/b8f41b6bea9393e0dddfce94fd2fd5e4188e28d7))
+
 ## [0.16.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.15.2...noosphere-core-v0.16.0) (2023-09-19)
 
 
