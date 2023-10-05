@@ -8,18 +8,17 @@ use noosphere_core::data::Did;
 use noosphere_ipfs::KuboClient;
 use noosphere_storage::Storage;
 use std::net::TcpListener;
+use std::path::Path;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use url::Url;
 
 use noosphere_core::api::{v0alpha1, v0alpha2};
 
+use crate::worker::start_iroh_syndication;
 use crate::{
     handlers,
-    worker::{
-        start_cleanup, start_ipfs_syndication, start_name_system, NameSystemConfiguration,
-        NameSystemConnectionType,
-    },
+    worker::{start_cleanup, start_name_system, NameSystemConfiguration, NameSystemConnectionType},
 };
 
 use noosphere_core::tracing::initialize_tracing;
@@ -36,12 +35,16 @@ pub struct GatewayScope {
     pub counterpart: Did,
 }
 
+pub use iroh::rpc_protocol::DocTicket;
+
 /// Start a Noosphere Gateway
 pub async fn start_gateway<C, S>(
     listener: TcpListener,
     gateway_scope: GatewayScope,
     sphere_context: C,
     ipfs_api: Url,
+    iroh_ticket: DocTicket,
+    sphere_path: impl AsRef<Path>,
     name_resolver_api: Url,
     cors_origin: Option<Url>,
 ) -> Result<()>
@@ -76,9 +79,9 @@ where
             ]);
     }
 
+    let (syndication_tx, syndication_task) =
+        start_iroh_syndication::<C, S>(sphere_path, iroh_ticket);
     let ipfs_client = KuboClient::new(&ipfs_api)?;
-
-    let (syndication_tx, syndication_task) = start_ipfs_syndication::<C, S>(ipfs_api.clone());
     let (name_system_tx, name_system_task) = start_name_system::<C, S>(
         NameSystemConfiguration {
             connection_type: NameSystemConnectionType::Remote(name_resolver_api),

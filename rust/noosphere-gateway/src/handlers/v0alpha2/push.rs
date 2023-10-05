@@ -22,6 +22,7 @@ use noosphere_storage::{block_deserialize, block_serialize, Storage};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_stream::{Stream, StreamExt};
 
+use crate::worker::SyndicationJobIroh;
 use crate::{
     authority::GatewayAuthority,
     error::GatewayErrorResponse,
@@ -45,7 +46,7 @@ pub async fn push_route<C, S>(
     authority: GatewayAuthority<S>,
     Extension(sphere_context): Extension<C>,
     Extension(gateway_scope): Extension<GatewayScope>,
-    Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<C>>>,
+    Extension(syndication_tx): Extension<UnboundedSender<SyndicationJobIroh<C>>>,
     Extension(name_system_tx): Extension<UnboundedSender<NameSystemJob<C>>>,
     stream: BodyStream,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, std::io::Error>>>, GatewayErrorResponse>
@@ -80,7 +81,7 @@ where
 {
     sphere_context: C,
     gateway_scope: GatewayScope,
-    syndication_tx: UnboundedSender<SyndicationJob<C>>,
+    syndication_tx: UnboundedSender<SyndicationJobIroh<C>>,
     name_system_tx: UnboundedSender<NameSystemJob<C>>,
     block_stream: St,
     storage_type: PhantomData<S>,
@@ -364,7 +365,7 @@ where
         // TODO(#156): This should not be happening on every push, but rather on
         // an explicit publish action. Move this to the publish handler when we
         // have added it to the gateway.
-        if let Err(error) = self.syndication_tx.send(SyndicationJob {
+        if let Err(error) = self.syndication_tx.send(SyndicationJobIroh {
             revision: next_version,
             context: self.sphere_context.clone(),
         }) {

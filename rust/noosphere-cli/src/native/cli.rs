@@ -1,6 +1,7 @@
 //! Declarative definition for the end-user-facing CLI
 
 use noosphere_core::data::Did;
+use noosphere_gateway::DocTicket;
 
 use std::net::IpAddr;
 
@@ -49,6 +50,9 @@ pub enum OrbCommand {
         /// URL of a Kubo Gateway RPC API
         #[clap(short = 'I', long, default_value = "http://127.0.0.1:5001")]
         ipfs_api: Url,
+
+        #[clap(long)]
+        iroh_ticket: DocTicket,
 
         /// URL for a Noosphere name system RPC API
         #[clap(short = 'N', long, default_value = "http://127.0.0.1:6667")]

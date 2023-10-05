@@ -18,3 +18,8 @@ pub use rocks_db::*;
 mod indexed_db;
 #[cfg(target_arch = "wasm32")]
 pub use indexed_db::*;
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "iroh"))]
+mod iroh;
+#[cfg(all(not(target_arch = "wasm32"), feature = "iroh"))]
+pub use iroh::*;

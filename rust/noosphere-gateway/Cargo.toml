@@ -60,6 +60,9 @@ serde_json = { workspace = true }
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
 
+iroh = { git = "https://github.com/n0-computer/iroh", branch = "sync-propagation", default-features = false, features = ["flat-db", "mem-db"] }
+quic-rpc = "0.6.1"
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { workspace = true }
 

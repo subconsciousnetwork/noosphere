@@ -3,7 +3,7 @@
 
 use crate::native::workspace::Workspace;
 use anyhow::Result;
-use noosphere_gateway::{start_gateway, GatewayScope};
+use noosphere_gateway::{start_gateway, DocTicket, GatewayScope};
 use std::net::{IpAddr, TcpListener};
 use url::Url;
 
@@ -12,6 +12,7 @@ pub async fn serve(
     interface: IpAddr,
     port: u16,
     ipfs_api: Url,
+    iroh_ticket: DocTicket,
     name_resolver_api: Url,
     cors_origin: Option<Url>,
     workspace: &mut Workspace,
@@ -30,12 +31,16 @@ pub async fn serve(
     };
 
     let sphere_context = workspace.sphere_context().await?;
+    let paths = workspace.require_sphere_paths()?;
+    let sphere_path = paths.sphere();
 
     start_gateway(
         listener,
         gateway_scope,
         sphere_context,
         ipfs_api,
+        iroh_ticket,
+        sphere_path,
         name_resolver_api,
         cors_origin,
     )
