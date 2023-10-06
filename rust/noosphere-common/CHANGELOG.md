@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-common-v0.1.0...noosphere-common-v0.1.1) (2023-10-06)
+
+
+### Features
+
+* Improved IPFS Kubo syndication ([#666](https://github.com/subconsciousnetwork/noosphere/issues/666)) ([eeab932](https://github.com/subconsciousnetwork/noosphere/commit/eeab932763cd642702bc6ac85a6bbc10968a107d))
+
 ## 0.1.0 (2023-09-19)
 
 

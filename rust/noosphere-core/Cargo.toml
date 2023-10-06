@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-core"
-version = "0.17.0"
+version = "0.17.1"
 edition = "2021"
 description = "Core data types of the Rust Noosphere implementation"
 keywords = ["hamt", "ipld", "noosphere", "p2p", "async"]
@@ -57,9 +57,9 @@ strum = { workspace = true }
 strum_macros = { workspace = true }
 tokio-util = { workspace = true, features = ["io"] }
 
-noosphere-common = { version = "0.1.0", path = "../noosphere-common" }
-noosphere-storage = { version = "0.9.0", path = "../noosphere-storage" }
-noosphere-collections = { version = "0.6.4", path = "../noosphere-collections" }
+noosphere-common = { version = "0.1.1", path = "../noosphere-common" }
+noosphere-storage = { version = "0.9.1", path = "../noosphere-storage" }
+noosphere-collections = { version = "0.6.5", path = "../noosphere-collections" }
 
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
@@ -68,7 +68,7 @@ sentry-tracing = { workspace = true, optional = true }
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
 serde_bytes = "~0.11"
-noosphere-common = { version = "0.1.0", path = "../noosphere-common", features = ["helpers"] }
+noosphere-common = { version = "0.1.1", path = "../noosphere-common", features = ["helpers"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { workspace = true, features = ["full"] }

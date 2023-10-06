@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-storage"
-version = "0.9.0"
+version = "0.9.1"
 edition = "2021"
 description = "Pluggable backing storage for the Rust Noosphere implementation"
 keywords = ["storage", "noosphere", "sled", "ipld", "indexeddb"]
@@ -23,7 +23,7 @@ async-trait = "~0.1"
 async-stream = { workspace = true }
 tokio-stream = { workspace = true }
 cid = { workspace = true }
-noosphere-common = { version = "0.1.0", path = "../noosphere-common" }
+noosphere-common = { version = "0.1.1", path = "../noosphere-common" }
 tracing = "~0.1"
 ucan = { workspace = true }
 libipld-core = { workspace = true }
