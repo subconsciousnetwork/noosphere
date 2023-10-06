@@ -35,6 +35,7 @@ pub async fn join_a_sphere(
         builder.scoped_storage_layout,
         Some(sphere_identity.clone()),
         builder.ipfs_gateway_url.clone(),
+        builder.storage_config.clone(),
     )
     .await?;
 

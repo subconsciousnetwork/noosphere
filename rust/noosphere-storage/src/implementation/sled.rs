@@ -1,37 +1,41 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use crate::storage::Storage;
 use crate::store::Store;
+use crate::StorageConfig;
+use crate::{storage::Storage, ConfigurableStorage};
 
 use anyhow::Result;
 use async_trait::async_trait;
+use noosphere_common::ConditionalSend;
 use sled::{Db, Tree};
 
-pub enum SledStorageInit {
-    Path(PathBuf),
-    Db(Db),
-}
-
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct SledStorage {
     db: Db,
-    #[allow(unused)]
-    path: Option<PathBuf>,
+    debug_data: Arc<(PathBuf, StorageConfig)>,
 }
 
 impl SledStorage {
-    pub fn new(init: SledStorageInit) -> Result<Self> {
-        let mut db_path = None;
-        let db: Db = match init {
-            SledStorageInit::Path(path) => {
-                std::fs::create_dir_all(&path)?;
-                db_path = Some(path.clone().canonicalize()?);
-                sled::open(path)?
-            }
-            SledStorageInit::Db(db) => db,
-        };
+    /// Open or create a database at directory `path`.
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        Self::with_config(path, StorageConfig::default())
+    }
 
-        Ok(SledStorage { db, path: db_path })
+    pub fn with_config<P: AsRef<Path>>(path: P, config: StorageConfig) -> Result<Self> {
+        std::fs::create_dir_all(path.as_ref())?;
+        let db_path = path.as_ref().canonicalize()?;
+
+        let mut sled_config = sled::Config::default();
+        sled_config = sled_config.path(&db_path);
+        if let Some(memory_cache_limit) = config.memory_cache_limit {
+            // Maximum size in bytes for the system page cache. (default: 1GB)
+            sled_config = sled_config.cache_capacity(memory_cache_limit.try_into()?);
+        }
+
+        let db = sled_config.open()?;
+        let debug_data = Arc::new((db_path, config));
+        Ok(SledStorage { db, debug_data })
     }
 
     async fn get_store(&self, name: &str) -> Result<SledStore> {
@@ -51,6 +55,25 @@ impl Storage for SledStorage {
 
     async fn get_key_value_store(&self, name: &str) -> Result<Self::KeyValueStore> {
         self.get_store(name).await
+    }
+}
+
+#[async_trait]
+impl ConfigurableStorage for SledStorage {
+    async fn open_with_config<P: AsRef<Path> + ConditionalSend>(
+        path: P,
+        config: StorageConfig,
+    ) -> Result<Self> {
+        SledStorage::with_config(path, config)
+    }
+}
+
+impl std::fmt::Debug for SledStorage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SledStorage")
+            .field("path", &self.debug_data.0)
+            .field("config", &self.debug_data.1)
+            .finish()
     }
 }
 

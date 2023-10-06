@@ -103,12 +103,11 @@ async fn orb_can_enable_multiple_replicas_to_synchronize() -> Result<()> {
         .orb(&["sphere", "auth", "add", &second_replica_id])
         .await?;
 
-    let second_replica_auth = match serde_json::from_str(
-        &first_replica
-            .orb_with_output(&["sphere", "auth", "list", "--as-json"])
-            .await?
-            .join("\n"),
-    )? {
+    let auth_list = first_replica
+        .orb_with_output(&["sphere", "auth", "list", "--as-json"])
+        .await?
+        .join("\n");
+    let second_replica_auth = match serde_json::from_str(&auth_list)? {
         Value::Array(auths) => match auths
             .iter()
             .filter(|auth| {

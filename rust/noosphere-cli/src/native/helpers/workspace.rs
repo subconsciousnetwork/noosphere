@@ -12,7 +12,7 @@ use crate::{
 };
 use noosphere::{
     NoosphereContext, NoosphereContextConfiguration, NoosphereNetwork, NoosphereSecurity,
-    NoosphereStorage,
+    NoosphereStorage, NoosphereStorageConfig, NoosphereStoragePath,
 };
 use noosphere_core::{
     context::HasSphereContext,
@@ -37,7 +37,7 @@ pub fn temporary_workspace() -> Result<(Workspace, (TempDir, TempDir))> {
     let global_root = TempDir::new()?;
 
     Ok((
-        Workspace::new(root.path(), Some(global_root.path()))?,
+        Workspace::new(root.path(), Some(global_root.path()), None)?,
         (root, global_root),
     ))
 }
@@ -156,8 +156,9 @@ impl SphereData {
     /// state of this [SphereData]
     pub async fn as_noosphere_context(&self) -> Result<NoosphereContext> {
         NoosphereContext::new(NoosphereContextConfiguration {
-            storage: NoosphereStorage::Unscoped {
-                path: self.sphere_root().to_owned(),
+            storage: NoosphereStorage {
+                path: NoosphereStoragePath::Unscoped(self.sphere_root().to_owned()),
+                config: NoosphereStorageConfig::default(),
             },
             security: NoosphereSecurity::Insecure {
                 path: self.global_root().to_owned(),

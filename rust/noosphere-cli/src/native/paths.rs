@@ -93,7 +93,7 @@ impl SpherePaths {
     /// Initialize [SpherePaths] for a given root path. This has the effect of
     /// creating the "private" directory hierarchy (starting from
     /// [SPHERE_DIRECTORY] inside the root).
-    pub async fn intialize(root: &Path) -> Result<Self> {
+    pub async fn initialize(root: &Path) -> Result<Self> {
         if !root.is_absolute() {
             return Err(anyhow!(
                 "Must use an absolute path to initialize sphere directories; got {:?}",

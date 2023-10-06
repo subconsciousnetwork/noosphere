@@ -1,13 +1,12 @@
+use crate::{cli::Cli, invoke_cli, CliContext};
 use anyhow::Result;
+use clap::Parser;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::Mutex;
 use tempfile::TempDir;
 use tracing::{field, Level, Subscriber};
 use tracing_subscriber::{prelude::*, Layer};
-
-use crate::{cli::Cli, invoke_cli, workspace::Workspace};
-use clap::Parser;
 
 #[derive(Default)]
 struct InfoCaptureVisitor {
@@ -161,22 +160,22 @@ impl CliSimulator {
     ) -> Result<Option<Vec<String>>> {
         let cli = self.parse_orb_command(command)?;
 
-        let workspace = Workspace::new(
-            &self.current_working_directory,
-            Some(self.noosphere_directory.path()),
-        )?;
-
         debug!(
             "In {}: orb {}",
             self.current_working_directory.display(),
             command.join(" ")
         );
 
+        let context = CliContext {
+            cwd: self.current_working_directory.clone(),
+            global_config_dir: Some(self.noosphere_directory.path()),
+        };
+        let future = invoke_cli(cli, &context);
         if capture_output {
-            let info = run_and_capture_info(invoke_cli(cli, workspace))?;
+            let info = run_and_capture_info(future)?;
             Ok(Some(info))
         } else {
-            invoke_cli(cli, workspace).await?;
+            future.await?;
             Ok(None)
         }
     }

@@ -25,14 +25,15 @@ wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
 use noosphere::{
     sphere::SphereReceipt, NoosphereContext, NoosphereContextConfiguration, NoosphereNetwork,
-    NoosphereSecurity, NoosphereStorage,
+    NoosphereSecurity, NoosphereStorage, NoosphereStorageConfig, NoosphereStoragePath,
 };
 
 #[cfg(target_arch = "wasm32")]
 fn platform_configuration() -> (NoosphereContextConfiguration, ()) {
     let configuration = NoosphereContextConfiguration {
-        storage: NoosphereStorage::Scoped {
-            path: "sphere-data".into(),
+        storage: NoosphereStorage {
+            path: NoosphereStoragePath::Scoped("sphere-data".into()),
+            config: NoosphereStorageConfig::default(),
         },
         security: NoosphereSecurity::Opaque,
         network: NoosphereNetwork::Http {
@@ -55,8 +56,9 @@ fn platform_configuration() -> (
     let sphere_storage = TempDir::new().unwrap();
 
     let configuration = NoosphereContextConfiguration {
-        storage: NoosphereStorage::Unscoped {
-            path: sphere_storage.path().to_path_buf(),
+        storage: NoosphereStorage {
+            path: NoosphereStoragePath::Unscoped(sphere_storage.path().to_path_buf()),
+            config: NoosphereStorageConfig::default(),
         },
         security: NoosphereSecurity::Insecure {
             path: global_storage.path().to_path_buf(),
