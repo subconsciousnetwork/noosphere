@@ -231,7 +231,7 @@ mod tests {
 
         wait(1).await;
 
-        let mut latest_version = base_version.clone();
+        let mut latest_version = base_version;
 
         for _ in 0..10 {
             let (_, link_record, _) = make_valid_link_record(&mut gateway_db.clone()).await?;

@@ -325,7 +325,7 @@ where
         store: S,
         push_body: v0alpha2::PushBody,
     ) -> impl Stream<Item = Result<Bytes, std::io::Error>> + ConditionalSync + 'static {
-        let root = push_body.local_tip.clone().into();
+        let root = push_body.local_tip.into();
         trace!("Creating push stream...");
 
         let block_stream = try_stream! {

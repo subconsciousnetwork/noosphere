@@ -1,28 +1,28 @@
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{io::Cursor, sync::Arc};
 
 use anyhow::Result;
 use libipld_cbor::DagCborCodec;
+use noosphere_common::UnsharedStream;
 use noosphere_core::context::{
     metadata::COUNTERPART, HasMutableSphereContext, SphereContentRead, SphereContentWrite,
     SphereCursor,
 };
+use noosphere_core::stream::{memo_body_stream, to_car_stream};
 use noosphere_core::{
     data::{ContentType, Did, Link, MemoIpld},
     view::Timeline,
 };
 use noosphere_ipfs::{IpfsClient, KuboClient};
-use noosphere_storage::{block_deserialize, block_serialize, BlockStore, KeyValueStore, Storage};
+use noosphere_storage::{block_deserialize, block_serialize, KeyValueStore, Storage};
 use serde::{Deserialize, Serialize};
 use tokio::{
     io::AsyncReadExt,
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
 };
-use tokio_stream::StreamExt;
+use tokio_util::io::StreamReader;
 use url::Url;
-
-use deterministic_bloom::const_size::BloomFilter;
-use iroh_car::{CarHeader, CarWriter};
 
 /// A [SyndicationJob] is a request to syndicate the blocks of a _counterpart_
 /// sphere to the broader IPFS network.
@@ -42,9 +42,34 @@ pub struct SyndicationJob<C> {
 /// gives us a short-cut to determine if a block should be added.
 #[derive(Serialize, Deserialize)]
 pub struct SyndicationCheckpoint {
-    pub revision: Link<MemoIpld>,
-    pub syndicated_blocks: BloomFilter<256, 30>,
+    pub last_syndicated_version: Option<Link<MemoIpld>>,
+    pub syndication_epoch: u64,
 }
+
+impl SyndicationCheckpoint {
+    pub fn new() -> Result<Self> {
+        Ok(Self {
+            last_syndicated_version: None,
+            syndication_epoch: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
+        })
+    }
+
+    pub fn lifetime(&self) -> Result<Duration> {
+        Ok(Duration::from_secs(
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)?
+                .as_secs()
+                - self.syndication_epoch,
+        ))
+    }
+
+    pub fn is_expired(&self) -> Result<bool> {
+        Ok(self.lifetime()? > MAX_SYNDICATION_CHECKPOINT_LIFETIME)
+    }
+}
+
+// Re-syndicate every 90 days
+const MAX_SYNDICATION_CHECKPOINT_LIFETIME: Duration = Duration::from_secs(60 * 60 * 24 * 90);
 
 /// Start a Tokio task that waits for [SyndicationJob] messages and then
 /// attempts to syndicate to the configured IPFS RPC. Currently only Kubo IPFS
@@ -105,7 +130,7 @@ where
 
     // Take a lock on the `SphereContext` and look up the most recent
     // syndication checkpoint for this Kubo node
-    let (sphere_revision, ancestor_revision, mut syndicated_blocks, db) = {
+    let (sphere_revision, mut syndication_checkpoint, db) = {
         let db = {
             let context = context.sphere_context().await?;
             context.db().clone()
@@ -115,35 +140,37 @@ where
         let sphere = context.to_sphere().await?;
         let content = sphere.get_content().await?;
 
-        let counterpart_revision = content.require(&counterpart_identity).await?.clone();
+        let counterpart_revision = *content.require(&counterpart_identity).await?;
 
-        let (last_syndicated_revision, syndicated_blocks) =
-            match context.read(&checkpoint_key).await? {
-                Some(mut file) => match file.memo.content_type() {
-                    Some(ContentType::Cbor) => {
-                        let mut bytes = Vec::new();
-                        file.contents.read_to_end(&mut bytes).await?;
-                        let SyndicationCheckpoint {
-                            revision,
-                            syndicated_blocks,
-                        } = block_deserialize::<DagCborCodec, _>(&bytes)?;
-                        (Some(revision), syndicated_blocks)
+        let syndication_checkpoint = match context.read(&checkpoint_key).await? {
+            Some(mut file) => match file.memo.content_type() {
+                Some(ContentType::Cbor) => {
+                    let mut bytes = Vec::new();
+                    file.contents.read_to_end(&mut bytes).await?;
+                    let current_checkpoint = match block_deserialize::<DagCborCodec, _>(&bytes) {
+                        Ok(checkpoint) => checkpoint,
+                        _ => SyndicationCheckpoint::new()?,
+                    };
+
+                    if current_checkpoint.is_expired()? {
+                        SyndicationCheckpoint::new()?
+                    } else {
+                        current_checkpoint
                     }
-                    _ => (None, BloomFilter::default()),
-                },
-                None => (None, BloomFilter::default()),
-            };
+                }
+                _ => SyndicationCheckpoint::new()?,
+            },
+            None => SyndicationCheckpoint::new()?,
+        };
 
-        (
-            counterpart_revision,
-            last_syndicated_revision,
-            syndicated_blocks,
-            db,
-        )
+        (counterpart_revision, syndication_checkpoint, db)
     };
 
     let timeline = Timeline::new(&db)
-        .slice(&sphere_revision, ancestor_revision.as_ref())
+        .slice(
+            &sphere_revision,
+            syndication_checkpoint.last_syndicated_version.as_ref(),
+        )
         .to_chronological()
         .await?;
 
@@ -151,68 +178,14 @@ where
     // of blocks that are unique to that revision to the backing IPFS
     // implementation
     for cid in timeline {
-        // TODO(#175): At each increment, if there are sub-graphs of a
-        // sphere that should *not* be syndicated (e.g., other spheres
-        // referenced by this sphere that are probably syndicated
-        // elsewhere), we should add them to the bloom filter at this spot.
+        let car_stream = to_car_stream(vec![cid.into()], memo_body_stream(db.clone(), &cid, true));
+        let car_reader = StreamReader::new(UnsharedStream::new(Box::pin(car_stream)));
 
-        let stream = db.query_links(&cid, {
-            let filter = Arc::new(syndicated_blocks.clone());
-
-            move |cid| {
-                let filter = filter.clone();
-                // let kubo_client = kubo_client.clone();
-                let cid = *cid;
-
-                async move {
-                    // The Bloom filter probabilistically tells us if we
-                    // have syndicated a block; it is probabilistic because
-                    // `contains` may give us false positives. But, all
-                    // negatives are guaranteed to not have been added. So,
-                    // we can rely on it as a short cut to find unsyndicated
-                    // blocks, and for positives we can verify the pin
-                    // status with the IPFS node.
-                    if !filter.contains(&cid.to_bytes()) {
-                        return Ok(true);
-                    }
-
-                    Ok(false)
-                }
+        match kubo_client.syndicate_blocks(car_reader).await {
+            Ok(_) => {
+                syndication_checkpoint.last_syndicated_version = Some(cid);
+                debug!("Syndicated sphere revision {} to IPFS", cid)
             }
-        });
-
-        // TODO(#2): It would be cool to make reading from storage and
-        // writing to an HTTP request body concurrent / streamed; this way
-        // we could send over CARs of arbitrary size (within the limits of
-        // whatever the IPFS receiving implementation can support).
-        let mut car = Vec::new();
-        let car_header = CarHeader::new_v1(vec![cid.clone().into()]);
-        let mut car_writer = CarWriter::new(car_header, &mut car);
-
-        tokio::pin!(stream);
-
-        loop {
-            match stream.try_next().await {
-                Ok(Some(cid)) => {
-                    trace!("Syndication will include block {}", cid);
-                    // TODO(#176): We need to build-up a list of blocks that aren't
-                    // able to be loaded so that we can be resilient to incomplete
-                    // data when syndicating to IPFS
-                    syndicated_blocks.insert(&cid.to_bytes());
-
-                    let block = db.require_block(&cid).await?;
-
-                    car_writer.write(cid, block).await?;
-                }
-                Err(error) => {
-                    warn!("Encountered error while streaming links: {:?}", error);
-                }
-                _ => break,
-            }
-        }
-
-        match kubo_client.syndicate_blocks(Cursor::new(car)).await {
-            Ok(_) => debug!("Syndicated sphere revision {} to IPFS", cid),
             Err(error) => warn!("Failed to syndicate revision {} to IPFS: {:?}", cid, error),
         };
     }
@@ -221,10 +194,7 @@ where
     // update the syndication checkpoint for this particular IPFS server
     {
         let mut cursor = SphereCursor::latest(context.clone());
-        let (_, bytes) = block_serialize::<DagCborCodec, _>(&SyndicationCheckpoint {
-            revision,
-            syndicated_blocks,
-        })?;
+        let (_, bytes) = block_serialize::<DagCborCodec, _>(&syndication_checkpoint)?;
 
         cursor
             .write(
@@ -238,4 +208,127 @@ where
         cursor.save(None).await?;
     }
     Ok(())
+}
+
+#[cfg(all(test, feature = "test-kubo"))]
+mod tests {
+    use std::time::Duration;
+
+    use anyhow::Result;
+    use noosphere_common::helpers::wait;
+    use noosphere_core::{
+        authority::Access,
+        context::{HasMutableSphereContext, HasSphereContext, SphereContentWrite, COUNTERPART},
+        data::ContentType,
+        helpers::simulated_sphere_context,
+        tracing::initialize_tracing,
+    };
+    use noosphere_ipfs::{IpfsClient, KuboClient};
+    use noosphere_storage::KeyValueStore;
+    use tokio::select;
+    use url::Url;
+
+    use crate::worker::{start_ipfs_syndication, SyndicationCheckpoint, SyndicationJob};
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn it_syndicates_a_sphere_revision_to_kubo() -> Result<()> {
+        initialize_tracing(None);
+
+        let (mut user_sphere_context, _) =
+            simulated_sphere_context(Access::ReadWrite, None).await?;
+
+        let (mut gateway_sphere_context, _) = simulated_sphere_context(
+            Access::ReadWrite,
+            Some(user_sphere_context.lock().await.db().clone()),
+        )
+        .await?;
+
+        let user_sphere_identity = user_sphere_context.identity().await?;
+
+        gateway_sphere_context
+            .lock()
+            .await
+            .db_mut()
+            .set_key(COUNTERPART, &user_sphere_identity)
+            .await?;
+
+        let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
+        let local_kubo_client = KuboClient::new(&ipfs_url.clone())?;
+
+        let (syndication_tx, _syndication_join_handle) = start_ipfs_syndication::<_, _>(ipfs_url);
+
+        user_sphere_context
+            .write("foo", &ContentType::Text, b"bar".as_ref(), None)
+            .await?;
+
+        user_sphere_context.save(None).await?;
+
+        user_sphere_context
+            .write("baz", &ContentType::Text, b"bar".as_ref(), None)
+            .await?;
+
+        let version = user_sphere_context.save(None).await?;
+
+        gateway_sphere_context
+            .link_raw(&user_sphere_identity, &version)
+            .await?;
+        gateway_sphere_context.save(None).await?;
+
+        debug!("Sending syndication job...");
+        syndication_tx.send(SyndicationJob {
+            revision: version.clone(),
+            context: gateway_sphere_context.clone(),
+        })?;
+
+        debug!("Giving syndication a moment to complete...");
+
+        wait(1).await;
+
+        debug!("Looking for blocks...");
+
+        for _ in 0..3 {
+            debug!("Sending request to Kubo...");
+
+            select! {
+                maybe_block = local_kubo_client.get_block(&version) => {
+                    if maybe_block?.is_some() {
+                        debug!("Found block!");
+                        return Ok(());
+                    }
+                }
+                _ = tokio::time::sleep(Duration::from_secs(1)) => ()
+            }
+
+            debug!("No block, retrying in one second...");
+
+            wait(1).await;
+        }
+
+        unreachable!("Syndicated block should be pinned")
+    }
+
+    #[tokio::test]
+    async fn it_advances_syndication_checkpoint_lifetime_with_clock_time() -> Result<()> {
+        let checkpoint = SyndicationCheckpoint::new()?;
+
+        let lifetime = checkpoint.lifetime()?;
+
+        assert!(lifetime.as_secs() < 1);
+
+        wait(1).await;
+
+        let lifetime = checkpoint.lifetime()?;
+
+        assert!(lifetime.as_secs() >= 1);
+        assert!(lifetime.as_secs() < 2);
+
+        wait(2).await;
+
+        let lifetime = checkpoint.lifetime()?;
+
+        assert!(lifetime.as_secs() >= 3);
+        assert!(lifetime.as_secs() < 4);
+
+        Ok(())
+    }
 }

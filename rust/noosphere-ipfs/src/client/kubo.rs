@@ -1,5 +1,7 @@
 #![cfg(not(target_arch = "wasm32"))]
 
+use std::time::Duration;
+
 use super::{IpfsClient, IpfsClientAsyncReadSendSync};
 use async_trait::async_trait;
 
@@ -15,6 +17,7 @@ use ipfs_api_prelude::response::PinLsResponse;
 use libipld_cbor::DagCborCodec;
 use libipld_core::raw::RawCodec;
 use serde_json::Value;
+use tokio::select;
 use url::Url;
 
 /// Maps a codec defined in a [Cid] to a string
@@ -27,6 +30,12 @@ fn get_codec(cid: &Cid) -> Result<String> {
         codec => Err(anyhow!("Codec not supported {}", codec)),
     }
 }
+
+// If Kubo's DAG import API receives a block with a reference to another block
+// that it cannot find locally or on the network, it hangs indefinitely with no
+// feedback
+// See: https://github.com/ipfs/kubo/issues/10159
+const KUBO_DAG_IMPORT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// A high-level HTTP client for accessing IPFS
 /// [Kubo RPC APIs](https://docs.ipfs.tech/reference/kubo/rpc/) and normalizing
@@ -115,11 +124,16 @@ impl IpfsClient for KuboClient {
         let request_builder = Request::builder().method("POST").uri(&api_url.to_string());
         let request = form.set_body_convert::<Body, MultipartBody>(request_builder)?;
 
-        let response = self.client.request(request).await?;
-
-        match response.status() {
-            StatusCode::OK => Ok(()),
-            other_status => Err(anyhow!("Unexpected status code: {}", other_status)),
+        select! {
+            response = self.client.request(request) => {
+                match response?.status() {
+                    StatusCode::OK => Ok(()),
+                    other_status => Err(anyhow!("Unexpected status code: {}", other_status)),
+                }
+            },
+            _ = tokio::time::sleep(KUBO_DAG_IMPORT_TIMEOUT) => {
+                Err(anyhow!("Timed out"))
+            }
         }
     }
 

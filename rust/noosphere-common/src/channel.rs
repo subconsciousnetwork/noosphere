@@ -198,10 +198,7 @@ mod tests {
         });
 
         let res = client.send(Request::Ping()).await?;
-        assert!(match res {
-            Ok(Response::Pong()) => true,
-            _ => false,
-        });
+        matches!(res, Ok(Response::Pong()));
 
         for n in 0..10 {
             client.send_oneshot(Request::SetFlag(n))?;

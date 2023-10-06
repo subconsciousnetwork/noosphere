@@ -10,7 +10,7 @@ use crate::workspace::Workspace;
 pub async fn history(workspace: &Workspace) -> Result<()> {
     let sphere_context = workspace.sphere_context().await?;
     let sphere = sphere_context.to_sphere().await?;
-    let latest_version = sphere.cid().clone();
+    let latest_version = *sphere.cid();
     let db = sphere.store().clone();
 
     let history_stream = sphere.into_history_stream(None);

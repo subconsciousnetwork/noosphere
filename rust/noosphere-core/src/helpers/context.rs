@@ -21,6 +21,10 @@ use crate::{
     stream::{walk_versioned_map_elements, walk_versioned_map_elements_and},
 };
 
+/// An alias for the [HasMutableSphereContext] type returned by [simulated_sphere_context]
+pub type SimulatedHasMutableSphereContext =
+    Arc<Mutex<SphereContext<TrackingStorage<MemoryStorage>>>>;
+
 /// Create a temporary, non-persisted [SphereContext] that tracks usage
 /// internally. This is intended for use in docs and tests, and should otherwise
 /// be ignored. When creating the simulated [SphereContext], you can pass an
@@ -29,10 +33,7 @@ use crate::{
 pub async fn simulated_sphere_context(
     profile: Access,
     db: Option<SphereDb<TrackingStorage<MemoryStorage>>>,
-) -> Result<(
-    Arc<Mutex<SphereContext<TrackingStorage<MemoryStorage>>>>,
-    Mnemonic,
-)> {
+) -> Result<(SimulatedHasMutableSphereContext, Mnemonic)> {
     let db = match db {
         Some(db) => db,
         None => {

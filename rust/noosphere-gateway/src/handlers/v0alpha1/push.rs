@@ -101,7 +101,7 @@ where
         // These steps are order-independent
         let _ = tokio::join!(
             self.notify_name_resolver(),
-            self.notify_ipfs_syndicator(next_version.clone())
+            self.notify_ipfs_syndicator(next_version)
         );
 
         Ok(PushResponse::Accepted {
@@ -131,7 +131,7 @@ where
         let db = gateway_sphere_context.db();
 
         let local_sphere_base_cid = db.get_version(sphere_identity).await?.map(|cid| cid.into());
-        let request_sphere_base_cid = self.request_body.local_base.clone();
+        let request_sphere_base_cid = self.request_body.local_base;
 
         match (local_sphere_base_cid, request_sphere_base_cid) {
             (Some(mine), theirs) => {
@@ -335,7 +335,7 @@ where
 
         if let Err(error) = self.name_system_tx.send(NameSystemJob::ResolveSince {
             context: self.sphere_context.clone(),
-            since: self.request_body.local_base.clone(),
+            since: self.request_body.local_base,
         }) {
             warn!("Failed to request name system resolutions: {}", error);
         };

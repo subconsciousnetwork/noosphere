@@ -17,6 +17,7 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = { version = "1" }
+async-recursion = { version = "1" }
 async-stream = { version = "0.3" }
 axum = { version = "^0.6.18" }
 bytes = { version = "^1" }
@@ -34,6 +35,8 @@ js-sys = { version = "^0.3" }
 libipld = { version = "0.16" }
 libipld-core = { version = "0.16" }
 libipld-cbor = { version = "0.16" }
+libipld-json = { version = "0.16" }
+multihash = { version = "0.18" }
 pathdiff = { version = "0.2.1" }
 rand = { version = "0.8" }
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls", "stream"] }

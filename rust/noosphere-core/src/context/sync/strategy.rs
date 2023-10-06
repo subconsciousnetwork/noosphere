@@ -191,9 +191,8 @@ where
                     .into();
                 return Ok((
                     local_sphere_tip,
-                    counterpart_sphere_base
-                        .ok_or_else(|| anyhow!("Counterpart sphere history is missing!"))?
-                        .clone(),
+                    *counterpart_sphere_base
+                        .ok_or_else(|| anyhow!("Counterpart sphere history is missing!"))?,
                     updated_names,
                 ));
             }
@@ -272,12 +271,12 @@ where
                 )
                 .await?;
 
-                new_base.clone()
+                new_base
             }
             // No new history at all
             (Some(current_tip), _, _) => {
                 info!("Nothing to sync!");
-                current_tip.clone()
+                *current_tip
             }
             // We should have local history but we don't!
             _ => {
@@ -409,8 +408,8 @@ where
             .push(&PushBody {
                 sphere: local_sphere_identity.clone(),
                 local_base: local_sphere_base,
-                local_tip: local_sphere_tip.clone(),
-                counterpart_tip: Some(counterpart_sphere_tip.clone()),
+                local_tip: *local_sphere_tip,
+                counterpart_tip: Some(*counterpart_sphere_tip),
                 name_record: Some(name_record),
             })
             .await?;
