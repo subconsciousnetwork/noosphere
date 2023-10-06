@@ -105,6 +105,27 @@
   * dependencies
     * noosphere-ns bumped from 0.9.3 to 0.9.4
 
+## [0.10.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.10.0...noosphere-gateway-v0.10.1) (2023-10-06)
+
+
+### Features
+
+* Improved IPFS Kubo syndication ([#666](https://github.com/subconsciousnetwork/noosphere/issues/666)) ([eeab932](https://github.com/subconsciousnetwork/noosphere/commit/eeab932763cd642702bc6ac85a6bbc10968a107d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.8.1 to 0.8.2
+    * noosphere-core bumped from 0.17.0 to 0.17.1
+    * noosphere-ns bumped from 0.11.1 to 0.11.2
+    * noosphere-storage bumped from 0.9.0 to 0.9.1
+    * noosphere-common bumped from 0.1.0 to 0.1.1
+  * dev-dependencies
+    * noosphere-common bumped from 0.1.0 to 0.1.1
+    * noosphere-core bumped from 0.17.0 to 0.17.1
+
 ## [0.10.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.9.0...noosphere-gateway-v0.10.0) (2023-10-04)
 
 
