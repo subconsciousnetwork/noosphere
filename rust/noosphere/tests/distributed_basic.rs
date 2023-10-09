@@ -12,13 +12,14 @@ extern crate noosphere_ns_dev as noosphere_ns;
 extern crate tracing;
 
 use anyhow::Result;
+use instant::Duration;
 use noosphere_cli::helpers::{start_name_system_server, SpherePair};
 use noosphere_common::helpers::wait;
 use noosphere_core::{
     context::{
         HasMutableSphereContext, HasSphereContext, SphereContentRead, SphereContentWrite,
-        SphereCursor, SpherePetnameRead, SpherePetnameWrite, SphereReplicaRead, SphereSync,
-        SphereWalker,
+        SphereCursor, SpherePetnameRead, SpherePetnameWrite, SphereReplicaRead, SphereReplicaWrite,
+        SphereSync, SphereWalker,
     },
     data::{ContentType, Did, Link, MemoIpld},
     stream::memo_history_stream,
@@ -746,6 +747,88 @@ async fn all_of_client_history_is_made_manifest_on_the_gateway_after_sync() -> R
     tokio::pin!(block_stream);
 
     while let Some(_) = block_stream.try_next().await? {}
+
+    ns_task.abort();
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn fall_back_to_local_content_when_kubo_times_out_on_block() -> Result<()> {
+    initialize_tracing(None);
+
+    let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
+    let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
+
+    let mut pair_1 = SpherePair::new("ONE", &ipfs_url, &ns_url).await?;
+    let mut pair_2 = SpherePair::new("TWO", &ipfs_url, &ns_url).await?;
+
+    let sphere_1_identity = pair_1.client.identity.clone();
+
+    pair_1.start_gateway().await?;
+    pair_2.start_gateway().await?;
+
+    let fallback_version = pair_1
+        .spawn(|mut ctx| async move {
+            ctx.write("foo", &ContentType::Text, b"bar".as_ref(), None)
+                .await?;
+            ctx.save(None).await?;
+            let fallback_version = ctx.sync().await?;
+            wait(1).await;
+
+            Ok(fallback_version)
+        })
+        .await?;
+
+    pair_2
+        .spawn(|mut ctx| async move {
+            ctx.set_petname("one", Some(sphere_1_identity)).await?;
+            ctx.save(None).await?;
+            ctx.sync().await?;
+            wait(1).await;
+            ctx.sync().await?;
+
+            // Traverse to peer at a known-to-be-available version to ensure it
+            // becomes locally cached
+            let cursor = SphereCursor::latest(ctx);
+            let _ = cursor.traverse_by_petnames(&[String::from("one")]).await?;
+
+            Ok(())
+        })
+        .await?;
+
+    let unavailable_link_record = pair_1
+        .spawn(|mut ctx| async move {
+            // Make some changes but don't sync to simulate unavailable blocks
+            ctx.write("baz", &ContentType::Text, b"foo".as_ref(), None)
+                .await?;
+            ctx.save(None).await?;
+
+            Ok(ctx
+                .create_link_record(Some(Duration::from_secs(120)))
+                .await?)
+        })
+        .await?;
+
+    pair_2
+        .spawn(move |mut ctx| async move {
+            ctx.set_petname_record("one", &unavailable_link_record)
+                .await?;
+
+            ctx.save(None).await?;
+
+            let cursor = SphereCursor::latest(ctx);
+
+            let peer = cursor
+                .traverse_by_petnames(&[String::from("one")])
+                .await?
+                .unwrap();
+
+            assert_eq!(peer.version().await?, fallback_version);
+
+            Ok(())
+        })
+        .await?;
 
     ns_task.abort();
 

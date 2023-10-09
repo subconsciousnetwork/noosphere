@@ -38,7 +38,7 @@ wasm-bindgen-test = { workspace = true }
 rand = { workspace = true }
 noosphere-core-dev = { path = "../noosphere-core", features = ["helpers"], package = "noosphere-core" }
 noosphere-common = { path = "../noosphere-common", features = ["helpers"] }
-instant = { version = "0.1.12", features = ["wasm-bindgen"] }
+instant = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tempfile = { workspace = true }

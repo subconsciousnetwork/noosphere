@@ -5,10 +5,12 @@
 extern crate tracing;
 
 pub mod channel;
+mod latency;
 mod sync;
 mod task;
 mod unshared;
 
+pub use latency::*;
 pub use sync::*;
 pub use task::*;
 pub use unshared::*;

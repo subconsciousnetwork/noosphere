@@ -11,6 +11,8 @@ use libipld_cbor::DagCborCodec;
 use libipld_core::raw::RawCodec;
 use multihash::MultihashDigest;
 
+use noosphere_core::stream::BlockLedger;
+
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::fs::File;
 
@@ -40,6 +42,9 @@ pub fn main() {}
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg_attr(not(target_arch = "wasm32"), tokio::main)]
 pub async fn main() -> Result<()> {
+    use libipld_core::ipld::Ipld;
+    use noosphere_storage::block_decode;
+
     let file = if let Some(arg) = env::args().nth(1) {
         println!("Opening {arg}...\n");
         File::open(arg).await?
@@ -50,7 +55,7 @@ pub async fn main() -> Result<()> {
 
     let mut reader = CarReader::new(file).await?;
 
-    let header = reader.header();
+    let header = reader.header().clone();
 
     println!("=== Header (CARv{}) ===\n", header.version());
 
@@ -62,22 +67,27 @@ pub async fn main() -> Result<()> {
 
     let mut index = 0usize;
 
+    let mut block_ledger = BlockLedger::default();
+
     while let Some((cid, block)) = reader.next_block().await? {
         println!("=== Block {} ===\n", index);
 
-        let verification_sign = if cid.codec() == u64::from(DagCborCodec) {
-            let hasher = cid::multihash::Code::try_from(cid.hash().code())?;
-            let multihash = hasher.digest(&block);
-            let new_cid = Cid::new_v1(cid.codec(), multihash);
+        block_ledger.record(&cid, &block)?;
 
-            if cid == new_cid {
-                "✔️"
+        let verification_sign =
+            if cid.codec() == u64::from(DagCborCodec) || cid.codec() == u64::from(RawCodec) {
+                let hasher = cid::multihash::Code::try_from(cid.hash().code())?;
+                let multihash = hasher.digest(&block);
+                let new_cid = Cid::new_v1(cid.codec(), multihash);
+
+                if cid == new_cid {
+                    "✔️"
+                } else {
+                    "🚫"
+                }
             } else {
-                "🚫"
-            }
-        } else {
-            "🤷"
-        };
+                "🤷"
+            };
 
         println!(
             "{} {} ({:?}, {}, {})\n",
@@ -96,7 +106,40 @@ pub async fn main() -> Result<()> {
                 .join(" ")
         );
 
+        if cid.codec() == u64::from(DagCborCodec) {
+            let ipld = block_decode::<DagCborCodec, Ipld>(&block)?;
+            println!("{:#?}\n", ipld);
+        }
+
         index += 1;
+    }
+
+    let missing_references = block_ledger
+        .missing_references()
+        .into_iter()
+        .map(|cid| cid.to_string())
+        .collect::<Vec<String>>();
+
+    let orphaned = block_ledger
+        .orphans()
+        .into_iter()
+        .filter_map(|cid| {
+            if header.roots().contains(cid) {
+                None
+            } else {
+                Some(cid.to_string())
+            }
+        })
+        .collect::<Vec<String>>();
+
+    if !missing_references.is_empty() {
+        println!("=== References to missing blocks ===\n");
+        println!("{}\n", missing_references.join("\n"));
+    }
+
+    if !orphaned.is_empty() {
+        println!("=== Orphaned blocks ===\n");
+        println!("{}\n", orphaned.join("\n"));
     }
 
     Ok(())

@@ -12,18 +12,12 @@ pub use kubo::KuboClient;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use cid::Cid;
+use noosphere_common::{ConditionalSend, ConditionalSync};
 use std::fmt::Debug;
 use tokio::io::AsyncRead;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub trait IpfsClientAsyncReadSendSync: AsyncRead + Send + Sync + 'static {}
-#[cfg(not(target_arch = "wasm32"))]
-impl<S> IpfsClientAsyncReadSendSync for S where S: AsyncRead + Send + Sync + 'static {}
-
-#[cfg(target_arch = "wasm32")]
-pub trait IpfsClientAsyncReadSendSync: AsyncRead {}
-#[cfg(target_arch = "wasm32")]
-impl<S> IpfsClientAsyncReadSendSync for S where S: AsyncRead {}
+pub trait IpfsClientAsyncReadSendSync: AsyncRead + ConditionalSync + 'static {}
+impl<S> IpfsClientAsyncReadSendSync for S where S: AsyncRead + ConditionalSync + 'static {}
 
 /// A generic interface for interacting with an IPFS-like backend where it may
 /// be desirable to syndicate sphere data to. Although the interface was
@@ -32,6 +26,11 @@ impl<S> IpfsClientAsyncReadSendSync for S where S: AsyncRead {}
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 pub trait IpfsClient: Clone + Debug {
+    async fn pin_blocks<'a, I>(&self, cids: I) -> Result<()>
+    where
+        I: IntoIterator<Item = &'a Cid> + ConditionalSend + Debug,
+        I::IntoIter: ConditionalSend;
+
     /// Returns true if the block (referenced by [Cid]) is pinned by the IPFS
     /// server
     async fn block_is_pinned(&self, cid: &Cid) -> Result<bool>;

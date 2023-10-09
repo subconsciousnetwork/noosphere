@@ -4,11 +4,14 @@ use crate::{
     data::{Link, MemoIpld},
     view::{Sphere, Timeline},
 };
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use noosphere_common::StreamLatencyGuard;
 use noosphere_storage::Storage;
+use tokio::select;
 
 use crate::context::{HasMutableSphereContext, HasSphereContext, SphereContext, SphereReplicaRead};
+use instant::Duration;
 use std::marker::PhantomData;
 
 /// A [SphereCursor] is a structure that enables reading from and writing to a
@@ -200,7 +203,17 @@ where
                     let stream = client
                         .replicate(&version, replicate_parameters.as_ref())
                         .await?;
-                    put_block_stream(db.clone(), stream).await?;
+
+                    tokio::pin!(stream);
+
+                    let (stream, mut rx) = StreamLatencyGuard::wrap(stream, Duration::from_secs(5));
+
+                    select! {
+                        _ = put_block_stream(db.clone(), stream) => (),
+                        _ = rx.recv() => {
+                            return Err(anyhow!("Block timed out"))
+                        }
+                    }
 
                     // If this was incremental replication, we have to hydrate...
                     if let Some(since) = since {
@@ -271,10 +284,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{sync::Arc, time::Duration};
 
     use anyhow::Result;
-    use noosphere_storage::UcanStore;
+    use noosphere_storage::{Store, UcanStore};
     use tokio::io::AsyncReadExt;
 
     #[cfg(target_arch = "wasm32")]
@@ -287,7 +300,7 @@ mod tests {
         authority::Access,
         context::{
             HasMutableSphereContext, HasSphereContext, SphereContentRead, SphereContentWrite,
-            SpherePetnameRead, SpherePetnameWrite, SphereReplicaRead,
+            SpherePetnameRead, SpherePetnameWrite, SphereReplicaRead, SphereReplicaWrite,
         },
         data::{ContentType, Header},
         helpers::{
@@ -648,6 +661,86 @@ mod tests {
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_falls_back_to_available_version_when_traversal_target_version_is_not_available(
+    ) -> Result<()> {
+        initialize_tracing(None);
+
+        let name_sequence: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+        let (mut origin_sphere_context, mut sphere_contexts) =
+            make_sphere_context_with_peer_chain(&name_sequence).await?;
+
+        let expected_last_sphere_context_version =
+            sphere_contexts.last().unwrap().version().await?;
+
+        let mut db = origin_sphere_context.sphere_context().await?.db().clone();
+        let mut next_link_record = None;
+        let mut next_peer_name: Option<&str> = None;
+        let mut last_context_latest_version = None;
+
+        for (context, name) in sphere_contexts.iter_mut().zip(name_sequence.iter()).rev() {
+            let current_version = context.version().await?;
+            context
+                .write("revision", &ContentType::Text, b"foo".as_ref(), None)
+                .await?;
+
+            if let Some(peer_name) = next_peer_name {
+                context
+                    .set_petname_record(peer_name, &next_link_record.unwrap())
+                    .await?;
+            }
+
+            let version = context.save(None).await?;
+            let link_record = context
+                .create_link_record(Some(Duration::from_secs(130)))
+                .await?;
+
+            if last_context_latest_version.is_none() {
+                last_context_latest_version = Some(version);
+            }
+
+            // Force the tip of history back to an old version in order to
+            // simulate the "needs to replicate" condition (noting that this
+            // pointer automatically advances for a local save).
+            db.set_version(&context.identity().await?, &current_version)
+                .await?;
+
+            next_peer_name = Some(name.as_str());
+            next_link_record = Some(link_record);
+        }
+
+        origin_sphere_context
+            .set_petname_record("a", &next_link_record.unwrap())
+            .await?;
+        origin_sphere_context.save(None).await?;
+
+        // Remove the memo for this version so that it cannot be found, forcing
+        // a replicaton attempt that will fail when we try to traverse to it
+        // later
+        origin_sphere_context
+            .sphere_context_mut()
+            .await?
+            .db_mut()
+            .to_block_store()
+            .remove(&last_context_latest_version.unwrap().to_bytes())
+            .await?;
+
+        let cursor = SphereCursor::latest(origin_sphere_context);
+
+        let target_sphere_context = cursor
+            .traverse_by_petnames(&name_sequence.into_iter().rev().collect::<Vec<String>>())
+            .await?
+            .unwrap();
+
+        assert_eq!(
+            target_sphere_context.version().await?,
+            expected_last_sphere_context_version
+        );
+
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn it_resolves_none_when_a_petname_is_missing_from_the_sequence() -> Result<()> {
         initialize_tracing(None);
 
@@ -678,13 +771,18 @@ mod tests {
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    async fn it_correctly_identifies_a_visited_perer() -> Result<()> {
+    async fn it_correctly_identifies_a_visited_peer() -> Result<()> {
         initialize_tracing(None);
 
         let name_sequence: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
 
-        let (origin_sphere_context, dids) =
+        let (origin_sphere_context, sphere_contexts) =
             make_sphere_context_with_peer_chain(&name_sequence).await?;
+
+        let mut dids = vec![origin_sphere_context.identity().await?];
+        for context in &sphere_contexts {
+            dids.push(context.identity().await?);
+        }
 
         let cursor = SphereCursor::latest(Arc::new(
             origin_sphere_context.sphere_context().await?.clone(),
@@ -701,7 +799,7 @@ mod tests {
             identities.push(target_sphere_context.identity().await?);
         }
 
-        assert_eq!(identities.into_iter().rev().collect::<Vec<_>>(), dids);
+        assert_eq!(identities, dids);
 
         Ok(())
     }

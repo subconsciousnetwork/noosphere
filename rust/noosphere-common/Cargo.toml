@@ -13,16 +13,19 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [features]
-helpers = ["rand"]
+helpers = ["rand", "gloo-timers"]
 
 [dependencies]
 anyhow = { workspace = true }
+gloo-timers = { workspace = true, optional = true }
 tracing = { workspace = true }
 rand = { workspace = true, optional = true }
 futures-util = { workspace = true }
+instant = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
+tokio-stream = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { workspace = true, features = ["full"] }
@@ -32,3 +35,6 @@ tokio = { workspace = true, features = ["sync", "macros"] }
 futures = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = { workspace = true }

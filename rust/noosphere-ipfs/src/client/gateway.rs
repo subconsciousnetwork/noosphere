@@ -2,6 +2,7 @@ use super::{IpfsClient, IpfsClientAsyncReadSendSync};
 use anyhow::Result;
 use async_trait::async_trait;
 use cid::Cid;
+use noosphere_common::ConditionalSend;
 use reqwest::Client;
 use reqwest::StatusCode;
 use std::str::FromStr;
@@ -56,6 +57,14 @@ impl GatewayClient {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl IpfsClient for GatewayClient {
+    async fn pin_blocks<'a, I>(&self, _cids: I) -> Result<()>
+    where
+        I: IntoIterator<Item = &'a Cid> + ConditionalSend + std::fmt::Debug,
+        I::IntoIter: ConditionalSend,
+    {
+        unimplemented!("IPFS HTTP Gateway does not have this capability.");
+    }
+
     async fn block_is_pinned(&self, _cid: &Cid) -> Result<bool> {
         unimplemented!("IPFS HTTP Gateway does not have this capability.");
     }

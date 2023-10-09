@@ -53,12 +53,12 @@ impl<T> std::fmt::Debug for Unshared<T> {
 pub struct UnsharedStream<T>(Unshared<T>)
 where
     T: Stream + Unpin,
-    T::Item: ConditionalSend + 'static;
+    for<'a> T::Item: ConditionalSend + 'a;
 
 impl<T> UnsharedStream<T>
 where
     T: Stream + Unpin,
-    T::Item: ConditionalSend + 'static,
+    for<'a> T::Item: ConditionalSend + 'a,
 {
     /// Initialize a new [UnsharedStream] wrapping a provided (presumably `!Sync`)
     /// [Stream]
@@ -70,7 +70,7 @@ where
 impl<T> Stream for UnsharedStream<T>
 where
     T: Stream + Unpin,
-    T::Item: ConditionalSend + 'static,
+    for<'a> T::Item: ConditionalSend + 'a,
 {
     type Item = T::Item;
 

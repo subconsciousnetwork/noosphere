@@ -3,11 +3,13 @@
 
 mod block;
 mod car;
+mod ledger;
 mod memo;
 mod walk;
 
 pub use block::*;
 pub use car::*;
+pub use ledger::*;
 pub use memo::*;
 pub use walk::*;
 
@@ -388,6 +390,7 @@ mod tests {
         );
 
         let store = sphere_context.lock().await.db().clone();
+
         let last_version = versions.pop().unwrap();
         let last_version_parent = versions.pop().unwrap();
 

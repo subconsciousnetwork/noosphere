@@ -80,9 +80,7 @@ where
 
     /// Record the tip of a local sphere lineage as a [Cid]
     pub async fn set_version(&mut self, identity: &str, version: &Cid) -> Result<()> {
-        self.version_store
-            .set_key(identity.to_string(), version)
-            .await
+        self.version_store.set_key(identity, version).await
     }
 
     /// Get the most recently recorded tip of a local sphere lineage

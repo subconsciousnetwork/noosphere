@@ -6,7 +6,7 @@ use std::pin::Pin;
 #[cfg(target_arch = "wasm32")]
 use instant::Duration;
 #[cfg(not(target_arch = "wasm32"))]
-use std::time::Duration;
+use instant::Duration;
 
 use anyhow::Result;
 use async_stream::try_stream;

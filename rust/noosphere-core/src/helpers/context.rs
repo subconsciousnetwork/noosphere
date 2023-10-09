@@ -1,17 +1,18 @@
 //! These helpers are intended for use in documentation examples and tests only.
 //! They are useful for quickly scaffolding common scenarios that would
 //! otherwise be verbosely rubber-stamped in a bunch of places.
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use crate::{
-    authority::{generate_capability, generate_ed25519_key, Access, Author, SphereAbility},
-    data::{ContentType, Did, LinkRecord, Mnemonic, LINK_RECORD_FACT_NAME},
+    authority::{generate_ed25519_key, Access, Author},
+    context::SphereReplicaWrite,
+    data::{ContentType, Mnemonic},
     view::Sphere,
 };
 use anyhow::Result;
 use noosphere_storage::{BlockStore, MemoryStorage, SphereDb, Storage, TrackingStorage, UcanStore};
 use tokio::{io::AsyncReadExt, sync::Mutex};
-use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
+use ucan::crypto::KeyMaterial;
 
 use crate::{
     context::{
@@ -126,12 +127,18 @@ where
 /// A type of [HasMutableSphereContext] that uses [TrackingStorage] internally
 pub type TrackedHasMutableSphereContext = Arc<Mutex<SphereContext<TrackingStorage<MemoryStorage>>>>;
 
-/// Create a series of spheres where each sphere has the next as resolved
-/// entry in its address book; return a [HasMutableSphereContext] for the
-/// first sphere in the sequence.
+/// Create a series of spheres where each sphere has the next as resolved entry
+/// in its address book; return a [HasMutableSphereContext] for the first sphere
+/// in the sequence. The returned [HasMutableSphereContext] will have a peer in
+/// its address book that refers to the first link in the caller-prescribed
+/// chain of peers, so if you suggest a chain of three peers (for example), a
+/// total of four sphere contexts will be scaffolded.
 pub async fn make_sphere_context_with_peer_chain(
     peer_chain: &[String],
-) -> Result<(TrackedHasMutableSphereContext, Vec<Did>)> {
+) -> Result<(
+    TrackedHasMutableSphereContext,
+    Vec<TrackedHasMutableSphereContext>,
+)> {
     let (origin_sphere_context, _) = simulated_sphere_context(Access::ReadWrite, None)
         .await
         .unwrap();
@@ -160,47 +167,14 @@ pub async fn make_sphere_context_with_peer_chain(
     }
 
     let mut next_sphere_context: Option<TrackedHasMutableSphereContext> = None;
-    let mut dids = Vec::new();
+    let mut sphere_contexts = Vec::new();
 
     for mut sphere_context in contexts.into_iter().rev() {
-        dids.push(sphere_context.identity().await?);
-        if let Some(next_sphere_context) = next_sphere_context {
-            let version = next_sphere_context.version().await.unwrap();
-
-            let next_author = next_sphere_context
-                .sphere_context()
-                .await
-                .unwrap()
-                .author()
-                .clone();
-            let next_identity = next_sphere_context.identity().await.unwrap();
-
-            let link_record = LinkRecord::from(
-                UcanBuilder::default()
-                    .issued_by(&next_author.key)
-                    .for_audience(&next_identity)
-                    .witnessed_by(
-                        &next_author
-                            .authorization
-                            .as_ref()
-                            .unwrap()
-                            .as_ucan(&db)
-                            .await
-                            .unwrap(),
-                        None,
-                    )
-                    .claiming_capability(&generate_capability(
-                        &next_identity,
-                        SphereAbility::Publish,
-                    ))
-                    .with_lifetime(120)
-                    .with_fact(LINK_RECORD_FACT_NAME, version.to_string())
-                    .build()
-                    .unwrap()
-                    .sign()
-                    .await
-                    .unwrap(),
-            );
+        if let Some(mut next_sphere_context) = next_sphere_context {
+            sphere_contexts.push(next_sphere_context.clone());
+            let link_record = next_sphere_context
+                .create_link_record(Some(Duration::from_secs(120)))
+                .await?;
 
             let mut name = String::new();
             let mut file = next_sphere_context.read("my-name").await.unwrap().unwrap();
@@ -208,7 +182,7 @@ pub async fn make_sphere_context_with_peer_chain(
 
             debug!("Adopting {name}");
             sphere_context
-                .set_petname(&name, Some(next_identity))
+                .set_petname(&name, Some(next_sphere_context.identity().await?))
                 .await?;
             sphere_context.save(None).await?;
 
@@ -216,15 +190,21 @@ pub async fn make_sphere_context_with_peer_chain(
                 .set_petname_record(&name, &link_record)
                 .await
                 .unwrap();
-            let identity = sphere_context.identity().await?;
 
-            db.set_version(&identity, &sphere_context.save(None).await.unwrap())
-                .await
-                .unwrap();
+            sphere_context.save(None).await?;
         }
+
+        db.set_version(
+            &sphere_context.identity().await?,
+            &sphere_context.version().await?.into(),
+        )
+        .await
+        .unwrap();
 
         next_sphere_context = Some(sphere_context);
     }
 
-    Ok((origin_sphere_context, dids))
+    sphere_contexts.reverse();
+
+    Ok((origin_sphere_context, sphere_contexts))
 }

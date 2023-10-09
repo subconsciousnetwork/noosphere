@@ -124,7 +124,7 @@ where
             }
         };
 
-        debug!("Petname assigned to {:?}", identity);
+        debug!("Petname is assigned to {:?}", identity);
 
         let link_record_version = match identity.link_record(&UcanStore(self.store().clone())).await
         {
@@ -147,12 +147,14 @@ where
         // Check for version in local sphere DB
         // If desired version available, check for memo and body blocks
 
+        warn!(did = ?identity.did, "Looking for local version");
+
         let local_version = self
             .store()
             .get_version(&identity.did)
             .await?
             .map(|cid| cid.into());
-        let (replication_required, local_version) =
+        let (replication_required, target_version) =
             if local_version.as_ref() == Some(&link_record_version) {
                 match self
                     .store()
@@ -192,13 +194,25 @@ where
 
         // If no version available or memo/body missing, attempt to replicate the needed blocks
 
-        if replication_required {
+        let target_version = if replication_required {
             debug!("Attempting to replicate from gateway...");
 
-            replicate(link_record_version, local_version).await?;
-        }
+            if let Err(error) = replicate(link_record_version, target_version).await {
+                if let Some(local_version) = local_version {
+                    warn!("Replication failed; falling back to {local_version}");
+                    local_version
+                } else {
+                    warn!(identity = ?identity.did, "Replication failed, and no fallback is available");
+                    return Err(error);
+                }
+            } else {
+                link_record_version
+            }
+        } else {
+            link_record_version
+        };
 
-        Ok(Some(Sphere::at(&link_record_version, self.store())))
+        Ok(Some(Sphere::at(&target_version, self.store())))
     }
 }
 
