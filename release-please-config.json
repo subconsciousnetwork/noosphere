@@ -6,7 +6,7 @@
   "release-type": "rust",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
-  "last-release-sha": "2033a56b3d2c61a0231807bbd46611bae944f1ea",
+  "last-release-sha": "43b325c2a1dbe92f15448c2c5a863f4121f770e8",
   "packages": {
     "rust/noosphere-common": {},
     "rust/noosphere-cli": {
