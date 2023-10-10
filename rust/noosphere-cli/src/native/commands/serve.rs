@@ -11,9 +11,9 @@ use url::Url;
 pub async fn serve(
     interface: IpAddr,
     port: u16,
-    ipfs_api: Url,
-    iroh_ticket: DocTicket,
     name_resolver_api: Url,
+    ipfs_api: Option<Url>,
+    iroh_ticket: Option<DocTicket>,
     cors_origin: Option<Url>,
     workspace: &mut Workspace,
 ) -> Result<()> {

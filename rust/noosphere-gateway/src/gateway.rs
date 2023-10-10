@@ -42,10 +42,10 @@ pub async fn start_gateway<C, S>(
     listener: TcpListener,
     gateway_scope: GatewayScope,
     sphere_context: C,
-    ipfs_api: Url,
-    iroh_ticket: DocTicket,
     sphere_path: impl AsRef<Path>,
     name_resolver_api: Url,
+    ipfs_api: Option<Url>,
+    iroh_ticket: Option<DocTicket>,
     cors_origin: Option<Url>,
 ) -> Result<()>
 where
@@ -81,7 +81,6 @@ where
 
     let (syndication_tx, syndication_task) =
         start_iroh_syndication::<C, S>(sphere_path, iroh_ticket);
-    let ipfs_client = KuboClient::new(&ipfs_api)?;
     let (name_system_tx, name_system_task) = start_name_system::<C, S>(
         NameSystemConfiguration {
             connection_type: NameSystemConnectionType::Remote(name_resolver_api),
@@ -119,7 +118,6 @@ where
         )
         .layer(Extension(sphere_context.clone()))
         .layer(Extension(gateway_scope.clone()))
-        .layer(Extension(ipfs_client))
         .layer(Extension(gateway_key_did))
         .layer(Extension(syndication_tx))
         .layer(Extension(name_system_tx))

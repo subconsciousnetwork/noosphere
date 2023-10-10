@@ -48,10 +48,15 @@ pub enum OrbCommand {
         cors_origin: Option<Url>,
 
         /// URL of a Kubo Gateway RPC API
-        #[clap(short = 'I', long, default_value = "http://127.0.0.1:5001")]
+        #[clap(short = 'K', long, default_value = "http://127.0.0.1:5001")]
         ipfs_api: Url,
 
-        #[clap(long)]
+        /// A ticket used to define how blocks should be syndicated when using
+        /// Iroh. Note that this will be ignored unless orb has been compiled
+        /// with Iroh support.
+        ///
+        /// See https://iroh.computer/docs/api/doc-join for more details.
+        #[clap(short = 'I', long)]
         iroh_ticket: DocTicket,
 
         /// URL for a Noosphere name system RPC API
