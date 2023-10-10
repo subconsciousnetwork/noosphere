@@ -2,13 +2,14 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{io::Cursor, sync::Arc};
 
 use anyhow::Result;
+use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_common::UnsharedStream;
 use noosphere_core::context::{
     metadata::COUNTERPART, HasMutableSphereContext, SphereContentRead, SphereContentWrite,
     SphereCursor,
 };
-use noosphere_core::stream::{memo_body_stream, to_car_stream};
+use noosphere_core::stream::{memo_body_stream, record_stream_orphans, to_car_stream};
 use noosphere_core::{
     data::{ContentType, Did, Link, MemoIpld},
     view::Timeline,
@@ -16,6 +17,7 @@ use noosphere_core::{
 use noosphere_ipfs::{IpfsClient, KuboClient};
 use noosphere_storage::{block_deserialize, block_serialize, KeyValueStore, Storage};
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 use tokio::{
     io::AsyncReadExt,
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
@@ -177,14 +179,38 @@ where
     // For all CIDs since the last historical checkpoint, syndicate a CAR
     // of blocks that are unique to that revision to the backing IPFS
     // implementation
+
     for cid in timeline {
-        let car_stream = to_car_stream(vec![cid.into()], memo_body_stream(db.clone(), &cid, true));
-        let car_reader = StreamReader::new(UnsharedStream::new(Box::pin(car_stream)));
+        let orphans = Arc::new(Mutex::new(Vec::new()));
+
+        let car_stream = to_car_stream(
+            vec![cid.into()],
+            record_stream_orphans(orphans.clone(), memo_body_stream(db.clone(), &cid, true)),
+        );
+        let unshared_stream = UnsharedStream::new(Box::pin(car_stream));
+        let car_reader = StreamReader::new(unshared_stream);
 
         match kubo_client.syndicate_blocks(car_reader).await {
             Ok(_) => {
-                syndication_checkpoint.last_syndicated_version = Some(cid);
-                debug!("Syndicated sphere revision {} to IPFS", cid)
+                let orphans = orphans.lock().await;
+
+                debug!(?orphans, "Imported blocks to IPFS; pinning orphans...",);
+
+                let root = Cid::from(cid);
+
+                match kubo_client
+                    .pin_blocks(orphans.iter().filter(|orphan| *orphan != &root))
+                    .await
+                {
+                    Ok(_) => {
+                        debug!("Syndicated sphere revision {} to IPFS", cid);
+                        syndication_checkpoint.last_syndicated_version = Some(cid);
+                    }
+                    Err(error) => warn!(
+                        "Failed to pin orphans for revision {} to IPFS: {:?}",
+                        cid, error
+                    ),
+                }
             }
             Err(error) => warn!("Failed to syndicate revision {} to IPFS: {:?}", cid, error),
         };
@@ -286,7 +312,7 @@ mod tests {
 
         debug!("Looking for blocks...");
 
-        for _ in 0..3 {
+        for _ in 0..30 {
             debug!("Sending request to Kubo...");
 
             select! {

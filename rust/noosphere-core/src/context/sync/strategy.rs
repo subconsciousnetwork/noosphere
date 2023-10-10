@@ -1,21 +1,20 @@
-use std::{collections::BTreeMap, marker::PhantomData};
+use std::{collections::BTreeMap, marker::PhantomData, time::Duration};
 
 use crate::{
     api::{
         v0alpha1::FetchParameters,
         v0alpha2::{PushBody, PushResponse},
     },
+    context::SphereReplicaWrite,
     stream::put_block_stream,
 };
 use crate::{
-    authority::{generate_capability, SphereAbility},
-    data::{Did, IdentityIpld, Jwt, Link, MemoIpld, LINK_RECORD_FACT_NAME},
+    data::{Did, IdentityIpld, Jwt, Link, MemoIpld},
     view::{Sphere, Timeline},
 };
 use anyhow::{anyhow, Result};
 use noosphere_storage::{KeyValueStore, SphereDb, Storage};
 use tokio_stream::StreamExt;
-use ucan::builder::UcanBuilder;
 
 use crate::context::{
     metadata::COUNTERPART, HasMutableSphereContext, SpherePetnameRead, SpherePetnameWrite,
@@ -358,6 +357,10 @@ where
         counterpart_sphere_identity: &Did,
         counterpart_sphere_tip: &Link<MemoIpld>,
     ) -> Result<(), SyncError> {
+        let link_record = Jwt(context
+            .create_link_record(Some(Duration::from_secs(120)))
+            .await?
+            .encode()?);
         let mut context = context.sphere_context_mut().await?;
 
         let local_sphere_base = Sphere::at(counterpart_sphere_tip, context.db())
@@ -378,26 +381,6 @@ where
         let client = context.client().await?;
 
         let local_sphere_identity = context.identity();
-        let authorization = context
-            .author()
-            .require_authorization()?
-            .as_ucan(context.db())
-            .await?;
-
-        let name_record = Jwt(UcanBuilder::default()
-            .issued_by(&context.author().key)
-            .for_audience(local_sphere_identity)
-            .witnessed_by(&authorization, None)
-            .claiming_capability(&generate_capability(
-                local_sphere_identity,
-                SphereAbility::Publish,
-            ))
-            .with_lifetime(120)
-            .with_fact(LINK_RECORD_FACT_NAME, local_sphere_tip.to_string())
-            .build()?
-            .sign()
-            .await?
-            .encode()?);
 
         info!(
             "Pushing new local history to gateway {}...",
@@ -410,7 +393,7 @@ where
                 local_base: local_sphere_base,
                 local_tip: *local_sphere_tip,
                 counterpart_tip: Some(*counterpart_sphere_tip),
-                name_record: Some(name_record),
+                name_record: Some(link_record),
             })
             .await?;
 
@@ -422,9 +405,6 @@ where
         };
 
         info!("Saving updated counterpart sphere history...");
-
-        // TODO: Do this inside the client `push` method
-        //new_blocks.load_into(context.db_mut()).await?;
 
         debug!(
             "Hydrating updated counterpart sphere history (from {} back to {})...",

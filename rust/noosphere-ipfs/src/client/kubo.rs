@@ -13,9 +13,10 @@ use hyper::{
 };
 use hyper_multipart_rfc7578::client::multipart::{Body as MultipartBody, Form};
 // TODO(#587): Remove dependency on `ipfs-api` crate
-use ipfs_api_prelude::response::PinLsResponse;
+use ipfs_api_prelude::response::{PinAddResponse, PinLsResponse};
 use libipld_cbor::DagCborCodec;
 use libipld_core::raw::RawCodec;
+use noosphere_common::ConditionalSend;
 use serde_json::Value;
 use tokio::select;
 use url::Url;
@@ -35,7 +36,7 @@ fn get_codec(cid: &Cid) -> Result<String> {
 // that it cannot find locally or on the network, it hangs indefinitely with no
 // feedback
 // See: https://github.com/ipfs/kubo/issues/10159
-const KUBO_DAG_IMPORT_TIMEOUT: Duration = Duration::from_secs(10);
+const KUBO_DAG_IMPORT_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// A high-level HTTP client for accessing IPFS
 /// [Kubo RPC APIs](https://docs.ipfs.tech/reference/kubo/rpc/) and normalizing
@@ -59,6 +60,37 @@ impl KuboClient {
 
 #[async_trait]
 impl IpfsClient for KuboClient {
+    #[instrument(skip(self), level = "trace")]
+    async fn pin_blocks<'a, I>(&self, cids: I) -> Result<()>
+    where
+        I: IntoIterator<Item = &'a Cid> + ConditionalSend + std::fmt::Debug,
+        I::IntoIter: ConditionalSend,
+    {
+        let mut api_url = self.api_url.clone();
+        api_url.set_path("/api/v0/pin/add");
+
+        for cid in cids {
+            let cid_base64 = cid.to_string();
+            api_url.set_query(Some(&format!("arg={cid_base64}")));
+
+            let request = Request::builder()
+                .method("POST")
+                .uri(&api_url.to_string())
+                .body(Body::empty())?;
+            let response = self.client.request(request).await?;
+
+            let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
+            match serde_json::from_slice(body_bytes.as_ref()) {
+                Ok(PinAddResponse { .. }) => (),
+                _ => {
+                    warn!("Unexpected response when pinning {}", cid);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     #[instrument(skip(self), level = "trace")]
     async fn block_is_pinned(&self, cid: &Cid) -> Result<bool> {
         let mut api_url = self.api_url.clone();

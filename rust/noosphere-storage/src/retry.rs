@@ -7,11 +7,11 @@ use tokio::select;
 use crate::BlockStore;
 
 const DEFAULT_MAX_RETRIES: u32 = 2u32;
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(2);
+const DEFAULT_TIMEOUT: Duration = Duration::from_millis(1500);
 const DEFAULT_MINIMUM_DELAY: Duration = Duration::from_secs(1);
 const DEFAULT_BACKOFF: Backoff = Backoff::Exponential {
     exponent: 2f32,
-    ceiling: Duration::from_secs(10),
+    ceiling: Duration::from_secs(6),
 };
 
 /// Backoff configuration used to define how [BlockStoreRetry] should time

@@ -42,12 +42,12 @@ where
 /// Takes a list of roots and a stream of blocks (pairs of [Cid] and
 /// corresponding [Vec<u8>]), and produces an async byte stream that yields a
 /// valid [CARv1](https://ipld.io/specs/transport/car/carv1/)
-pub fn to_car_stream<S>(
+pub fn to_car_stream<'a, S>(
     mut roots: Vec<Cid>,
     block_stream: S,
-) -> impl Stream<Item = Result<Bytes, IoError>> + ConditionalSend
+) -> impl Stream<Item = Result<Bytes, IoError>> + ConditionalSend + 'a
 where
-    S: Stream<Item = Result<(Cid, Vec<u8>)>> + ConditionalSend,
+    S: Stream<Item = Result<(Cid, Vec<u8>)>> + ConditionalSend + 'a,
 {
     if roots.is_empty() {
         roots = vec![Cid::default()]

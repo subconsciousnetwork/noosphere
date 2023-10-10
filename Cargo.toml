@@ -28,8 +28,9 @@ fastcdc = { version = "3.1" }
 futures = { version = "0.3" }
 futures-util = { version = "0.3" }
 gloo-net = { version = "0.4" }
-gloo-timers = { version = "0.2", features = ["futures"] }
+gloo-timers = { version = "0.3", features = ["futures"] }
 ignore = { version = "0.4.20" }
+instant = { version = "0.1", features = ["wasm-bindgen"] }
 iroh-car = { version = "^0.3.0" }
 js-sys = { version = "^0.3" }
 libipld = { version = "0.16" }
