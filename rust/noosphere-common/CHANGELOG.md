@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-common-v0.1.1...noosphere-common-v0.1.2) (2023-10-12)
+
+
+### Features
+
+* 3P replication fall-back and resilience ([#673](https://github.com/subconsciousnetwork/noosphere/issues/673)) ([08dcc3d](https://github.com/subconsciousnetwork/noosphere/commit/08dcc3d54768fdda6158b1087a32805a5c855e98))
+
 ## [0.1.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-common-v0.1.0...noosphere-common-v0.1.1) (2023-10-06)
 
 

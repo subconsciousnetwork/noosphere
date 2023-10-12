@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.9.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.9.1...noosphere-storage-v0.9.2) (2023-10-12)
+
+
+### Features
+
+* 3P replication fall-back and resilience ([#673](https://github.com/subconsciousnetwork/noosphere/issues/673)) ([08dcc3d](https://github.com/subconsciousnetwork/noosphere/commit/08dcc3d54768fdda6158b1087a32805a5c855e98))
+* Introduce `--storage-memory-cache-limit` ([#671](https://github.com/subconsciousnetwork/noosphere/issues/671)) ([9d44417](https://github.com/subconsciousnetwork/noosphere/commit/9d44417756b36a38518bdd28e34b4d3082956b36))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-common bumped from 0.1.1 to 0.1.2
+
 ## [0.9.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.9.0...noosphere-storage-v0.9.1) (2023-10-06)
 
 

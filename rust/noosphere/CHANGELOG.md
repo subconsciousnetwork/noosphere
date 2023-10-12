@@ -93,6 +93,27 @@
     * noosphere-core bumped from 0.17.0 to 0.17.1
     * noosphere-common bumped from 0.1.0 to 0.1.1
 
+## [0.15.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.15.2...noosphere-v0.15.3) (2023-10-12)
+
+
+### Features
+
+* 3P replication fall-back and resilience ([#673](https://github.com/subconsciousnetwork/noosphere/issues/673)) ([08dcc3d](https://github.com/subconsciousnetwork/noosphere/commit/08dcc3d54768fdda6158b1087a32805a5c855e98))
+* Introduce `--storage-memory-cache-limit` ([#671](https://github.com/subconsciousnetwork/noosphere/issues/671)) ([9d44417](https://github.com/subconsciousnetwork/noosphere/commit/9d44417756b36a38518bdd28e34b4d3082956b36))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.17.1 to 0.17.2
+    * noosphere-storage bumped from 0.9.1 to 0.9.2
+    * noosphere-ipfs bumped from 0.8.2 to 0.8.3
+    * noosphere-into bumped from 0.11.2 to 0.11.3
+  * dev-dependencies
+    * noosphere-core bumped from 0.17.1 to 0.17.2
+    * noosphere-common bumped from 0.1.1 to 0.1.2
+
 ## [0.15.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.14.2...noosphere-v0.15.0) (2023-09-19)
 
 

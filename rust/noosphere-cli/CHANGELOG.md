@@ -204,6 +204,25 @@
     * noosphere-ns bumped from 0.11.0 to 0.11.1
     * noosphere bumped from 0.15.0 to 0.15.1
 
+## [0.15.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.15.2...noosphere-cli-v0.15.3) (2023-10-12)
+
+
+### Features
+
+* Introduce `--storage-memory-cache-limit` ([#671](https://github.com/subconsciousnetwork/noosphere/issues/671)) ([9d44417](https://github.com/subconsciousnetwork/noosphere/commit/9d44417756b36a38518bdd28e34b4d3082956b36))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.8.2 to 0.8.3
+    * noosphere-core bumped from 0.17.1 to 0.17.2
+    * noosphere-storage bumped from 0.9.1 to 0.9.2
+    * noosphere-gateway bumped from 0.10.1 to 0.10.2
+    * noosphere-ns bumped from 0.11.2 to 0.11.3
+    * noosphere bumped from 0.15.2 to 0.15.3
+
 ## [0.15.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.15.1...noosphere-cli-v0.15.2) (2023-10-06)
 
 
