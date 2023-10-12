@@ -1,15 +1,11 @@
 //! Concrete implementations of subcommands related to running a Noosphere
 //! gateway server
 
-use anyhow::Result;
-
-use std::net::{IpAddr, TcpListener};
-
-use url::Url;
-
 use crate::native::workspace::Workspace;
-
+use anyhow::Result;
 use noosphere_gateway::{start_gateway, GatewayScope};
+use std::net::{IpAddr, TcpListener};
+use url::Url;
 
 /// Start a Noosphere gateway server
 pub async fn serve(
@@ -18,7 +14,7 @@ pub async fn serve(
     ipfs_api: Url,
     name_resolver_api: Url,
     cors_origin: Option<Url>,
-    workspace: &Workspace,
+    workspace: &mut Workspace,
 ) -> Result<()> {
     workspace.ensure_sphere_initialized()?;
 

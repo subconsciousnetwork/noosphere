@@ -5,7 +5,8 @@ use wasm_bindgen::prelude::*;
 
 use crate::{
     wasm::SphereContext, NoosphereContext as NoosphereContextImpl, NoosphereContextConfiguration,
-    NoosphereNetwork, NoosphereSecurity, NoosphereStorage,
+    NoosphereNetwork, NoosphereSecurity, NoosphereStorage, NoosphereStorageConfig,
+    NoosphereStoragePath,
 };
 
 #[wasm_bindgen]
@@ -79,8 +80,9 @@ impl NoosphereContext {
         };
 
         let noosphere_context = NoosphereContextImpl::new(NoosphereContextConfiguration {
-            storage: NoosphereStorage::Scoped {
-                path: storage_namespace.into(),
+            storage: NoosphereStorage {
+                path: NoosphereStoragePath::Scoped(storage_namespace.into()),
+                config: NoosphereStorageConfig::default(),
             },
             security: NoosphereSecurity::Opaque,
             network: NoosphereNetwork::Http {

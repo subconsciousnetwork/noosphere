@@ -23,6 +23,7 @@ pub async fn open_a_sphere(
         builder.scoped_storage_layout,
         sphere_identity,
         builder.ipfs_gateway_url,
+        builder.storage_config,
     )
     .await?;
 

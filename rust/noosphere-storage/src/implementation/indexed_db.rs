@@ -20,7 +20,9 @@ pub struct IndexedDbStorage {
 
 impl Debug for IndexedDbStorage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("IndexedDbStorage").finish()
+        f.debug_struct("IndexedDbStorage")
+            .field("path", &self.name)
+            .finish()
     }
 }
 

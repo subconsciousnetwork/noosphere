@@ -3,7 +3,8 @@ use std::{cell::OnceCell, time::Duration};
 use crate::{
     ffi::{NsError, TryOrInitialize},
     noosphere::{NoosphereContext, NoosphereContextConfiguration},
-    NoosphereNetwork, NoosphereSecurity, NoosphereStorage,
+    NoosphereNetwork, NoosphereSecurity, NoosphereStorage, NoosphereStorageConfig,
+    NoosphereStoragePath,
 };
 use anyhow::{anyhow, Result};
 use pkg_version::*;
@@ -43,8 +44,9 @@ impl NsNoosphere {
     ) -> Result<Self> {
         Ok(NsNoosphere {
             inner: NoosphereContext::new(NoosphereContextConfiguration {
-                storage: NoosphereStorage::Scoped {
-                    path: sphere_storage_path.into(),
+                storage: NoosphereStorage {
+                    path: NoosphereStoragePath::Scoped(sphere_storage_path.into()),
+                    config: NoosphereStorageConfig::default(),
                 },
                 security: NoosphereSecurity::Insecure {
                     path: global_storage_path.into(),

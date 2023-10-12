@@ -18,6 +18,7 @@ orb sphere config set counterpart $COUNTERPART
 
 ARGS="-i 0.0.0.0"
 ARGS="${ARGS} --ipfs-api ${IPFS_API}"
+ARGS="${ARGS} --storage-memory-cache-limit 50000000" # ~50MB storage memory cache limit
 
 if ! [ -z "$NS_API" ]; then
 	ARGS="${ARGS} --name-resolver-api ${NS_API}"

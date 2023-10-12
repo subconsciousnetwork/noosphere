@@ -1,15 +1,20 @@
 //! Intermediate constructs to normalize how storage is initialized
 
-use crate::platform::PrimitiveStorage;
+use crate::platform::PlatformStorage;
 use anyhow::Result;
 use noosphere_core::data::Did;
+use noosphere_storage::StorageConfig;
 use std::{
     fmt::Display,
     path::{Path, PathBuf},
 };
+use url::Url;
 
 #[cfg(doc)]
 use noosphere_storage::Storage;
+
+#[cfg(feature = "ipfs-storage")]
+use noosphere_ipfs::{GatewayClient, IpfsStorage};
 
 /// [StorageLayout] represents the namespace that should be used depending on
 /// whether or not a sphere's DID should be included in the namespace. The enum
@@ -46,31 +51,6 @@ impl From<StorageLayout> for PathBuf {
     }
 }
 
-#[cfg(native)]
-impl StorageLayout {
-    pub(crate) async fn to_storage(&self) -> Result<PrimitiveStorage> {
-        #[cfg(sled)]
-        {
-            noosphere_storage::SledStorage::new(noosphere_storage::SledStorageInit::Path(
-                PathBuf::from(self),
-            ))
-        }
-        #[cfg(rocksdb)]
-        {
-            noosphere_storage::RocksDbStorage::new(PathBuf::from(self))
-        }
-    }
-}
-
-#[cfg(wasm)]
-impl StorageLayout {
-    /// Convert this [StorageLayout] to a [noosphere_storage::Storage] based on the
-    /// defaults configured for the current platform.
-    pub async fn to_storage(&self) -> Result<PrimitiveStorage> {
-        noosphere_storage::IndexedDbStorage::new(&self.to_string()).await
-    }
-}
-
 fn get_scoped_path(path: &Path, scope: &Did) -> PathBuf {
     #[cfg(not(windows))]
     let path_buf = path.join(scope.as_str());
@@ -81,4 +61,37 @@ fn get_scoped_path(path: &Path, scope: &Did) -> PathBuf {
     let path_buf = path.join(scope.as_str().replace(":", "_"));
 
     path_buf
+}
+
+/// Construct [PlatformStorage] from a [StorageLayout] and [StorageConfig].
+///
+/// Takes a [Url] to an IPFS Gateway that is used when compiling with `ipfs-storage`.
+pub async fn create_platform_storage(
+    layout: StorageLayout,
+    #[allow(unused)] ipfs_gateway_url: Option<Url>,
+    #[allow(unused)] storage_config: Option<StorageConfig>,
+) -> Result<PlatformStorage> {
+    #[cfg(any(sled, rocksdb))]
+    let storage = {
+        use noosphere_storage::ConfigurableStorage;
+        let path: PathBuf = layout.into();
+        crate::platform::PrimitiveStorage::open_with_config(
+            &path,
+            storage_config.unwrap_or_default(),
+        )
+        .await?
+    };
+
+    #[cfg(wasm)]
+    let storage = noosphere_storage::IndexedDbStorage::new(&layout.to_string()).await?;
+
+    #[cfg(ipfs_storage)]
+    let storage = {
+        let maybe_client = ipfs_gateway_url.map(|url| GatewayClient::new(url));
+        IpfsStorage::new(storage, maybe_client)
+    };
+
+    debug!("Created platform storage: {:#?}", storage);
+
+    Ok(storage)
 }

@@ -61,6 +61,11 @@ pub enum OrbCommand {
         /// The port that the gateway should listen on
         #[clap(short, long, default_value = "4433")]
         port: u16,
+
+        /// If set, the amount of memory that the storage provider may use
+        /// for caching in bytes.
+        #[clap(long)]
+        storage_memory_cache_limit: Option<usize>,
     },
 }
 
