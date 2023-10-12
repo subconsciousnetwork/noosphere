@@ -168,7 +168,7 @@ impl CliSimulator {
 
         let context = CliContext {
             cwd: self.current_working_directory.clone(),
-            global_config_dir: Some(self.noosphere_directory.path()),
+            global_config_directory: Some(self.noosphere_directory.path()),
         };
         let future = invoke_cli(cli, &context);
         if capture_output {
