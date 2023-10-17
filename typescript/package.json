@@ -16,7 +16,7 @@
     "wireit": "^0.14.0",
     "typescript": "~5.2.2",
     "esbuild": "^0.19.4",
-    "@web/dev-server": "^0.3.2"
+    "@web/dev-server": "^0.3.3"
   },
   "wireit": {
     "build": {
