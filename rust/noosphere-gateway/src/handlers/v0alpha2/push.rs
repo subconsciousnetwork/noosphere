@@ -105,7 +105,7 @@ where
         self.incorporate_history(&push_body).await?;
         self.synchronize_names(&push_body).await?;
 
-        let (next_version, new_blocks) = self.update_gateway_sphere().await?;
+        let (next_version, new_blocks) = self.update_gateway_sphere(&push_body).await?;
 
         // These steps are order-independent
         let _ = tokio::join!(
@@ -320,19 +320,17 @@ where
     /// synchronize the pusher with the latest local history.
     async fn update_gateway_sphere(
         &mut self,
+        push_body: &PushBody,
     ) -> Result<(Link<MemoIpld>, impl Stream<Item = Result<(Cid, Vec<u8>)>>), PushError> {
         debug!("Updating the gateway's sphere...");
 
-        // NOTE CDATA: "Previous version" doesn't cover all cases; this needs to be a version given
-        // in the push body, or else we don't know how far back we actually have to go (e.g., the name
-        // system may have created a new version in the mean time.
-        let previous_version = self.sphere_context.version().await?;
+        let previous_version = push_body.counterpart_tip.as_ref();
         let next_version = SphereCursor::latest(self.sphere_context.clone())
             .save(None)
             .await?;
 
         let db = self.sphere_context.sphere_context().await?.db().clone();
-        let block_stream = memo_history_stream(db, &next_version, Some(&previous_version), false);
+        let block_stream = memo_history_stream(db, &next_version, previous_version, false);
 
         Ok((next_version, block_stream))
     }
