@@ -46,7 +46,7 @@ serde_json = { workspace = true }
 serde_urlencoded = { workspace = true }
 byteorder = "^1.5"
 base64 = "0.21"
-ed25519-zebra = "^3"
+ed25519-zebra = "^4"
 rand = { workspace = true }
 once_cell = "^1"
 tiny-bip39 = "^1"

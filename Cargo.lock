@@ -160,6 +160,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "allocator-api2"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
+
+[[package]]
 name = "anstream"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1419,6 +1425,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60f6d271ca33075c88028be6f04d502853d63a5ece419d269c15315d4fc1cf1d"
 dependencies = [
  "pkcs8 0.10.2",
+ "serde",
  "signature 2.1.0",
 ]
 
@@ -1448,6 +1455,22 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "sha2 0.9.9",
+ "zeroize",
+]
+
+[[package]]
+name = "ed25519-zebra"
+version = "4.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d9ce6874da5d4415896cd45ffbc4d1cfc0c4f9c079427bd870742c30f2f65a9"
+dependencies = [
+ "curve25519-dalek 4.1.0",
+ "ed25519",
+ "hashbrown 0.14.0",
+ "hex",
+ "rand_core 0.6.4",
+ "serde",
+ "sha2 0.10.7",
  "zeroize",
 ]
 
@@ -2015,6 +2038,10 @@ name = "hashbrown"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2c6201b9ff9fd90a5a3bac2e56a830d0caa509576f0e503818ee82c181b3437a"
+dependencies = [
+ "ahash 0.8.3",
+ "allocator-api2",
+]
 
 [[package]]
 name = "headers"
@@ -3527,7 +3554,7 @@ dependencies = [
  "bytes",
  "cid",
  "console_error_panic_hook",
- "ed25519-zebra",
+ "ed25519-zebra 4.0.3",
  "fastcdc",
  "futures",
  "futures-util",
@@ -5875,7 +5902,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bs58 0.5.0",
- "ed25519-zebra",
+ "ed25519-zebra 3.1.0",
  "js-sys",
  "log",
  "npm_rs",
