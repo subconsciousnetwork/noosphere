@@ -1,7 +1,4 @@
-// TODO(getditto/safer_ffi#181): Re-enable this lint
-#![allow(clippy::incorrect_clone_impl_on_copy_type, non_snake_case)]
-
-//! This module defins a C FFI for Noosphere, suitable for cross-language
+//! This module defines a C FFI for Noosphere, suitable for cross-language
 //! embedding on many different targets
 
 mod authority;
