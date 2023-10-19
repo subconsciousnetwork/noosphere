@@ -44,7 +44,7 @@ futures-util = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_urlencoded = { workspace = true }
-byteorder = "^1.4"
+byteorder = "^1.5"
 base64 = "0.21"
 ed25519-zebra = "^3"
 rand = { workspace = true }
