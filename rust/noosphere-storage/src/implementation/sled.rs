@@ -133,3 +133,63 @@ impl crate::Space for SledStorage {
         self.db.size_on_disk().map_err(|e| e.into())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{KeyValueStore, Store};
+    #[tokio::test]
+    async fn it_can_be_closed_and_reopened_raw() -> Result<()> {
+        let tempdir = tempfile::TempDir::new()?;
+        let storage_path = tempdir.path().to_owned();
+
+        let db = sled::open(&storage_path)?;
+        db.insert(b"foo", b"bar")?;
+        db.flush()?;
+        drop(db);
+
+        for _ in 0..50 {
+            let db = sled::open(&storage_path)?;
+            db.insert(b"foo", b"bar")?;
+            db.flush()?;
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn it_can_be_closed_and_reopened_multithread() -> Result<()> {
+        let tempdir = tempfile::TempDir::new()?;
+        let storage_path = tempdir.path().to_owned();
+
+        for _ in 0..20 {
+            let path = storage_path.clone();
+            tokio::task::spawn(async move {
+                let storage = SledStorage::new(&path)?;
+                let mut store = storage.get_key_value_store("links").await?;
+                store.set_key("foo-1", "123").await?;
+                Store::flush(&store).await?;
+                Result::<(), anyhow::Error>::Ok(())
+            })
+            .await??;
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn it_can_be_closed_and_reopened() -> Result<()> {
+        let tempdir = tempfile::TempDir::new()?;
+        let storage_path = tempdir.path().to_owned();
+
+        for _ in 0..20 {
+            let _storage = SledStorage::new(&storage_path)?;
+        }
+
+        for _ in 0..20 {
+            let storage = SledStorage::new(&storage_path)?;
+            let mut store = storage.get_key_value_store("links").await?;
+            store.set_key("foo-1", "123").await?;
+            Store::flush(&store).await?;
+        }
+        Ok(())
+    }
+}
