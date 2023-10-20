@@ -98,7 +98,7 @@ jobs:
       - name: 'Run Rust native target tests'
         run: NOOSPHERE_LOG=deafening cargo test --features test-kubo,headers
 
-  run-test-suite-linux-rocksdb:
+  run-test-suite-linux-sqlite:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -115,8 +115,8 @@ jobs:
         with:
           ipfs_version: v0.17.0
           run_daemon: true
-      - name: 'Run Rust native target tests (RocksDB)'
-        run: NOOSPHERE_LOG=defeaning cargo test -p noosphere -p noosphere-storage --features rocksdb,test-kubo
+      - name: 'Run Rust native target tests (Sqlite)'
+        run: NOOSPHERE_LOG=defeaning cargo test -p noosphere -p noosphere-storage --features sqlite,test-kubo
 
   run-test-suite-linux-c:
     runs-on: ubuntu-latest

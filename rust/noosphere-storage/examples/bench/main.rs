@@ -102,11 +102,7 @@ async fn create_sphere_with_large_files<S: Storage + 'static>(db: SphereDb<S>) -
 type ActiveStoragePrimitive = noosphere_storage::SledStorage;
 #[cfg(all(not(target_arch = "wasm32"), feature = "rocksdb"))]
 type ActiveStoragePrimitive = noosphere_storage::RocksDbStorage;
-#[cfg(all(
-    not(target_arch = "wasm32"),
-    feature = "sqlite",
-    not(feature = "rocksdb")
-))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "sqlite"))]
 type ActiveStoragePrimitive = noosphere_storage::SqliteStorage;
 #[cfg(target_arch = "wasm32")]
 type ActiveStoragePrimitive = noosphere_storage::IndexedDbStorage;
@@ -142,6 +138,14 @@ impl BenchmarkStorage {
             (
                 noosphere_storage::RocksDbStorage::new(&storage_path)?,
                 "RocksDbStorage",
+            )
+        };
+
+        #[cfg(all(not(target_arch = "wasm32"), feature = "sqlite"))]
+        let (storage, storage_name) = {
+            (
+                noosphere_storage::SqliteStorage::new(&storage_path)?,
+                "SqliteStorage",
             )
         };
 
