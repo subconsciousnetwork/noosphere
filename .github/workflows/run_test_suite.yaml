@@ -37,28 +37,6 @@ jobs:
           swift build --sanitize=address
           swift test --sanitize=address
 
-  run-test-suite-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
-      - name: 'Setup Rust'
-        run: |
-          curl -sSf https://sh.rustup.rs | sh -s -- -y
-      - name: 'Install environment packages'
-        run: |
-          choco install -y cmake protoc openssl
-        shell: sh
-      - name: 'Install IPFS Kubo'
-        uses: ibnesayeed/setup-ipfs@master
-        with:
-          ipfs_version: v0.17.0
-          run_daemon: true
-      - name: 'Run Rust native target tests'
-        run: cargo test --features test-kubo,helpers
-        env:
-          NOOSPHERE_LOG: deafening
-
   run-linting-linux:
     runs-on: ubuntu-latest
     steps:
@@ -78,6 +56,33 @@ jobs:
       - name: 'Run Linter'
         run: cargo clippy --all -- -D warnings
 
+  run-test-suite-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - name: 'Setup Rust'
+        run: |
+          curl -sSf https://sh.rustup.rs | sh -s -- -y
+      - name: 'Install environment packages'
+        run: |
+          choco install -y cmake protoc openssl
+        shell: sh
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.4.4
+      - name: Install binaries from cargo
+        run: |
+          cargo binstall cargo-nextest --no-confirm
+      - name: 'Install IPFS Kubo'
+        uses: ibnesayeed/setup-ipfs@master
+        with:
+          ipfs_version: v0.17.0
+          run_daemon: true
+      - name: 'Run Rust native target tests'
+        run: cargo nextest run --features test-kubo,headers --retries 5 --color always
+        env:
+          NOOSPHERE_LOG: academic
+
   run-test-suite-linux:
     runs-on: ubuntu-latest
     steps:
@@ -90,13 +95,20 @@ jobs:
         run: |
           sudo apt-get update -qqy
           sudo apt-get install jq protobuf-compiler cmake
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.4.4
+      - name: Install binaries from cargo
+        run: |
+          cargo binstall cargo-nextest --no-confirm
       - name: 'Install IPFS Kubo'
         uses: ibnesayeed/setup-ipfs@master
         with:
           ipfs_version: v0.17.0
           run_daemon: true
       - name: 'Run Rust native target tests'
-        run: NOOSPHERE_LOG=deafening cargo test --features test-kubo,headers
+        run: cargo nextest run --features test-kubo,headers --retries 5 --color always
+        env:
+          NOOSPHERE_LOG: academic
 
   run-test-suite-linux-rocksdb:
     runs-on: ubuntu-latest
@@ -110,13 +122,20 @@ jobs:
         run: |
           sudo apt-get update -qqy
           sudo apt-get install jq protobuf-compiler cmake libclang-dev
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.4.4
+      - name: Install binaries from cargo
+        run: |
+          cargo binstall cargo-nextest --no-confirm
       - name: 'Install IPFS Kubo'
         uses: ibnesayeed/setup-ipfs@master
         with:
           ipfs_version: v0.17.0
           run_daemon: true
       - name: 'Run Rust native target tests (RocksDB)'
-        run: NOOSPHERE_LOG=defeaning cargo test -p noosphere -p noosphere-storage --features rocksdb,test-kubo
+        run: cargo nextest run --features rocksdb,test-kubo,headers --retries 5 --color always
+        env:
+          NOOSPHERE_LOG: academic
 
   run-test-suite-linux-c:
     runs-on: ubuntu-latest

@@ -121,8 +121,16 @@ where
             })?;
 
             for await block in new_blocks {
-                yield block?;
+                match block {
+                    Ok(block) => yield block,
+                    Err(error) => {
+                        warn!("Failed stream final gateway blocks: {}", error);
+                        Err(error)?;
+                    }
+                }
             }
+
+            info!("Finished gateway push routine!");
         };
 
         Ok(to_car_stream(roots, block_stream))
@@ -216,7 +224,7 @@ where
 
             for step in history.into_iter().rev() {
                 let (cid, sphere) = step?;
-                debug!("Hydrating {}", cid);
+                trace!("Hydrating {}", cid);
                 sphere.hydrate().await?;
             }
 
@@ -337,6 +345,7 @@ where
 
     /// Notify the name system that new names may need to be resolved
     async fn notify_name_resolver(&self, push_body: &PushBody) -> Result<()> {
+        debug!("Notifying name system of new link record...");
         if let Some(name_record) = &push_body.name_record {
             if let Err(error) = self.name_system_tx.send(NameSystemJob::Publish {
                 context: self.sphere_context.clone(),
@@ -359,6 +368,7 @@ where
 
     /// Request that new history be syndicated to IPFS
     async fn notify_ipfs_syndicator(&self, next_version: Link<MemoIpld>) -> Result<()> {
+        debug!("Notifying syndication worker of new blocks...");
         // TODO(#156): This should not be happening on every push, but rather on
         // an explicit publish action. Move this to the publish handler when we
         // have added it to the gateway.
