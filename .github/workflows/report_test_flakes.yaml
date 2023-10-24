@@ -1,0 +1,125 @@
+on:
+  workflow_call:
+
+name: 'Workflow Analysis'
+
+jobs:
+  report-test-flakes:
+    name: 'Report test flakes'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v3
+      - name: Parse test results
+        id: parse-test-results
+        run: |
+          sudo apt-get install colorized-logs
+
+          echo -n 'results=[' >> $GITHUB_OUTPUT
+
+          ENTRIES=""
+
+          for RESULTS_DIR in test-results-*/ ; do
+            mapfile -t target <$RESULTS_DIR/target
+
+            PLATFORM="${target[0]}"
+            FEATURES="${target[1]}"
+            TOOLCHAIN="${target[2]}"
+
+            LOG_PATH="$RESULTS_DIR/log"
+            csplit -q "$LOG_PATH" %^------------%
+
+            SUMMARY=""
+
+            if [[ -f "./xx00" ]]; then
+              SUMMARY=$(tail ./xx00 -n+2 | ansi2txt | jq -M --compact-output --raw-input --slurp . | sed -e 's/\\/\\\\/g')
+            else
+              continue
+            fi
+
+            ENTRY="{\"platform\":\"$PLATFORM\",\"features\":\"$FEATURES\",\"toolchain\":\"$TOOLCHAIN\",\"summary\":$SUMMARY}"
+
+            if [ -z "$ENTRIES" ]; then
+              ENTRIES="$ENTRY"
+            else
+              ENTRIES="$ENTRIES,$ENTRY"
+            fi
+
+          done
+
+          echo -n "$ENTRIES ]" >> $GITHUB_OUTPUT
+      - name: Report test flakes
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const results = JSON.parse(`${{ steps.parse-test-results.outputs.results }}`);
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const testFlakeAnalysisHeader = 'Test flake analysis';
+            const existingComment = comments.find(comment => {
+              return comment.user.type === 'Bot' && comment.body.includes(testFlakeAnalysisHeader)
+            });
+
+            let body = '';
+
+            if (results.length == 0) {
+              body = "No test results to analyze. Maybe none of the test runs passed?";
+            } else {
+
+              let table = "\n\n| status | platform | features | toolchain |\n|---|---|---|---|\n";
+
+              const flakeSummaries = [];
+
+              for (result of results) {
+                const isFlakey = result.summary.indexOf("FLAKY") > 0;
+
+                table += `| ${ isFlakey ? "🟡" : "🟢" } | \`${ result.platform }\` | \`${ result.features }\` | \`${result.toolchain}\` |\n`;
+
+                if (isFlakey) {
+                  flakeSummaries.push(`#### Flake summary for \`${ result.platform }\`, \`${ result.features }\`, \`${ result.toolchain }\`
+
+            \`\`\`shell
+            ${ result.summary }
+            \`\`\``);
+                }
+              }
+
+              if (flakeSummaries.length == 0) {
+                body += '\nNo flakes detected 🎉\n\n'
+              }
+
+              body += table;
+
+              if (flakeSummaries.length > 0) {
+                body += "\n\n";
+                body += flakeSummaries.join('\n\n');
+              }
+            }
+
+            body = `### ${testFlakeAnalysisHeader}
+
+            ${body}`;
+
+            if (existingComment) {
+              github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body
+              });
+            } else {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body
+              });
+            }
