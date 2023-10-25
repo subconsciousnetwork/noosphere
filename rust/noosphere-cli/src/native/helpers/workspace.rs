@@ -14,11 +14,8 @@ use noosphere::{
     NoosphereContext, NoosphereContextConfiguration, NoosphereNetwork, NoosphereSecurity,
     NoosphereStorage, NoosphereStorageConfig, NoosphereStoragePath,
 };
-use noosphere_core::{
-    context::HasSphereContext,
-    data::{Did, Mnemonic},
-};
-use noosphere_gateway::{start_gateway, GatewayScope};
+use noosphere_core::data::{Did, Mnemonic};
+use noosphere_gateway::{Gateway, SingleTenantGatewayManager};
 use noosphere_ns::{helpers::NameSystemNetwork, server::start_name_system_api_server};
 use tokio::{sync::Mutex, task::JoinHandle};
 use url::Url;
@@ -56,25 +53,15 @@ async fn start_gateway_for_workspace(
     ))?;
 
     let gateway_sphere_context = workspace.sphere_context().await?;
-
-    let client_sphere_identity = client_sphere_identity.clone();
+    let client_sphere_identity = client_sphere_identity.to_owned();
     let ns_url = ns_url.clone();
     let ipfs_url = ipfs_url.clone();
+    let manager =
+        SingleTenantGatewayManager::new(gateway_sphere_context, client_sphere_identity).await?;
 
     let join_handle = tokio::spawn(async move {
-        start_gateway(
-            gateway_listener,
-            GatewayScope {
-                identity: gateway_sphere_context.identity().await.unwrap(),
-                counterpart: client_sphere_identity,
-            },
-            gateway_sphere_context,
-            ipfs_url,
-            ns_url,
-            None,
-        )
-        .await
-        .unwrap()
+        let gateway = Gateway::new(manager, ipfs_url, ns_url, None).unwrap();
+        gateway.start(gateway_listener).await.unwrap()
     });
 
     Ok((gateway_url, join_handle))
@@ -241,6 +228,7 @@ impl SpherePair {
         if self.gateway_task.is_some() {
             return Err(anyhow::anyhow!("Gateway already started."));
         }
+
         let (gateway_url, gateway_task) = start_gateway_for_workspace(
             &self.gateway.workspace,
             &self.client.identity,

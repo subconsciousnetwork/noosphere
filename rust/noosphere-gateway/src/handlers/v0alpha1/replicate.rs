@@ -21,7 +21,7 @@ use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_storage::{BlockStore, BlockStoreRetry, Storage};
 use tokio_stream::Stream;
 
-use crate::{authority::GatewayAuthority, GatewayScope};
+use crate::extractors::{GatewayAuthority, GatewayScope, SphereExtractor};
 
 pub type ReplicationCarStreamBody =
     StreamBody<Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send>>>;
@@ -38,32 +38,37 @@ pub type ReplicationCarStreamBody =
 /// version.
 ///
 /// If `include_content` is `true`, the `since` parameter will be ignored.
-#[instrument(level = "debug", skip(authority, scope, sphere_context,))]
+#[instrument(level = "debug", skip(authority, sphere_extractor, gateway_scope))]
 pub async fn replicate_route<C, S>(
-    authority: GatewayAuthority<S>,
+    authority: GatewayAuthority,
+    sphere_extractor: SphereExtractor<C, S>,
+    gateway_scope: GatewayScope<C, S>,
     // NOTE: Cannot go from string to CID via serde
     Path(link_or_did): Path<String>,
     Query(ReplicateParameters {
         since,
         include_content,
     }): Query<ReplicateParameters>,
-    Extension(scope): Extension<GatewayScope>,
     Extension(ipfs_client): Extension<KuboClient>,
-    Extension(sphere_context): Extension<C>,
 ) -> Result<ReplicationCarStreamBody, StatusCode>
 where
-    C: HasMutableSphereContext<S> + 'static,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
-    authority.try_authorize(&generate_capability(
-        &scope.counterpart,
-        SphereAbility::Fetch,
-    ))?;
+    let mut gateway_sphere = sphere_extractor.into_inner();
+    let counterpart = &gateway_scope.counterpart;
+    authority
+        .try_authorize(
+            &mut gateway_sphere,
+            counterpart,
+            &generate_capability(counterpart.as_str(), SphereAbility::Fetch),
+        )
+        .await?;
 
     debug!("Invoking replicate route...");
 
     let memo_version = if link_or_did.starts_with("did:") {
-        sphere_context
+        gateway_sphere
             .sphere_context()
             .await
             .map_err(|error| {
@@ -84,7 +89,7 @@ where
         })?
     };
 
-    let db = sphere_context
+    let db = gateway_sphere
         .sphere_context()
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?

@@ -3,7 +3,8 @@
 
 use crate::native::workspace::Workspace;
 use anyhow::Result;
-use noosphere_gateway::{start_gateway, GatewayScope};
+use noosphere_core::context::HasSphereContext;
+use noosphere_gateway::{Gateway, SingleTenantGatewayManager};
 use std::net::{IpAddr, TcpListener};
 use url::Url;
 
@@ -19,25 +20,30 @@ pub async fn serve(
     workspace.ensure_sphere_initialized()?;
 
     let listener = TcpListener::bind((interface, port))?;
-
     let counterpart = workspace.counterpart_identity().await?;
-
-    let identity = workspace.sphere_identity().await?;
-
-    let gateway_scope = GatewayScope {
-        identity,
-        counterpart,
-    };
-
     let sphere_context = workspace.sphere_context().await?;
+    let gateway_identity = sphere_context
+        .sphere_context()
+        .await?
+        .author()
+        .did()
+        .await?;
+    let manager = SingleTenantGatewayManager::new(sphere_context, counterpart.clone()).await?;
 
-    start_gateway(
-        listener,
-        gateway_scope,
-        sphere_context,
-        ipfs_api,
-        name_resolver_api,
-        cors_origin,
-    )
-    .await
+    let gateway = Gateway::new(manager, ipfs_api, name_resolver_api, cors_origin)?;
+
+    info!(
+        r#"A geist is summoned to manage local sphere {}
+
+    It has bound a gateway to {:?}
+    It awaits updates from sphere {}..."#,
+        gateway_identity,
+        listener
+            .local_addr()
+            .expect("Unexpected missing listener address"),
+        counterpart
+    );
+
+    gateway.start(listener).await?;
+    Ok(())
 }

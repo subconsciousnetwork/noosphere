@@ -1,9 +1,9 @@
-use std::{collections::BTreeSet, marker::PhantomData};
-
+use crate::{
+    extractors::{Cbor, GatewayAuthority, GatewayScope, SphereExtractor},
+    worker::{NameSystemJob, SyndicationJob},
+};
 use anyhow::Result;
-
 use axum::{http::StatusCode, Extension};
-
 use noosphere_core::api::v0alpha1::{PushBody, PushError, PushResponse};
 use noosphere_core::context::{HasMutableSphereContext, SphereContentWrite, SphereCursor};
 use noosphere_core::{
@@ -12,15 +12,9 @@ use noosphere_core::{
     view::Sphere,
 };
 use noosphere_storage::Storage;
+use std::collections::BTreeSet;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_stream::StreamExt;
-
-use crate::{
-    authority::GatewayAuthority,
-    extractor::Cbor,
-    worker::{NameSystemJob, SyndicationJob},
-    GatewayScope,
-};
 
 // #[debug_handler]
 #[deprecated(since = "0.8.1", note = "Please migrate to v0alpha2")]
@@ -28,17 +22,17 @@ use crate::{
     level = "debug",
     skip(
         authority,
+        sphere_extractor,
         gateway_scope,
-        sphere_context,
         syndication_tx,
         name_system_tx,
         request_body
     )
 )]
 pub async fn push_route<C, S>(
-    authority: GatewayAuthority<S>,
-    Extension(sphere_context): Extension<C>,
-    Extension(gateway_scope): Extension<GatewayScope>,
+    authority: GatewayAuthority,
+    sphere_extractor: SphereExtractor<C, S>,
+    gateway_scope: GatewayScope<C, S>,
     Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<C>>>,
     Extension(name_system_tx): Extension<UnboundedSender<NameSystemJob<C>>>,
     Cbor(request_body): Cbor<PushBody>,
@@ -50,23 +44,26 @@ where
     debug!("Invoking push route...");
 
     let sphere_identity = &request_body.sphere;
-
-    if sphere_identity != &gateway_scope.counterpart {
+    let counterpart = &gateway_scope.counterpart;
+    if sphere_identity != counterpart {
         return Err(StatusCode::FORBIDDEN);
     }
 
-    authority.try_authorize(&generate_capability(
-        &gateway_scope.counterpart,
-        SphereAbility::Push,
-    ))?;
+    let mut gateway_sphere = sphere_extractor.into_inner();
+    authority
+        .try_authorize(
+            &mut gateway_sphere,
+            counterpart,
+            &generate_capability(counterpart.as_str(), SphereAbility::Push),
+        )
+        .await?;
 
     let gateway_push_routine = GatewayPushRoutine {
-        sphere_context,
+        gateway_sphere,
         gateway_scope,
         syndication_tx,
         name_system_tx,
         request_body,
-        storage_type: PhantomData,
     };
 
     Ok(Cbor(gateway_push_routine.invoke().await?))
@@ -77,12 +74,11 @@ where
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
-    sphere_context: C,
-    gateway_scope: GatewayScope,
+    gateway_sphere: C,
+    gateway_scope: GatewayScope<C, S>,
     syndication_tx: UnboundedSender<SyndicationJob<C>>,
     name_system_tx: UnboundedSender<NameSystemJob<C>>,
     request_body: PushBody,
-    storage_type: PhantomData<S>,
 }
 
 impl<C, S> GatewayPushRoutine<C, S>
@@ -117,7 +113,8 @@ where
     async fn verify_history(&self) -> Result<(), PushError> {
         debug!("Verifying pushed sphere history...");
 
-        let gateway_sphere_tip = self.sphere_context.version().await?;
+        let gateway_sphere_context = self.gateway_sphere.sphere_context().await?;
+        let gateway_sphere_tip = gateway_sphere_context.version().await?;
         if Some(&gateway_sphere_tip) != self.request_body.counterpart_tip.as_ref() {
             warn!(
                 "Gateway sphere conflict; we have {gateway_sphere_tip}, they have {:?}",
@@ -127,7 +124,6 @@ where
         }
 
         let sphere_identity = &self.request_body.sphere;
-        let gateway_sphere_context = self.sphere_context.sphere_context().await?;
         let db = gateway_sphere_context.db();
 
         let local_sphere_base_cid = db.get_version(sphere_identity).await?.map(|cid| cid.into());
@@ -172,9 +168,10 @@ where
     /// revision in the history as we go. Then, update our local pointer to the
     /// tip of the pushed history.
     async fn incorporate_history(&mut self) -> Result<(), PushError> {
+        let counterpart = self.gateway_scope.counterpart.to_owned();
         {
             debug!("Merging pushed sphere history...");
-            let mut sphere_context = self.sphere_context.sphere_context_mut().await?;
+            let mut sphere_context = self.gateway_sphere.sphere_context_mut().await?;
 
             self.request_body
                 .blocks
@@ -199,22 +196,16 @@ where
                 sphere.hydrate().await?;
             }
 
-            debug!(
-                "Setting {} tip to {}...",
-                self.gateway_scope.counterpart, tip
-            );
+            debug!("Setting {} tip to {}...", counterpart, tip);
 
             sphere_context
                 .db_mut()
-                .set_version(&self.gateway_scope.counterpart, tip)
+                .set_version(&counterpart, tip)
                 .await?;
         }
 
-        self.sphere_context
-            .link_raw(
-                &self.gateway_scope.counterpart,
-                &self.request_body.local_tip,
-            )
+        self.gateway_sphere
+            .link_raw(&counterpart, &self.request_body.local_tip)
             .await?;
 
         Ok(())
@@ -223,7 +214,7 @@ where
     async fn synchronize_names(&mut self) -> Result<(), PushError> {
         debug!("Synchronizing name changes to local sphere...");
 
-        let my_sphere = self.sphere_context.to_sphere().await?;
+        let my_sphere = self.gateway_sphere.to_sphere().await?;
         let my_names = my_sphere.get_address_book().await?.get_identities().await?;
 
         let sphere = Sphere::at(&self.request_body.local_tip, my_sphere.store());
@@ -262,7 +253,7 @@ where
                         // on the client due to a previous sync
                         if my_value != Some(&value) {
                             debug!("Adding name '{}' ({})...", key, value.did);
-                            self.sphere_context
+                            self.gateway_sphere
                                 .sphere_context_mut()
                                 .await?
                                 .mutation_mut()
@@ -281,7 +272,7 @@ where
                         }
 
                         debug!("Removing name '{}'...", key);
-                        self.sphere_context
+                        self.gateway_sphere
                             .sphere_context_mut()
                             .await?
                             .mutation_mut()
@@ -306,13 +297,13 @@ where
         // NOTE CDATA: "Previous version" doesn't cover all cases; this needs to be a version given
         // in the push body, or else we don't know how far back we actually have to go (e.g., the name
         // system may have created a new version in the mean time.
-        let previous_version = self.sphere_context.version().await?;
-        let next_version = SphereCursor::latest(self.sphere_context.clone())
+        let previous_version = self.gateway_sphere.version().await?;
+        let next_version = SphereCursor::latest(self.gateway_sphere.clone())
             .save(None)
             .await?;
 
         let blocks = self
-            .sphere_context
+            .gateway_sphere
             .to_sphere()
             .await?
             .bundle_until_ancestor(Some(&previous_version))
@@ -325,7 +316,7 @@ where
     async fn notify_name_resolver(&self) -> Result<()> {
         if let Some(name_record) = &self.request_body.name_record {
             if let Err(error) = self.name_system_tx.send(NameSystemJob::Publish {
-                context: self.sphere_context.clone(),
+                context: self.gateway_sphere.clone(),
                 record: LinkRecord::try_from(name_record)?,
                 republish: false,
             }) {
@@ -334,7 +325,7 @@ where
         }
 
         if let Err(error) = self.name_system_tx.send(NameSystemJob::ResolveSince {
-            context: self.sphere_context.clone(),
+            context: self.gateway_sphere.clone(),
             since: self.request_body.local_base,
         }) {
             warn!("Failed to request name system resolutions: {}", error);
@@ -350,7 +341,7 @@ where
         // have added it to the gateway.
         if let Err(error) = self.syndication_tx.send(SyndicationJob {
             revision: next_version,
-            context: self.sphere_context.clone(),
+            context: self.gateway_sphere.clone(),
         }) {
             warn!("Failed to queue IPFS syndication job: {}", error);
         };

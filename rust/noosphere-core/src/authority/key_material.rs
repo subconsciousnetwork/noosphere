@@ -26,7 +26,7 @@ pub fn generate_ed25519_key() -> Ed25519KeyMaterial {
 pub fn restore_ed25519_key(mnemonic: &str) -> Result<Ed25519KeyMaterial> {
     let mnemonic = BipMnemonic::from_phrase(mnemonic, Language::English)?;
     let private_key = Ed25519PrivateKey::try_from(mnemonic.entropy())?;
-    let public_key = Ed25519PublicKey::try_from(&private_key)?;
+    let public_key = Ed25519PublicKey::from(&private_key);
 
     Ok(Ed25519KeyMaterial(public_key, Some(private_key)))
 }

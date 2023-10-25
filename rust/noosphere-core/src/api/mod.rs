@@ -5,9 +5,9 @@ mod client;
 mod data;
 mod route;
 
-pub use client::*;
-pub use data::*;
-pub use route::*;
-
+pub mod headers;
 pub mod v0alpha1;
 pub mod v0alpha2;
+
+pub use client::*;
+pub use data::*;

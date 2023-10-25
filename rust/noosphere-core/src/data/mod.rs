@@ -14,12 +14,12 @@ mod sphere;
 mod strings;
 mod versioned_map;
 
+pub use self::headers::*;
 pub use address::*;
 pub use authority::*;
 pub use body_chunk::*;
 pub use bundle::*;
 pub use changelog::*;
-pub use headers::*;
 pub use link::*;
 pub use memo::*;
 pub use sphere::*;

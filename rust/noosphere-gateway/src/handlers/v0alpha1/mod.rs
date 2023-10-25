@@ -1,3 +1,8 @@
+//! v0alpha1 stateless [axum] handlers.
+
+#[cfg(doc)]
+use axum;
+
 mod did;
 mod fetch;
 mod identify;
