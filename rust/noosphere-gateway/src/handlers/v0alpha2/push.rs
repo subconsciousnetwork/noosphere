@@ -105,7 +105,7 @@ where
         self.incorporate_history(&push_body).await?;
         self.synchronize_names(&push_body).await?;
 
-        let (next_version, new_blocks) = self.update_gateway_sphere().await?;
+        let (next_version, new_blocks) = self.update_gateway_sphere(&push_body).await?;
 
         // These steps are order-independent
         let _ = tokio::join!(
@@ -121,8 +121,16 @@ where
             })?;
 
             for await block in new_blocks {
-                yield block?;
+                match block {
+                    Ok(block) => yield block,
+                    Err(error) => {
+                        warn!("Failed stream final gateway blocks: {}", error);
+                        Err(error)?;
+                    }
+                }
             }
+
+            info!("Finished gateway push routine!");
         };
 
         Ok(to_car_stream(roots, block_stream))
@@ -216,7 +224,7 @@ where
 
             for step in history.into_iter().rev() {
                 let (cid, sphere) = step?;
-                debug!("Hydrating {}", cid);
+                trace!("Hydrating {}", cid);
                 sphere.hydrate().await?;
             }
 
@@ -320,25 +328,24 @@ where
     /// synchronize the pusher with the latest local history.
     async fn update_gateway_sphere(
         &mut self,
+        push_body: &PushBody,
     ) -> Result<(Link<MemoIpld>, impl Stream<Item = Result<(Cid, Vec<u8>)>>), PushError> {
         debug!("Updating the gateway's sphere...");
 
-        // NOTE CDATA: "Previous version" doesn't cover all cases; this needs to be a version given
-        // in the push body, or else we don't know how far back we actually have to go (e.g., the name
-        // system may have created a new version in the mean time.
-        let previous_version = self.sphere_context.version().await?;
+        let previous_version = push_body.counterpart_tip.as_ref();
         let next_version = SphereCursor::latest(self.sphere_context.clone())
             .save(None)
             .await?;
 
         let db = self.sphere_context.sphere_context().await?.db().clone();
-        let block_stream = memo_history_stream(db, &next_version, Some(&previous_version), false);
+        let block_stream = memo_history_stream(db, &next_version, previous_version, false);
 
         Ok((next_version, block_stream))
     }
 
     /// Notify the name system that new names may need to be resolved
     async fn notify_name_resolver(&self, push_body: &PushBody) -> Result<()> {
+        debug!("Notifying name system of new link record...");
         if let Some(name_record) = &push_body.name_record {
             if let Err(error) = self.name_system_tx.send(NameSystemJob::Publish {
                 context: self.sphere_context.clone(),
@@ -349,9 +356,8 @@ where
             }
         }
 
-        if let Err(error) = self.name_system_tx.send(NameSystemJob::ResolveSince {
+        if let Err(error) = self.name_system_tx.send(NameSystemJob::ResolveAll {
             context: self.sphere_context.clone(),
-            since: push_body.local_base,
         }) {
             warn!("Failed to request name system resolutions: {}", error);
         };
@@ -361,6 +367,7 @@ where
 
     /// Request that new history be syndicated to IPFS
     async fn notify_ipfs_syndicator(&self, next_version: Link<MemoIpld>) -> Result<()> {
+        debug!("Notifying syndication worker of new blocks...");
         // TODO(#156): This should not be happening on every push, but rather on
         // an explicit publish action. Move this to the publish handler when we
         // have added it to the gateway.

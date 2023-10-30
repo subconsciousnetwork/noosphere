@@ -7,11 +7,11 @@ use tokio::select;
 use crate::BlockStore;
 
 const DEFAULT_MAX_RETRIES: u32 = 2u32;
-const DEFAULT_TIMEOUT: Duration = Duration::from_millis(1500);
-const DEFAULT_MINIMUM_DELAY: Duration = Duration::from_secs(1);
-const DEFAULT_BACKOFF: Backoff = Backoff::Exponential {
-    exponent: 2f32,
-    ceiling: Duration::from_secs(6),
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(1);
+const DEFAULT_MINIMUM_DELAY: Duration = Duration::from_millis(100);
+const DEFAULT_BACKOFF: Backoff = Backoff::Linear {
+    increment: Duration::from_secs(1),
+    ceiling: Duration::from_secs(3),
 };
 
 /// Backoff configuration used to define how [BlockStoreRetry] should time
@@ -127,17 +127,28 @@ where
                     };
                 },
                 _ = tokio::time::sleep(next_timeout) => {
-                    warn!("Timed out trying to get {} after {} seconds...", cid, next_timeout.as_secs());
+                    warn!("Timed out trying to get {} after {} seconds...", cid, next_timeout.as_secs_f32());
                 }
             }
 
             let spent_window_time = Instant::now() - window_start;
-            let remaining_window_time = spent_window_time.max(self.minimum_delay);
+
+            // NOTE: Be careful here; `Duration` will overflow when dealing with
+            // negative values so these operations are effectively fallible.
+            // https://doc.rust-lang.org/std/time/struct.Duration.html#panics-7
+            let remaining_window_time = self.attempt_window
+                - spent_window_time
+                    .max(self.minimum_delay)
+                    .min(self.attempt_window);
 
             retry_count += 1;
 
             if let Some(backoff) = &self.backoff {
                 next_timeout = backoff.step(next_timeout);
+                trace!(
+                    "Next timeout will be {} seconds",
+                    next_timeout.as_secs_f32()
+                );
             }
 
             tokio::time::sleep(remaining_window_time).await;

@@ -37,28 +37,6 @@ jobs:
           swift build --sanitize=address
           swift test --sanitize=address
 
-  run-test-suite-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
-      - name: 'Setup Rust'
-        run: |
-          curl -sSf https://sh.rustup.rs | sh -s -- -y
-      - name: 'Install environment packages'
-        run: |
-          choco install -y cmake protoc openssl
-        shell: sh
-      - name: 'Install IPFS Kubo'
-        uses: ibnesayeed/setup-ipfs@master
-        with:
-          ipfs_version: v0.17.0
-          run_daemon: true
-      - name: 'Run Rust native target tests'
-        run: cargo test --features test-kubo,helpers
-        env:
-          NOOSPHERE_LOG: deafening
-
   run-linting-linux:
     runs-on: ubuntu-latest
     steps:
@@ -78,15 +56,31 @@ jobs:
       - name: 'Run Linter'
         run: cargo clippy --all -- -D warnings
 
-  run-test-suite-linux:
-    runs-on: ubuntu-latest
+  run-rust-test-suite:
+    name: 'Run Rust test suite'
+    strategy:
+      matrix:
+        features: ['test-kubo,headers', 'test-kubo,headers,rocksdb']
+        platform: ['ubuntu-latest', 'windows-latest', 'macos-13']
+        toolchain: ['stable']
+        exclude:
+          - platform: 'windows-latest'
+            features: 'test-kubo,headers,rocksdb'
+    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
       - name: 'Setup Rust'
         run: |
           curl -sSf https://sh.rustup.rs | sh -s -- -y
-      - name: 'Install environment packages'
+          rustup toolchain install ${{matrix.toolchain}}
+      - name: 'Install environment packages (Windows)'
+        if: ${{ matrix.platform == 'windows-latest' }}
+        run: |
+          choco install -y cmake protoc openssl
+        shell: sh
+      - name: 'Install environment packages (Linux)'
+        if: ${{ matrix.platform == 'ubuntu-latest' }}
         run: |
           sudo apt-get update -qqy
           sudo apt-get install jq protobuf-compiler cmake
@@ -95,28 +89,40 @@ jobs:
         with:
           ipfs_version: v0.17.0
           run_daemon: true
-      - name: 'Run Rust native target tests'
-        run: NOOSPHERE_LOG=deafening cargo test --features test-kubo,headers
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.4.4
+      - name: Install binaries from cargo
+        run: |
+          cargo +${{ matrix.toolchain }} binstall cargo-nextest --no-confirm --force
+      - name: 'Run Rust tests'
+        shell: bash
+        run: |
+          mkdir -p test-results
 
-  run-test-suite-linux-rocksdb:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
-      - name: 'Setup Rust'
-        run: |
-          curl -sSf https://sh.rustup.rs | sh -s -- -y
-      - name: 'Install environment packages'
-        run: |
-          sudo apt-get update -qqy
-          sudo apt-get install jq protobuf-compiler cmake libclang-dev
-      - name: 'Install IPFS Kubo'
-        uses: ibnesayeed/setup-ipfs@master
+          echo "${{ matrix.platform }}
+          ${{ matrix.features }}
+          ${{ matrix.toolchain}}" > test-results/target
+
+          FEATURES="";
+
+          if [ -n "${{matrix.features}}" ]; then
+            FEATURES="--features ${{matrix.features}}"
+          fi
+
+          cargo +${{ matrix.toolchain }} nextest run $FEATURES --retries 5 --color always 2>&1 | tee test-results/log
+        env:
+          NOOSPHERE_LOG: academic
+      - uses: actions/upload-artifact@v3
         with:
-          ipfs_version: v0.17.0
-          run_daemon: true
-      - name: 'Run Rust native target tests (RocksDB)'
-        run: NOOSPHERE_LOG=defeaning cargo test -p noosphere -p noosphere-storage --features rocksdb,test-kubo
+          name: test-results-${{ hashFiles('./test-results') }}
+          path: ./test-results
+
+  report-test-flakes:
+    name: 'Report test flakes (Linux)'
+    needs: ['run-rust-test-suite']
+    if: always()
+    uses: ./.github/workflows/report_test_flakes.yaml
+    secrets: inherit
 
   run-test-suite-linux-c:
     runs-on: ubuntu-latest

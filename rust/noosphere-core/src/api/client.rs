@@ -254,7 +254,10 @@ where
             .stream()
             .map(|block| match block {
                 Ok(block) => Ok(block),
-                Err(error) => Err(anyhow!(error)),
+                Err(error) => {
+                    warn!("Replication stream ended prematurely");
+                    Err(anyhow!(error))
+                }
             }),
         )
     }

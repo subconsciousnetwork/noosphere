@@ -132,7 +132,7 @@ impl BenchmarkStorage {
         ))]
         let (storage, storage_name) = {
             (
-                noosphere_storage::SledStorage::new(&storage_path)?,
+                noosphere_storage::SledStorage::new(storage_path)?,
                 "SledDbStorage",
             )
         };
