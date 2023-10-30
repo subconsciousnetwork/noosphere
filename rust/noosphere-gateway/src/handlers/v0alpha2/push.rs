@@ -356,9 +356,8 @@ where
             }
         }
 
-        if let Err(error) = self.name_system_tx.send(NameSystemJob::ResolveSince {
+        if let Err(error) = self.name_system_tx.send(NameSystemJob::ResolveAll {
             context: self.sphere_context.clone(),
-            since: push_body.local_base,
         }) {
             warn!("Failed to request name system resolutions: {}", error);
         };
