@@ -71,6 +71,7 @@ where
     }
 }
 
+#[instrument(skip(job))]
 async fn process_job<C, S>(job: CleanupJob<C>) -> Result<()>
 where
     C: HasMutableSphereContext<S>,

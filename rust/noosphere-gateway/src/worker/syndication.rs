@@ -160,6 +160,7 @@ where
     Ok(())
 }
 
+#[instrument(skip(job, kubo_client))]
 async fn process_job<C, S>(
     job: SyndicationJob<C>,
     kubo_client: Arc<KuboClient>,

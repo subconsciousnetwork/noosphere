@@ -212,6 +212,7 @@ where
     Ok(())
 }
 
+#[instrument(skip(job, with_client))]
 async fn process_job<C, S, I, O, F>(
     job: NameSystemJob<C>,
     with_client: &mut TryOrReset<I, O, F>,
