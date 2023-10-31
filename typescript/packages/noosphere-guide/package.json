@@ -13,7 +13,7 @@
   "license": "Apache-2.0 OR MIT",
   "devDependencies": {
     "@11ty/eleventy": "^2.0.1",
-    "markdown-it": "^13.0.1",
+    "markdown-it": "^13.0.2",
     "markdown-it-anchor": "^8.6.7",
     "slugify": "^1.6.6",
     "wireit": "^0.14.0"
