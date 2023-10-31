@@ -19,18 +19,57 @@ use ucan::{
     Ucan,
 };
 
-/// The query parameters expected for the "replicate" API route
+/// The query parameters expected for the "replicate" API route.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReplicateParameters {
     /// This is the last revision of the content that is being fetched that is
-    /// already fully available to the caller of the API
+    /// already fully available to the caller of the API.
     #[serde(default, deserialize_with = "empty_string_as_none")]
     pub since: Option<Link<MemoIpld>>,
+
+    /// If true, all content in the sphere's content space as of the associated
+    /// version will be replicated along with the sphere itself. If this field
+    /// is used without a specific `since`, then the replication request is
+    /// assumed to be for the whole of a single version of a sphere (and not its
+    /// history).
+    #[serde(default)]
+    pub include_content: bool,
 }
 
 impl AsQuery for ReplicateParameters {
     fn as_query(&self) -> Result<Option<String>> {
         Ok(self.since.as_ref().map(|since| format!("since={since}")))
+    }
+}
+
+/// Allowed types in the route fragment for selecting a replication target.
+#[derive(Clone)]
+pub enum ReplicationMode {
+    /// Replicate by [Cid]; the specific version will be replicated
+    Cid(Cid),
+    /// Replicate by [Did]; gives up authority to the gateway to decide what
+    /// version ought to be replicated
+    Did(Did),
+}
+
+impl From<Cid> for ReplicationMode {
+    fn from(value: Cid) -> Self {
+        ReplicationMode::Cid(value)
+    }
+}
+
+impl From<Did> for ReplicationMode {
+    fn from(value: Did) -> Self {
+        ReplicationMode::Did(value)
+    }
+}
+
+impl Display for ReplicationMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReplicationMode::Cid(cid) => Display::fmt(cid, f),
+            ReplicationMode::Did(did) => Display::fmt(did, f),
+        }
     }
 }
 

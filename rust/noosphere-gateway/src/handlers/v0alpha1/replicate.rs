@@ -27,17 +27,26 @@ pub type ReplicationCarStreamBody =
     StreamBody<Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send>>>;
 
 /// Invoke to get a streamed CARv1 response that represents all the blocks
-/// needed to manifest the content associated with the given CID path parameter.
-/// The CID should refer to the memo that wraps the content. The content-type
-/// header is used to determine how to gather the associated blocks to be
-/// streamed by to the requesting client. Invoker must have authorization to
-/// fetch from the gateway.
+/// needed to manifest the content associated with the given [Cid] path
+/// parameter. The [Cid] should refer to the memo that wraps the content. The
+/// content-type header is used to determine how to gather the associated blocks
+/// to be streamed by to the requesting client. Invoker must have authorization
+/// to fetch from the gateway.
+///
+/// If no `since` parameter is present on the request or `include_content` is
+/// `true`, then the request is assumed to be for the full sphere at a single
+/// version.
+///
+/// If `include_content` is `true`, the `since` parameter will be ignored.
 #[instrument(level = "debug", skip(authority, scope, sphere_context,))]
 pub async fn replicate_route<C, S>(
     authority: GatewayAuthority<S>,
     // NOTE: Cannot go from string to CID via serde
-    Path(memo_version): Path<String>,
-    Query(ReplicateParameters { since }): Query<ReplicateParameters>,
+    Path(link_or_did): Path<String>,
+    Query(ReplicateParameters {
+        since,
+        include_content,
+    }): Query<ReplicateParameters>,
     Extension(scope): Extension<GatewayScope>,
     Extension(ipfs_client): Extension<KuboClient>,
     Extension(sphere_context): Extension<C>,
@@ -46,17 +55,34 @@ where
     C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
 {
-    debug!("Invoking replicate route...");
-
-    let memo_version = Cid::try_from(memo_version).map_err(|error| {
-        warn!("{}", error);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
     authority.try_authorize(&generate_capability(
         &scope.counterpart,
         SphereAbility::Fetch,
     ))?;
+
+    debug!("Invoking replicate route...");
+
+    let memo_version = if link_or_did.starts_with("did:") {
+        sphere_context
+            .sphere_context()
+            .await
+            .map_err(|error| {
+                warn!("{}", error);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
+            .db()
+            .require_version(&link_or_did)
+            .await
+            .map_err(|error| {
+                warn!("{}", error);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
+    } else {
+        Cid::try_from(link_or_did).map_err(|error| {
+            warn!("{}", error);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+    };
 
     let db = sphere_context
         .sphere_context()
@@ -66,37 +92,39 @@ where
         .clone();
     let store = BlockStoreRetry::from(IpfsStore::new(db, Some(ipfs_client)));
 
-    if let Some(since) = since {
-        let since_memo = store
-            .load::<DagCborCodec, MemoIpld>(&since)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        let latest_memo = store
-            .load::<DagCborCodec, MemoIpld>(&memo_version)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if !include_content {
+        if let Some(since) = since {
+            let since_memo = store
+                .load::<DagCborCodec, MemoIpld>(&since)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let latest_memo = store
+                .load::<DagCborCodec, MemoIpld>(&memo_version)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        if since_memo.lamport_order() < latest_memo.lamport_order() {
-            // We should attempt to replicate incrementally
-            if is_allowed_to_replicate_incrementally(&since_memo, &latest_memo) {
-                // TODO(#408): To mitigate abuse, we should probably cap the spread
-                // between revisions to some finite value that is permissive of 99%
-                // of usage. Maybe somewhere in the ballpark of 1~10k revisions. It
-                // should be a large-but-finite number.
-                debug!("Streaming revisions from {} to {}", since, memo_version);
-                return Ok(StreamBody::new(Box::pin(to_car_stream(
-                    vec![memo_version],
-                    memo_history_stream(store, &memo_version.into(), Some(&since), false),
-                ))));
+            if since_memo.lamport_order() < latest_memo.lamport_order() {
+                // We should attempt to replicate incrementally
+                if is_allowed_to_replicate_incrementally(&since_memo, &latest_memo) {
+                    // TODO(#408): To mitigate abuse, we should probably cap the spread
+                    // between revisions to some finite value that is permissive of 99%
+                    // of usage. Maybe somewhere in the ballpark of 1~10k revisions. It
+                    // should be a large-but-finite number.
+                    debug!("Streaming revisions from {} to {}", since, memo_version);
+                    return Ok(StreamBody::new(Box::pin(to_car_stream(
+                        vec![memo_version],
+                        memo_history_stream(store, &memo_version.into(), Some(&since), false),
+                    ))));
+                } else {
+                    error!("Suggested version {since} is not a valid ancestor of {memo_version}");
+                    return Err(StatusCode::BAD_REQUEST);
+                }
             } else {
-                error!("Suggested version {since} is not a valid ancestor of {memo_version}");
-                return Err(StatusCode::BAD_REQUEST);
+                warn!(
+                    "Client's version {} is not older than {}; can't stream incrementally",
+                    since, memo_version
+                );
             }
-        } else {
-            warn!(
-                "Client's version {} is not older than {}; can't stream incrementally",
-                since, memo_version
-            );
         }
     }
 
@@ -105,7 +133,7 @@ where
     // Always fall back to a full replication
     Ok(StreamBody::new(Box::pin(to_car_stream(
         vec![memo_version],
-        memo_body_stream(store, &memo_version.into(), false),
+        memo_body_stream(store, &memo_version.into(), include_content),
     ))))
 }
 

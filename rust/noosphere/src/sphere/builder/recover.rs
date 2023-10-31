@@ -3,12 +3,14 @@ use std::sync::Arc;
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_core::{
+    api::v0alpha1::ReplicateParameters,
     authority::{generate_capability, generate_ed25519_key, Author, Authorization, SphereAbility},
     context::{
-        SphereAuthorityRead, SphereContext, SphereSync, SyncExtent, SyncRecovery, AUTHORIZATION,
-        GATEWAY_URL, IDENTITY, USER_KEY_NAME,
+        HasMutableSphereContext, SphereAuthorityRead, SphereContext, AUTHORIZATION, GATEWAY_URL,
+        IDENTITY, USER_KEY_NAME,
     },
     data::Did,
+    stream::put_block_stream,
 };
 use noosphere_storage::KeyValueStore;
 use tokio::sync::Mutex;
@@ -98,7 +100,7 @@ pub async fn recover_a_sphere(
     )
     .await?;
 
-    // 5. Attempt to sync (fetch-only) from the gateway
+    // 5. Attempt to replicate our sphere from the gateway
 
     db.set_key(IDENTITY, &sphere_identity).await?;
     db.set_key(GATEWAY_URL, builder.require_gateway_api()?)
@@ -112,9 +114,21 @@ pub async fn recover_a_sphere(
     let mut context = Arc::new(Mutex::new(
         SphereContext::new(sphere_identity.clone(), author, db.clone(), None).await?,
     ));
-    context
-        .sync_with_options(SyncExtent::FetchOnly, SyncRecovery::None)
+
+    let client = context.sphere_context_mut().await?.client().await?;
+
+    let (root, stream) = client
+        .replicate(
+            sphere_identity.clone(),
+            Some(&ReplicateParameters {
+                since: None,
+                include_content: true,
+            }),
+        )
         .await?;
+
+    put_block_stream(db.clone(), stream).await?;
+    db.set_version(&sphere_identity, &root).await?;
 
     // TODO: Should probably revoke the authorization of the one-time
     // key at the end for good measure.

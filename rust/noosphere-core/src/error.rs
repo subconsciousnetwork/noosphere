@@ -25,6 +25,10 @@ pub enum NoosphereError {
     #[allow(missing_docs)]
     #[error("The provided authorization {0} is invalid: {1}")]
     InvalidAuthorization(Authorization, String),
+
+    #[allow(missing_docs)]
+    #[error("The gateway gave an unexpected or malformed response. {0}")]
+    UnexpectedGatewayResponse(String),
 }
 
 impl From<anyhow::Error> for NoosphereError {
