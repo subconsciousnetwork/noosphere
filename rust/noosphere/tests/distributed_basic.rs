@@ -11,8 +11,9 @@ extern crate noosphere_ns_dev as noosphere_ns;
 #[macro_use]
 extern crate tracing;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use instant::Duration;
+use noosphere::sphere::SphereContextBuilder;
 use noosphere_cli::helpers::{start_name_system_server, SpherePair};
 use noosphere_common::helpers::wait;
 use noosphere_core::{
@@ -825,6 +826,131 @@ async fn fall_back_to_local_content_when_kubo_times_out_on_block() -> Result<()>
                 .unwrap();
 
             assert_eq!(peer.version().await?, fallback_version);
+
+            Ok(())
+        })
+        .await?;
+
+    ns_task.abort();
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn recover_a_sphere_and_sync_changes_with_the_noosphere() -> Result<()> {
+    initialize_tracing(None);
+
+    let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
+    let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
+
+    let mut sphere_pair_1 = SpherePair::new("one", &ipfs_url, &ns_url).await?;
+    let mut sphere_pair_2 = SpherePair::new("two", &ipfs_url, &ns_url).await?;
+
+    sphere_pair_1.start_gateway().await?;
+    sphere_pair_2.start_gateway().await?;
+
+    sphere_pair_2
+        .spawn(|mut ctx| async move {
+            ctx.write("foo", &ContentType::Text, b"bar".as_ref(), None)
+                .await?;
+            ctx.save(None).await?;
+            ctx.sync().await?;
+            Ok(())
+        })
+        .await?;
+
+    let sphere_pair_2_identity = sphere_pair_2.client.identity.clone();
+
+    sphere_pair_1
+        .spawn(move |mut ctx| async move {
+            for value in ["one", "two", "three"] {
+                ctx.write(value, &ContentType::Text, value.as_bytes(), None)
+                    .await?;
+                ctx.save(None).await?;
+            }
+
+            ctx.set_petname("two", Some(sphere_pair_2_identity)).await?;
+            ctx.save(None).await?;
+
+            ctx.sync().await?;
+            wait(1).await;
+            ctx.sync().await?;
+
+            Ok(())
+        })
+        .await?;
+
+    {
+        // NOTE: We initialize the builder before simulating corruption because
+        // we don't have a convenient way to get the critical inputs (e.g.,
+        // gateway URL) otherwise. In practice, these values should be recorded
+        // on the side by the embedder for use in recovery scenarios such as
+        // this.
+        let recovery_builder = SphereContextBuilder::default()
+            .recover_sphere(&sphere_pair_1.client.identity)
+            .at_storage_path(sphere_pair_1.client.sphere_root())
+            .reading_keys_from(sphere_pair_1.client.workspace.key_storage().clone())
+            .using_mnemonic(Some(&sphere_pair_1.client.mnemonic))
+            .using_key(&sphere_pair_1.client.key_name)
+            .syncing_to(Some(&sphere_pair_1.client.workspace.gateway_url().await?));
+
+        sphere_pair_1.client.workspace.release_sphere_context();
+
+        sphere_pair_1.client.simulate_storage_corruption().await?;
+
+        assert!(sphere_pair_1
+            .client
+            .workspace
+            .sphere_context()
+            .await
+            .is_err());
+
+        // Perform the recovery:
+        recovery_builder.build().await?;
+    }
+
+    sphere_pair_1
+        .spawn(move |ctx| async move {
+            for value in ["one", "two", "three"] {
+                let mut contents = String::new();
+                let mut file = ctx
+                    .read(value)
+                    .await?
+                    .ok_or_else(|| anyhow!("Could not read file"))?;
+                file.contents.read_to_string(&mut contents).await?;
+                assert_eq!(value, contents);
+            }
+            Ok(())
+        })
+        .await?;
+
+    let sphere_2_version = sphere_pair_2
+        .spawn(|mut ctx| async move {
+            ctx.write("foo", &ContentType::Text, b"baz".as_ref(), None)
+                .await?;
+            ctx.save(None).await?;
+            Ok(ctx.sync().await?)
+        })
+        .await?;
+
+    sphere_pair_1
+        .spawn(move |mut ctx| async move {
+            ctx.write("four", &ContentType::Text, b"four".as_ref(), None)
+                .await?;
+            ctx.save(None).await?;
+
+            ctx.sync().await?;
+            wait(1).await;
+            ctx.sync().await?;
+
+            let peer_ctx = SphereCursor::latest(ctx)
+                .traverse_by_petnames(&["two".into()])
+                .await?
+                .unwrap();
+
+            let peer_version = peer_ctx.version().await?;
+
+            assert_eq!(sphere_2_version, peer_version);
 
             Ok(())
         })

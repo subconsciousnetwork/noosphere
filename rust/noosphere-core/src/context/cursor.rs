@@ -195,13 +195,14 @@ where
                 async move {
                     let replicate_parameters = since.as_ref().map(|since| ReplicateParameters {
                         since: Some(*since),
+                        include_content: false,
                     });
                     let (db, client) = {
                         let sphere_context = cursor.sphere_context().await?;
                         (sphere_context.db().clone(), sphere_context.client().await?)
                     };
-                    let stream = client
-                        .replicate(&version, replicate_parameters.as_ref())
+                    let (_, stream) = client
+                        .replicate(*version, replicate_parameters.as_ref())
                         .await?;
 
                     tokio::pin!(stream);

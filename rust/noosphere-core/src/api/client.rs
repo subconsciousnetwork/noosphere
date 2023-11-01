@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use crate::{
     api::{route::RouteUrl, v0alpha1, v0alpha2},
+    error::NoosphereError,
     stream::{from_car_stream, memo_history_stream, put_block_stream, to_car_stream},
 };
 
@@ -32,6 +33,8 @@ use url::Url;
 
 #[cfg(doc)]
 use crate::data::Did;
+
+use super::v0alpha1::ReplicationMode;
 
 /// A [Client] is a simple, portable HTTP client for the Noosphere gateway REST
 /// API. It embodies the intended usage of the REST API, which includes an
@@ -204,23 +207,35 @@ where
     }
 
     /// Replicate content from Noosphere, streaming its blocks from the
-    /// configured gateway. If the gateway doesn't have the desired content, it
-    /// will look it up from other sources such as IPFS if they are available.
-    /// Note that this means this call can potentially block on upstream
-    /// access to an IPFS node (which, depending on the node's network
-    /// configuration and peering status, can be quite slow).
-    pub async fn replicate(
+    /// configured gateway.
+    ///
+    /// If [v0alpha1::ReplicateParameters] are specified, then the replication
+    /// will represent incremental history going back to the `since` version.
+    ///
+    /// Otherwise, the full [crate::data::SphereIpld] will be replicated
+    /// (excluding any history).
+    ///
+    /// If the gateway doesn't have the desired content, it will look it up from
+    /// other sources such as IPFS if they are available. Note that this means
+    /// this call can potentially block on upstream access to an IPFS node
+    /// (which, depending on the node's network configuration and peering
+    /// status, can be quite slow).
+    pub async fn replicate<R>(
         &self,
-        memo_version: &Cid,
+        mode: R,
         params: Option<&v0alpha1::ReplicateParameters>,
-    ) -> Result<impl Stream<Item = Result<(Cid, Vec<u8>)>>> {
+    ) -> Result<(Cid, impl Stream<Item = Result<(Cid, Vec<u8>)>>)>
+    where
+        R: Into<ReplicationMode>,
+    {
+        let mode: ReplicationMode = mode.into();
         let url = Url::try_from(RouteUrl(
             &self.api_base,
-            v0alpha1::Route::Replicate(Some(*memo_version)),
+            v0alpha1::Route::Replicate(Some(mode.clone())),
             params,
         ))?;
 
-        debug!("Client replicating {} from {}", memo_version, url);
+        debug!("Client replicating {} from {}", mode, url);
 
         let capability = generate_capability(&self.sphere_identity, SphereAbility::Fetch);
 
@@ -240,26 +255,33 @@ where
             .send()
             .await?;
 
-        Ok(
-            CarReader::new(StreamReader::new(response.bytes_stream().map(
-                |item| match item {
-                    Ok(item) => Ok(item),
-                    Err(error) => {
-                        error!("Failed to read CAR stream: {}", error);
-                        Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe))
-                    }
-                },
-            )))
-            .await?
-            .stream()
-            .map(|block| match block {
-                Ok(block) => Ok(block),
+        let reader = CarReader::new(StreamReader::new(response.bytes_stream().map(
+            |item| match item {
+                Ok(item) => Ok(item),
                 Err(error) => {
-                    warn!("Replication stream ended prematurely");
-                    Err(anyhow!(error))
+                    error!("Failed to read CAR stream: {}", error);
+                    Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe))
                 }
+            },
+        )))
+        .await?;
+
+        let root = reader.header().roots().first().cloned().ok_or_else(|| {
+            anyhow!(NoosphereError::UnexpectedGatewayResponse(
+                "Missing replication root".into()
+            ))
+        })?;
+
+        Ok((
+            root,
+            reader.stream().map(|block| match block {
+                Ok(block) => Ok(block),
+                Err(error) => Err(anyhow!(NoosphereError::UnexpectedGatewayResponse(format!(
+                    "Replication stream ended prematurely: {}",
+                    error
+                )))),
             }),
-        )
+        ))
     }
 
     /// Fetch the latest, canonical history of the client's sphere from the

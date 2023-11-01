@@ -1,6 +1,7 @@
 use crate::api::route::RouteSignature;
 use crate::route_display;
-use cid::Cid;
+
+use super::ReplicationMode;
 
 /// The version of the API represented by this module
 pub const API_VERSION: &str = "v0alpha1";
@@ -16,7 +17,7 @@ pub enum Route {
     /// Get a signed verification of the gateway's credentials
     Identify,
     /// Replicate content from the broader Noosphere network
-    Replicate(Option<Cid>),
+    Replicate(Option<ReplicationMode>),
 }
 
 route_display!(Route);
@@ -28,9 +29,9 @@ impl RouteSignature for Route {
             Route::Push => "push".into(),
             Route::Did => "did".into(),
             Route::Identify => "identify".into(),
-            Route::Replicate(cid) => match cid {
-                Some(cid) => format!("replicate/{cid}"),
-                None => "replicate/:memo".into(),
+            Route::Replicate(mode) => match mode {
+                Some(mode) => format!("replicate/{mode}"),
+                None => "replicate/:link_or_did".into(),
             },
         }
     }
