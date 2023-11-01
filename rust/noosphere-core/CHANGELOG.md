@@ -10,6 +10,26 @@
     * noosphere-storage bumped from 0.7.0 to 0.7.1
     * noosphere-collections bumped from 0.6.0 to 0.6.1
 
+## [0.17.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.17.2...noosphere-core-v0.17.3) (2023-11-01)
+
+
+### Features
+
+* Periodic syndication checks to IPFS Kubo ([#685](https://github.com/subconsciousnetwork/noosphere/issues/685)) ([b5640b2](https://github.com/subconsciousnetwork/noosphere/commit/b5640b2e23ad7bfc522a03d0b1731e372425afa8))
+
+
+### Bug Fixes
+
+* Recovery only uses latest version of sphere ([#703](https://github.com/subconsciousnetwork/noosphere/issues/703)) ([500bd69](https://github.com/subconsciousnetwork/noosphere/commit/500bd69509b21e7f8c13b178f1de05168b2386d3))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.9.2 to 0.9.3
+    * noosphere-collections bumped from 0.6.6 to 0.6.7
+
 ## [0.17.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.17.1...noosphere-core-v0.17.2) (2023-10-12)
 
 
