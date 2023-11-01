@@ -6,8 +6,8 @@ use noosphere_core::{
     api::v0alpha1::ReplicateParameters,
     authority::{generate_capability, generate_ed25519_key, Author, Authorization, SphereAbility},
     context::{
-        HasMutableSphereContext, SphereAuthorityRead, SphereContext, AUTHORIZATION, GATEWAY_URL,
-        IDENTITY, USER_KEY_NAME,
+        HasMutableSphereContext, HasSphereContext, SphereAuthorityRead, SphereContentRead,
+        SphereContext, SphereCursor, AUTHORIZATION, GATEWAY_URL, IDENTITY, USER_KEY_NAME,
     },
     data::Did,
     stream::put_block_stream,
@@ -23,7 +23,7 @@ use crate::{
 
 pub async fn recover_a_sphere(
     builder: SphereContextBuilder,
-    sphere_identity: Did,
+    user_sphere_identity: Did,
 ) -> Result<SphereContextBuilderArtifacts> {
     // 1. Check to make sure the local key is available
 
@@ -49,7 +49,7 @@ pub async fn recover_a_sphere(
         let storage_layout: StorageLayout = (
             storage_path.clone(),
             builder.scoped_storage_layout,
-            Some(sphere_identity.clone()),
+            Some(user_sphere_identity.clone()),
         )
             .try_into()?;
 
@@ -81,7 +81,10 @@ pub async fn recover_a_sphere(
         UcanBuilder::default()
             .issued_by(&root_key)
             .for_audience(&one_time_key_identity)
-            .claiming_capability(&generate_capability(&sphere_identity, SphereAbility::Fetch))
+            .claiming_capability(&generate_capability(
+                &user_sphere_identity,
+                SphereAbility::Fetch,
+            ))
             .with_lifetime(60 * 60)
             .with_nonce()
             .build()?
@@ -94,15 +97,16 @@ pub async fn recover_a_sphere(
     let mut db = generate_db(
         storage_path,
         builder.scoped_storage_layout,
-        Some(sphere_identity.clone()),
+        Some(user_sphere_identity.clone()),
         builder.ipfs_gateway_url.clone(),
         builder.storage_config.clone(),
     )
     .await?;
 
-    // 5. Attempt to replicate our sphere from the gateway
+    // 5. Replicate the gateway's sphere, including its content (which
+    // incidentally has a slug pointing to our sphere)
 
-    db.set_key(IDENTITY, &sphere_identity).await?;
+    db.set_key(IDENTITY, &user_sphere_identity).await?;
     db.set_key(GATEWAY_URL, builder.require_gateway_api()?)
         .await?;
 
@@ -112,23 +116,43 @@ pub async fn recover_a_sphere(
     };
 
     let mut context = Arc::new(Mutex::new(
-        SphereContext::new(sphere_identity.clone(), author, db.clone(), None).await?,
+        SphereContext::new(user_sphere_identity.clone(), author, db.clone(), None).await?,
     ));
 
     let client = context.sphere_context_mut().await?.client().await?;
 
-    let (root, stream) = client
+    let gateway_sphere_identity = client.session.sphere_identity.clone();
+    let (gateway_root, stream) = client
         .replicate(
-            sphere_identity.clone(),
+            gateway_sphere_identity.clone(),
             Some(&ReplicateParameters {
                 since: None,
                 include_content: true,
             }),
         )
         .await?;
-
     put_block_stream(db.clone(), stream).await?;
-    db.set_version(&sphere_identity, &root).await?;
+    db.set_version(&gateway_sphere_identity, &gateway_root)
+        .await?;
+
+    let gateway_sphere_context = SphereCursor::latest(Arc::new(
+        SphereContext::new(
+            gateway_sphere_identity.clone(),
+            context.sphere_context().await?.author().clone(),
+            db.clone(),
+            None,
+        )
+        .await?,
+    ));
+
+    let sphere_version = gateway_sphere_context
+        .read(&user_sphere_identity)
+        .await?
+        .ok_or_else(|| anyhow!("Gateway pointer to user sphere not found"))?
+        .memo_version;
+
+    db.set_version(&user_sphere_identity, &sphere_version)
+        .await?;
 
     // TODO: Should probably revoke the authorization of the one-time
     // key at the end for good measure.
@@ -153,7 +177,7 @@ pub async fn recover_a_sphere(
         authorization: Some(authorization),
     };
 
-    let context = SphereContext::new(sphere_identity, author, db, None).await?;
+    let context = SphereContext::new(user_sphere_identity, author, db, None).await?;
 
     Ok(SphereContextBuilderArtifacts::SphereOpened(context))
 }

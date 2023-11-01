@@ -38,7 +38,21 @@ pub struct ReplicateParameters {
 
 impl AsQuery for ReplicateParameters {
     fn as_query(&self) -> Result<Option<String>> {
-        Ok(self.since.as_ref().map(|since| format!("since={since}")))
+        let mut params = Vec::new();
+        if let Some(since) = self.since {
+            params.push(format!("since={since}"));
+        }
+        if self.include_content {
+            params.push(String::from("include_content=true"))
+        }
+
+        let query = if !params.is_empty() {
+            Some(params.join("&"))
+        } else {
+            None
+        };
+
+        Ok(query)
     }
 }
 
