@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.9.2...noosphere-storage-v0.9.3) (2023-11-01)
+
+
+### Features
+
+* Periodic syndication checks to IPFS Kubo ([#685](https://github.com/subconsciousnetwork/noosphere/issues/685)) ([b5640b2](https://github.com/subconsciousnetwork/noosphere/commit/b5640b2e23ad7bfc522a03d0b1731e372425afa8))
+
 ## [0.9.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.9.1...noosphere-storage-v0.9.2) (2023-10-12)
 
 

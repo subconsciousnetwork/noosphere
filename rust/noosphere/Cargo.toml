@@ -1,6 +1,6 @@
 [package]
 name = "noosphere"
-version = "0.15.3"
+version = "0.15.4"
 edition = "2021"
 description = "A high-level package for dealing with accessing the Noosphere"
 keywords = ["noosphere"]
@@ -42,9 +42,9 @@ libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
 bytes = "^1"
 
-noosphere-core = { version = "0.17.2", path = "../noosphere-core" }
-noosphere-storage = { version = "0.9.2", path = "../noosphere-storage" }
-noosphere-ipfs = { version = "0.8.3", path = "../noosphere-ipfs", optional = true }
+noosphere-core = { version = "0.17.3", path = "../noosphere-core" }
+noosphere-storage = { version = "0.9.3", path = "../noosphere-storage" }
+noosphere-ipfs = { version = "0.8.4", path = "../noosphere-ipfs", optional = true }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
 
@@ -53,7 +53,7 @@ libipld-core = { workspace = true }
 rand = { workspace = true }
 serde_json = { workspace = true }
 
-noosphere-core = { version = "0.17.2", path = "../noosphere-core", features = ["helpers"] }
+noosphere-core = { version = "0.17.3", path = "../noosphere-core", features = ["helpers"] }
 noosphere-common = { version = "0.1.2", path = "../noosphere-common", features = ["helpers"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -64,7 +64,7 @@ rexie = { version = "~0.5" }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 js-sys = { workspace = true }
-noosphere-into = { version = "0.11.3", path = "../noosphere-into" }
+noosphere-into = { version = "0.11.4", path = "../noosphere-into" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
 workspace = true
