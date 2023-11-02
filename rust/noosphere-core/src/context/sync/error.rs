@@ -5,6 +5,9 @@ use thiserror::Error;
 /// gateway
 #[derive(Error, Debug)]
 pub enum SyncError {
+    /// The error was due to not having write access to the sphere
+    #[error("Insufficient permission to sync")]
+    InsufficientPermission,
     /// The error was a conflict; this is possibly recoverable
     #[error("There was a conflict during sync")]
     Conflict,

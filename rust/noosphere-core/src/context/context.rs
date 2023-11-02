@@ -257,6 +257,7 @@ mod tests {
         authority::{generate_capability, generate_ed25519_key, Access, SphereAbility},
         context::{
             HasMutableSphereContext, HasSphereContext, SphereContentWrite, SpherePetnameWrite,
+            SphereSync, SyncError,
         },
         data::{ContentType, LinkRecord, LINK_RECORD_FACT_NAME},
         helpers::{make_valid_link_record, simulated_sphere_context},
@@ -268,7 +269,6 @@ mod tests {
     use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
-
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -436,6 +436,20 @@ mod tests {
             .set_petname_record("foo", records.get(1).unwrap())
             .await
             .is_err());
+        Ok(())
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    async fn it_requires_write_access_to_sync() -> Result<()> {
+        initialize_tracing(None);
+
+        let (mut sphere_context, _) = simulated_sphere_context(Access::ReadOnly, None).await?;
+
+        assert!(matches!(
+            sphere_context.sync().await,
+            Err(SyncError::InsufficientPermission)
+        ));
         Ok(())
     }
 }
