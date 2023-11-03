@@ -2899,11 +2899,54 @@ dependencies = [
  "futures",
  "genawaiter",
  "hex",
- "iroh-bytes",
- "iroh-gossip",
+ "iroh-bytes 0.6.0",
+ "iroh-gossip 0.6.0",
  "iroh-io",
- "iroh-net",
- "iroh-sync",
+ "iroh-net 0.6.0",
+ "iroh-sync 0.6.0",
+ "itertools",
+ "num_cpus",
+ "once_cell",
+ "parking_lot 0.12.1",
+ "portable-atomic",
+ "postcard",
+ "quic-rpc",
+ "quinn",
+ "rand",
+ "range-collections",
+ "reflink-copy",
+ "serde",
+ "strum 0.25.0",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "url",
+ "walkdir",
+]
+
+[[package]]
+name = "iroh"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16725bedbc5180b2d9d9c1629b6832545f6c8c22db5fbabf5996bb73b538cd22"
+dependencies = [
+ "anyhow",
+ "bao-tree",
+ "bytes",
+ "data-encoding",
+ "derive_more",
+ "flume",
+ "futures",
+ "genawaiter",
+ "hex",
+ "iroh-bytes 0.7.0",
+ "iroh-gossip 0.7.0",
+ "iroh-io",
+ "iroh-net 0.7.0",
+ "iroh-sync 0.7.0",
  "itertools",
  "num_cpus",
  "once_cell",
@@ -2976,6 +3019,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "iroh-bytes"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97e363fbc76f92e3489fd4afc74db23067f12ec409fe669bde651431a491751d"
+dependencies = [
+ "anyhow",
+ "bao-tree",
+ "bytes",
+ "chrono",
+ "data-encoding",
+ "derive_more",
+ "flume",
+ "futures",
+ "genawaiter",
+ "hex",
+ "iroh-io",
+ "multibase",
+ "num_cpus",
+ "once_cell",
+ "postcard",
+ "quinn",
+ "rand",
+ "range-collections",
+ "self_cell",
+ "serde",
+ "serde-error",
+ "smallvec",
+ "subtle",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-futures",
+]
+
+[[package]]
 name = "iroh-car"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3004,8 +3083,36 @@ dependencies = [
  "genawaiter",
  "indexmap 2.0.2",
  "iroh-blake3",
- "iroh-metrics",
- "iroh-net",
+ "iroh-metrics 0.6.0",
+ "iroh-net 0.6.0",
+ "once_cell",
+ "postcard",
+ "quinn",
+ "rand",
+ "rand_core 0.6.4",
+ "serde",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
+name = "iroh-gossip"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3da7f26bdb6e8a62120b8e9b56d385409daf9205ceb5929bd606c035455a4f4d"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "data-encoding",
+ "derive_more",
+ "ed25519-dalek",
+ "futures",
+ "genawaiter",
+ "indexmap 2.0.2",
+ "iroh-blake3",
+ "iroh-metrics 0.7.0",
+ "iroh-net 0.7.0",
  "once_cell",
  "postcard",
  "quinn",
@@ -3045,6 +3152,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "iroh-metrics"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a66be2e9075727691cccda8c267ba9f770067d8727bb006f3bcec0de15d9c865"
+dependencies = [
+ "erased_set",
+ "hyper",
+ "once_cell",
+ "paste",
+ "prometheus-client 0.21.2",
+ "struct_iterable",
+ "tracing",
+]
+
+[[package]]
 name = "iroh-net"
 version = "0.6.0"
 source = "git+https://github.com/n0-computer/iroh?branch=sync-propagation#239c6993339df3ecdead32eaf455a5e17a88c230"
@@ -3069,7 +3191,79 @@ dependencies = [
  "http",
  "hyper",
  "igd",
- "iroh-metrics",
+ "iroh-metrics 0.6.0",
+ "libc",
+ "netlink-packet-core 0.7.0",
+ "netlink-packet-route 0.17.1",
+ "netlink-sys",
+ "num_enum",
+ "once_cell",
+ "os_info",
+ "postcard",
+ "quinn",
+ "quinn-proto 0.10.5",
+ "quinn-udp",
+ "rand",
+ "rand_core 0.6.4",
+ "rcgen 0.11.3",
+ "reqwest",
+ "ring 0.16.20",
+ "rtnetlink 0.13.1",
+ "rustls 0.21.7",
+ "rustls-webpki",
+ "serde",
+ "serdect",
+ "socket2 0.5.4",
+ "ssh-key",
+ "stun-rs",
+ "surge-ping",
+ "tempfile",
+ "thiserror",
+ "time",
+ "tokio",
+ "tokio-rustls",
+ "tokio-rustls-acme",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "trust-dns-resolver",
+ "ucd-parse",
+ "url",
+ "webpki-roots",
+ "wg",
+ "windows 0.51.1",
+ "wmi",
+ "x509-parser 0.15.1",
+ "zeroize",
+]
+
+[[package]]
+name = "iroh-net"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "251d9518e342624724852282603dd6151901845a4d8653992a853a216e5bb56e"
+dependencies = [
+ "aead 0.5.2",
+ "anyhow",
+ "backoff",
+ "bytes",
+ "crypto_box",
+ "curve25519-dalek 4.1.1",
+ "data-encoding",
+ "default-net",
+ "der 0.7.8",
+ "derive_more",
+ "duct",
+ "ed25519-dalek",
+ "flume",
+ "futures",
+ "governor",
+ "hex",
+ "hostname",
+ "http",
+ "hyper",
+ "igd",
+ "iroh-metrics 0.7.0",
  "libc",
  "netlink-packet-core 0.7.0",
  "netlink-packet-route 0.17.1",
@@ -3130,9 +3324,46 @@ dependencies = [
  "futures",
  "hex",
  "iroh-blake3",
- "iroh-bytes",
- "iroh-metrics",
- "iroh-net",
+ "iroh-bytes 0.6.0",
+ "iroh-metrics 0.6.0",
+ "iroh-net 0.6.0",
+ "lru 0.11.1",
+ "once_cell",
+ "ouroboros",
+ "parking_lot 0.12.1",
+ "postcard",
+ "quinn",
+ "rand",
+ "rand_core 0.6.4",
+ "redb",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "iroh-sync"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d92ca5257e51ec7b937e8d47fcd22add30a2652c144dd307206bef2739468cc8"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "crossbeam",
+ "data-encoding",
+ "derive_more",
+ "ed25519-dalek",
+ "flume",
+ "futures",
+ "hex",
+ "iroh-blake3",
+ "iroh-bytes 0.7.0",
+ "iroh-metrics 0.7.0",
+ "iroh-net 0.7.0",
  "lru 0.11.1",
  "once_cell",
  "ouroboros",
@@ -4421,7 +4652,7 @@ dependencies = [
  "axum",
  "bytes",
  "cid",
- "iroh",
+ "iroh 0.7.0",
  "iroh-car",
  "libipld-cbor",
  "libipld-core",
@@ -4557,7 +4788,7 @@ dependencies = [
  "bytes",
  "cid",
  "instant",
- "iroh",
+ "iroh 0.6.0",
  "iroh-io",
  "js-sys",
  "libipld-cbor",

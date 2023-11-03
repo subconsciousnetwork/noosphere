@@ -22,7 +22,8 @@ readme = "README.md"
 [features]
 default = ["storage"]
 storage = ["ucan"]
-test-kubo = []
+kubo-syndication = []
+iroh-syndication = []
 
 [dependencies]
 anyhow = { workspace = true }

@@ -31,6 +31,7 @@ gloo-net = { version = "0.4" }
 gloo-timers = { version = "0.3", features = ["futures"] }
 ignore = { version = "0.4.20" }
 instant = { version = "0.1", features = ["wasm-bindgen"] }
+iroh = { version = "0.7.0", default-features = false, features = ["flat-db", "mem-db"] }
 iroh-car = { version = "^0.3.0" }
 js-sys = { version = "^0.3" }
 libipld = { version = "0.16" }
