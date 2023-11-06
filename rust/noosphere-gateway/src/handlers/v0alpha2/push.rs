@@ -50,7 +50,7 @@ pub async fn push_route<C, S>(
     stream: BodyStream,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, std::io::Error>>>, GatewayErrorResponse>
 where
-    C: HasMutableSphereContext<S>,
+    for<'a> C: HasMutableSphereContext<S> + 'a,
     S: Storage + 'static,
 {
     debug!("Invoking push route...");

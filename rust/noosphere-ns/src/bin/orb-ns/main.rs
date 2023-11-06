@@ -14,12 +14,10 @@ mod utils;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod inner {
-    pub use crate::cli;
     pub use anyhow::{anyhow, Result};
-    pub use noosphere::key::{InsecureKeyStorage, KeyStorage};
+    pub use noosphere::key::InsecureKeyStorage;
     pub use noosphere_core::tracing::initialize_tracing;
     pub use tokio;
-    pub use tracing::*;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
