@@ -132,7 +132,7 @@ jobs:
   report-test-flakes:
     name: 'Report test flakes (Linux)'
     needs: ['run-rust-test-suite']
-    if: always()
+    if: github.ref != 'refs/heads/main'
     uses: ./.github/workflows/report_test_flakes.yaml
     secrets: inherit
 
