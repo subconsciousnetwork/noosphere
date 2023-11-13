@@ -82,7 +82,7 @@ where
                         };
 
                         if replicate_authority {
-                            debug!("Replicating authority...");
+                            trace!("Replicating authority...");
                             let authority = sphere.get_authority().await?;
                             let store = store.clone();
 
@@ -105,7 +105,7 @@ where
                         }
 
                         if replicate_address_book {
-                            debug!("Replicating address book...");
+                            trace!("Replicating address book...");
                             let address_book = sphere.get_address_book().await?;
                             let identities = address_book.get_identities().await?;
 
@@ -121,7 +121,7 @@ where
                         }
 
                         if replicate_content {
-                            debug!("Replicating content...");
+                            trace!("Replicating content...");
                             let content = sphere.get_content().await?;
 
                             tasks.spawn(walk_versioned_map_changes_and(content, store.clone(), move |_, link, store| async move {

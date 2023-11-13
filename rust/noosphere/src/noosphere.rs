@@ -5,6 +5,7 @@ use noosphere_core::{
     authority::Authorization,
     data::{Did, Mnemonic},
 };
+use noosphere_storage::StorageConfig;
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 
 use noosphere_core::context::{SphereContext, SphereCursor};
@@ -17,25 +18,32 @@ use crate::{
     sphere::{SphereChannel, SphereContextBuilder, SphereReceipt},
 };
 
+/// Configurations for the Noosphere storage layer.
+pub type NoosphereStorageConfig = StorageConfig;
+
 /// An enum describing different storage stragies that may be interesting
 /// depending on the environment and implementation of Noosphere
 #[derive(Clone)]
-pub enum NoosphereStorage {
+pub enum NoosphereStoragePath {
     /// Scoped storage implies that the given path is a root and that spheres
     /// should be stored in a sub-path that includes the sphere identity at the
     /// trailing end
-    Scoped {
-        /// The path where storage should be rooted
-        path: PathBuf,
-    },
+    Scoped(PathBuf),
 
     /// Unscoped storage implies that sphere data should be kept at the given
     /// path. Note that this is typically only appropriate when dealing with a
     /// single sphere.
-    Unscoped {
-        /// The path where storage should be rooted
-        path: PathBuf,
-    },
+    Unscoped(PathBuf),
+}
+
+/// Fields describing configuration of Noosphere's storage layer.
+#[derive(Clone)]
+pub struct NoosphereStorage {
+    /// The strategy and path of the storage layer.
+    pub path: NoosphereStoragePath,
+    /// Configurable features for the storage layer.
+    /// Storage providers may not support any or all configurations.
+    pub config: NoosphereStorageConfig,
 }
 
 /// This enum exists so that we can incrementally layer on support for secure
@@ -123,9 +131,9 @@ impl NoosphereContext {
     }
 
     fn sphere_storage_path(&self) -> &PathBuf {
-        match &self.configuration.storage {
-            NoosphereStorage::Scoped { path } => path,
-            NoosphereStorage::Unscoped { path } => path,
+        match &self.configuration.storage.path {
+            NoosphereStoragePath::Scoped(path) => path,
+            NoosphereStoragePath::Unscoped(path) => path,
         }
     }
 
@@ -180,6 +188,7 @@ impl NoosphereContext {
         let artifacts = SphereContextBuilder::default()
             .recover_sphere(sphere_id)
             .at_storage_path(self.sphere_storage_path())
+            .with_storage_config(&self.configuration.storage.config)
             .using_scoped_storage_layout()
             .reading_keys_from(self.key_storage().await?)
             .using_mnemonic(Some(mnemonic))
@@ -208,6 +217,7 @@ impl NoosphereContext {
         let artifacts = SphereContextBuilder::default()
             .create_sphere()
             .at_storage_path(self.sphere_storage_path())
+            .with_storage_config(&self.configuration.storage.config)
             .using_scoped_storage_layout()
             .reading_keys_from(self.key_storage().await?)
             .using_key(owner_key_name)
@@ -249,6 +259,7 @@ impl NoosphereContext {
         let artifacts = SphereContextBuilder::default()
             .join_sphere(sphere_identity)
             .at_storage_path(self.sphere_storage_path())
+            .with_storage_config(&self.configuration.storage.config)
             .using_scoped_storage_layout()
             .reading_keys_from(self.key_storage().await?)
             .using_key(local_key_name)
@@ -287,6 +298,7 @@ impl NoosphereContext {
             let artifacts = SphereContextBuilder::default()
                 .open_sphere(Some(sphere_identity))
                 .at_storage_path(self.sphere_storage_path())
+                .with_storage_config(&self.configuration.storage.config)
                 .using_scoped_storage_layout()
                 .reading_keys_from(self.key_storage().await?)
                 .syncing_to(self.gateway_api())

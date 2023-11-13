@@ -45,6 +45,7 @@ pub async fn create_a_sphere(
         builder.scoped_storage_layout,
         Some(sphere_did.clone()),
         builder.ipfs_gateway_url,
+        builder.storage_config,
     )
     .await?;
 

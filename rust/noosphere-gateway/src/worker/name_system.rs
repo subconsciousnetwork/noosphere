@@ -130,7 +130,7 @@ where
     loop {
         for local_sphere in local_spheres.iter() {
             if let Err(error) = periodic_publish_record(&tx, local_sphere).await {
-                error!("Could not publish record: {}", error);
+                error!("Periodic re-publish of link record failed: {}", error);
             };
         }
         tokio::time::sleep(Duration::from_secs(PERIODIC_PUBLISH_INTERVAL_SECONDS)).await;
@@ -153,7 +153,7 @@ where
                 record,
                 republish: true,
             }) {
-                warn!("Failed to request name record publish: {}", error);
+                warn!("Failed to request link record publish: {}", error);
             }
         }
         _ => {
@@ -212,6 +212,7 @@ where
     Ok(())
 }
 
+#[instrument(skip(job, with_client))]
 async fn process_job<C, S, I, O, F>(
     job: NameSystemJob<C>,
     with_client: &mut TryOrReset<I, O, F>,
@@ -393,7 +394,7 @@ where
             // TODO(#260): What if the resolved value is None?
             Some(record) if last_known_record != next_record => {
                 debug!(
-                    "Gateway adopting petname record for '{}' ({}): {}",
+                    "Gateway adopting petname link record for '{}' ({}): {}",
                     name, identity.did, record
                 );
 
@@ -404,7 +405,7 @@ where
                 }
 
                 if let Err(e) = context.set_petname_record(&name, record).await {
-                    warn!("Could not set petname record: {}", e);
+                    warn!("Could not set petname link record: {}", e);
                     continue;
                 }
             }
@@ -419,7 +420,7 @@ where
     Ok(())
 }
 
-/// Attempts to fetch a single name record from the name system.
+/// Attempts to fetch a single link record from the name system.
 async fn fetch_record(
     client: Arc<dyn NameResolver>,
     name: String,

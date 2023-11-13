@@ -7,11 +7,11 @@
 extern crate tracing;
 
 mod block;
-mod implementation;
-mod key_value;
-
+mod config;
 mod db;
 mod encoding;
+mod implementation;
+mod key_value;
 mod retry;
 mod storage;
 mod store;
@@ -20,6 +20,7 @@ mod ucan;
 
 pub use crate::ucan::*;
 pub use block::*;
+pub use config::*;
 pub use db::*;
 pub use encoding::*;
 pub use implementation::*;

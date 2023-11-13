@@ -26,6 +26,7 @@ const NOOSPHERE_ERROR_NETWORK_OFFLINE: u32 = 2;
 const NOOSPHERE_ERROR_NO_CREDENTIALS: u32 = 3;
 const NOOSPHERE_ERROR_MISSING_CONFIGURATION: u32 = 4;
 const NOOSPHERE_ERROR_INVALID_AUTHORIZATION: u32 = 5;
+const NOOSPHERE_ERROR_UNEXPECTED_GATEWAY_RESPONSE: u32 = 6;
 
 #[ffi_export]
 #[derive_ReprC(rename = "ns_error_code")]
@@ -37,6 +38,7 @@ pub enum NsErrorCode {
     NoCredentials = NOOSPHERE_ERROR_NO_CREDENTIALS,
     MissingConfiguration = NOOSPHERE_ERROR_MISSING_CONFIGURATION,
     InvalidAuthorization = NOOSPHERE_ERROR_INVALID_AUTHORIZATION,
+    UnexpectedGatewayResponse = NOOSPHERE_ERROR_UNEXPECTED_GATEWAY_RESPONSE,
 }
 
 impl From<u32> for NsErrorCode {
@@ -60,6 +62,7 @@ impl From<&NoosphereError> for NsErrorCode {
             NoosphereError::NoCredentials => NsErrorCode::NoCredentials,
             NoosphereError::MissingConfiguration(_) => NsErrorCode::MissingConfiguration,
             NoosphereError::InvalidAuthorization(_, _) => NsErrorCode::InvalidAuthorization,
+            NoosphereError::UnexpectedGatewayResponse(_) => NsErrorCode::UnexpectedGatewayResponse,
         }
     }
 }

@@ -105,6 +105,51 @@
   * dependencies
     * noosphere-ns bumped from 0.9.3 to 0.9.4
 
+## [0.10.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.10.2...noosphere-gateway-v0.10.3) (2023-11-01)
+
+
+### Features
+
+* Periodic syndication checks to IPFS Kubo ([#685](https://github.com/subconsciousnetwork/noosphere/issues/685)) ([b5640b2](https://github.com/subconsciousnetwork/noosphere/commit/b5640b2e23ad7bfc522a03d0b1731e372425afa8))
+
+
+### Bug Fixes
+
+* Recovery only uses latest version of sphere ([#703](https://github.com/subconsciousnetwork/noosphere/issues/703)) ([500bd69](https://github.com/subconsciousnetwork/noosphere/commit/500bd69509b21e7f8c13b178f1de05168b2386d3))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.8.3 to 0.8.4
+    * noosphere-core bumped from 0.17.2 to 0.17.3
+    * noosphere-ns bumped from 0.11.3 to 0.11.4
+    * noosphere-storage bumped from 0.9.2 to 0.9.3
+  * dev-dependencies
+    * noosphere-core bumped from 0.17.2 to 0.17.3
+
+## [0.10.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.10.1...noosphere-gateway-v0.10.2) (2023-10-12)
+
+
+### Features
+
+* 3P replication fall-back and resilience ([#673](https://github.com/subconsciousnetwork/noosphere/issues/673)) ([08dcc3d](https://github.com/subconsciousnetwork/noosphere/commit/08dcc3d54768fdda6158b1087a32805a5c855e98))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.8.2 to 0.8.3
+    * noosphere-core bumped from 0.17.1 to 0.17.2
+    * noosphere-ns bumped from 0.11.2 to 0.11.3
+    * noosphere-storage bumped from 0.9.1 to 0.9.2
+    * noosphere-common bumped from 0.1.1 to 0.1.2
+  * dev-dependencies
+    * noosphere-common bumped from 0.1.1 to 0.1.2
+    * noosphere-core bumped from 0.17.1 to 0.17.2
+
 ## [0.10.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.10.0...noosphere-gateway-v0.10.1) (2023-10-06)
 
 

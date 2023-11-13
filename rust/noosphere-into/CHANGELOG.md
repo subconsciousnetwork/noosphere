@@ -148,6 +148,20 @@
   * dev-dependencies
     * noosphere-core bumped from 0.16.0 to 0.17.0
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.17.1 to 0.17.2
+    * noosphere-storage bumped from 0.9.1 to 0.9.2
+  * dev-dependencies
+    * noosphere-core bumped from 0.17.1 to 0.17.2
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-core bumped from 0.17.2 to 0.17.3
+    * noosphere-storage bumped from 0.9.2 to 0.9.3
+  * dev-dependencies
+    * noosphere-core bumped from 0.17.2 to 0.17.3
+
 ## [0.11.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-into-v0.11.1...noosphere-into-v0.11.2) (2023-10-06)
 
 

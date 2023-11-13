@@ -1,12 +1,12 @@
 {
-  "rust/noosphere-cli": "0.15.2",
-  "rust/noosphere-collections": "0.6.5",
-  "rust/noosphere-core": "0.17.1",
-  "rust/noosphere-into": "0.11.2",
-  "rust/noosphere-ns": "0.11.2",
-  "rust/noosphere-storage": "0.9.1",
-  "rust/noosphere": "0.15.2",
-  "rust/noosphere-ipfs": "0.8.2",
-  "rust/noosphere-gateway": "0.10.1",
-  "rust/noosphere-common": "0.1.1"
+  "rust/noosphere-cli": "0.15.4",
+  "rust/noosphere-collections": "0.6.7",
+  "rust/noosphere-core": "0.17.3",
+  "rust/noosphere-into": "0.11.4",
+  "rust/noosphere-ns": "0.11.4",
+  "rust/noosphere-storage": "0.9.3",
+  "rust/noosphere": "0.15.4",
+  "rust/noosphere-ipfs": "0.8.4",
+  "rust/noosphere-gateway": "0.10.3",
+  "rust/noosphere-common": "0.1.2"
 }

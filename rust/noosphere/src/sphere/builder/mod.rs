@@ -8,28 +8,19 @@ use join::*;
 use open::*;
 use recover::*;
 
-use std::path::{Path, PathBuf};
-
+use crate::{
+    platform::{PlatformKeyStorage, PlatformStorage},
+    storage::{create_platform_storage, StorageLayout},
+};
 use anyhow::{anyhow, Result};
-
+use noosphere_core::context::SphereContext;
 use noosphere_core::{
     authority::Authorization,
     data::{Did, Mnemonic},
 };
-
-#[cfg(all(target_arch = "wasm32", feature = "ipfs-storage"))]
-use noosphere_ipfs::{GatewayClient, IpfsStorage};
-
-use noosphere_storage::SphereDb;
-
+use noosphere_storage::{SphereDb, StorageConfig};
+use std::path::{Path, PathBuf};
 use url::Url;
-
-use noosphere_core::context::SphereContext;
-
-use crate::{
-    platform::{PlatformKeyStorage, PlatformStorage},
-    storage::StorageLayout,
-};
 
 #[derive(Default, Clone)]
 enum SphereInitialization {
@@ -97,6 +88,7 @@ pub struct SphereContextBuilder {
     pub(crate) key_storage: Option<PlatformKeyStorage>,
     pub(crate) key_name: Option<String>,
     pub(crate) mnemonic: Option<Mnemonic>,
+    pub(crate) storage_config: Option<StorageConfig>,
 }
 
 impl SphereContextBuilder {
@@ -181,6 +173,13 @@ impl SphereContextBuilder {
         self
     }
 
+    /// Specify a [StorageConfig] configuration to use when opening the underlying
+    /// storage layer.
+    pub fn with_storage_config(mut self, storage_config: &StorageConfig) -> Self {
+        self.storage_config = Some(storage_config.to_owned());
+        self
+    }
+
     /// Generate [SphereContextBuilderArtifacts] based on the given
     /// configuration of the [SphereContextBuilder]. The successful result of
     /// invoking this method will always include an activated [SphereContext].
@@ -247,6 +246,7 @@ impl Default for SphereContextBuilder {
             key_storage: None as Option<PlatformKeyStorage>,
             key_name: None,
             mnemonic: None,
+            storage_config: None,
         }
     }
 }
@@ -273,17 +273,11 @@ pub(crate) async fn generate_db(
     scoped_storage_layout: bool,
     sphere_identity: Option<Did>,
     ipfs_gateway_url: Option<Url>,
+    storage_config: Option<StorageConfig>,
 ) -> Result<SphereDb<PlatformStorage>> {
     let storage_layout: StorageLayout =
         (storage_path, scoped_storage_layout, sphere_identity).try_into()?;
-
-    #[cfg(not(all(wasm, ipfs_storage)))]
-    let storage = storage_layout.to_storage().await?;
-    #[cfg(all(wasm, ipfs_storage))]
-    let storage = IpfsStorage::new(
-        storage_layout.to_storage().await?,
-        ipfs_gateway_url.map(|url| GatewayClient::new(url)),
-    );
+    let storage = create_platform_storage(storage_layout, ipfs_gateway_url, storage_config).await?;
 
     SphereDb::new(&storage).await
 }

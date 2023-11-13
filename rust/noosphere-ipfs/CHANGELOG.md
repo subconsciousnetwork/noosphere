@@ -58,6 +58,29 @@
   * dev-dependencies
     * noosphere-core bumped from 0.16.0 to 0.17.0
 
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.9.2 to 0.9.3
+  * dev-dependencies
+    * noosphere-core bumped from 0.17.2 to 0.17.3
+
+## [0.8.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.8.2...noosphere-ipfs-v0.8.3) (2023-10-12)
+
+
+### Features
+
+* 3P replication fall-back and resilience ([#673](https://github.com/subconsciousnetwork/noosphere/issues/673)) ([08dcc3d](https://github.com/subconsciousnetwork/noosphere/commit/08dcc3d54768fdda6158b1087a32805a5c855e98))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.9.1 to 0.9.2
+    * noosphere-common bumped from 0.1.1 to 0.1.2
+  * dev-dependencies
+    * noosphere-core bumped from 0.17.1 to 0.17.2
+
 ## [0.8.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ipfs-v0.8.1...noosphere-ipfs-v0.8.2) (2023-10-06)
 
 

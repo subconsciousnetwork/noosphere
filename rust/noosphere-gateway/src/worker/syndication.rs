@@ -39,19 +39,17 @@ pub struct SyndicationJob<C> {
 }
 
 /// A [SyndicationCheckpoint] represents the last spot in the history of a
-/// sphere that was successfully syndicated to an IPFS node. It records a Bloom
-/// filter populated by the CIDs of all blocks that have been syndicated, which
-/// gives us a short-cut to determine if a block should be added.
+/// sphere that was successfully syndicated to an IPFS node.
 #[derive(Serialize, Deserialize)]
 pub struct SyndicationCheckpoint {
-    pub last_syndicated_version: Option<Link<MemoIpld>>,
+    pub last_syndicated_counterpart_version: Option<Link<MemoIpld>>,
     pub syndication_epoch: u64,
 }
 
 impl SyndicationCheckpoint {
     pub fn new() -> Result<Self> {
         Ok(Self {
-            last_syndicated_version: None,
+            last_syndicated_counterpart_version: None,
             syndication_epoch: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
         })
     }
@@ -70,14 +68,18 @@ impl SyndicationCheckpoint {
     }
 }
 
-// Re-syndicate every 90 days
+// Force full re-syndicate every 90 days
 const MAX_SYNDICATION_CHECKPOINT_LIFETIME: Duration = Duration::from_secs(60 * 60 * 24 * 90);
+
+// Periodic syndication check every 5 minutes
+const PERIODIC_SYNDICATION_INTERVAL_SECONDS: Duration = Duration::from_secs(5 * 60);
 
 /// Start a Tokio task that waits for [SyndicationJob] messages and then
 /// attempts to syndicate to the configured IPFS RPC. Currently only Kubo IPFS
 /// backends are supported.
 pub fn start_ipfs_syndication<C, S>(
     ipfs_api: Url,
+    local_spheres: Vec<C>,
 ) -> (UnboundedSender<SyndicationJob<C>>, JoinHandle<Result<()>>)
 where
     C: HasMutableSphereContext<S> + 'static,
@@ -85,7 +87,57 @@ where
 {
     let (tx, rx) = unbounded_channel();
 
-    (tx, tokio::task::spawn(ipfs_syndication_task(ipfs_api, rx)))
+    let task = {
+        let tx = tx.clone();
+        tokio::task::spawn(async move {
+            let (_, syndication_result) = tokio::join!(
+                periodic_syndication_task(tx, local_spheres),
+                ipfs_syndication_task(ipfs_api, rx)
+            );
+            syndication_result?;
+            Ok(())
+        })
+    };
+
+    (tx, task)
+}
+
+async fn periodic_syndication_task<C, S>(
+    tx: UnboundedSender<SyndicationJob<C>>,
+    local_spheres: Vec<C>,
+) where
+    C: HasMutableSphereContext<S>,
+    S: Storage + 'static,
+{
+    loop {
+        for local_sphere in &local_spheres {
+            if let Err(error) = periodic_syndication(&tx, local_sphere).await {
+                error!("Periodic syndication of sphere history failed: {}", error);
+            };
+            tokio::time::sleep(Duration::from_secs(5)).await;
+        }
+        tokio::time::sleep(PERIODIC_SYNDICATION_INTERVAL_SECONDS).await;
+    }
+}
+
+async fn periodic_syndication<C, S>(
+    tx: &UnboundedSender<SyndicationJob<C>>,
+    local_sphere: &C,
+) -> Result<()>
+where
+    C: HasMutableSphereContext<S>,
+    S: Storage + 'static,
+{
+    let latest_version = local_sphere.version().await?;
+
+    if let Err(error) = tx.send(SyndicationJob {
+        revision: latest_version,
+        context: local_sphere.clone(),
+    }) {
+        warn!("Failed to request periodic syndication: {}", error);
+    };
+
+    Ok(())
 }
 
 async fn ipfs_syndication_task<C, S>(
@@ -108,6 +160,7 @@ where
     Ok(())
 }
 
+#[instrument(skip(job, kubo_client))]
 async fn process_job<C, S>(
     job: SyndicationJob<C>,
     kubo_client: Arc<KuboClient>,
@@ -165,14 +218,23 @@ where
             None => SyndicationCheckpoint::new()?,
         };
 
+        if Some(counterpart_revision) == syndication_checkpoint.last_syndicated_counterpart_version
+        {
+            warn!("Counterpart version hasn't changed; skipping syndication");
+            return Ok(());
+        }
+
         (counterpart_revision, syndication_checkpoint, db)
     };
 
     let timeline = Timeline::new(&db)
         .slice(
             &sphere_revision,
-            syndication_checkpoint.last_syndicated_version.as_ref(),
+            syndication_checkpoint
+                .last_syndicated_counterpart_version
+                .as_ref(),
         )
+        .exclude_past()
         .to_chronological()
         .await?;
 
@@ -204,7 +266,7 @@ where
                 {
                     Ok(_) => {
                         debug!("Syndicated sphere revision {} to IPFS", cid);
-                        syndication_checkpoint.last_syndicated_version = Some(cid);
+                        syndication_checkpoint.last_syndicated_counterpart_version = Some(cid);
                     }
                     Err(error) => warn!(
                         "Failed to pin orphans for revision {} to IPFS: {:?}",
@@ -281,7 +343,8 @@ mod tests {
         let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
         let local_kubo_client = KuboClient::new(&ipfs_url.clone())?;
 
-        let (syndication_tx, _syndication_join_handle) = start_ipfs_syndication::<_, _>(ipfs_url);
+        let (syndication_tx, _syndication_join_handle) =
+            start_ipfs_syndication::<_, _>(ipfs_url, vec![user_sphere_context.clone()]);
 
         user_sphere_context
             .write("foo", &ContentType::Text, b"bar".as_ref(), None)

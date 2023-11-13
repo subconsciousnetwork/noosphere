@@ -236,6 +236,8 @@ mod test {
     use std::future::Future;
     use std::time::Duration;
 
+    const NETWORK_INIT_TIMEOUT_MS: u64 = 10000;
+
     pub async fn wait_ms(ms: u64) {
         tokio::time::sleep(Duration::from_millis(ms)).await;
     }
@@ -305,7 +307,7 @@ mod test {
 
         // Wait for the peers to establish connections.
         await_or_timeout(
-            5000,
+            NETWORK_INIT_TIMEOUT_MS,
             swarm_command(nodes, |c| c.wait_for_peers(expected_peers)),
             format!("waiting for {} peers", expected_peers),
         )

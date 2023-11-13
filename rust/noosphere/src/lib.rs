@@ -7,7 +7,8 @@
 //!
 //! ```rust,no_run
 //! # use noosphere::{
-//! #     NoosphereStorage, NoosphereSecurity, NoosphereNetwork, NoosphereContextConfiguration, NoosphereContext, sphere::SphereReceipt
+//! #     NoosphereStorage, NoosphereStoragePath, NoosphereStorageConfig, NoosphereSecurity, NoosphereNetwork,
+//! #     NoosphereContextConfiguration, NoosphereContext, sphere::SphereReceipt
 //! # };
 //! # use noosphere_core::{
 //! #     context::{
@@ -21,8 +22,9 @@
 //! # #[tokio::main]
 //! # pub async fn main() -> Result<()> {
 //! let noosphere = NoosphereContext::new(NoosphereContextConfiguration {
-//!     storage: NoosphereStorage::Scoped {
-//!         path: "/path/to/block/storage".into(),
+//!     storage: NoosphereStorage {
+//!         path: NoosphereStoragePath::Scoped("/path/to/block/storage".into()),
+//!         config: NoosphereStorageConfig::default(),
 //!     },
 //!     security: NoosphereSecurity::Insecure {
 //!         path: "/path/to/key/storage".into(),

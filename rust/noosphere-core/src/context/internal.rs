@@ -77,7 +77,7 @@ where
             // "read-only" context. Technically this should be acceptable
             // because our mutation here is propagating immutable blocks
             // into the local DB
-            let stream = client.replicate(&memo_link, None).await?;
+            let (_, stream) = client.replicate(*memo_link, None).await?;
 
             put_block_stream(db.clone(), stream).await?;
         }

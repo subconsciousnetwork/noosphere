@@ -9,7 +9,7 @@ use noosphere_core::context::{
     SphereContentRead, SphereContext, SphereCursor, COUNTERPART, GATEWAY_URL,
 };
 use noosphere_core::data::{Did, Link, LinkRecord, MemoIpld};
-use noosphere_storage::{KeyValueStore, SphereDb};
+use noosphere_storage::{KeyValueStore, SphereDb, StorageConfig};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -39,6 +39,7 @@ pub struct Workspace {
     key_storage: InsecureKeyStorage,
     sphere_context: OnceCell<Arc<Mutex<CliSphereContext>>>,
     working_directory: PathBuf,
+    storage_config: Option<StorageConfig>,
 }
 
 impl Workspace {
@@ -53,15 +54,17 @@ impl Workspace {
         Ok(self
             .sphere_context
             .get_or_try_init(|| async {
-                Ok(Arc::new(Mutex::new(
-                    SphereContextBuilder::default()
-                        .open_sphere(None)
-                        .at_storage_path(self.require_sphere_paths()?.root())
-                        .reading_keys_from(self.key_storage.clone())
-                        .build()
-                        .await?
-                        .into(),
-                ))) as Result<Arc<Mutex<CliSphereContext>>, anyhow::Error>
+                let mut builder = SphereContextBuilder::default()
+                    .open_sphere(None)
+                    .at_storage_path(self.require_sphere_paths()?.root())
+                    .reading_keys_from(self.key_storage.clone());
+
+                if let Some(storage_config) = self.storage_config.as_ref() {
+                    builder = builder.with_storage_config(storage_config);
+                }
+
+                Ok(Arc::new(Mutex::new(builder.build().await?.into())))
+                    as Result<Arc<Mutex<CliSphereContext>>, anyhow::Error>
             })
             .await?
             .clone())
@@ -312,9 +315,13 @@ impl Workspace {
     /// - Windows: C:\Users\<user>\AppData\Roaming\subconscious\noosphere\config
     ///
     /// On Linux, an $XDG_CONFIG_HOME environment variable will be respected if set.
+    ///
+    /// Additionally, a [StorageConfig] may be provided to configure the storage used
+    /// by the opened sphere.
     pub fn new(
         working_directory: &Path,
         custom_noosphere_directory: Option<&Path>,
+        storage_config: Option<StorageConfig>,
     ) -> Result<Self> {
         let sphere_paths = SpherePaths::discover(Some(working_directory)).map(Arc::new);
 
@@ -340,6 +347,7 @@ impl Workspace {
             key_storage,
             sphere_context: OnceCell::new(),
             working_directory: working_directory.to_owned(),
+            storage_config,
         };
 
         Ok(workspace)

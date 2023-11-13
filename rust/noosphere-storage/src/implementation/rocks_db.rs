@@ -1,6 +1,9 @@
-use crate::{storage::Storage, store::Store, SPHERE_DB_STORE_NAMES};
+use crate::{
+    storage::Storage, store::Store, ConfigurableStorage, StorageConfig, SPHERE_DB_STORE_NAMES,
+};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use noosphere_common::ConditionalSend;
 use rocksdb::{ColumnFamilyDescriptor, DBWithThreadMode, Options};
 use std::{
     path::{Path, PathBuf},
@@ -21,21 +24,45 @@ type ColumnType<'a> = Arc<rocksdb::BoundColumnFamily<'a>>;
 /// Caveats:
 /// * Values are limited to 4GB(?) [https://github.com/facebook/rocksdb/wiki/Basic-Operations#reads]
 /// TODO(#631): Further improvements to the implementation.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct RocksDbStorage {
     db: Arc<DbInner>,
-    #[allow(unused)]
-    path: PathBuf,
+    debug_data: Arc<(PathBuf, StorageConfig)>,
 }
 
 impl RocksDbStorage {
-    pub fn new(path: PathBuf) -> Result<Self> {
-        std::fs::create_dir_all(&path)?;
-        let canonicalized = path.canonicalize()?;
-        let db = Arc::new(RocksDbStorage::init_db(canonicalized.clone())?);
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        Self::with_config(path, StorageConfig::default())
+    }
+
+    pub fn with_config<P: AsRef<Path>>(path: P, storage_config: StorageConfig) -> Result<Self> {
+        std::fs::create_dir_all(path.as_ref())?;
+        let db_path = path.as_ref().canonicalize()?;
+        let db = {
+            let mut cfs: Vec<ColumnFamilyDescriptor> =
+                Vec::with_capacity(SPHERE_DB_STORE_NAMES.len());
+
+            for store_name in SPHERE_DB_STORE_NAMES {
+                // https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide
+                let cf_opts = Options::default();
+                cfs.push(ColumnFamilyDescriptor::new(*store_name, cf_opts));
+            }
+
+            let mut db_opts = Options::default();
+            db_opts.create_if_missing(true);
+            db_opts.create_missing_column_families(true);
+
+            if let Some(memory_cache_limit) = storage_config.memory_cache_limit {
+                // Amount of data to build up in memtables across all column families before writing to disk.
+                db_opts.set_db_write_buffer_size(memory_cache_limit);
+            }
+
+            Arc::new(DbInner::open_cf_descriptors(&db_opts, path, cfs)?)
+        };
+
         Ok(RocksDbStorage {
             db,
-            path: canonicalized,
+            debug_data: Arc::new((db_path, storage_config)),
         })
     }
 
@@ -50,23 +77,6 @@ impl RocksDbStorage {
 
         RocksDbStore::new(self.db.clone(), name.to_owned())
     }
-
-    /// Configures a databasea at `path` and initializes the expected configurations.
-    fn init_db<P: AsRef<Path>>(path: P) -> Result<DbInner> {
-        let mut cfs: Vec<ColumnFamilyDescriptor> = Vec::with_capacity(SPHERE_DB_STORE_NAMES.len());
-
-        for store_name in SPHERE_DB_STORE_NAMES {
-            // https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide
-            let cf_opts = Options::default();
-            cfs.push(ColumnFamilyDescriptor::new(*store_name, cf_opts));
-        }
-
-        let mut db_opts = Options::default();
-        db_opts.create_if_missing(true);
-        db_opts.create_missing_column_families(true);
-
-        Ok(DbInner::open_cf_descriptors(&db_opts, path, cfs)?)
-    }
 }
 
 #[async_trait]
@@ -80,6 +90,25 @@ impl Storage for RocksDbStorage {
 
     async fn get_key_value_store(&self, name: &str) -> Result<Self::KeyValueStore> {
         self.get_store(name).await
+    }
+}
+
+#[async_trait]
+impl ConfigurableStorage for RocksDbStorage {
+    async fn open_with_config<P: AsRef<Path> + ConditionalSend>(
+        path: P,
+        storage_config: StorageConfig,
+    ) -> Result<Self> {
+        Self::with_config(path, storage_config)
+    }
+}
+
+impl std::fmt::Debug for RocksDbStorage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RocksDbStorage")
+            .field("path", &self.debug_data.0)
+            .field("config", &self.debug_data.1)
+            .finish()
     }
 }
 
@@ -142,6 +171,6 @@ impl Store for RocksDbStore {
 #[async_trait]
 impl crate::Space for RocksDbStorage {
     async fn get_space_usage(&self) -> Result<u64> {
-        crate::get_dir_size(&self.path).await
+        crate::get_dir_size(&self.debug_data.0).await
     }
 }

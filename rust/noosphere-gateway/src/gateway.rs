@@ -78,7 +78,8 @@ where
 
     let ipfs_client = KuboClient::new(&ipfs_api)?;
 
-    let (syndication_tx, syndication_task) = start_ipfs_syndication::<C, S>(ipfs_api.clone());
+    let (syndication_tx, syndication_task) =
+        start_ipfs_syndication::<C, S>(ipfs_api.clone(), vec![sphere_context.clone()]);
     let (name_system_tx, name_system_task) = start_name_system::<C, S>(
         NameSystemConfiguration {
             connection_type: NameSystemConnectionType::Remote(name_resolver_api),

@@ -34,6 +34,7 @@ where
     C: HasSphereContext<S>,
     S: Storage + 'static,
 {
+    #[instrument(level = "debug", skip(self))]
     async fn read(&self, slug: &str) -> Result<Option<SphereFile<Box<dyn AsyncFileBody>>>> {
         let revision = self.version().await?;
         let sphere = self.to_sphere().await?;

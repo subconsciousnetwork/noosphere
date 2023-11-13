@@ -2,7 +2,7 @@ use crate::Storage;
 use anyhow::Result;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::{SledStorage, SledStorageInit, SledStore};
+use crate::{SledStorage, SledStore};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn make_disposable_store() -> Result<SledStore> {
@@ -13,7 +13,7 @@ pub async fn make_disposable_store() -> Result<SledStore> {
         .into_iter()
         .map(String::from)
         .collect();
-    let provider = SledStorage::new(SledStorageInit::Path(temp_dir.join(temp_name)))?;
+    let provider = SledStorage::new(temp_dir.join(temp_name))?;
     provider.get_block_store("foo").await
 }
 

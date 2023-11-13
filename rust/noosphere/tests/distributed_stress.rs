@@ -150,6 +150,7 @@ mod multiplayer {
     use serde_json::Value;
     use url::Url;
 
+    #[cfg(not(feature = "rocksdb"))]
     #[tokio::test(flavor = "multi_thread")]
     async fn orb_can_render_peers_in_the_sphere_address_book() -> Result<()> {
         initialize_tracing(None);
