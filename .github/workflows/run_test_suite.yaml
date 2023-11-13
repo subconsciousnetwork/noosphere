@@ -39,22 +39,28 @@ jobs:
 
   run-linting-linux:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - toolchain: stable
+          - toolchain: nightly
     steps:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
       - name: 'Setup Rust'
         run: |
           curl -sSf https://sh.rustup.rs | sh -s -- -y
-          rustup component add clippy
-          rustup component add rustfmt
+          rustup toolchain install ${{matrix.toolchain}}
+          rustup +${{matrix.toolchain}} component add clippy
+          rustup +${{matrix.toolchain}} component add rustfmt
       - name: 'Install environment packages'
         run: |
           sudo apt-get update -qqy
           sudo apt-get install jq protobuf-compiler cmake
       - name: 'Check Format'
-        run: cargo fmt --all -- --check
+        run: cargo +${{matrix.toolchain}} fmt --all -- --check
       - name: 'Run Linter'
-        run: cargo clippy --all -- -D warnings
+        run: cargo +${{matrix.toolchain}} clippy --all -- -D warnings
 
   run-rust-test-suite:
     name: 'Run Rust test suite'
@@ -62,10 +68,16 @@ jobs:
       matrix:
         features: ['test-kubo,headers', 'test-kubo,headers,rocksdb']
         platform: ['ubuntu-latest', 'windows-latest', 'macos-13']
-        toolchain: ['stable']
+        toolchain: ['stable', 'nightly']
         exclude:
           - platform: 'windows-latest'
             features: 'test-kubo,headers,rocksdb'
+          - platform: 'macos-13'
+            toolchain: 'nightly'
+          - platform: 'windows-latest'
+            toolchain: 'nightly'
+          - features: 'test-kubo,headers,rocksdb'
+            toolchain: 'nightly'
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v3
@@ -120,7 +132,7 @@ jobs:
   report-test-flakes:
     name: 'Report test flakes (Linux)'
     needs: ['run-rust-test-suite']
-    if: always()
+    if: github.ref != 'refs/heads/main'
     uses: ./.github/workflows/report_test_flakes.yaml
     secrets: inherit
 
