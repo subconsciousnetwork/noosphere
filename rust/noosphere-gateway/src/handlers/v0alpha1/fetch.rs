@@ -7,8 +7,8 @@ use bytes::Bytes;
 use noosphere_core::{
     api::v0alpha1::FetchParameters,
     authority::{generate_capability, SphereAbility},
-    context::HasSphereContext,
-    data::{Link, MemoIpld},
+    context::HasMutableSphereContext,
+    data::{Did, Link, MemoIpld},
     stream::{memo_history_stream, to_car_stream},
     view::Sphere,
 };
@@ -16,31 +16,40 @@ use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_storage::{BlockStoreRetry, SphereDb, Storage};
 use tokio_stream::{Stream, StreamExt};
 
-use crate::{authority::GatewayAuthority, GatewayScope};
+use crate::extractors::{GatewayAuthority, GatewayScope, SphereExtractor};
 
-#[instrument(level = "debug", skip(authority, scope, sphere_context, ipfs_client))]
+#[instrument(
+    level = "debug",
+    skip(authority, sphere_extractor, gateway_scope, ipfs_client)
+)]
 pub async fn fetch_route<C, S>(
-    authority: GatewayAuthority<S>,
+    authority: GatewayAuthority,
+    sphere_extractor: SphereExtractor<C, S>,
+    gateway_scope: GatewayScope<C, S>,
     Query(FetchParameters { since }): Query<FetchParameters>,
-    Extension(scope): Extension<GatewayScope>,
     Extension(ipfs_client): Extension<KuboClient>,
-    Extension(sphere_context): Extension<C>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, std::io::Error>>>, StatusCode>
 where
-    C: HasSphereContext<S>,
+    C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
-    authority.try_authorize(&generate_capability(
-        &scope.counterpart,
-        SphereAbility::Fetch,
-    ))?;
-    let sphere_context = sphere_context.sphere_context().await.map_err(|err| {
+    let mut gateway_sphere = sphere_extractor.into_inner();
+    let counterpart = &gateway_scope.counterpart;
+    authority
+        .try_authorize(
+            &mut gateway_sphere,
+            counterpart,
+            &generate_capability(counterpart.as_str(), SphereAbility::Fetch),
+        )
+        .await?;
+
+    let sphere_context = gateway_sphere.sphere_context().await.map_err(|err| {
         error!("{err}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
     let db = sphere_context.db();
-
-    let stream = generate_fetch_stream(&scope, since.as_ref(), db, ipfs_client)
+    let identity = sphere_context.identity();
+    let stream = generate_fetch_stream(counterpart, identity, since.as_ref(), db, ipfs_client)
         .await
         .map_err(|err| {
             error!("{err}");
@@ -53,7 +62,8 @@ where
 /// Generates a CAR stream that can be used as a the streaming body of a
 /// gateway fetch route response
 pub async fn generate_fetch_stream<S>(
-    scope: &GatewayScope,
+    counterpart: &Did,
+    identity: &Did,
     since: Option<&Link<MemoIpld>>,
     db: &SphereDb<S>,
     ipfs_client: KuboClient,
@@ -61,7 +71,7 @@ pub async fn generate_fetch_stream<S>(
 where
     S: Storage + 'static,
 {
-    let latest_local_sphere_cid = db.require_version(&scope.identity).await?.into();
+    let latest_local_sphere_cid = db.require_version(identity).await?.into();
 
     debug!("The latest gateway sphere version is {latest_local_sphere_cid}...");
 
@@ -93,7 +103,7 @@ where
     match latest_local_sphere
         .get_content()
         .await?
-        .get(&scope.counterpart)
+        .get(counterpart)
         .await?
     {
         Some(latest_counterpart_sphere_cid) => {
@@ -103,7 +113,7 @@ where
                 Some(since_local_sphere_cid) => {
                     let since_local_sphere = Sphere::at(since_local_sphere_cid, db);
                     let links = since_local_sphere.get_content().await?;
-                    links.get(&scope.counterpart).await?.cloned()
+                    links.get(counterpart).await?.cloned()
                 }
                 None => None,
             };
@@ -128,7 +138,7 @@ where
             )));
         }
         None => {
-            warn!("No revisions found for counterpart {}!", scope.counterpart);
+            warn!("No revisions found for counterpart {}!", counterpart);
             Ok(Box::pin(to_car_stream(
                 vec![latest_local_sphere_cid.into()],
                 stream,

@@ -11,31 +11,28 @@ extern crate noosphere_gateway_dev as noosphere_gateway;
 use anyhow::{anyhow, Result};
 use noosphere::key::KeyStorage;
 use noosphere::sphere::SphereContextBuilder;
-
+use noosphere_cli::{
+    cli::ConfigSetCommand,
+    commands::{
+        key::key_create,
+        sphere::{config_set, sphere_create, sphere_join},
+    },
+    helpers::{temporary_workspace, SpherePair},
+};
+use noosphere_core::api::v0alpha1;
 use noosphere_core::context::{
     HasMutableSphereContext, HasSphereContext, SphereAuthorityWrite, SphereContentRead,
     SphereContentWrite, SphereCursor, SphereSync,
 };
+use noosphere_core::data::{ContentType, Did};
+use noosphere_core::tracing::initialize_tracing;
+use noosphere_gateway::{Gateway, SingleTenantGatewayManager};
 use noosphere_storage::BlockStore;
 use std::net::TcpListener;
 use tokio::io::AsyncReadExt;
 use tokio_stream::StreamExt;
-use url::Url;
-
-use noosphere_core::api::v0alpha1;
-use noosphere_core::data::{ContentType, Did};
-
 use ucan::crypto::KeyMaterial;
-
-use noosphere_cli::{
-    commands::{
-        key::key_create,
-        sphere::{sphere_create, sphere_join},
-    },
-    helpers::{temporary_workspace, SpherePair},
-};
-use noosphere_core::tracing::initialize_tracing;
-use noosphere_gateway::{start_gateway, GatewayScope};
+use url::Url;
 
 #[tokio::test]
 async fn gateway_tells_you_its_identity() -> Result<()> {
@@ -55,28 +52,31 @@ async fn gateway_tells_you_its_identity() -> Result<()> {
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let gateway_address = listener.local_addr().unwrap();
-
-    let gateway_sphere_identity = gateway_workspace.sphere_identity().await.unwrap();
     let client_sphere_identity = client_workspace.sphere_identity().await.unwrap();
-
     let gateway_sphere_context = gateway_workspace.sphere_context().await.unwrap();
 
+    config_set(
+        ConfigSetCommand::Counterpart {
+            did: client_sphere_identity.clone().0,
+        },
+        &mut gateway_workspace,
+    )
+    .await?;
+
+    let manager =
+        SingleTenantGatewayManager::new(gateway_sphere_context.clone(), client_sphere_identity)
+            .await?;
+
     let server_task = tokio::spawn({
-        let gateway_sphere_identity = gateway_sphere_identity.clone();
         async move {
-            start_gateway(
-                listener,
-                GatewayScope {
-                    identity: gateway_sphere_identity,
-                    counterpart: client_sphere_identity,
-                },
-                gateway_sphere_context,
+            let gateway = Gateway::new(
+                manager,
                 Url::parse("http://127.0.0.1:5001").unwrap(),
                 Url::parse("http://127.0.0.1:6667").unwrap(),
                 None,
             )
-            .await
-            .unwrap()
+            .unwrap();
+            gateway.start(listener).await.unwrap()
         }
     });
 
@@ -119,28 +119,31 @@ async fn gateway_identity_can_be_verified_by_the_client_of_its_owner() -> Result
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let gateway_address = listener.local_addr().unwrap();
-
-    let gateway_sphere_identity = gateway_workspace.sphere_identity().await.unwrap();
     let client_sphere_identity = client_workspace.sphere_identity().await.unwrap();
-
     let gateway_sphere_context = gateway_workspace.sphere_context().await.unwrap();
 
+    config_set(
+        ConfigSetCommand::Counterpart {
+            did: client_sphere_identity.clone().0,
+        },
+        &mut gateway_workspace,
+    )
+    .await?;
+
+    let manager =
+        SingleTenantGatewayManager::new(gateway_sphere_context.clone(), client_sphere_identity)
+            .await?;
+
     let server_task = tokio::spawn({
-        let gateway_sphere_identity = gateway_sphere_identity.clone();
         async move {
-            start_gateway(
-                listener,
-                GatewayScope {
-                    identity: gateway_sphere_identity,
-                    counterpart: client_sphere_identity,
-                },
-                gateway_sphere_context,
+            let gateway = Gateway::new(
+                manager,
                 Url::parse("http://127.0.0.1:5001").unwrap(),
                 Url::parse("http://127.0.0.1:6667").unwrap(),
                 None,
             )
-            .await
-            .unwrap()
+            .unwrap();
+            gateway.start(listener).await.unwrap()
         }
     });
 
@@ -191,28 +194,31 @@ async fn gateway_receives_a_newly_initialized_sphere_from_the_client() -> Result
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let gateway_address = listener.local_addr().unwrap();
 
-    let gateway_sphere_identity = gateway_workspace.sphere_identity().await.unwrap();
     let client_sphere_identity = client_workspace.sphere_identity().await.unwrap();
-
     let gateway_sphere_context = gateway_workspace.sphere_context().await.unwrap();
 
+    config_set(
+        ConfigSetCommand::Counterpart {
+            did: client_sphere_identity.clone().0,
+        },
+        &mut gateway_workspace,
+    )
+    .await?;
+
+    let manager =
+        SingleTenantGatewayManager::new(gateway_sphere_context.clone(), client_sphere_identity)
+            .await?;
+
     let server_task = {
-        let gateway_sphere_context = gateway_sphere_context.clone();
-        let client_sphere_identity = client_sphere_identity.clone();
         tokio::spawn(async move {
-            start_gateway(
-                listener,
-                GatewayScope {
-                    identity: gateway_sphere_identity,
-                    counterpart: client_sphere_identity,
-                },
-                gateway_sphere_context,
+            let gateway = Gateway::new(
+                manager,
                 Url::parse("http://127.0.0.1:5001").unwrap(),
                 Url::parse("http://127.0.0.1:6667").unwrap(),
                 None,
             )
-            .await
-            .unwrap()
+            .unwrap();
+            gateway.start(listener).await.unwrap()
         })
     };
 
@@ -283,28 +289,32 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() -> Re
 
     let gateway_identity = gateway_workspace.author().await?.did().await?;
 
-    let gateway_sphere_identity = gateway_workspace.sphere_identity().await.unwrap();
     let client_sphere_identity = client_workspace.sphere_identity().await.unwrap();
-
     let gateway_sphere_context = gateway_workspace.sphere_context().await.unwrap();
 
+    config_set(
+        ConfigSetCommand::Counterpart {
+            did: client_sphere_identity.clone().0,
+        },
+        &mut gateway_workspace,
+    )
+    .await?;
+
+    let manager =
+        SingleTenantGatewayManager::new(gateway_sphere_context.clone(), client_sphere_identity)
+            .await
+            .unwrap();
+
     let server_task = {
-        let gateway_sphere_context = gateway_sphere_context.clone();
-        let client_sphere_identity = client_sphere_identity.clone();
         tokio::spawn(async move {
-            start_gateway(
-                listener,
-                GatewayScope {
-                    identity: gateway_sphere_identity,
-                    counterpart: client_sphere_identity,
-                },
-                gateway_sphere_context,
+            let gateway = Gateway::new(
+                manager,
                 Url::parse("http://127.0.0.1:5001").unwrap(),
                 Url::parse("http://127.0.0.1:6667").unwrap(),
                 None,
             )
-            .await
-            .unwrap()
+            .unwrap();
+            gateway.start(listener).await.unwrap()
         })
     };
 

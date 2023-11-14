@@ -1,6 +1,12 @@
-use axum::{http::StatusCode, Extension};
-use noosphere_core::data::Did;
+use crate::extractors::GatewayScope;
+use axum::http::StatusCode;
+use noosphere_core::context::HasMutableSphereContext;
+use noosphere_storage::Storage;
 
-pub async fn did_route(Extension(gateway_identity): Extension<Did>) -> Result<String, StatusCode> {
-    Ok(gateway_identity.into())
+pub async fn did_route<C, S>(scope: GatewayScope<C, S>) -> Result<String, StatusCode>
+where
+    C: HasMutableSphereContext<S>,
+    S: Storage + 'static,
+{
+    Ok(scope.gateway_identity.into())
 }

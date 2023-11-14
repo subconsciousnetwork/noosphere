@@ -1,4 +1,5 @@
 use crate::try_or_reset::TryOrReset;
+use crate::GatewayManager;
 use anyhow::anyhow;
 use anyhow::Result;
 use noosphere_core::{
@@ -31,9 +32,11 @@ use tokio::{
 use tokio_stream::{Stream, StreamExt};
 use url::Url;
 
+/// How many seconds between publishing all managed sphere
+/// records, and the next cycle.
 const PERIODIC_PUBLISH_INTERVAL_SECONDS: u64 = 5 * 60;
-/// How many seconds between queueing up an address
-/// to resolve from the name system.
+/// How many seconds between resolving managed spheres'
+/// address books, and the next cycle.
 const PERIODIC_RESOLVER_INTERVAL_SECONDS: u64 = 60;
 
 pub struct NameSystemConfiguration {
@@ -93,11 +96,12 @@ pub enum NameSystemJob<C> {
     },
 }
 
-pub fn start_name_system<C, S>(
+pub fn start_name_system<M, C, S>(
     configuration: NameSystemConfiguration,
-    local_spheres: Vec<C>,
+    gateway_manager: M,
 ) -> (UnboundedSender<NameSystemJob<C>>, JoinHandle<Result<()>>)
 where
+    M: GatewayManager<C, S> + 'static,
     C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
 {
@@ -108,9 +112,9 @@ where
 
         tokio::task::spawn(async move {
             let _ = tokio::join!(
-                periodic_publisher_task(tx.clone(), local_spheres.clone()),
+                periodic_publisher_task(tx.clone(), gateway_manager.clone()),
                 name_system_task(configuration, rx),
-                periodic_resolver_task(tx, local_spheres)
+                periodic_resolver_task(tx, gateway_manager)
             );
             Ok(())
         })
@@ -122,16 +126,28 @@ where
 /// Run once on gateway start and every PERIODIC_PUBLISH_INTERVAL_SECONDS,
 /// republish all stored link records in gateway spheres that map to
 /// counterpart managed spheres.
-async fn periodic_publisher_task<C, S>(tx: UnboundedSender<NameSystemJob<C>>, local_spheres: Vec<C>)
+async fn periodic_publisher_task<M, C, S>(tx: UnboundedSender<NameSystemJob<C>>, gateway_manager: M)
 where
+    M: GatewayManager<C, S>,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     loop {
-        for local_sphere in local_spheres.iter() {
-            if let Err(error) = periodic_publish_record(&tx, local_sphere).await {
-                error!("Periodic re-publish of link record failed: {}", error);
-            };
+        let mut stream = gateway_manager.experimental_worker_only_iter();
+        loop {
+            match stream.try_next().await {
+                Ok(Some(local_sphere)) => {
+                    if let Err(error) = periodic_publish_record(&tx, &local_sphere).await {
+                        error!("Periodic re-publish of link record failed: {}", error);
+                    };
+                }
+                Ok(None) => {
+                    break;
+                }
+                Err(error) => {
+                    error!("Could not iterate on managed spheres: {}", error);
+                }
+            }
         }
         tokio::time::sleep(Duration::from_secs(PERIODIC_PUBLISH_INTERVAL_SECONDS)).await;
     }
@@ -163,21 +179,32 @@ where
     Ok(())
 }
 
-async fn periodic_resolver_task<C, S>(tx: UnboundedSender<NameSystemJob<C>>, local_spheres: Vec<C>)
+async fn periodic_resolver_task<M, C, S>(tx: UnboundedSender<NameSystemJob<C>>, gateway_manager: M)
 where
+    M: GatewayManager<C, S>,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
-    for sphere in local_spheres.iter().cycle() {
-        match tx.send(NameSystemJob::ResolveAll {
-            context: sphere.clone(),
-        }) {
-            Ok(_) => (),
-            Err(error) => {
-                warn!("Failed to request updated name resolutions: {}", error);
+    loop {
+        let mut stream = gateway_manager.experimental_worker_only_iter();
+        loop {
+            match stream.try_next().await {
+                Ok(Some(local_sphere)) => match tx.send(NameSystemJob::ResolveAll {
+                    context: local_sphere,
+                }) {
+                    Ok(_) => (),
+                    Err(error) => {
+                        warn!("Failed to request updated name resolutions: {}", error);
+                    }
+                },
+                Ok(None) => {
+                    break;
+                }
+                Err(error) => {
+                    error!("Could not iterate on managed spheres: {}", error);
+                }
             }
         }
-
         tokio::time::sleep(Duration::from_secs(PERIODIC_RESOLVER_INTERVAL_SECONDS)).await;
     }
 }

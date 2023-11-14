@@ -5,7 +5,6 @@ use crate::{
     error::NoosphereError,
     stream::{from_car_stream, memo_history_stream, put_block_stream, to_car_stream},
 };
-
 use anyhow::{anyhow, Result};
 use async_stream::try_stream;
 use bytes::Bytes;
@@ -88,10 +87,11 @@ where
 
         let client = reqwest::Client::new();
 
-        let mut url = api_base.clone();
-        url.set_path(&v0alpha1::Route::Did.to_string());
-
-        let did_response = client.get(url).send().await?;
+        let did_response = {
+            let mut url = api_base.clone();
+            url.set_path(&v0alpha1::Route::Did.to_string());
+            client.get(url).send().await?
+        };
 
         match did_response.status() {
             StatusCode::OK => (),

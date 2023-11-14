@@ -694,9 +694,9 @@ checksum = "a3e2c3daef883ecc1b5d58c15adae93470a91d425f3532ba1695849656af3fc1"
 
 [[package]]
 name = "byteorder"
-version = "1.5.0"
+version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
+checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "bytes"
@@ -3521,9 +3521,7 @@ dependencies = [
  "async-recursion",
  "async-stream",
  "async-trait",
- "axum",
  "base64 0.21.4",
- "byteorder",
  "bytes",
  "cid",
  "console_error_panic_hook",
@@ -3533,6 +3531,7 @@ dependencies = [
  "futures-util",
  "getrandom 0.2.10",
  "gloo-net",
+ "headers",
  "instant",
  "iroh-car",
  "js-sys",

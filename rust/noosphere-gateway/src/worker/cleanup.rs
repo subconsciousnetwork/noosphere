@@ -1,11 +1,11 @@
-use std::time::Duration;
-
+use crate::GatewayManager;
 use anyhow::{anyhow, Result};
 use noosphere_core::{
     context::{HasMutableSphereContext, HasSphereContext, SphereCursor, COUNTERPART},
     data::Did,
 };
 use noosphere_storage::{KeyValueStore, Storage};
+use std::time::Duration;
 use strum_macros::Display as EnumDisplay;
 use tokio::{
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
@@ -13,7 +13,8 @@ use tokio::{
 };
 use tokio_stream::StreamExt;
 
-// Once an hour
+/// Seconds between finishing all compaction tasks, and
+/// starting a new cycle.
 const PERIODIC_CLEANUP_INTERVAL_SECONDS: u64 = 60 * 60;
 
 #[derive(EnumDisplay)]
@@ -21,10 +22,11 @@ pub enum CleanupJob<C> {
     CompactHistory(C),
 }
 
-pub fn start_cleanup<C, S>(
-    gateway_sphere: C,
+pub fn start_cleanup<M, C, S>(
+    gateway_manager: M,
 ) -> (UnboundedSender<CleanupJob<C>>, JoinHandle<Result<()>>)
 where
+    M: GatewayManager<C, S> + 'static,
     C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
 {
@@ -34,7 +36,7 @@ where
         tokio::task::spawn(async move {
             let _ = tokio::join!(
                 cleanup_task(rx),
-                periodic_compaction_task(tx, gateway_sphere),
+                periodic_compaction_task(tx, gateway_manager),
             );
             Ok(())
         })
@@ -57,16 +59,27 @@ where
     Ok(())
 }
 
-async fn periodic_compaction_task<C, S>(tx: UnboundedSender<CleanupJob<C>>, gateway_sphere: C)
+async fn periodic_compaction_task<M, C, S>(tx: UnboundedSender<CleanupJob<C>>, gateway_manager: M)
 where
+    M: GatewayManager<C, S>,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     loop {
-        if let Err(error) = tx.send(CleanupJob::CompactHistory(gateway_sphere.clone())) {
-            error!("Periodic compaction failed: {}", error);
+        let mut stream = gateway_manager.experimental_worker_only_iter();
+        loop {
+            match stream.try_next().await {
+                Ok(Some(local_sphere)) => {
+                    if let Err(error) = tx.send(CleanupJob::CompactHistory(local_sphere)) {
+                        error!("Periodic compaction failed: {}", error);
+                    }
+                }
+                Ok(None) => break,
+                Err(error) => {
+                    error!("Could not iterate on managed spheres: {}", error);
+                }
+            }
         }
-
         tokio::time::sleep(Duration::from_secs(PERIODIC_CLEANUP_INTERVAL_SECONDS)).await;
     }
 }
@@ -188,7 +201,10 @@ mod tests {
     };
     use noosphere_storage::KeyValueStore;
 
-    use crate::worker::{start_cleanup, CleanupJob};
+    use crate::{
+        worker::{start_cleanup, CleanupJob},
+        SingleTenantGatewayManager,
+    };
 
     #[tokio::test]
     async fn it_compacts_excess_name_record_changes_in_a_gateway_sphere() -> Result<()> {
@@ -228,7 +244,12 @@ mod tests {
                 .collect::<Vec<String>>()
         );
 
-        let (tx, cleanup_worker) = start_cleanup(gateway_sphere_context.clone());
+        let manager = SingleTenantGatewayManager::new(
+            gateway_sphere_context.clone(),
+            user_sphere_identity.clone(),
+        )
+        .await?;
+        let (tx, cleanup_worker) = start_cleanup(manager);
 
         wait(1).await;
 

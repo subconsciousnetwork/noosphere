@@ -8,12 +8,15 @@
 #[macro_use]
 extern crate tracing;
 
-mod authority;
 mod error;
-mod extractor;
+mod extractors;
 mod gateway;
+mod gateway_manager;
 mod handlers;
+mod single_tenant;
 mod try_or_reset;
 mod worker;
 
 pub use gateway::*;
+pub use gateway_manager::*;
+pub use single_tenant::*;

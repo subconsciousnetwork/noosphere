@@ -1,6 +1,4 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use std::{io::Cursor, sync::Arc};
-
+use crate::GatewayManager;
 use anyhow::Result;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
@@ -17,12 +15,15 @@ use noosphere_core::{
 use noosphere_ipfs::{IpfsClient, KuboClient};
 use noosphere_storage::{block_deserialize, block_serialize, KeyValueStore, Storage};
 use serde::{Deserialize, Serialize};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{io::Cursor, sync::Arc};
 use tokio::sync::Mutex;
 use tokio::{
     io::AsyncReadExt,
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
 };
+use tokio_stream::StreamExt;
 use tokio_util::io::StreamReader;
 use url::Url;
 
@@ -77,11 +78,12 @@ const PERIODIC_SYNDICATION_INTERVAL_SECONDS: Duration = Duration::from_secs(5 * 
 /// Start a Tokio task that waits for [SyndicationJob] messages and then
 /// attempts to syndicate to the configured IPFS RPC. Currently only Kubo IPFS
 /// backends are supported.
-pub fn start_ipfs_syndication<C, S>(
+pub fn start_ipfs_syndication<M, C, S>(
     ipfs_api: Url,
-    local_spheres: Vec<C>,
+    gateway_manager: M,
 ) -> (UnboundedSender<SyndicationJob<C>>, JoinHandle<Result<()>>)
 where
+    M: GatewayManager<C, S> + 'static,
     C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
 {
@@ -91,7 +93,7 @@ where
         let tx = tx.clone();
         tokio::task::spawn(async move {
             let (_, syndication_result) = tokio::join!(
-                periodic_syndication_task(tx, local_spheres),
+                periodic_syndication_task(tx, gateway_manager),
                 ipfs_syndication_task(ipfs_api, rx)
             );
             syndication_result?;
@@ -102,18 +104,30 @@ where
     (tx, task)
 }
 
-async fn periodic_syndication_task<C, S>(
+async fn periodic_syndication_task<M, C, S>(
     tx: UnboundedSender<SyndicationJob<C>>,
-    local_spheres: Vec<C>,
+    gateway_manager: M,
 ) where
+    M: GatewayManager<C, S> + 'static,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     loop {
-        for local_sphere in &local_spheres {
-            if let Err(error) = periodic_syndication(&tx, local_sphere).await {
-                error!("Periodic syndication of sphere history failed: {}", error);
-            };
+        let mut stream = gateway_manager.experimental_worker_only_iter();
+        loop {
+            match stream.try_next().await {
+                Ok(Some(local_sphere)) => {
+                    if let Err(error) = periodic_syndication(&tx, local_sphere).await {
+                        error!("Periodic syndication of sphere history failed: {}", error);
+                    };
+                }
+                Ok(None) => {
+                    break;
+                }
+                Err(error) => {
+                    error!("Could not iterate on managed spheres: {}", error);
+                }
+            }
             tokio::time::sleep(Duration::from_secs(5)).await;
         }
         tokio::time::sleep(PERIODIC_SYNDICATION_INTERVAL_SECONDS).await;
@@ -122,7 +136,7 @@ async fn periodic_syndication_task<C, S>(
 
 async fn periodic_syndication<C, S>(
     tx: &UnboundedSender<SyndicationJob<C>>,
-    local_sphere: &C,
+    local_sphere: C,
 ) -> Result<()>
 where
     C: HasMutableSphereContext<S>,
@@ -316,7 +330,10 @@ mod tests {
     use tokio::select;
     use url::Url;
 
-    use crate::worker::{start_ipfs_syndication, SyndicationCheckpoint, SyndicationJob};
+    use crate::{
+        worker::{start_ipfs_syndication, SyndicationCheckpoint, SyndicationJob},
+        SingleTenantGatewayManager,
+    };
 
     #[tokio::test(flavor = "multi_thread")]
     async fn it_syndicates_a_sphere_revision_to_kubo() -> Result<()> {
@@ -342,9 +359,14 @@ mod tests {
 
         let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
         let local_kubo_client = KuboClient::new(&ipfs_url.clone())?;
+        let manager = SingleTenantGatewayManager::new(
+            gateway_sphere_context.clone(),
+            user_sphere_identity.clone(),
+        )
+        .await?;
 
         let (syndication_tx, _syndication_join_handle) =
-            start_ipfs_syndication::<_, _>(ipfs_url, vec![user_sphere_context.clone()]);
+            start_ipfs_syndication::<_, _, _>(ipfs_url, manager);
 
         user_sphere_context
             .write("foo", &ContentType::Text, b"bar".as_ref(), None)
