@@ -299,19 +299,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-compat"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b48b4ff0c2026db683dea961cd8ea874737f56cffca86fa84415eaddc51c00d"
-dependencies = [
- "futures-core",
- "futures-io",
- "once_cell",
- "pin-project-lite",
- "tokio",
-]
-
-[[package]]
 name = "async-io"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3413,7 +3400,7 @@ dependencies = [
  "rexie",
  "safer-ffi",
  "serde_json",
- "subtext",
+ "subtext 0.3.4 (git+https://github.com/subconsciousnetwork/subtext?rev=afe4836)",
  "tempfile",
  "thiserror",
  "tokio",
@@ -3455,7 +3442,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "subtext",
+ "subtext 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "symlink",
  "tempfile",
  "tokio",
@@ -3609,7 +3596,6 @@ name = "noosphere-into"
 version = "0.11.4"
 dependencies = [
  "anyhow",
- "async-compat",
  "async-stream",
  "async-trait",
  "async-utf8-decoder",
@@ -3621,7 +3607,7 @@ dependencies = [
  "libipld-cbor",
  "noosphere-core",
  "noosphere-storage",
- "subtext",
+ "subtext 0.3.4 (git+https://github.com/subconsciousnetwork/subtext?rev=afe4836)",
  "tempfile",
  "tokio",
  "tokio-stream",
@@ -3639,7 +3625,6 @@ name = "noosphere-ipfs"
 version = "0.8.4"
 dependencies = [
  "anyhow",
- "async-compat",
  "async-stream",
  "async-trait",
  "cid",
@@ -3660,6 +3645,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "tracing",
  "ucan",
  "url",
@@ -5304,13 +5290,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd41fd9fc6998faab4b179e626264e294226ecf922322f4a823bb9f774f78fa7"
 dependencies = [
  "anyhow",
- "async-compat",
+ "log",
+ "tendril",
+]
+
+[[package]]
+name = "subtext"
+version = "0.3.4"
+source = "git+https://github.com/subconsciousnetwork/subtext?rev=afe4836#afe4836642d13bc0a4b75cd83c4f6726eee992e4"
+dependencies = [
+ "anyhow",
  "async-stream",
  "async-utf8-decoder",
  "futures",
  "log",
  "tendril",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

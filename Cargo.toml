@@ -51,7 +51,7 @@ serde_urlencoded = { version = "~0.7" }
 serde-wasm-bindgen = { version = "0.4" }
 strum = { version = "0.25" }
 strum_macros = { version = "0.25" }
-subtext = { version = "0.3.4" }
+subtext = { git = "https://github.com/subconsciousnetwork/subtext", rev = "afe4836" }
 symlink = { version = "0.1" }
 tempfile = { version = "^3" }
 thiserror = { version = "1" }
