@@ -23,6 +23,9 @@ rocksdb = ["noosphere/rocksdb"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[build-dependencies]
+vergen = { workspace = true }
+
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls", "stream"] }
 
@@ -54,6 +57,9 @@ noosphere-ns = { version = "0.11.4", path = "../noosphere-ns", optional = true }
 noosphere = { version = "0.15.4", path = "../noosphere" }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
+
+vergen-pretty = { workspace = true }
+
 cid = { workspace = true }
 symlink = { workspace = true }
 pathdiff = { workspace = true }
