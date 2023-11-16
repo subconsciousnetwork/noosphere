@@ -29,6 +29,7 @@ use anyhow::Result;
 use clap::Parser;
 use noosphere_core::tracing::initialize_tracing;
 use noosphere_storage::StorageConfig;
+use vergen_pretty::{vergen_pretty_env, PrettyBuilder};
 
 /// Additional context used to invoke a [Cli] command.
 pub struct CliContext<'a> {
@@ -85,6 +86,22 @@ pub async fn invoke_cli_with_workspace(cli: Cli, mut workspace: Workspace) -> Re
             KeyCommand::Create { name } => key_create(&name, &workspace).await?,
             KeyCommand::List { as_json } => key_list(as_json, &workspace).await?,
         },
+        OrbCommand::Version { verbose } => {
+            let version = env!("CARGO_PKG_VERSION");
+
+            if verbose {
+                let mut out = Vec::new();
+                PrettyBuilder::default()
+                    .env(vergen_pretty_env!())
+                    .build()?
+                    .display(&mut out)?;
+
+                info!("{:>28}: {}", "Version (  orb)", version);
+                info!("{}", std::str::from_utf8(&out)?);
+            } else {
+                info!("{}", version);
+            }
+        }
         OrbCommand::Sphere { command } => match command {
             SphereCommand::Create { owner_key } => {
                 sphere_create(&owner_key, &mut workspace).await?;
