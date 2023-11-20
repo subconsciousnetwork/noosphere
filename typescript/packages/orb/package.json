@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@web/dev-server": "^0.4.0",
-    "esbuild": "^0.19.5",
+    "esbuild": "^0.19.6",
     "typescript": "~5.2.2",
     "wireit": "^0.14.1"
   },
