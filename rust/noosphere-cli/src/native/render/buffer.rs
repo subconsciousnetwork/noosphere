@@ -53,6 +53,7 @@ impl<T> ChangeBuffer<T> {
     }
 
     /// Buffer an additive change by key
+    #[instrument(level = "trace", skip(self, value))]
     pub fn add(&mut self, key: String, value: T) -> Result<()> {
         self.assert_not_full()?;
 
@@ -91,6 +92,7 @@ where
     #[instrument(skip(self))]
     pub async fn flush_to_writer(&mut self, writer: &SphereWriter) -> Result<()> {
         let (added, removed) = self.take();
+
         let mut changes = JoinSet::<Result<()>>::new();
 
         for (slug, mut file) in added {

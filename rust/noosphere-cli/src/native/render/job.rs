@@ -111,13 +111,16 @@ where
                         self.incremental_render(&version.into()).await?;
                     }
                     _ => {
+                        let cursor = SphereCursor::latest(self.context.clone());
+
                         if force_full_render {
                             debug!("Root full render is being forced...");
+                            self.reset_content(cursor.clone()).await?;
                         } else {
                             debug!("Root has not been rendered yet; performing a full render...");
                         }
-                        self.full_render(SphereCursor::latest(self.context.clone()))
-                            .await?
+
+                        self.full_render(cursor).await?
                     }
                 }
             }
@@ -144,6 +147,11 @@ where
 
     fn paths(&self) -> &SpherePaths {
         self.writer.paths()
+    }
+
+    #[instrument(level = "debug", skip(self, cursor))]
+    async fn reset_content(&self, cursor: SphereCursor<C, S>) -> Result<()> {
+        Ok(())
     }
 
     #[instrument(level = "debug", skip(self, cursor))]
