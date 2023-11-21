@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.9.3...noosphere-storage-v0.10.0) (2023-11-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* Initial work refactoring noosphere-gateway to be generic over the ([#698](https://github.com/subconsciousnetwork/noosphere/issues/698))
+
+### Features
+
+* Initial work refactoring noosphere-gateway to be generic over the ([#698](https://github.com/subconsciousnetwork/noosphere/issues/698)) ([92f0d8a](https://github.com/subconsciousnetwork/noosphere/commit/92f0d8a6ff4a76dd971f6e945fcc7ddb01019699))
+
 ## [0.9.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.9.2...noosphere-storage-v0.9.3) (2023-11-01)
 
 
