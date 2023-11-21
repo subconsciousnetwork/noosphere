@@ -21,6 +21,7 @@ use noosphere_storage::{block_deserialize, block_serialize, BlockStore};
 use reqwest::{header::HeaderMap, StatusCode};
 use tokio_stream::{Stream, StreamExt};
 use tokio_util::io::StreamReader;
+use tracing::*;
 use ucan::{
     builder::UcanBuilder,
     capability::CapabilityView,
@@ -30,7 +31,7 @@ use ucan::{
 };
 use url::Url;
 
-#[cfg(doc)]
+#[cfg(any(doc, feature = "test-gateway"))]
 use crate::data::Did;
 
 use super::v0alpha1::ReplicationMode;
@@ -39,6 +40,10 @@ use super::v0alpha1::ReplicationMode;
 /// API. It embodies the intended usage of the REST API, which includes an
 /// opening handshake (with associated key verification) and various
 /// UCAN-authorized verbs over sphere data.
+///
+/// When built with the `test-gateway` flag, a modified Host header
+/// is sent, rewriting Host to `{IDENTITY}.gateway.test`, where IDENTITY
+/// is the client sphere identity with the `did:key:` prefix stripped.
 pub struct Client<K, S>
 where
     K: KeyMaterial + Clone + 'static,
@@ -61,6 +66,9 @@ where
     pub store: S,
 
     client: reqwest::Client,
+
+    #[cfg(feature = "test-gateway")]
+    forced_host_header: reqwest::header::HeaderValue,
 }
 
 impl<K, S> Client<K, S>
@@ -87,10 +95,22 @@ where
 
         let client = reqwest::Client::new();
 
+        #[cfg(feature = "test-gateway")]
+        let forced_host_header = create_test_header(api_base, &Did::from(sphere_identity))?;
+
         let did_response = {
             let mut url = api_base.clone();
             url.set_path(&v0alpha1::Route::Did.to_string());
-            client.get(url).send().await?
+
+            #[allow(unused_mut)]
+            let mut client = client.get(url);
+
+            #[cfg(feature = "test-gateway")]
+            {
+                client = client.header(reqwest::header::HOST, &forced_host_header);
+            }
+
+            client.send().await?
         };
 
         match did_response.status() {
@@ -103,7 +123,8 @@ where
         let mut url = api_base.clone();
         url.set_path(&v0alpha1::Route::Identify.to_string());
 
-        let (jwt, ucan_headers) = Self::make_bearer_token(
+        #[allow(unused_mut)]
+        let (jwt, mut headers) = Self::make_bearer_token(
             &gateway_identity,
             author,
             &generate_capability(sphere_identity, SphereAbility::Fetch),
@@ -111,10 +132,13 @@ where
         )
         .await?;
 
+        #[cfg(feature = "test-gateway")]
+        apply_test_header(&mut headers, &forced_host_header);
+
         let identify_response: v0alpha1::IdentifyResponse = client
             .get(url)
             .bearer_auth(jwt)
-            .headers(ucan_headers)
+            .headers(headers)
             .send()
             .await?
             .json()
@@ -134,6 +158,8 @@ where
             author: author.clone(),
             store,
             client,
+            #[cfg(feature = "test-gateway")]
+            forced_host_header,
         })
     }
 
@@ -239,7 +265,8 @@ where
 
         let capability = generate_capability(&self.sphere_identity, SphereAbility::Fetch);
 
-        let (token, ucan_headers) = Self::make_bearer_token(
+        #[allow(unused_mut)]
+        let (token, mut headers) = Self::make_bearer_token(
             &self.session.gateway_identity,
             &self.author,
             &capability,
@@ -247,11 +274,14 @@ where
         )
         .await?;
 
+        #[cfg(feature = "test-gateway")]
+        apply_test_header(&mut headers, &self.forced_host_header);
+
         let response = self
             .client
             .get(url)
             .bearer_auth(token)
-            .headers(ucan_headers)
+            .headers(headers)
             .send()
             .await?;
 
@@ -300,7 +330,8 @@ where
         debug!("Client fetching blocks from {}", url);
 
         let capability = generate_capability(&self.sphere_identity, SphereAbility::Fetch);
-        let (token, ucan_headers) = Self::make_bearer_token(
+        #[allow(unused_mut)]
+        let (token, mut headers) = Self::make_bearer_token(
             &self.session.gateway_identity,
             &self.author,
             &capability,
@@ -308,11 +339,14 @@ where
         )
         .await?;
 
+        #[cfg(feature = "test-gateway")]
+        apply_test_header(&mut headers, &self.forced_host_header);
+
         let response = self
             .client
             .get(url)
             .bearer_auth(token)
-            .headers(ucan_headers)
+            .headers(headers)
             .send()
             .await?;
 
@@ -380,7 +414,7 @@ where
     async fn make_push_request(
         &self,
         url: Url,
-        ucan_headers: HeaderMap,
+        headers: HeaderMap,
         token: &str,
         push_body: &v0alpha2::PushBody,
     ) -> Result<impl Stream<Item = Result<(Cid, Vec<u8>)>> + ConditionalSend, v0alpha2::PushError>
@@ -397,12 +431,12 @@ where
         use wasm_bindgen::JsValue;
         use wasm_streams::ReadableStream;
 
-        let headers = Headers::new();
-        headers.append("Authorization", &format!("Bearer {}", token));
+        let all_headers = Headers::new();
+        all_headers.append("Authorization", &format!("Bearer {}", token));
 
-        for (name, value) in ucan_headers {
+        for (name, value) in headers {
             if let (Some(name), Ok(value)) = (name, value.to_str()) {
-                headers.append(name.as_str(), value);
+                all_headers.append(name.as_str(), value);
             }
         }
 
@@ -415,7 +449,7 @@ where
 
         let request = RequestBuilder::new(url.as_str())
             .method(Method::PUT)
-            .headers(headers)
+            .headers(all_headers)
             .body(JsValue::from(readable_stream.as_raw()))
             .map_err(|error| v0alpha2::PushError::Internal(Some(error.to_string())))?;
 
@@ -452,7 +486,7 @@ where
     async fn make_push_request(
         &self,
         url: Url,
-        ucan_headers: HeaderMap,
+        headers: HeaderMap,
         token: &str,
         push_body: &v0alpha2::PushBody,
     ) -> Result<impl Stream<Item = Result<(Cid, Vec<u8>)>> + ConditionalSend, v0alpha2::PushError>
@@ -465,7 +499,7 @@ where
             .client
             .put(url)
             .bearer_auth(token)
-            .headers(ucan_headers)
+            .headers(headers)
             .header("Content-Type", "application/octet-stream")
             .body(Body::wrap_stream(stream))
             .send()
@@ -500,7 +534,8 @@ where
             push_body.sphere, url
         );
         let capability = generate_capability(&self.sphere_identity, SphereAbility::Push);
-        let (token, ucan_headers) = Self::make_bearer_token(
+        #[allow(unused_mut)]
+        let (token, mut headers) = Self::make_bearer_token(
             &self.session.gateway_identity,
             &self.author,
             &capability,
@@ -508,8 +543,11 @@ where
         )
         .await?;
 
+        #[cfg(feature = "test-gateway")]
+        apply_test_header(&mut headers, &self.forced_host_header);
+
         let block_stream = self
-            .make_push_request(url, ucan_headers, &token, push_body)
+            .make_push_request(url, headers, &token, push_body)
             .await?;
 
         tokio::pin!(block_stream);
@@ -527,5 +565,61 @@ where
             })?;
 
         Ok(push_response)
+    }
+}
+
+#[cfg(feature = "test-gateway")]
+fn apply_test_header(headers: &mut HeaderMap, forced_host_header: &reqwest::header::HeaderValue) {
+    use reqwest::header::HOST;
+    _ = headers.remove(HOST);
+    headers.insert(HOST, forced_host_header.to_owned());
+}
+
+#[cfg(feature = "test-gateway")]
+fn create_test_header(api_base: &Url, identity: &Did) -> Result<reqwest::header::HeaderValue> {
+    let mod_identity = identity
+        .as_str()
+        .strip_prefix("did:key:")
+        .ok_or_else(|| anyhow!("Could not format Host header for test-gateway."))?;
+    let domain = api_base
+        .domain()
+        .ok_or_else(|| anyhow!("Host header does not have domain."))?;
+    let port = api_base.port();
+
+    let new_host = if let Some(port) = port {
+        format!("{}.{}:{}", mod_identity, domain, port)
+    } else {
+        format!("{}.{}", mod_identity, domain)
+    };
+
+    Ok(reqwest::header::HeaderValue::from_str(&new_host)?)
+}
+
+#[cfg(all(test, feature = "test-gateway"))]
+mod tests {
+    use super::*;
+    use reqwest::header::HeaderValue;
+
+    #[test]
+    fn it_creates_test_header_from_url() -> Result<()> {
+        let identity = Did::from("did:key:z6Mkuj9KHUDzGng3rKPouDgnrJJAk9DiBLRL7nWV4ULMs4E7");
+        let mod_id = "z6Mkuj9KHUDzGng3rKPouDgnrJJAk9DiBLRL7nWV4ULMs4E7";
+        let expectations = [
+            ("http://localhost", format!("{mod_id}.localhost")),
+            ("http://localhost:1234", format!("{mod_id}.localhost:1234")),
+            ("http://foo.bar", format!("{mod_id}.foo.bar")),
+            ("http://foo.bar:1234", format!("{mod_id}.foo.bar:1234")),
+        ];
+
+        for (api_base, expected_host) in expectations {
+            assert_eq!(
+                create_test_header(&Url::parse(api_base)?, &identity)?,
+                HeaderValue::from_str(&expected_host)?
+            );
+        }
+
+        assert!(create_test_header(&Url::parse("http://127.0.0.1")?, &identity).is_err());
+        assert!(create_test_header(&Url::parse("http://127.0.0.1:1234")?, &identity).is_err());
+        Ok(())
     }
 }
