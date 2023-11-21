@@ -105,6 +105,30 @@
   * dependencies
     * noosphere-ns bumped from 0.9.3 to 0.9.4
 
+## [0.11.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.10.3...noosphere-gateway-v0.11.0) (2023-11-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* Initial work refactoring noosphere-gateway to be generic over the ([#698](https://github.com/subconsciousnetwork/noosphere/issues/698))
+
+### Features
+
+* Fix nightly builds and add to CI. ([#690](https://github.com/subconsciousnetwork/noosphere/issues/690)) ([344dd7a](https://github.com/subconsciousnetwork/noosphere/commit/344dd7ad20226232ce9545a9399de0c1c17f6687))
+* Initial work refactoring noosphere-gateway to be generic over the ([#698](https://github.com/subconsciousnetwork/noosphere/issues/698)) ([92f0d8a](https://github.com/subconsciousnetwork/noosphere/commit/92f0d8a6ff4a76dd971f6e945fcc7ddb01019699))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.8.4 to 0.8.5
+    * noosphere-core bumped from 0.17.3 to 0.18.0
+    * noosphere-ns bumped from 0.11.4 to 0.11.5
+    * noosphere-storage bumped from 0.9.3 to 0.10.0
+  * dev-dependencies
+    * noosphere-core bumped from 0.17.3 to 0.18.0
+
 ## [0.10.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.10.2...noosphere-gateway-v0.10.3) (2023-11-01)
 
 
