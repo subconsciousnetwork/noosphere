@@ -67,8 +67,7 @@ where
 
     client: reqwest::Client,
 
-    #[cfg(feature = "test-gateway")]
-    forced_host_header: reqwest::header::HeaderValue,
+    host_header: Option<reqwest::header::HeaderValue>,
 }
 
 impl<K, S> Client<K, S>
@@ -88,6 +87,7 @@ where
         author: &Author<K>,
         did_parser: &mut DidParser,
         store: S,
+        override_host: Option<String>,
     ) -> Result<Client<K, S>> {
         debug!("Initializing Noosphere API client");
         debug!("Client represents sphere {}", sphere_identity);
@@ -95,8 +95,10 @@ where
 
         let client = reqwest::Client::new();
 
-        #[cfg(feature = "test-gateway")]
-        let forced_host_header = create_test_header(api_base, &Did::from(sphere_identity))?;
+        let override_host_header = match override_host {
+            Some(host) => Some(reqwest::header::HeaderValue::from_str(&host)?),
+            None => None,
+        };
 
         let did_response = {
             let mut url = api_base.clone();
@@ -105,9 +107,8 @@ where
             #[allow(unused_mut)]
             let mut client = client.get(url);
 
-            #[cfg(feature = "test-gateway")]
-            {
-                client = client.header(reqwest::header::HOST, &forced_host_header);
+            if let Some(host_header) = override_host_header.as_ref() {
+                client = client.header(reqwest::header::HOST, host_header);
             }
 
             client.send().await?
@@ -132,8 +133,9 @@ where
         )
         .await?;
 
-        #[cfg(feature = "test-gateway")]
-        apply_test_header(&mut headers, &forced_host_header);
+        if let Some(host_header) = override_host_header.as_ref() {
+            headers.insert(reqwest::header::HOST, host_header.to_owned());
+        }
 
         let identify_response: v0alpha1::IdentifyResponse = client
             .get(url)
@@ -158,8 +160,7 @@ where
             author: author.clone(),
             store,
             client,
-            #[cfg(feature = "test-gateway")]
-            forced_host_header,
+            host_header: override_host_header,
         })
     }
 
@@ -274,8 +275,9 @@ where
         )
         .await?;
 
-        #[cfg(feature = "test-gateway")]
-        apply_test_header(&mut headers, &self.forced_host_header);
+        if let Some(host_header) = self.host_header.as_ref() {
+            headers.insert(reqwest::header::HOST, host_header.to_owned());
+        }
 
         let response = self
             .client
@@ -339,8 +341,9 @@ where
         )
         .await?;
 
-        #[cfg(feature = "test-gateway")]
-        apply_test_header(&mut headers, &self.forced_host_header);
+        if let Some(host_header) = self.host_header.as_ref() {
+            headers.insert(reqwest::header::HOST, host_header.to_owned());
+        }
 
         let response = self
             .client
@@ -543,8 +546,9 @@ where
         )
         .await?;
 
-        #[cfg(feature = "test-gateway")]
-        apply_test_header(&mut headers, &self.forced_host_header);
+        if let Some(host_header) = self.host_header.as_ref() {
+            headers.insert(reqwest::header::HOST, host_header.to_owned());
+        }
 
         let block_stream = self
             .make_push_request(url, headers, &token, push_body)
@@ -565,61 +569,5 @@ where
             })?;
 
         Ok(push_response)
-    }
-}
-
-#[cfg(feature = "test-gateway")]
-fn apply_test_header(headers: &mut HeaderMap, forced_host_header: &reqwest::header::HeaderValue) {
-    use reqwest::header::HOST;
-    _ = headers.remove(HOST);
-    headers.insert(HOST, forced_host_header.to_owned());
-}
-
-#[cfg(feature = "test-gateway")]
-fn create_test_header(api_base: &Url, identity: &Did) -> Result<reqwest::header::HeaderValue> {
-    let mod_identity = identity
-        .as_str()
-        .strip_prefix("did:key:")
-        .ok_or_else(|| anyhow!("Could not format Host header for test-gateway."))?;
-    let domain = api_base
-        .domain()
-        .ok_or_else(|| anyhow!("Host header does not have domain."))?;
-    let port = api_base.port();
-
-    let new_host = if let Some(port) = port {
-        format!("{}.{}:{}", mod_identity, domain, port)
-    } else {
-        format!("{}.{}", mod_identity, domain)
-    };
-
-    Ok(reqwest::header::HeaderValue::from_str(&new_host)?)
-}
-
-#[cfg(all(test, feature = "test-gateway"))]
-mod tests {
-    use super::*;
-    use reqwest::header::HeaderValue;
-
-    #[test]
-    fn it_creates_test_header_from_url() -> Result<()> {
-        let identity = Did::from("did:key:z6Mkuj9KHUDzGng3rKPouDgnrJJAk9DiBLRL7nWV4ULMs4E7");
-        let mod_id = "z6Mkuj9KHUDzGng3rKPouDgnrJJAk9DiBLRL7nWV4ULMs4E7";
-        let expectations = [
-            ("http://localhost", format!("{mod_id}.localhost")),
-            ("http://localhost:1234", format!("{mod_id}.localhost:1234")),
-            ("http://foo.bar", format!("{mod_id}.foo.bar")),
-            ("http://foo.bar:1234", format!("{mod_id}.foo.bar:1234")),
-        ];
-
-        for (api_base, expected_host) in expectations {
-            assert_eq!(
-                create_test_header(&Url::parse(api_base)?, &identity)?,
-                HeaderValue::from_str(&expected_host)?
-            );
-        }
-
-        assert!(create_test_header(&Url::parse("http://127.0.0.1")?, &identity).is_err());
-        assert!(create_test_header(&Url::parse("http://127.0.0.1:1234")?, &identity).is_err());
-        Ok(())
     }
 }

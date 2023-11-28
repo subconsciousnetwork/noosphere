@@ -14,6 +14,9 @@ use tokio::sync::OnceCell;
 use ucan::crypto::{did::DidParser, KeyMaterial};
 use url::Url;
 
+#[cfg(feature = "test-gateway")]
+const GATEWAY_OVERRIDE_HOST: &str = "gateway_override_host";
+
 #[cfg(doc)]
 use crate::context::has::HasSphereContext;
 
@@ -224,6 +227,10 @@ where
             .client
             .get_or_try_init::<anyhow::Error, _, _>(|| async {
                 let gateway_url: Url = self.db.require_key(GATEWAY_URL).await?;
+                #[cfg(feature = "test-gateway")]
+                let host_header = { self.db.get_key(GATEWAY_OVERRIDE_HOST).await? };
+                #[cfg(not(feature = "test-gateway"))]
+                let host_header = { None };
 
                 Ok(Arc::new(
                     Client::identify(
@@ -233,6 +240,7 @@ where
                         // TODO: Kill `DidParser` with fire
                         &mut DidParser::new(SUPPORTED_KEYS),
                         self.db.clone(),
+                        host_header,
                     )
                     .await?,
                 ))
@@ -246,6 +254,24 @@ where
     // self.access.take();
     pub(crate) fn reset_access(&mut self) {
         self.access.take();
+    }
+
+    #[cfg(feature = "test-gateway")]
+    pub async fn configure_gateway_host(&mut self, host: Option<&str>) -> Result<()> {
+        self.client = OnceCell::new();
+
+        match host {
+            Some(host) => {
+                self.db
+                    .set_key(GATEWAY_OVERRIDE_HOST, host.to_owned())
+                    .await?;
+            }
+            None => {
+                self.db.unset_key(GATEWAY_OVERRIDE_HOST).await?;
+            }
+        }
+
+        Ok(())
     }
 }
 
