@@ -10,8 +10,10 @@ use noosphere_core::data::{Did, Link, LinkRecord, MemoIpld};
 use noosphere_storage::Storage;
 use std::{marker::PhantomData, sync::Arc};
 use tokio::sync::mpsc::Sender;
+use tokio::task::JoinSet;
 use tokio_stream::StreamExt;
 
+use crate::content;
 use crate::native::{paths::SpherePaths, render::ChangeBuffer};
 
 use super::writer::SphereWriter;
@@ -115,7 +117,7 @@ where
 
                         if force_full_render {
                             debug!("Root full render is being forced...");
-                            self.reset_content(cursor.clone()).await?;
+                            self.reset_content().await?;
                         } else {
                             debug!("Root has not been rendered yet; performing a full render...");
                         }
@@ -149,8 +151,28 @@ where
         self.writer.paths()
     }
 
-    #[instrument(level = "debug", skip(self, cursor))]
-    async fn reset_content(&self, cursor: SphereCursor<C, S>) -> Result<()> {
+    #[instrument(level = "debug", skip(self))]
+    async fn reset_content(&self) -> Result<()> {
+        debug!("Resetting content...");
+        let mut files = tokio::fs::read_dir(self.paths().root()).await?;
+        let mut work = JoinSet::new();
+
+        while let Some(file) = files.next_entry().await? {
+            let path = file.path();
+            if self.paths().is_within_user_content_space(&path) {
+                trace!("Removing {}", path.display());
+                if path.is_dir() {
+                    work.spawn(tokio::fs::remove_dir_all(path));
+                } else {
+                    work.spawn(tokio::fs::remove_file(path));
+                }
+            }
+        }
+
+        while let Some(result) = work.join_next().await {
+            result??;
+        }
+
         Ok(())
     }
 

@@ -5,9 +5,10 @@ use cid::{multihash::Code, multihash::MultihashDigest, Cid};
 use libipld_core::raw::RawCodec;
 use noosphere_core::data::{Did, MemoIpld};
 use noosphere_storage::base64_encode;
+use pathdiff::diff_paths;
 use std::{
     fmt::Debug,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 use super::extension::infer_file_extension;
@@ -88,6 +89,31 @@ impl SpherePaths {
             depth: sphere.join(DEPTH_FILE),
             sphere,
         }
+    }
+
+    /// Returns true if the path neither a path through a symlink to a peer nor
+    /// a path through the hidden [SPHERE_DIRECTORY]. Implicitly, such a path is
+    /// considered part of the user's rendered content space.
+    pub fn is_within_user_content_space(&self, path: &Path) -> bool {
+        let diff = match diff_paths(path, &self.root) {
+            Some(diff) => diff,
+            None => {
+                // NOTE: Per `diff_paths` implementation, this probably means that there was
+                // some misconfiguration on our side because we are comparing two relative
+                // paths or something equally bogus
+                return false;
+            }
+        };
+
+        // A non-canonicalized path may both start with the sphere root but also
+        // point outside of the root via `..` (or equivalent) components
+        if let Some(Component::ParentDir) = diff.components().nth(0) {
+            return false;
+        };
+
+        path.starts_with(&self.root) // Path is inside sphere root
+            && !path.starts_with(&self.sphere) // Path is _not_ inside [SPHERE_DIRECTORY]
+            && !diff.to_string_lossy().contains('@') // Internal path does not refer to a peer
     }
 
     /// Initialize [SpherePaths] for a given root path. This has the effect of
@@ -217,5 +243,53 @@ impl SpherePaths {
             None => slug.into(),
         };
         Ok(base.join(file_fragment))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use tempfile::TempDir;
+
+    use super::SpherePaths;
+
+    #[tokio::test]
+    async fn it_can_distinguish_paths_through_the_content_space() -> Result<()> {
+        let temporary_dir = TempDir::new()?;
+        let paths = SpherePaths::initialize(temporary_dir.path()).await?;
+
+        let inside_content_space = vec!["foobar", "foo/bar", "a/b/c/d", "fizz1/buzz324_abc"];
+
+        let outside_content_space = vec![
+            "../foobar",
+            "/foo/bar",
+            ".sphere/content",
+            ".sphere/foobar",
+            ".sphere",
+            "@foo",
+            "@bar/baz",
+        ];
+
+        for fragment in inside_content_space.into_iter() {
+            let path = temporary_dir.path().join(fragment);
+            assert!(
+                paths.is_within_user_content_space(&path),
+                "For root {}, {} is inside content space",
+                paths.root().display(),
+                path.display()
+            );
+        }
+
+        for fragment in outside_content_space.into_iter() {
+            let path = temporary_dir.path().join(fragment);
+            assert!(
+                !paths.is_within_user_content_space(&path),
+                "For root {}, {} is outside content space",
+                paths.root().display(),
+                path.display()
+            );
+        }
+
+        Ok(())
     }
 }

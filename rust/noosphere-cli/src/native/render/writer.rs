@@ -8,6 +8,7 @@ use std::{
     sync::{Arc, OnceLock},
 };
 use symlink::{remove_symlink_dir, remove_symlink_file, symlink_dir, symlink_file};
+use tokio::fs::symlink_metadata;
 use tokio::{fs::File, io::copy};
 
 use crate::native::paths::{
@@ -135,6 +136,20 @@ impl SphereWriter {
             if file_path.exists() {
                 trace!("Removing '{}'", file_path.display());
                 tokio::fs::remove_file(&file_path).await?;
+                if let Some(parent) = file_path.parent() {
+                    if parent.is_dir() {
+                        if tokio::fs::read_dir(parent)
+                            .await?
+                            .next_entry()
+                            .await?
+                            .is_none()
+                        {
+                            trace!("Removing '{}' (empty directory)", parent.display());
+                            // Directory is empty, so remove it entirely
+                            tokio::fs::remove_dir_all(parent).await?;
+                        }
+                    }
+                }
             }
 
             Ok(())
@@ -278,6 +293,15 @@ impl SphereWriter {
         })?;
 
         if slug_path.exists() {
+            // We compare the current file path to the new one because if the
+            // content-type header changed, then the file extension will be
+            // different (even though the slug is the same).
+            let current_file_path = tokio::fs::read_link(&slug_path).await?;
+
+            if &current_file_path != file_path {
+                tokio::fs::remove_file(&current_file_path).await?;
+            }
+
             remove_symlink_file(&slug_path)?;
         }
 
