@@ -48,8 +48,6 @@ impl Gateway {
         C: HasMutableSphereContext<S> + 'static,
         S: Storage + 'static,
     {
-        initialize_tracing(None);
-
         let mut cors = CorsLayer::new();
 
         if let Some(cors_origin) = cors_origin {

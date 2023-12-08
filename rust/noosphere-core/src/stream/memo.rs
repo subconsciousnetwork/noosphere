@@ -83,55 +83,70 @@ where
 
                         if replicate_authority {
                             trace!("Replicating authority...");
+                            let span = trace_span!("authority");
+
                             let authority = sphere.get_authority().await?;
                             let store = store.clone();
 
-                            tasks.spawn(async move {
-                                let delegations = authority.get_delegations().await?;
+                            span.in_scope(|| {
+                                tasks.spawn(async move {
+                                    let delegations = authority.get_delegations().await?;
 
-                                walk_versioned_map_changes_and(delegations, store, |_, delegation, store| async move {
-                                    let ucan_store = UcanStore(store);
+                                    walk_versioned_map_changes_and(delegations, store, |_, delegation, store| async move {
+                                        let ucan_store = UcanStore(store);
 
-                                    collect_ucan_proofs(&Ucan::from_str(&ucan_store.require_token(&delegation.jwt).await?)?, &ucan_store).await?;
+                                        collect_ucan_proofs(&Ucan::from_str(&ucan_store.require_token(&delegation.jwt).await?)?, &ucan_store).await?;
 
-                                    Ok(())
-                                }).await?;
+                                        Ok(())
+                                    }).await?;
 
-                                let revocations = authority.get_revocations().await?;
-                                revocations.load_changelog().await?;
+                                    let revocations = authority.get_revocations().await?;
+                                    revocations.load_changelog().await?;
 
-                                Ok(()) as Result<_, anyhow::Error>
+                                    Ok(()) as Result<_, anyhow::Error>
+                                });
                             });
+
                         }
 
                         if replicate_address_book {
                             trace!("Replicating address book...");
+                            let span = trace_span!("address_book");
+
                             let address_book = sphere.get_address_book().await?;
                             let identities = address_book.get_identities().await?;
 
-                            tasks.spawn(walk_versioned_map_changes_and(identities, store.clone(), |name, identity, store| async move {
-                                let ucan_store = UcanStore(store);
-                                trace!("Replicating proofs for {}", name);
-                                if let Some(link_record) = identity.link_record(&ucan_store).await {
-                                    link_record.collect_proofs(&ucan_store).await?;
-                                };
+                            span.in_scope(|| {
+                                tasks.spawn(walk_versioned_map_changes_and(identities, store.clone(), |name, identity, store| async move {
 
-                                Ok(())
-                            }));
+                                    let ucan_store = UcanStore(store);
+                                    trace!("Replicating proofs for {}", name);
+                                    if let Some(link_record) = identity.link_record(&ucan_store).await {
+                                        link_record.collect_proofs(&ucan_store).await?;
+                                    };
+
+                                    Ok(())
+                                }));
+                            });
                         }
 
                         if replicate_content {
                             trace!("Replicating content...");
+                            let span = trace_span!("content");
+
                             let content = sphere.get_content().await?;
 
-                            tasks.spawn(walk_versioned_map_changes_and(content, store.clone(), move |_, link, store| async move {
-                                if include_content {
-                                    walk_memo_body(store, &link, include_content).await?;
-                                } else {
-                                    link.load_from(&store).await?;
-                                };
-                                Ok(())
-                            }));
+                            span.in_scope(|| {
+                                tasks.spawn(walk_versioned_map_changes_and(content, store.clone(), move |_, link, store| async move {
+                                    if include_content {
+                                        walk_memo_body(store, &link, include_content).await?;
+                                    } else {
+                                        link.load_from(&store).await?;
+                                    };
+                                    Ok(())
+                                }));
+                            });
+
                         }
 
                         previous_sphere_body = Some(sphere_body);

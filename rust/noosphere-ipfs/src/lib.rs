@@ -2,6 +2,7 @@
 extern crate tracing;
 
 mod client;
+pub mod debug;
 #[cfg(feature = "storage")]
 mod storage;
 

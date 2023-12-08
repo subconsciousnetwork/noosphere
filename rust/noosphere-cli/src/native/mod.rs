@@ -14,8 +14,12 @@ pub mod helpers;
 use std::path::{Path, PathBuf};
 
 use self::{
-    cli::{AuthCommand, Cli, ConfigCommand, FollowCommand, KeyCommand, OrbCommand, SphereCommand},
+    cli::{
+        AuthCommand, Cli, ConfigCommand, DebugCommand, FollowCommand, KeyCommand, OrbCommand,
+        SphereCommand,
+    },
     commands::{
+        debug::{debug_block, debug_dag, debug_references},
         key::{key_create, key_list},
         serve::serve,
         sphere::{
@@ -82,6 +86,17 @@ pub async fn invoke_cli<'a>(cli: Cli, context: &CliContext<'a>) -> Result<()> {
 /// initialized [Workspace]
 pub async fn invoke_cli_with_workspace(cli: Cli, mut workspace: Workspace) -> Result<()> {
     match cli.command {
+        OrbCommand::Debug { command } => match command {
+            DebugCommand::Dag => {
+                debug_dag(&workspace).await?;
+            }
+            DebugCommand::References { cid } => {
+                debug_references(&cid, &workspace).await?;
+            }
+            DebugCommand::Block { cid } => {
+                debug_block(&cid, &workspace).await?;
+            }
+        },
         OrbCommand::Key { command } => match command {
             KeyCommand::Create { name } => key_create(&name, &workspace).await?,
             KeyCommand::List { as_json } => key_list(as_json, &workspace).await?,

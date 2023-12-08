@@ -28,6 +28,15 @@ use serde::Deserialize;
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 pub trait BlockStore: Clone + ConditionalSync {
+    /// Retrieve the links that are referenced from a block given its [Cid]
+    #[allow(unused_variables)]
+    async fn get_links<C>(&mut self, cid: &Cid) -> Result<Option<Vec<Cid>>>
+    where
+        C: Codec + Default,
+    {
+        Ok(None)
+    }
+
     /// Given a CID and a block, store the links (any [Cid] that is part of the
     /// encoded data) in a suitable location for later retrieval. This method is
     /// optional, and its default implementation is a no-op. It should be

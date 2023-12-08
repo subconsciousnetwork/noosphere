@@ -97,6 +97,7 @@ where
     /// new version [Link<MemoIpld>] of the sphere is returned. This method must
     /// be invoked in order to update the local history of the sphere with any
     /// changes that have been made.
+    #[instrument(level = "debug", skip(self))]
     async fn save(
         &mut self,
         additional_headers: Option<Vec<(String, String)>>,
@@ -105,6 +106,8 @@ where
         let mut sphere_context = self.sphere_context_mut().await?;
         let sphere_identity = sphere_context.identity().clone();
         let mut revision = sphere.apply_mutation(sphere_context.mutation()).await?;
+
+        debug!(?sphere_identity, "Saving sphere");
 
         match additional_headers {
             Some(headers) if !headers.is_empty() => revision.memo.replace_headers(headers),
@@ -125,6 +128,8 @@ where
             .await?;
         sphere_context.db_mut().flush().await?;
         sphere_context.mutation_mut().reset();
+
+        debug!(?sphere_identity, ?new_sphere_version, "Sphere saved");
 
         Ok(new_sphere_version)
     }

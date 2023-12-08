@@ -117,6 +117,8 @@ where
 
         // Rollback if there is an error while syncing
         if result.is_err() {
+            warn!(?local_sphere_version, "Rolling back...");
+
             self.rollback(
                 context,
                 local_sphere_version.as_ref(),

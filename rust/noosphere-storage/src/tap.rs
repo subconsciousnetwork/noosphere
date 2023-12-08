@@ -2,6 +2,10 @@ use crate::BlockStore;
 use anyhow::Result;
 use async_trait::async_trait;
 use cid::Cid;
+use libipld_core::{
+    codec::{Codec, References},
+    ipld::Ipld,
+};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 /// Wraps any [BlockStore] and "taps" it by cloning any block successfully

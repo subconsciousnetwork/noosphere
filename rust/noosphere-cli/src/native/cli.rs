@@ -1,5 +1,6 @@
 //! Declarative definition for the end-user-facing CLI
 
+use cid::Cid;
 use noosphere_core::data::Did;
 
 use std::net::IpAddr;
@@ -32,6 +33,11 @@ pub enum OrbCommand {
     Sphere {
         #[clap(subcommand)]
         command: SphereCommand,
+    },
+
+    Debug {
+        #[clap(subcommand)]
+        command: DebugCommand,
     },
 
     /// Display version information for this build of the CLI
@@ -73,6 +79,22 @@ pub enum OrbCommand {
         /// for caching in bytes.
         #[clap(long)]
         storage_memory_cache_limit: Option<usize>,
+    },
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Subcommand)]
+pub enum DebugCommand {
+    /// Print out the link graph of a sphere in local storage given its root
+    Dag,
+
+    /// Print the CIDs of all blocks in storage that reference a given CID
+    References { cid: Cid },
+
+    /// Print out metadata and IPLD structure of a block (on a best-effort basis)
+    Block {
+        /// The CID of the block
+        cid: Cid,
     },
 }
 

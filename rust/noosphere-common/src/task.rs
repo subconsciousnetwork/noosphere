@@ -88,6 +88,7 @@ impl TaskQueue {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[instrument(level = "trace", skip(self))]
     /// Returns a future that finishes when all queued futures have finished.
     pub async fn join(&mut self) -> Result<()> {
         while let Some(result) = self.tasks.join_next().await {
@@ -115,6 +116,7 @@ impl TaskQueue {
     }
 
     #[cfg(target_arch = "wasm32")]
+    #[instrument(level = "trace", skip(self))]
     /// Returns a future that finishes when all queued futures have finished.
     pub async fn join(&mut self) -> Result<()> {
         let tasks = std::mem::replace(&mut self.tasks, Vec::new());

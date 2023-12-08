@@ -62,6 +62,7 @@ tokio-util = { version = "0.7" }
 tower = { version = "^0.4.13" }
 tower-http = { version = "^0.4.3" }
 tracing = { version = "0.1" }
+tracing-chrome = { version = "0.7" }
 tracing-subscriber = { version = "~0.3.18", features = ["env-filter", "tracing-log", "json"] }
 ucan = { version = "0.4.0" }
 ucan-key-support = { version = "0.1.7" }

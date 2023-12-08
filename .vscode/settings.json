@@ -12,6 +12,7 @@
   },
   "rust-analyzer.cargo.features": [
     "test-kubo",
-    "helpers"
+    "helpers",
+    "export-trace"
   ]
 }

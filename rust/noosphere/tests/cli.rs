@@ -9,13 +9,13 @@ extern crate noosphere_cli_dev as noosphere_cli;
 use anyhow::Result;
 use noosphere_cli::{helpers::CliSimulator, paths::SPHERE_DIRECTORY};
 use noosphere_common::helpers::wait;
-use noosphere_core::tracing::initialize_tracing;
+use noosphere_core::tracing::{initialize_tracing, initialize_tracing_subscriber};
 use serde_json::Value;
 use tokio::task::JoinHandle;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn orb_status_errors_on_empty_directory() -> Result<()> {
-    initialize_tracing(None);
+    // initialize_tracing(None);
     let client = CliSimulator::new()?;
 
     assert!(client.orb(&["sphere", "status"]).await.is_err());
@@ -25,7 +25,7 @@ async fn orb_status_errors_on_empty_directory() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn orb_sphere_create_initializes_a_sphere() -> Result<()> {
-    initialize_tracing(None);
+    // initialize_tracing(None);
     let client = CliSimulator::new()?;
 
     client.orb(&["key", "create", "foobar"]).await?;
@@ -170,18 +170,14 @@ async fn orb_can_enable_multiple_replicas_to_synchronize() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn orb_keeps_the_file_system_in_sync_with_remote_changes() -> Result<()> {
-    initialize_tracing(None);
+    let _guard = initialize_tracing_subscriber(None, true);
+    // initialize_tracing(None);
 
     let (first_replica, second_replica, gateway_task) = initialize_syncing_replicas().await?;
-
-    tracing::info!("HAIIII");
-    println!("HAI");
 
     let subdirectory_name = "fark";
     let first_replica_subdirectory = first_replica.sphere_directory().join(subdirectory_name);
     let second_replica_subdirectory = second_replica.sphere_directory().join(subdirectory_name);
-
-    tracing::info!("HAI!");
 
     tokio::fs::create_dir_all(&first_replica_subdirectory).await?;
     tokio::fs::write(first_replica_subdirectory.join("bar.txt"), "foobar").await?;
@@ -190,17 +186,16 @@ async fn orb_keeps_the_file_system_in_sync_with_remote_changes() -> Result<()> {
     first_replica.orb(&["sphere", "save"]).await?;
     first_replica.orb(&["sphere", "sync"]).await?;
 
-    second_replica.print_debug_shell_command();
-
-    wait(1000).await;
-
-    for i in 0..3 {
-        tracing::warn!("Second replica syncing in {}...", 3 - i);
+    let upper = 2;
+    for i in 0..upper {
+        tracing::warn!("Second replica syncing in {}...", upper - i);
         wait(1).await;
     }
 
-    second_replica.orb(&["sphere", "sync"]).await?;
+    // let _ = second_replica.orb(&["sphere", "sync"]).await?;
 
+    second_replica.print_debug_shell_command();
+    // wait(1000).await;
     // assert!(second_replica_subdirectory.join("bar.txt").exists());
     // assert!(second_replica_subdirectory.join("baz.md").exists());
 
@@ -230,6 +225,7 @@ async fn orb_keeps_the_file_system_in_sync_with_remote_changes() -> Result<()> {
     assert!(first_replica_subdirectory.join("baz.txt").exists());
 
     */
+    wait(1).await;
     gateway_task.abort();
 
     Ok(())

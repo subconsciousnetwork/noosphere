@@ -137,6 +137,18 @@ pub enum NoosphereLogLevel {
     Off,
 }
 
+/// Once dropped, the [TracingFlushGuard] will trigger various post-run tasks
+/// depending on the feature flag configuration of `noosphere-core`. This
+/// includes tasks such as submitting telemetry or exporting a trace.
+pub enum TracingFlushGuard {
+    /// No flush guard
+    None,
+
+    #[cfg(feature = "export-trace")]
+    #[doc = "Exports trace to a file when dropped"]
+    ChromeTrace(tracing_chrome::FlushGuard),
+}
+
 impl Default for NoosphereLogLevel {
     fn default() -> Self {
         NoosphereLogLevel::Info
@@ -178,14 +190,16 @@ mod inner {
 
 #[cfg(not(target_arch = "wasm32"))]
 mod inner {
+    use super::TracingFlushGuard;
     use anyhow::Result;
-    use std::{marker::PhantomData, sync::Once};
+    use std::marker::PhantomData;
     use tracing::{Event, Subscriber};
     use tracing_subscriber::{
         filter::Directive,
         fmt::{format, FmtContext, FormatEvent, FormatFields, FormattedFields, Layer},
-        prelude::*,
+        layer::SubscriberExt,
         registry::LookupSpan,
+        util::SubscriberInitExt,
         EnvFilter,
     };
 
@@ -201,6 +215,7 @@ mod inner {
     #[cfg(docs)]
     use super::NOOSPHERE_LOG_LEVEL_CRATES;
 
+    use std::sync::Once;
     static INITIALIZE_TRACING: Once = Once::new();
 
     /// Initialize tracing-based logging throughout the Noosphere body of code,
@@ -247,13 +262,23 @@ mod inner {
     /// [2]: https://docs.rs/env_logger/0.10.0/env_logger/#enabling-logging
     pub fn initialize_tracing(noosphere_log: Option<NoosphereLog>) {
         INITIALIZE_TRACING.call_once(|| {
-            if let Err(error) = initialize_tracing_subscriber(noosphere_log) {
-                println!("Failed to initialize tracing: {}", error);
-            }
+            initialize_tracing_subscriber(noosphere_log, false);
         });
     }
 
-    fn initialize_tracing_subscriber(noosphere_log: Option<NoosphereLog>) -> anyhow::Result<()> {
+    #[cfg(feature = "export-trace")]
+    use tracing_chrome::ChromeLayerBuilder;
+
+    /// This is the same as [initialize_tracing], except that it gives
+    /// lower-level access to support configuring tracing with an export
+    /// of the trace.
+    ///
+    /// See [initialize_tracing] for more relevant documentation.
+    pub fn initialize_tracing_subscriber(
+        noosphere_log: Option<NoosphereLog>,
+        noosphere_export_trace: bool,
+    ) -> TracingFlushGuard {
+        error!("BATMAN");
         let rust_log_env = std::env::var("RUST_LOG").ok();
         let noosphere_log_env = std::env::var("NOOSPHERE_LOG").ok();
         let noosphere_log_level_env = std::env::var("NOOSPHERE_LOG_LEVEL").ok();
@@ -315,54 +340,75 @@ mod inner {
             env_filter = env_filter.add_directive(directive)
         }
 
-        let subscriber = tracing_subscriber::registry().with(env_filter);
-
-        match noosphere_log_format {
-            NoosphereLogFormat::Minimal => {
-                let subscriber = subscriber.with(
+        // Note: tuple used in order to maintain a consistent type for the
+        // subscriber across all branches.
+        //
+        // See:
+        // https://github.com/tokio-rs/tracing/blob/master/examples/examples/toggle-subscribers.rs
+        let (minimal, verbose, pretty, structured) = match noosphere_log_format {
+            NoosphereLogFormat::Minimal => (
+                Some(
                     Layer::default().event_format(NoosphereMinimalFormatter::new(
                         tracing_subscriber::fmt::format()
                             .without_time()
                             .with_target(false)
                             .with_ansi(USE_ANSI_COLORS),
                     )),
-                );
-
-                #[cfg(feature = "sentry")]
-                let subscriber = subscriber.with(sentry_tracing::layer());
-
-                subscriber.init();
-            }
-            NoosphereLogFormat::Verbose => {
-                let subscriber =
-                    subscriber.with(tracing_subscriber::fmt::layer().with_ansi(USE_ANSI_COLORS));
-
-                #[cfg(feature = "sentry")]
-                let subscriber = subscriber.with(sentry_tracing::layer());
-
-                subscriber.init();
-            }
-            NoosphereLogFormat::Pretty => {
-                let subscriber =
-                    subscriber.with(Layer::default().pretty().with_ansi(USE_ANSI_COLORS));
-
-                #[cfg(feature = "sentry")]
-                let subscriber = subscriber.with(sentry_tracing::layer());
-
-                subscriber.init();
-            }
-            NoosphereLogFormat::Structured => {
-                let subscriber =
-                    subscriber.with(Layer::default().json().with_ansi(USE_ANSI_COLORS));
-
-                #[cfg(feature = "sentry")]
-                let subscriber = subscriber.with(sentry_tracing::layer());
-
-                subscriber.init();
-            }
+                ),
+                None,
+                None,
+                None,
+            ),
+            NoosphereLogFormat::Verbose => (
+                None,
+                Some(tracing_subscriber::fmt::layer().with_ansi(USE_ANSI_COLORS)),
+                None,
+                None,
+            ),
+            NoosphereLogFormat::Pretty => (
+                None,
+                None,
+                Some(Layer::default().pretty().with_ansi(USE_ANSI_COLORS)),
+                None,
+            ),
+            NoosphereLogFormat::Structured => (
+                None,
+                None,
+                None,
+                Some(Layer::default().json().with_ansi(USE_ANSI_COLORS)),
+            ),
         };
 
-        Ok(())
+        let subscriber = tracing_subscriber::registry()
+            .with(minimal)
+            .with(verbose)
+            .with(pretty)
+            .with(structured)
+            .with(env_filter);
+
+        #[cfg(not(feature = "export-trace"))]
+        let guard = TracingFlushGuard::None;
+
+        #[cfg(feature = "export-trace")]
+        let (subscriber, guard) = if noosphere_export_trace {
+            let (chrome_layer, guard) = ChromeLayerBuilder::new()
+                .include_args(true)
+                .include_locations(true)
+                .build();
+            (
+                subscriber.with(Some(chrome_layer)),
+                TracingFlushGuard::ChromeTrace(guard),
+            )
+        } else {
+            (subscriber.with(None), TracingFlushGuard::None)
+        };
+
+        #[cfg(feature = "sentry")]
+        let subscriber = subscriber.with(sentry_tracing::layer());
+
+        subscriber.init();
+
+        guard
     }
 
     /// A formatter designed to make `INFO` events display as closely as

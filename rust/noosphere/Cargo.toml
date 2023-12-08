@@ -21,6 +21,7 @@ test-kubo = []
 headers = ["safer-ffi/headers"]
 ipfs-storage = ["noosphere-ipfs"]
 rocksdb = ["noosphere-storage/rocksdb"]
+export-trace = ["noosphere-core/export-trace"]
 
 [dependencies]
 anyhow = { workspace = true }

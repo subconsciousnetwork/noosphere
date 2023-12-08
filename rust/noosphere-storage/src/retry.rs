@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use cid::Cid;
+use libipld_core::codec::Codec;
 use std::time::{Duration, Instant};
 use tokio::select;
 

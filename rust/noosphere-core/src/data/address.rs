@@ -65,8 +65,34 @@ impl IdentityIpld {
     }
 }
 
-/// A [LinkRecord] is a wrapper around a decoded [Jwt] ([Ucan]),
-/// representing a link address as a [Cid] to a sphere.
+/// A [LinkRecord] is a wrapper around a decoded [Jwt] ([Ucan]), representing a
+/// link address as a [Cid] to a sphere.
+///
+/// The practical application of a [LinkRecord] is as follows:
+///
+/// - All authority is rooted in a "sphere key," whose public part serves as the
+///   "identity" of the sphere. In other words, every UCAN chain has an initial
+///   issuer that is the DID of the "sphere key."
+/// - The [SphereAbility::Publish] capability authorizes a user to craft a UCAN
+///   that may be propagated as a name record in <some system for propagating
+///   names>.
+/// - There are two parties involved in the publishing of a name record:
+///   - The user: controls a device key and corresponding UCAN that grants
+///     "sphere/publish" to that device key
+///   - The gateway: a process identifiable by DID who is not delegated any
+///     authority by the "sphere key", but who has access to various network
+///     services (including <some system for propagating names>)
+/// - When a user wishes to publish a new version of their sphere, they craft
+///   what we call a "link record," which is a UCAN that has the following
+///   qualities:
+///   - The audience is the DID of the "sphere key"
+///   - `fct` contains a CID link to the root of the new version of the sphere
+///   - Some other details related to time boundaries, but perhaps not
+///     particularly relevant to the discussion
+/// - The UCAN is passed to the gateway who promises to forward it into <some
+///   system for propagating names> on behalf of the user (but notably is only
+///   forwarding the UCAN they are given, treating it as though it is final)
+///
 #[derive(Clone)]
 #[repr(transparent)]
 pub struct LinkRecord(Ucan);

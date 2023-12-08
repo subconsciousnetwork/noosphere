@@ -520,6 +520,7 @@ where
     }
 
     /// Push the latest local history of this client to the gateway
+    #[instrument(level = "debug", skip(self))]
     pub async fn push(
         &self,
         push_body: &v0alpha2::PushBody,

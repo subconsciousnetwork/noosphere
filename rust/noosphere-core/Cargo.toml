@@ -23,6 +23,7 @@ default = []
 sentry = ["dep:sentry-tracing"]
 helpers = []
 test-gateway = []
+export-trace = ["tracing-chrome"]
 
 [dependencies]
 tracing = { workspace = true }
@@ -74,6 +75,7 @@ noosphere-common = { version = "0.1.2", path = "../noosphere-common", features =
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = { workspace = true }
+tracing-chrome = { workspace = true, optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # NOTE: This is needed so that rand can be included in WASM builds

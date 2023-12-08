@@ -203,6 +203,15 @@ impl<S> BlockStore for SphereDb<S>
 where
     S: Storage,
 {
+    async fn get_links<C>(&mut self, cid: &Cid) -> Result<Option<Vec<Cid>>>
+    where
+        C: Codec + Default,
+    {
+        self.link_store
+            .get_key::<_, Vec<Cid>>(&cid.to_string())
+            .await
+    }
+
     async fn put_links<C>(&mut self, cid: &Cid, block: &[u8]) -> Result<()>
     where
         C: Codec + Default,
