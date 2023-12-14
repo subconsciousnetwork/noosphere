@@ -22,7 +22,6 @@ readme = "README.md"
 default = []
 sentry = ["dep:sentry-tracing"]
 helpers = []
-test-gateway = []
 
 [dependencies]
 tracing = { workspace = true }
