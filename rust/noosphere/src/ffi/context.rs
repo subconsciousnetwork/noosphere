@@ -191,7 +191,7 @@ pub fn ns_sphere_traverse_by_petname_blocking(
     petname: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<repr_c::Box<NsSphere>> {
-    match error_out.try_or_initialize(|| {
+    let closure = || {
         let sphere = noosphere.async_runtime().block_on(async {
             let raw_petnames = petname.to_str();
             let link = Slashlink::from_str(&format!("@{raw_petnames}"))?;
@@ -211,7 +211,8 @@ pub fn ns_sphere_traverse_by_petname_blocking(
         })?;
 
         Ok(sphere)
-    }) {
+    };
+    match error_out.try_or_initialize(closure) {
         Some(maybe_sphere) => maybe_sphere,
         None => None,
     }
