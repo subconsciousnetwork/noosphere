@@ -179,7 +179,7 @@ pub fn ns_sphere_petname_resolve(
     petname: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<char_p::Box> {
-    match error_out.try_or_initialize(|| {
+    let closure = || {
         let version = noosphere
             .async_runtime()
             .block_on(async { sphere.inner().resolve_petname(petname.to_str()).await })?;
@@ -191,7 +191,8 @@ pub fn ns_sphere_petname_resolve(
         } else {
             Ok(None)
         }
-    }) {
+    };
+    match error_out.try_or_initialize(closure) {
         Some(maybe_version) => maybe_version,
         None => None,
     }
