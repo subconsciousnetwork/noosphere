@@ -179,7 +179,7 @@ impl BenchmarkStorage {
     }
 
     pub async fn sphere_db(&self) -> Result<SphereDb<ActiveStorageType>> {
-        SphereDb::new(&self.storage).await
+        SphereDb::new(self.storage.clone()).await
     }
 
     pub async fn as_stats(&mut self) -> Result<PerformanceStats> {

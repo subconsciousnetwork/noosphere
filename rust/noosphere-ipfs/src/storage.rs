@@ -3,7 +3,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use cid::Cid;
 use noosphere_common::ConditionalSync;
-use noosphere_storage::{BlockStore, Storage};
+use noosphere_storage::{BlockStore, EphemeralStorage, EphemeralStore, Storage};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -45,7 +45,6 @@ where
     C: IpfsClient + ConditionalSync,
 {
     type BlockStore = IpfsStore<S::BlockStore, C>;
-
     type KeyValueStore = S::KeyValueStore;
 
     async fn get_block_store(&self, name: &str) -> Result<Self::BlockStore> {
@@ -55,6 +54,20 @@ where
 
     async fn get_key_value_store(&self, name: &str) -> Result<Self::KeyValueStore> {
         self.local_storage.get_key_value_store(name).await
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<S, C> EphemeralStorage for IpfsStorage<S, C>
+where
+    S: Storage + EphemeralStorage + ConditionalSync,
+    C: IpfsClient + ConditionalSync,
+{
+    type EphemeralStoreType = <S as EphemeralStorage>::EphemeralStoreType;
+
+    async fn get_ephemeral_store(&self) -> Result<EphemeralStore<Self::EphemeralStoreType>> {
+        self.local_storage.get_ephemeral_store().await
     }
 }
 

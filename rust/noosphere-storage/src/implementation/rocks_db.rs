@@ -1,10 +1,12 @@
 use crate::{
-    storage::Storage, store::Store, ConfigurableStorage, StorageConfig, SPHERE_DB_STORE_NAMES,
+    storage::Storage, store::Store, ConfigurableStorage, PartitionedStore, StorageConfig,
+    EPHEMERAL_STORE, SPHERE_DB_STORE_NAMES,
 };
 use anyhow::{anyhow, Result};
+use async_stream::try_stream;
 use async_trait::async_trait;
 use noosphere_common::ConditionalSend;
-use rocksdb::{ColumnFamilyDescriptor, DBWithThreadMode, Options};
+use rocksdb::{ColumnFamilyDescriptor, DBWithThreadMode, IteratorMode, Options};
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -60,22 +62,27 @@ impl RocksDbStorage {
             Arc::new(DbInner::open_cf_descriptors(&db_opts, path, cfs)?)
         };
 
-        Ok(RocksDbStorage {
+        let storage = RocksDbStorage {
             db,
             debug_data: Arc::new((db_path, storage_config)),
-        })
+        };
+        storage.clear_ephemeral()?;
+        Ok(storage)
     }
 
-    async fn get_store(&self, name: &str) -> Result<RocksDbStore> {
-        if SPHERE_DB_STORE_NAMES
-            .iter()
-            .find(|val| **val == name)
-            .is_none()
-        {
-            return Err(anyhow!("No such store named {}", name));
+    fn get_store(&self, name: &str) -> Result<RocksDbStore> {
+        for store_name in SPHERE_DB_STORE_NAMES {
+            if name == *store_name {
+                return RocksDbStore::new(self.db.clone(), String::from(name));
+            }
         }
+        return Err(anyhow!("No such store named {}", name));
+    }
 
-        RocksDbStore::new(self.db.clone(), name.to_owned())
+    /// Wipes the "ephemeral" column family.
+    fn clear_ephemeral(&self) -> Result<()> {
+        let ephemeral_store = self.get_store(EPHEMERAL_STORE)?;
+        ephemeral_store.remove_range(&[0], &[u8::MAX])
     }
 }
 
@@ -85,11 +92,11 @@ impl Storage for RocksDbStorage {
     type KeyValueStore = RocksDbStore;
 
     async fn get_block_store(&self, name: &str) -> Result<Self::BlockStore> {
-        self.get_store(name).await
+        self.get_store(name)
     }
 
     async fn get_key_value_store(&self, name: &str) -> Result<Self::KeyValueStore> {
-        self.get_store(name).await
+        self.get_store(name)
     }
 }
 
@@ -112,15 +119,50 @@ impl std::fmt::Debug for RocksDbStorage {
     }
 }
 
+#[async_trait]
+impl crate::EphemeralStorage for RocksDbStorage {
+    type EphemeralStoreType = EphemeralRocksDbStore;
+
+    async fn get_ephemeral_store(&self) -> Result<crate::EphemeralStore<Self::EphemeralStoreType>> {
+        let inner = self.get_store(crate::EPHEMERAL_STORE)?;
+        let mapped = crate::PartitionedStore::new(inner);
+        Ok(EphemeralRocksDbStore::new(mapped).into())
+    }
+}
+
+#[async_trait]
+impl crate::OpenStorage for RocksDbStorage {
+    async fn open<P: AsRef<Path> + ConditionalSend>(path: P) -> Result<Self> {
+        RocksDbStorage::new(path)
+    }
+}
+
+#[async_trait]
+impl crate::Space for RocksDbStorage {
+    async fn get_space_usage(&self) -> Result<u64> {
+        crate::get_dir_size(&self.debug_data.0).await
+    }
+}
+
 #[derive(Clone)]
 pub struct RocksDbStore {
-    name: String,
+    name: Arc<String>,
     db: Arc<DbInner>,
 }
 
 impl RocksDbStore {
-    pub fn new(db: Arc<DbInner>, name: String) -> Result<Self> {
-        Ok(RocksDbStore { db, name })
+    pub(crate) fn new(db: Arc<DbInner>, name: String) -> Result<Self> {
+        Ok(RocksDbStore {
+            db,
+            name: Arc::from(name),
+        })
+    }
+
+    fn remove_range(&self, from: &[u8], to: &[u8]) -> Result<()> {
+        let cf = self.cf_handle()?;
+        #[cfg(feature = "rocksdb-multi-thread")]
+        let cf = &cf;
+        self.db.delete_range_cf(cf, from, to).map_err(|e| e.into())
     }
 
     /// Returns the column family handle. Unfortunately generated on every call
@@ -169,8 +211,70 @@ impl Store for RocksDbStore {
 }
 
 #[async_trait]
-impl crate::Space for RocksDbStorage {
-    async fn get_space_usage(&self) -> Result<u64> {
-        crate::get_dir_size(&self.debug_data.0).await
+impl crate::IterableStore for RocksDbStore {
+    fn get_all_entries(&self) -> std::pin::Pin<Box<crate::IterableStoreStream<'_>>> {
+        // handle is not Sync; generate the iterator before
+        // async stream work.
+        let cf_option = self.db.cf_handle(&self.name);
+        let iter = if let Some(cf) = cf_option {
+            #[cfg(feature = "rocksdb-multi-thread")]
+            let cf = &cf;
+            Some(self.db.iterator_cf(cf, IteratorMode::Start))
+        } else {
+            None
+        };
+        Box::pin(try_stream! {
+            let iter = iter.ok_or_else(|| anyhow!("Could not get cf handle."))?;
+            for entry in iter {
+                let (key, value) = entry?;
+                yield (Vec::from(key.as_ref()), Vec::from(value.as_ref()));
+            }
+        })
+    }
+}
+
+/// A [RocksDbStore] that does not persist data after dropping.
+/// Can be created from [IndexedDbStorage::get_ephemeral_store].
+#[derive(Clone)]
+pub struct EphemeralRocksDbStore {
+    store: PartitionedStore<RocksDbStore>,
+}
+
+impl EphemeralRocksDbStore {
+    pub(crate) fn new(store: PartitionedStore<RocksDbStore>) -> Self {
+        EphemeralRocksDbStore { store }
+    }
+}
+
+#[async_trait]
+impl Store for EphemeralRocksDbStore {
+    async fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        self.store.read(key).await
+    }
+
+    async fn write(&mut self, key: &[u8], bytes: &[u8]) -> Result<Option<Vec<u8>>> {
+        self.store.write(key, bytes).await
+    }
+
+    async fn remove(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        self.store.remove(key).await
+    }
+
+    async fn flush(&self) -> Result<()> {
+        self.store.flush().await
+    }
+}
+
+#[async_trait]
+impl crate::Disposable for EphemeralRocksDbStore {
+    async fn dispose(&mut self) -> Result<()> {
+        let (start_key, end_key) = self.store.get_key_range();
+        self.store.inner().remove_range(start_key, end_key)
+    }
+}
+
+impl crate::IterableStore for EphemeralRocksDbStore {
+    fn get_all_entries(&self) -> std::pin::Pin<Box<crate::IterableStoreStream<'_>>> {
+        self.store.get_all_entries()
     }
 }

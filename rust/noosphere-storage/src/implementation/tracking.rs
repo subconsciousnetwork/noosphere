@@ -103,3 +103,16 @@ impl Storage for TrackingStorage<MemoryStorage> {
         Ok(key_value_store)
     }
 }
+
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+impl<S> crate::EphemeralStorage for TrackingStorage<S>
+where
+    S: Storage + crate::EphemeralStorage,
+{
+    type EphemeralStoreType = <S as crate::EphemeralStorage>::EphemeralStoreType;
+
+    async fn get_ephemeral_store(&self) -> Result<crate::EphemeralStore<Self::EphemeralStoreType>> {
+        self.storage.get_ephemeral_store().await
+    }
+}

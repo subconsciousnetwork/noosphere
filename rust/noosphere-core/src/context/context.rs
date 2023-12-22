@@ -393,7 +393,7 @@ mod tests {
             let mut records: Vec<LinkRecord> = vec![];
             let owner_key = generate_ed25519_key();
             let owner_did = owner_key.get_did().await?;
-            let mut db = SphereDb::new(&MemoryStorage::default()).await?;
+            let mut db = SphereDb::new(MemoryStorage::default()).await?;
             let (sphere, proof, _) = Sphere::generate(&owner_did, &mut db).await?;
             let ucan_proof = proof.as_ucan(&db).await?;
             let sphere_identity = sphere.get_identity().await?;

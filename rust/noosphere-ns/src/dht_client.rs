@@ -133,7 +133,7 @@ pub mod test {
         // Now test another node connecting.
         let (_other_ns, other_peer_id) = {
             let key_material = generate_ed25519_key();
-            let store = SphereDb::new(&MemoryStorage::default()).await.unwrap();
+            let store = SphereDb::new(MemoryStorage::default()).await.unwrap();
             let ns = NameSystemBuilder::default()
                 .ucan_store(store)
                 .key_material(&key_material)
