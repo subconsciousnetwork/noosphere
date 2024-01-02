@@ -10,6 +10,7 @@ use tokio_stream::{Stream, StreamExt};
 /// Implementation note: this is a stand-alone helper because defining this
 /// async function on a trait (necessitating use of `#[async_trait]`) creates an
 /// unergonomic `Send` bound on returned [Future].
+#[instrument(level = "trace", skip_all)]
 pub async fn put_block_stream<S, Str>(mut store: S, stream: Str) -> Result<()>
 where
     S: BlockStore,

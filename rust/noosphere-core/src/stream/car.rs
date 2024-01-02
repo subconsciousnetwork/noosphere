@@ -16,6 +16,7 @@ use tokio_util::{
 /// Takes a [Bytes] stream and interprets it as a
 /// [CARv1](https://ipld.io/specs/transport/car/carv1/), returning a stream of
 /// `(Cid, Vec<u8>)` blocks.
+#[instrument(level = "trace", skip(stream))]
 pub fn from_car_stream<S, E>(
     stream: S,
 ) -> impl Stream<Item = Result<(Cid, Vec<u8>)>> + ConditionalSend + 'static
@@ -42,6 +43,7 @@ where
 /// Takes a list of roots and a stream of blocks (pairs of [Cid] and
 /// corresponding [Vec<u8>]), and produces an async byte stream that yields a
 /// valid [CARv1](https://ipld.io/specs/transport/car/carv1/)
+#[instrument(level = "trace", skip(block_stream))]
 pub fn to_car_stream<'a, S>(
     mut roots: Vec<Cid>,
     block_stream: S,

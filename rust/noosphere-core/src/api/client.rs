@@ -396,9 +396,11 @@ where
                 true
             );
 
+            trace!("Yielding push body...");
             yield block_serialize::<DagCborCodec, _>(push_body)?;
 
             for await item in history_stream {
+                trace!("Yielding history block...");
                 yield item?;
             };
         };
