@@ -214,7 +214,14 @@ where
             debug!("Merging pushed sphere history...");
             let mut sphere_context = self.gateway_sphere.sphere_context_mut().await?;
 
-            put_block_stream(sphere_context.db_mut().clone(), &mut self.block_stream).await?;
+            trace!("Putting block stream...");
+            put_block_stream(sphere_context.db_mut().clone(), &mut self.block_stream)
+                .await
+                .map_err(|error| {
+                    error!("put_block_stream failed! {error}");
+                    error
+                })?;
+            trace!("Successfully put block stream!");
 
             let PushBody {
                 local_base: base,

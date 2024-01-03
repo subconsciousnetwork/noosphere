@@ -511,8 +511,9 @@ where
                 v0alpha2::PushError::BrokenUpstream
             })?;
 
-        trace!("Checking response...");
-        if response.status() == StatusCode::CONFLICT {
+        let status = response.status();
+        trace!("Checking response ({status})... ");
+        if status == StatusCode::CONFLICT {
             return Err(v0alpha2::PushError::Conflict);
         }
 
