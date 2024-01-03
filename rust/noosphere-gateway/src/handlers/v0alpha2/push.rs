@@ -95,7 +95,7 @@ where
     S: Storage + 'static,
     St: Stream<Item = Result<(Cid, Vec<u8>)>> + Unpin + 'static,
 {
-    #[instrument(level = "debug", skip(self))]
+    #[instrument(level = "trace", skip(self))]
     pub async fn invoke(
         mut self,
     ) -> Result<impl Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static, PushError> {
@@ -143,6 +143,7 @@ where
     /// history (in which case the pusher typically must sync first), and that
     /// there is no missing history implied by the pushed history (in which
     /// case, there is probably a sync bug in the client implementation).
+    #[instrument(level = "trace", skip(self))]
     async fn verify_history(&mut self) -> Result<PushBody, PushError> {
         debug!("Verifying pushed sphere history...");
 
@@ -206,6 +207,7 @@ where
     /// Incorporate the pushed history into our storage, hydrating each new
     /// revision in the history as we go. Then, update our local pointer to the
     /// tip of the pushed history.
+    #[instrument(level = "trace", skip(self))]
     async fn incorporate_history(&mut self, push_body: &PushBody) -> Result<(), PushError> {
         let counterpart = self.gateway_scope.counterpart.to_owned();
         {
