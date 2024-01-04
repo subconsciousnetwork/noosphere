@@ -78,6 +78,7 @@ impl<'a, S: BlockStore> Timeline<'a, S> {
                             }
                         };
 
+                        trace!("Yielding");
                         Ok(Some(((*cid, next_dag), (next_from, to, storage))))
                     }
                     None => Ok(None),

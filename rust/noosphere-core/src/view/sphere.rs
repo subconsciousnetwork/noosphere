@@ -569,7 +569,9 @@ impl<S: BlockStore> Sphere<S> {
     pub async fn hydrate_with_cid(cid: &Link<MemoIpld>, store: &mut S) -> Result<()> {
         trace!("Hydrating {}...", cid);
         let sphere = Sphere::at(cid, store);
+        trace!("hydrate_with_cid: to_memo");
         let memo = sphere.to_memo().await?;
+        trace!("hydrate_with_cid: match");
         let base_cid = match memo.parent {
             Some(cid) => cid,
             None => {
@@ -579,6 +581,7 @@ impl<S: BlockStore> Sphere<S> {
             }
         };
 
+        trace!("hydrate_with_cid: apply_mutation_with_cid");
         let hydrated_revision =
             Sphere::apply_mutation_with_cid(&base_cid, &sphere.derive_mutation().await?, store)
                 .await?;
@@ -591,6 +594,7 @@ impl<S: BlockStore> Sphere<S> {
             ));
         }
 
+        trace!("hydrate_with_cid: success");
         Ok(())
     }
 
