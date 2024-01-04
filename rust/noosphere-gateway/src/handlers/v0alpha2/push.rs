@@ -73,7 +73,11 @@ where
         block_stream: Box::pin(from_car_stream(stream)),
     };
 
-    Ok(StreamBody::new(gateway_push_routine.invoke().await?))
+    let bytes = gateway_push_routine.invoke().await.map_err(|error| {
+        error!("invoke failed! {error}");
+        error
+    })?;
+    Ok(StreamBody::new(bytes))
 }
 
 pub struct GatewayPushRoutine<C, S, St>
