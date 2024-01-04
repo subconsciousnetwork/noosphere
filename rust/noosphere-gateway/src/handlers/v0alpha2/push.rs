@@ -242,7 +242,10 @@ where
             for step in history.into_iter().rev() {
                 let (cid, sphere) = step?;
                 trace!("Hydrating {}", cid);
-                sphere.hydrate().await?;
+                sphere.hydrate().await.map_err(|error| {
+                    error!("hydration error {error}");
+                    error
+                })?;
             }
 
             debug!("Setting {} tip to {}...", counterpart, tip);
