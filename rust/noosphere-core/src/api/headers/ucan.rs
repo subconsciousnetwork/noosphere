@@ -81,6 +81,13 @@ impl Ucan {
 
         let mut did_parser = DidParser::new(SUPPORTED_KEYS);
         trace!("Constructing proof chain from token: {}", bearer.token());
+        {
+            if let Ok(ucan) = ucan::Ucan::try_from(bearer.token()) {
+                trace!("Parsed ucan!! {:#?}", ucan);
+            } else {
+                warn!("Error constructing Ucan");
+            }
+        }
         // Under the hood, `ProofChain::from_ucan` is called which also calls
         // `ucan.validate()`; the subsequence validation may be elided (need to confirm)
         let proof_chain =
