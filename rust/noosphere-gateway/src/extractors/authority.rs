@@ -30,6 +30,7 @@ pub struct GatewayAuthority {
 }
 
 impl GatewayAuthority {
+    #[instrument(level = "debug", skip(self, sphere_context, capability))]
     pub async fn try_authorize<C, S>(
         &self,
         sphere_context: &mut C,

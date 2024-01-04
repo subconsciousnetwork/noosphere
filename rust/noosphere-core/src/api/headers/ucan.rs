@@ -83,7 +83,9 @@ impl Ucan {
         let proof_chain =
             ProofChain::try_from_token_string(bearer.token(), None, &mut did_parser, &db).await?;
 
-        proof_chain.ucan().validate(None, &mut did_parser).await?;
+        let ucan = proof_chain.ucan();
+        trace!("Validating authority for {:#?}", ucan);
+        ucan.validate(None, &mut did_parser).await?;
 
         Ok(proof_chain)
     }
