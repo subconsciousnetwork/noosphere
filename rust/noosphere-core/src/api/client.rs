@@ -514,12 +514,12 @@ where
             })?;
 
         let status = response.status();
-        trace!("Checking response ({status})... ");
+        debug!("Checking response ({status})... ");
         if status == StatusCode::CONFLICT {
             return Err(v0alpha2::PushError::Conflict);
         }
 
-        trace!("Fielding response...");
+        debug!("Fielding response...");
 
         Ok(from_car_stream(response.bytes_stream()))
     }

@@ -86,6 +86,13 @@ impl Gateway {
 
         let app = Router::new()
             .route(
+                "/slowping",
+                get(|| async {
+                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                    "pong"
+                }),
+            )
+            .route(
                 &v0alpha1::Route::Did.to_string(),
                 get(handlers::v0alpha1::did_route),
             )
