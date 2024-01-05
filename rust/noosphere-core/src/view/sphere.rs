@@ -232,6 +232,7 @@ impl<S: BlockStore> Sphere<S> {
 
     /// Given a memo that refers to a [SphereIpld] body, compute the memo's
     /// [Cid] and initialize a [Sphere] for it.
+    #[instrument(level = "trace", skip(store))]
     pub fn from_memo(memo: &MemoIpld, store: &S) -> Result<Sphere<S>> {
         let (cid, _) = block_serialize::<DagCborCodec, _>(memo)?;
         Ok(Sphere {
@@ -820,6 +821,7 @@ impl<S: BlockStore> Sphere<S> {
     /// represented by `since`). History is traversed in reverse-chronological
     /// order. If `None` is given for `since`, the entire history of the sphere
     /// will be streamed.
+    #[instrument(level = "trace", skip(self))]
     pub fn into_history_stream(
         self,
         since: Option<&Link<MemoIpld>>,

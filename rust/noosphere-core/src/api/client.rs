@@ -224,6 +224,8 @@ where
 
         let jwt = signable.sign().await?.encode()?;
 
+        trace!("Signing bearer token: {jwt}");
+
         // TODO: It is inefficient to send the same UCANs with every request,
         // we should probably establish a conventional flow for syncing UCANs
         // this way only once when pairing a gateway. For now, this is about the

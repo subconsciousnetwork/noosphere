@@ -233,12 +233,14 @@ where
                 ..
             } = &push_body;
 
+            debug!("Collecting history...");
             let history: Vec<Result<(Link<MemoIpld>, Sphere<_>)>> =
                 Sphere::at(tip, sphere_context.db())
                     .into_history_stream(base.as_ref())
                     .collect()
                     .await;
 
+            debug!("Hydrating history...");
             for step in history.into_iter().rev() {
                 let (cid, sphere) = step?;
                 trace!("Hydrating {}", cid);
