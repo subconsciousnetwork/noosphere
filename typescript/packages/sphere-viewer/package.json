@@ -18,7 +18,7 @@
     "@web/dev-server": "^0.4.1",
     "lit": "^3.1.0",
     "lit-redux-watch": "^0.3.8",
-    "reselect": "^4.1.7",
+    "reselect": "^5.1.0",
     "typescript": "~5.3.2",
     "vite": "^5.0.7",
     "vite-plugin-wasm": "^3.2.2",
