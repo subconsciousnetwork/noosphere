@@ -22,7 +22,6 @@ use crate::{
         NameSystemConnectionType,
     },
 };
-use noosphere_core::tracing::initialize_tracing;
 
 const DEFAULT_BODY_LENGTH_LIMIT: usize = 100 /* MB */ * 1000 * 1000;
 
@@ -48,8 +47,6 @@ impl Gateway {
         C: HasMutableSphereContext<S> + 'static,
         S: Storage + 'static,
     {
-        initialize_tracing(None);
-
         let mut cors = CorsLayer::new();
 
         if let Some(cors_origin) = cors_origin {
