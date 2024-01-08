@@ -31,7 +31,7 @@ lazy_static = "^1"
 cid = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-futures = "^0.3.29"
+futures = "^0.3.30"
 async-trait = "~0.1"
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
