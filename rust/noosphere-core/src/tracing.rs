@@ -183,10 +183,10 @@ mod inner {
     use tracing::{Event, Subscriber};
     use tracing_subscriber::{
         filter::Directive,
-        fmt::{format, FmtContext, FormatEvent, FormatFields, FormattedFields, Layer},
+        fmt::{format, FmtContext, FormatEvent, FormatFields, FormattedFields},
         prelude::*,
         registry::LookupSpan,
-        EnvFilter,
+        EnvFilter, Layer,
     };
 
     // Mainly we disable this for iOS because it causes XCode
@@ -317,51 +317,40 @@ mod inner {
 
         let subscriber = tracing_subscriber::registry().with(env_filter);
 
-        match noosphere_log_format {
-            NoosphereLogFormat::Minimal => {
-                let subscriber = subscriber.with(
-                    Layer::default().event_format(NoosphereMinimalFormatter::new(
-                        tracing_subscriber::fmt::format()
-                            .without_time()
-                            .with_target(false)
-                            .with_ansi(USE_ANSI_COLORS),
-                    )),
-                );
-
-                #[cfg(feature = "sentry")]
-                let subscriber = subscriber.with(sentry_tracing::layer());
-
-                subscriber.init();
-            }
+        // Erase layer type via Box<dyn> so that we can share common code even
+        // if the Layer types are incompatible.
+        // See: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/layer/#runtime-configuration-with-layers
+        let formatting_layer: Box<dyn Layer<_> + Send + Sync + 'static> = match noosphere_log_format
+        {
+            NoosphereLogFormat::Minimal => Box::new(
+                tracing_subscriber::fmt::layer().event_format(NoosphereMinimalFormatter::new(
+                    tracing_subscriber::fmt::format()
+                        .without_time()
+                        .with_target(false)
+                        .with_ansi(USE_ANSI_COLORS),
+                )),
+            ),
             NoosphereLogFormat::Verbose => {
-                let subscriber =
-                    subscriber.with(tracing_subscriber::fmt::layer().with_ansi(USE_ANSI_COLORS));
-
-                #[cfg(feature = "sentry")]
-                let subscriber = subscriber.with(sentry_tracing::layer());
-
-                subscriber.init();
+                Box::new(tracing_subscriber::fmt::layer().with_ansi(USE_ANSI_COLORS))
             }
-            NoosphereLogFormat::Pretty => {
-                let subscriber =
-                    subscriber.with(Layer::default().pretty().with_ansi(USE_ANSI_COLORS));
-
-                #[cfg(feature = "sentry")]
-                let subscriber = subscriber.with(sentry_tracing::layer());
-
-                subscriber.init();
-            }
-            NoosphereLogFormat::Structured => {
-                let subscriber =
-                    subscriber.with(Layer::default().json().with_ansi(USE_ANSI_COLORS));
-
-                #[cfg(feature = "sentry")]
-                let subscriber = subscriber.with(sentry_tracing::layer());
-
-                subscriber.init();
-            }
+            NoosphereLogFormat::Pretty => Box::new(
+                tracing_subscriber::fmt::layer()
+                    .pretty()
+                    .with_ansi(USE_ANSI_COLORS),
+            ),
+            NoosphereLogFormat::Structured => Box::new(
+                tracing_subscriber::fmt::layer()
+                    .json()
+                    .with_ansi(USE_ANSI_COLORS),
+            ),
         };
 
+        let subscriber = subscriber.with(formatting_layer);
+
+        #[cfg(feature = "sentry")]
+        let subscriber = subscriber.with(sentry_tracing::layer());
+
+        subscriber.init();
         Ok(())
     }
 
