@@ -10,7 +10,7 @@ use anyhow::Result;
 use axum::extract::DefaultBodyLimit;
 use axum::http::{HeaderValue, Method};
 use axum::routing::{get, put};
-use axum::{Extension, Router, Server};
+use axum::{serve, Extension, Router};
 use noosphere_core::api::{v0alpha1, v0alpha2};
 use noosphere_core::context::HasMutableSphereContext;
 use noosphere_ipfs::KuboClient;
@@ -31,7 +31,7 @@ type WorkerHandles = Vec<JoinHandle<Result<()>>>;
 
 /// Represents a Noosphere gateway server.
 pub struct Gateway {
-    app: Router,
+    router: Router,
     worker_handles: WorkerHandles,
 }
 
@@ -83,7 +83,7 @@ impl Gateway {
         );
         let (cleanup_tx, cleanup_task) = start_cleanup::<M, C, S>(manager.clone());
 
-        let app = Router::new()
+        let router = Router::new()
             .route(
                 &v0alpha1::Route::Did.to_string(),
                 get(handlers::v0alpha1::did_route),
@@ -117,17 +117,18 @@ impl Gateway {
             .layer(cors);
 
         #[cfg(feature = "observability")]
-        let app = {
-            app.layer(OtelInResponseLayer) // include trace context in response
+        let router = {
+            router
+                .layer(OtelInResponseLayer) // include trace context in response
                 .layer(OtelAxumLayer::default()) // initialize otel trace on incoming request
         };
 
-        let app = app
+        let router = router
             .layer(TraceLayer::new_for_http())
             .with_state(Arc::new(manager));
 
         Ok(Self {
-            app,
+            router,
             worker_handles: vec![syndication_task, name_system_task, cleanup_task],
         })
     }
@@ -135,9 +136,11 @@ impl Gateway {
     /// Start the gateway server with `listener`, consuming the [Gateway]
     /// object until the process terminates or has an unrecoverable error.
     pub async fn start(self, listener: TcpListener) -> Result<()> {
-        Server::from_tcp(listener)?
-            .serve(self.app.into_make_service())
-            .await?;
+        // Listener must be set to nonblocking
+        // https://docs.rs/tokio/latest/tokio/net/struct.TcpListener.html#method.from_std
+        listener.set_nonblocking(true)?;
+        let tokio_listener = tokio::net::TcpListener::from_std(listener)?;
+        serve(tokio_listener, self.router.into_make_service()).await?;
         for handle in self.worker_handles {
             handle.abort();
         }

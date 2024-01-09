@@ -1,7 +1,7 @@
 use crate::{authority::SUPPORTED_KEYS, data::Jwt};
 use anyhow::anyhow;
+use axum_extra::headers::{self, Header, HeaderName, HeaderValue};
 use cid::Cid;
-use headers::{self, Header, HeaderName, HeaderValue};
 use once_cell::sync::Lazy;
 use ucan::{chain::ProofChain, crypto::did::DidParser, store::UcanJwtStore};
 

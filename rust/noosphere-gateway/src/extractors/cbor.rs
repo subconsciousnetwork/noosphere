@@ -1,10 +1,9 @@
 use async_trait::async_trait;
 use axum::{
-    body::{Bytes, HttpBody},
-    extract::FromRequest,
-    http::{header, Request, StatusCode},
+    body::Bytes,
+    extract::{FromRequest, Request},
+    http::{header, StatusCode},
     response::IntoResponse,
-    BoxError,
 };
 use libipld_cbor::DagCborCodec;
 use mime_guess::mime;
@@ -30,17 +29,14 @@ where
 }
 
 #[async_trait]
-impl<S, T, B> FromRequest<S, B> for Cbor<T>
+impl<S, T> FromRequest<S> for Cbor<T>
 where
     T: Serialize + DeserializeOwned,
     S: Send + Sync,
-    B: HttpBody + Send + 'static,
-    B::Data: Send,
-    B::Error: Into<BoxError>,
 {
     type Rejection = StatusCode;
 
-    async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
         if !is_octet_stream_content_type(&req) {
             return Err(StatusCode::BAD_REQUEST);
         }
@@ -59,7 +55,7 @@ where
     }
 }
 
-fn is_octet_stream_content_type<B>(req: &Request<B>) -> bool {
+fn is_octet_stream_content_type(req: &Request) -> bool {
     let content_type = if let Some(content_type) = req.headers().get(header::CONTENT_TYPE) {
         content_type
     } else {
