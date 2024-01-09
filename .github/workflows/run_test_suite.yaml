@@ -121,7 +121,7 @@ jobs:
             FEATURES="--features ${{matrix.features}}"
           fi
 
-          cargo +${{ matrix.toolchain }} nextest run $FEATURES --retries 5 --color always 2>&1 | tee test-results/log
+          cargo +${{ matrix.toolchain }} nextest run $FEATURES --profile ci --color always 2>&1 | tee test-results/log
         env:
           NOOSPHERE_LOG: academic
       - uses: actions/upload-artifact@v3
