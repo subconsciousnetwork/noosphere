@@ -256,6 +256,8 @@ mod inner {
         });
     }
 
+    /// Identical to [initialize_tracing], but provides the ability to add in
+    /// your own [Layer] for tracing.
     pub fn initialize_tracing_with_layer<T>(noosphere_log: Option<NoosphereLog>, layer: T)
     where
         T: Layer<Registry> + Send + Sync + Sized,
