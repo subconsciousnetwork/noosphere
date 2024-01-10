@@ -183,10 +183,10 @@ mod inner {
     use tracing::{Event, Subscriber};
     use tracing_subscriber::{
         filter::Directive,
-        fmt::{format, FmtContext, FormatEvent, FormatFields, FormattedFields, Layer},
+        fmt::{format, FmtContext, FormatEvent, FormatFields, FormattedFields, Layer as FmtLayer},
         prelude::*,
         registry::LookupSpan,
-        EnvFilter,
+        EnvFilter, Layer, Registry,
     };
 
     // Mainly we disable this for iOS because it causes XCode
@@ -247,13 +247,35 @@ mod inner {
     /// [2]: https://docs.rs/env_logger/0.10.0/env_logger/#enabling-logging
     pub fn initialize_tracing(noosphere_log: Option<NoosphereLog>) {
         INITIALIZE_TRACING.call_once(|| {
-            if let Err(error) = initialize_tracing_subscriber(noosphere_log) {
+            if let Err(error) = initialize_tracing_subscriber::<
+                Option<Box<dyn Layer<Registry> + Send + Sync>>,
+            >(noosphere_log, None)
+            {
                 println!("Failed to initialize tracing: {}", error);
             }
         });
     }
 
-    fn initialize_tracing_subscriber(noosphere_log: Option<NoosphereLog>) -> anyhow::Result<()> {
+    /// Identical to [initialize_tracing], but provides the ability to add in
+    /// your own [Layer] for tracing.
+    pub fn initialize_tracing_with_layer<T>(noosphere_log: Option<NoosphereLog>, layer: T)
+    where
+        T: Layer<Registry> + Send + Sync + Sized,
+    {
+        INITIALIZE_TRACING.call_once(|| {
+            if let Err(error) = initialize_tracing_subscriber(noosphere_log, layer) {
+                println!("Failed to initialize tracing: {}", error);
+            }
+        });
+    }
+
+    fn initialize_tracing_subscriber<T>(
+        noosphere_log: Option<NoosphereLog>,
+        layer: T,
+    ) -> anyhow::Result<()>
+    where
+        T: Layer<Registry> + Send + Sync + Sized,
+    {
         let rust_log_env = std::env::var("RUST_LOG").ok();
         let noosphere_log_env = std::env::var("NOOSPHERE_LOG").ok();
         let noosphere_log_level_env = std::env::var("NOOSPHERE_LOG_LEVEL").ok();
@@ -315,12 +337,14 @@ mod inner {
             env_filter = env_filter.add_directive(directive)
         }
 
-        let subscriber = tracing_subscriber::registry().with(env_filter);
+        let subscriber = layer
+            .and_then(env_filter)
+            .with_subscriber(tracing_subscriber::registry());
 
         match noosphere_log_format {
             NoosphereLogFormat::Minimal => {
                 let subscriber = subscriber.with(
-                    Layer::default().event_format(NoosphereMinimalFormatter::new(
+                    FmtLayer::default().event_format(NoosphereMinimalFormatter::new(
                         tracing_subscriber::fmt::format()
                             .without_time()
                             .with_target(false)
@@ -344,7 +368,7 @@ mod inner {
             }
             NoosphereLogFormat::Pretty => {
                 let subscriber =
-                    subscriber.with(Layer::default().pretty().with_ansi(USE_ANSI_COLORS));
+                    subscriber.with(FmtLayer::default().pretty().with_ansi(USE_ANSI_COLORS));
 
                 #[cfg(feature = "sentry")]
                 let subscriber = subscriber.with(sentry_tracing::layer());
@@ -353,7 +377,7 @@ mod inner {
             }
             NoosphereLogFormat::Structured => {
                 let subscriber =
-                    subscriber.with(Layer::default().json().with_ansi(USE_ANSI_COLORS));
+                    subscriber.with(FmtLayer::default().json().with_ansi(USE_ANSI_COLORS));
 
                 #[cfg(feature = "sentry")]
                 let subscriber = subscriber.with(sentry_tracing::layer());
