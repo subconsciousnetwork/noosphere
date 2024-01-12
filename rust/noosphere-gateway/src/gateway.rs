@@ -3,6 +3,7 @@ use axum::extract::DefaultBodyLimit;
 use axum::http::{HeaderValue, Method};
 use axum::routing::{get, put};
 use axum::{Extension, Router, Server};
+use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 use noosphere_core::api::{v0alpha1, v0alpha2};
 use noosphere_core::context::HasMutableSphereContext;
 use noosphere_ipfs::KuboClient;
@@ -114,6 +115,8 @@ impl Gateway {
             .layer(DefaultBodyLimit::max(DEFAULT_BODY_LENGTH_LIMIT))
             .layer(cors)
             .layer(TraceLayer::new_for_http())
+            .layer(OtelInResponseLayer::default()) // include trace context in response
+            .layer(OtelAxumLayer::default()) // initialize otel trace on incoming request
             .with_state(Arc::new(manager));
 
         Ok(Self {

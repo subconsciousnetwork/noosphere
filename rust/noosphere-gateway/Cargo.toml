@@ -19,6 +19,7 @@ readme = "README.md"
 test-kubo = []
 
 [dependencies]
+axum-tracing-opentelemetry.workspace = true
 tracing = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

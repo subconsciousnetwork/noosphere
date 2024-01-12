@@ -3,6 +3,7 @@ use crate::{DhtClient, NameSystem};
 use anyhow::Result;
 use axum::routing::{delete, get, post};
 use axum::{Router, Server};
+use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 use std::net::TcpListener;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
@@ -31,6 +32,8 @@ pub async fn start_name_system_api_server(
         .route(&Route::PostRecord.to_string(), post(handlers::post_record))
         .route(&Route::Bootstrap.to_string(), post(handlers::bootstrap))
         .with_state(handlers::RouterState { ns, peer_id })
+        .layer(OtelInResponseLayer::default()) // include trace context in response
+        .layer(OtelAxumLayer::default()) // initialize otel trace on incoming request
         .layer(TraceLayer::new_for_http());
 
     Server::from_tcp(listener)?
