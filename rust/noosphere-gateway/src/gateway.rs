@@ -114,9 +114,9 @@ impl Gateway {
             .layer(Extension(cleanup_tx))
             .layer(DefaultBodyLimit::max(DEFAULT_BODY_LENGTH_LIMIT))
             .layer(cors)
-            .layer(TraceLayer::new_for_http())
             .layer(OtelInResponseLayer::default()) // include trace context in response
             .layer(OtelAxumLayer::default()) // initialize otel trace on incoming request
+            .layer(TraceLayer::new_for_http())
             .with_state(Arc::new(manager));
 
         Ok(Self {
