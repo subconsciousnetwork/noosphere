@@ -22,7 +22,6 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [dependencies]
-axum-tracing-opentelemetry.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow = { workspace = true }
@@ -52,6 +51,7 @@ toml = { version = "~0.8", optional = true }
 
 # noosphere_ns::server
 axum = { workspace = true, features = ["json", "headers", "macros"], optional = true }
+axum-tracing-opentelemetry.workspace = true
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls"], optional = true }
 tower-http = { workspace = true, features = ["trace"], optional = true }
 url = { version = "^2", features = [ "serde" ], optional = true }
