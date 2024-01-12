@@ -31,10 +31,10 @@ pub async fn start_name_system_api_server(
         .route(&Route::GetRecord.to_string(), get(handlers::get_record))
         .route(&Route::PostRecord.to_string(), post(handlers::post_record))
         .route(&Route::Bootstrap.to_string(), post(handlers::bootstrap))
-        .with_state(handlers::RouterState { ns, peer_id })
-        .layer(OtelInResponseLayer::default()) // include trace context in response
+        .layer(OtelInResponseLayer) // include trace context in response
         .layer(OtelAxumLayer::default()) // initialize otel trace on incoming request
-        .layer(TraceLayer::new_for_http());
+        .layer(TraceLayer::new_for_http())
+        .with_state(handlers::RouterState { ns, peer_id });
 
     Server::from_tcp(listener)?
         .serve(app.into_make_service())
