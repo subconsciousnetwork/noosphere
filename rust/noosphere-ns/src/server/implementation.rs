@@ -3,10 +3,12 @@ use crate::{DhtClient, NameSystem};
 use anyhow::Result;
 use axum::routing::{delete, get, post};
 use axum::{Router, Server};
-use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 use std::net::TcpListener;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
+
+#[cfg(feature = "observability")]
+use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 
 pub async fn start_name_system_api_server(
     ns: Arc<NameSystem>,
@@ -30,9 +32,15 @@ pub async fn start_name_system_api_server(
         .route(&Route::Address.to_string(), get(handlers::get_address))
         .route(&Route::GetRecord.to_string(), get(handlers::get_record))
         .route(&Route::PostRecord.to_string(), post(handlers::post_record))
-        .route(&Route::Bootstrap.to_string(), post(handlers::bootstrap))
-        .layer(OtelInResponseLayer) // include trace context in response
-        .layer(OtelAxumLayer::default()) // initialize otel trace on incoming request
+        .route(&Route::Bootstrap.to_string(), post(handlers::bootstrap));
+
+    #[cfg(feature = "observability")]
+    let app = {
+        app.layer(OtelInResponseLayer) // include trace context in response
+            .layer(OtelAxumLayer::default()) // initialize otel trace on incoming request
+    };
+
+    let app = app
         .layer(TraceLayer::new_for_http())
         .with_state(handlers::RouterState { ns, peer_id });
 

@@ -17,9 +17,10 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [features]
-default = []
+default = ["observability"]
 helpers = ["tracing-subscriber", "noosphere-ns"]
 rocksdb = ["noosphere/rocksdb"]
+observability = ["noosphere-gateway/observability"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

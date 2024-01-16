@@ -51,7 +51,7 @@ toml = { version = "~0.8", optional = true }
 
 # noosphere_ns::server
 axum = { workspace = true, features = ["json", "headers", "macros"], optional = true }
-axum-tracing-opentelemetry.workspace = true
+axum-tracing-opentelemetry = { workspace = true, optional = true }
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls"], optional = true }
 tower-http = { workspace = true, features = ["trace"], optional = true }
 url = { version = "^2", features = [ "serde" ], optional = true }
@@ -64,9 +64,10 @@ libipld-cbor = { workspace = true }
 tempfile = { workspace = true }
 
 [features]
-default = ["orb-ns", "api-server"]
+default = ["orb-ns", "api-server", "observability"]
 api-server = ["axum", "reqwest", "url", "tower-http"]
 orb-ns = ["clap", "noosphere", "home", "toml", "noosphere-ipfs"]
+observability = ["axum-tracing-opentelemetry"]
 
 [[bin]]
 name = "orb-ns"
