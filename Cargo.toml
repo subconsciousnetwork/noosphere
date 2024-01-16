@@ -20,10 +20,12 @@ anyhow = { version = "1" }
 async-recursion = { version = "1" }
 async-stream = { version = "0.3" }
 axum = { version = "^0.6.18" }
+axum-tracing-opentelemetry = { version = "0.15.0" }
 base64 = { version = "^0.21" }
 byteorder = { version = "~1.4" } # keep in sync with pinned libipld-* crates
 bytes = { version = "^1" }
 cid = { version = "0.10" }
+clap-vergen = { version = "0.2.0" }
 deterministic-bloom = { version = "0.1.0" }
 directories = { version = "5" }
 fastcdc = { version = "3.1" }
@@ -44,7 +46,7 @@ multihash = { version = "0.18" }
 pathdiff = { version = "0.2.1" }
 rand = { version = "0.8" }
 reqwest = { version = "=0.11.20", default-features = false, features = ["json", "rustls-tls", "stream"] }
-sentry-tracing = { version = "0.31.7" }
+sentry-tracing = { version = "0.31.8" }
 serde = { version = "^1" }
 serde_json = { version = "^1" }
 serde_urlencoded = { version = "~0.7" }
@@ -65,6 +67,8 @@ tracing-subscriber = { version = "~0.3.18", features = ["env-filter", "tracing-l
 ucan = { version = "0.4.0" }
 ucan-key-support = { version = "0.1.7" }
 url = { version = "^2" }
+vergen = { version = "8.2.6", features = ["build", "cargo", "git", "gitcl"] }
+vergen-pretty = { version = "0.3.0" }
 void = { version = "1" }
 wasm-bindgen = { version = "^0.2" }
 wasm-bindgen-test = { version = "^0.3" }

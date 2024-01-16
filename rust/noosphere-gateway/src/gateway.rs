@@ -1,3 +1,11 @@
+use crate::GatewayManager;
+use crate::{
+    handlers,
+    worker::{
+        start_cleanup, start_ipfs_syndication, start_name_system, NameSystemConfiguration,
+        NameSystemConnectionType,
+    },
+};
 use anyhow::Result;
 use axum::extract::DefaultBodyLimit;
 use axum::http::{HeaderValue, Method};
@@ -14,15 +22,8 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use url::Url;
 
-use crate::GatewayManager;
-use crate::{
-    handlers,
-    worker::{
-        start_cleanup, start_ipfs_syndication, start_name_system, NameSystemConfiguration,
-        NameSystemConnectionType,
-    },
-};
-use noosphere_core::tracing::initialize_tracing;
+#[cfg(feature = "observability")]
+use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 
 const DEFAULT_BODY_LENGTH_LIMIT: usize = 100 /* MB */ * 1000 * 1000;
 
@@ -48,8 +49,6 @@ impl Gateway {
         C: HasMutableSphereContext<S> + 'static,
         S: Storage + 'static,
     {
-        initialize_tracing(None);
-
         let mut cors = CorsLayer::new();
 
         if let Some(cors_origin) = cors_origin {
@@ -115,7 +114,15 @@ impl Gateway {
             .layer(Extension(name_system_tx))
             .layer(Extension(cleanup_tx))
             .layer(DefaultBodyLimit::max(DEFAULT_BODY_LENGTH_LIMIT))
-            .layer(cors)
+            .layer(cors);
+
+        #[cfg(feature = "observability")]
+        let app = {
+            app.layer(OtelInResponseLayer) // include trace context in response
+                .layer(OtelAxumLayer::default()) // initialize otel trace on incoming request
+        };
+
+        let app = app
             .layer(TraceLayer::new_for_http())
             .with_state(Arc::new(manager));
 

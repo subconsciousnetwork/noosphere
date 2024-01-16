@@ -40,6 +40,24 @@
   * dependencies
     * noosphere-storage bumped from 0.9.2 to 0.9.3
 
+## [0.7.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.6.7...noosphere-collections-v0.7.0) (2023-11-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* Initial work refactoring noosphere-gateway to be generic over the ([#698](https://github.com/subconsciousnetwork/noosphere/issues/698))
+
+### Features
+
+* Initial work refactoring noosphere-gateway to be generic over the ([#698](https://github.com/subconsciousnetwork/noosphere/issues/698)) ([92f0d8a](https://github.com/subconsciousnetwork/noosphere/commit/92f0d8a6ff4a76dd971f6e945fcc7ddb01019699))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.9.3 to 0.10.0
+
 ## [0.6.5](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.6.4...noosphere-collections-v0.6.5) (2023-10-06)
 
 

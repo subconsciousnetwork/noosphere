@@ -135,6 +135,23 @@
     * noosphere bumped from 0.15.3 to 0.15.4
     * noosphere-ipfs bumped from 0.8.3 to 0.8.4
 
+## [0.11.5](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.11.4...noosphere-ns-v0.11.5) (2023-11-21)
+
+
+### Features
+
+* Fix nightly builds and add to CI. ([#690](https://github.com/subconsciousnetwork/noosphere/issues/690)) ([344dd7a](https://github.com/subconsciousnetwork/noosphere/commit/344dd7ad20226232ce9545a9399de0c1c17f6687))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.9.3 to 0.10.0
+    * noosphere-core bumped from 0.17.3 to 0.18.0
+    * noosphere bumped from 0.15.4 to 0.16.0
+    * noosphere-ipfs bumped from 0.8.4 to 0.8.5
+
 ## [0.11.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.10.2...noosphere-ns-v0.11.0) (2023-09-19)
 
 

@@ -34,6 +34,13 @@ pub enum OrbCommand {
         command: SphereCommand,
     },
 
+    /// Display version information for this build of the CLI
+    Version {
+        /// Display extra build and git metadata
+        #[clap(short, long)]
+        verbose: bool,
+    },
+
     /// Summon a gateway geist to manage the local sphere; it will accept
     /// push, fetch and other REST actions from any clients that are authorized
     /// to operate on its counterpart sphere. When it receives changes to its

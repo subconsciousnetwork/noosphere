@@ -10,6 +10,26 @@
     * noosphere-storage bumped from 0.7.0 to 0.7.1
     * noosphere-collections bumped from 0.6.0 to 0.6.1
 
+## [0.18.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.17.3...noosphere-core-v0.18.0) (2023-11-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* Initial work refactoring noosphere-gateway to be generic over the ([#698](https://github.com/subconsciousnetwork/noosphere/issues/698))
+
+### Features
+
+* Initial work refactoring noosphere-gateway to be generic over the ([#698](https://github.com/subconsciousnetwork/noosphere/issues/698)) ([92f0d8a](https://github.com/subconsciousnetwork/noosphere/commit/92f0d8a6ff4a76dd971f6e945fcc7ddb01019699))
+* Rewrite host headers in API client to embed sphere identity in subdomain when feature 'test-gateway' is enabled. ([#726](https://github.com/subconsciousnetwork/noosphere/issues/726)) ([e55f5f1](https://github.com/subconsciousnetwork/noosphere/commit/e55f5f180c3f6f6ad9a8a35a3387830f80957938))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.9.3 to 0.10.0
+    * noosphere-collections bumped from 0.6.7 to 0.7.0
+
 ## [0.17.3](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.17.2...noosphere-core-v0.17.3) (2023-11-01)
 
 

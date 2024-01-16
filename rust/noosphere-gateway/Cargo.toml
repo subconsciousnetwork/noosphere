@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-gateway"
-version = "0.10.3"
+version = "0.11.0"
 edition = "2021"
 description = "A geist on the network that enables user spheres to discover each other"
 keywords = ["http", "geist", "noosphere", "p2p", "ucan"]
@@ -16,7 +16,9 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [features]
+default = []
 test-kubo = []
+observability = ["axum-tracing-opentelemetry"]
 
 [dependencies]
 tracing = { workspace = true }
@@ -24,11 +26,12 @@ tracing = { workspace = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 reqwest = { workspace = true }
 noosphere-common = { version = "0.1.2", path = "../noosphere-common", features = ["helpers"] }
-noosphere-core = { version = "0.17.3", path = "../noosphere-core", features = ["helpers"] }
+noosphere-core = { version = "0.18.0", path = "../noosphere-core", features = ["helpers"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow = { workspace = true }
 axum = { workspace = true, features = ["headers", "macros"] }
+axum-tracing-opentelemetry = { workspace = true, optional = true }
 iroh-car = { workspace = true }
 thiserror = { workspace = true }
 strum = { workspace = true }
@@ -46,10 +49,10 @@ async-stream = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 mime_guess = "^2"
 
-noosphere-ipfs = { version = "0.8.4", path = "../noosphere-ipfs" }
-noosphere-core = { version = "0.17.3", path = "../noosphere-core" }
-noosphere-ns = { version = "0.11.4", path = "../noosphere-ns" }
-noosphere-storage = { version = "0.9.3", path = "../noosphere-storage" }
+noosphere-ipfs = { version = "0.8.5", path = "../noosphere-ipfs" }
+noosphere-core = { version = "0.18.0", path = "../noosphere-core" }
+noosphere-ns = { version = "0.11.5", path = "../noosphere-ns" }
+noosphere-storage = { version = "0.10.0", path = "../noosphere-storage" }
 noosphere-common = { version = "0.1.2", path = "../noosphere-common" }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }

@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-cli"
-version = "0.15.4"
+version = "0.16.0"
 edition = "2021"
 description = "Reference client and pedagogical tool to demonstrate the principles of the Noosphere protocol"
 keywords = ["cli", "sync", "noosphere", "p2p", "ucan"]
@@ -17,11 +17,15 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [features]
-default = []
+default = ["observability"]
 helpers = ["tracing-subscriber", "noosphere-ns"]
 rocksdb = ["noosphere/rocksdb"]
+observability = ["noosphere-gateway/observability"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+vergen = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 reqwest = { version = "~0.11", default-features = false, features = ["json", "rustls-tls", "stream"] }
@@ -46,14 +50,17 @@ mime_guess = "^2"
 witty-phrase-generator = "~0.2"
 globset = "~0.4"
 
-noosphere-ipfs = { version = "0.8.4", path = "../noosphere-ipfs" }
-noosphere-core = { version = "0.17.3", path = "../noosphere-core" }
-noosphere-storage = { version = "0.9.3", path = "../noosphere-storage" }
-noosphere-gateway = { version = "0.10.3", path = "../noosphere-gateway" }
-noosphere-ns = { version = "0.11.4", path = "../noosphere-ns", optional = true }
-noosphere = { version = "0.15.4", path = "../noosphere" }
+noosphere-ipfs = { version = "0.8.5", path = "../noosphere-ipfs" }
+noosphere-core = { version = "0.18.0", path = "../noosphere-core" }
+noosphere-storage = { version = "0.10.0", path = "../noosphere-storage" }
+noosphere-gateway = { version = "0.11.0", path = "../noosphere-gateway" }
+noosphere-ns = { version = "0.11.5", path = "../noosphere-ns", optional = true }
+noosphere = { version = "0.16.0", path = "../noosphere" }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
+
+vergen-pretty = { workspace = true }
+
 cid = { workspace = true }
 symlink = { workspace = true }
 pathdiff = { workspace = true }
