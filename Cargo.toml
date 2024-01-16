@@ -20,6 +20,7 @@ anyhow = { version = "1" }
 async-recursion = { version = "1" }
 async-stream = { version = "0.3" }
 axum = { version = "^0.6.18" }
+axum-tracing-opentelemetry = { version = "0.15.0" }
 base64 = { version = "^0.21" }
 byteorder = { version = "~1.4" } # keep in sync with pinned libipld-* crates
 bytes = { version = "^1" }
