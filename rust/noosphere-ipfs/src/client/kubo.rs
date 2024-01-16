@@ -6,12 +6,12 @@ use super::{IpfsClient, IpfsClientAsyncReadSendSync};
 use async_trait::async_trait;
 
 use anyhow::{anyhow, Result};
-use async_compat::CompatExt;
 use cid::Cid;
 use hyper::{
     client::connect::dns::GaiResolver, client::HttpConnector, Body, Client, Request, StatusCode,
 };
 use hyper_multipart_rfc7578::client::multipart::{Body as MultipartBody, Form};
+use tokio_util::compat::TokioAsyncReadCompatExt;
 // TODO(#587): Remove dependency on `ipfs-api` crate
 use ipfs_api_prelude::response::{PinAddResponse, PinLsResponse};
 use libipld_cbor::DagCborCodec;

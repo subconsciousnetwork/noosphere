@@ -19,7 +19,7 @@ readme = "README.md"
 [dependencies]
 noosphere-core = { version = "0.18.0", path = "../noosphere-core" }
 noosphere-storage = { version = "0.10.0", path = "../noosphere-storage" }
-subtext = { version = "0.3.2", features = ["stream"] }
+subtext = { workspace = true, features = ["stream"] }
 async-trait = "~0.1"
 url = { workspace = true }
 tracing = { workspace = true }
@@ -36,7 +36,6 @@ tokio = { workspace = true, features = ["io-util", "macros", "test-util"] }
 
 async-stream = { workspace = true }
 futures = { workspace = true }
-async-compat = { version = "~0.2" }
 async-utf8-decoder = { version = "~0.3" }
 
 ucan = { workspace = true }
