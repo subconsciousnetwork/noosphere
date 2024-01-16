@@ -3464,7 +3464,7 @@ dependencies = [
  "rexie",
  "safer-ffi",
  "serde_json",
- "subtext 0.3.4 (git+https://github.com/subconsciousnetwork/subtext?rev=afe4836)",
+ "subtext",
  "tempfile",
  "thiserror",
  "tokio",
@@ -3506,7 +3506,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "subtext 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "subtext",
  "symlink",
  "tempfile",
  "tokio",
@@ -3674,7 +3674,7 @@ dependencies = [
  "libipld-cbor",
  "noosphere-core",
  "noosphere-storage",
- "subtext 0.3.4 (git+https://github.com/subconsciousnetwork/subtext?rev=afe4836)",
+ "subtext",
  "tempfile",
  "tokio",
  "tokio-stream",
@@ -5419,19 +5419,9 @@ dependencies = [
 
 [[package]]
 name = "subtext"
-version = "0.3.4"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd41fd9fc6998faab4b179e626264e294226ecf922322f4a823bb9f774f78fa7"
-dependencies = [
- "anyhow",
- "log",
- "tendril",
-]
-
-[[package]]
-name = "subtext"
-version = "0.3.4"
-source = "git+https://github.com/subconsciousnetwork/subtext?rev=afe4836#afe4836642d13bc0a4b75cd83c4f6726eee992e4"
+checksum = "1466198dcef95b5c5e943ee4c92e4586b66c11eeb770f9272bc100b526a14fa7"
 dependencies = [
  "anyhow",
  "async-stream",
