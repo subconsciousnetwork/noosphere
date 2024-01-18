@@ -188,11 +188,12 @@ final class NoosphereTests: XCTestCase {
         var pointer = file_header_names.ptr!;
         
         // NOTE: "hello" is only given once even though there are two headers with that name
-        assert(name_count == 3)
+        assert(name_count == 4)
         
         let expected_headers = [
             ["foo", "bar"],
             ["hello", "world"],
+            ["Content-Length", String(file_bytes.count)],
             ["Content-Type", "text/subtext"]
         ]
         

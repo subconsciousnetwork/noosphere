@@ -158,7 +158,18 @@ where
         let body_cid =
             BodyChunkIpld::store_bytes(&bytes, self.sphere_context_mut().await?.db_mut()).await?;
 
-        self.link(slug, content_type, &body_cid, additional_headers)
+        let header = (
+            Header::ContentLength.to_string(),
+            format!("{}", bytes.len()),
+        );
+        let additional_headers = if let Some(mut headers) = additional_headers {
+            headers.push(header);
+            headers
+        } else {
+            vec![header]
+        };
+
+        self.link(slug, content_type, &body_cid, Some(additional_headers))
             .await
     }
 
