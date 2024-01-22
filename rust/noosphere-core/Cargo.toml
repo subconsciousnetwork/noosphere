@@ -30,10 +30,11 @@ url = { workspace = true, features = ["serde"] }
 async-trait = "~0.1"
 async-recursion = { workspace = true }
 async-stream = { workspace = true }
-
 # NOTE: async-once-cell 0.4.0 shipped unstable feature usage
 async-once-cell = "~0.4"
 anyhow = { workspace = true }
+http = { version = "^1" } # Keep in sync with `axum`
+axum-extra = { workspace = true, features = ["typed-header"] }
 bytes = { workspace = true }
 instant = { workspace = true }
 iroh-car = { workspace = true }
@@ -56,7 +57,6 @@ reqwest = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 tokio-util = { workspace = true, features = ["io"] }
-headers = { workspace = true }
 noosphere-common = { version = "0.1.2", path = "../noosphere-common" }
 noosphere-storage = { version = "0.10.0", path = "../noosphere-storage" }
 noosphere-collections = { version = "0.7.0", path = "../noosphere-collections" }

@@ -19,6 +19,21 @@ type DbInner = DBWithThreadMode<rocksdb::MultiThreaded>;
 #[cfg(feature = "rocksdb-multi-thread")]
 type ColumnType<'a> = Arc<rocksdb::BoundColumnFamily<'a>>;
 
+struct Db(DbInner);
+
+impl Drop for Db {
+    fn drop(&mut self) {
+        self.0.cancel_all_background_work(true);
+    }
+}
+
+impl std::ops::Deref for Db {
+    type Target = DbInner;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 /// A RocksDB implementation of [Storage].
 ///
 /// Caveats:
@@ -26,7 +41,7 @@ type ColumnType<'a> = Arc<rocksdb::BoundColumnFamily<'a>>;
 /// TODO(#631): Further improvements to the implementation.
 #[derive(Clone)]
 pub struct RocksDbStorage {
-    db: Arc<DbInner>,
+    db: Arc<Db>,
     debug_data: Arc<(PathBuf, StorageConfig)>,
 }
 
@@ -57,7 +72,7 @@ impl RocksDbStorage {
                 db_opts.set_db_write_buffer_size(memory_cache_limit);
             }
 
-            Arc::new(DbInner::open_cf_descriptors(&db_opts, path, cfs)?)
+            Arc::new(Db(DbInner::open_cf_descriptors(&db_opts, path, cfs)?))
         };
 
         Ok(RocksDbStorage {
@@ -115,11 +130,11 @@ impl std::fmt::Debug for RocksDbStorage {
 #[derive(Clone)]
 pub struct RocksDbStore {
     name: String,
-    db: Arc<DbInner>,
+    db: Arc<Db>,
 }
 
 impl RocksDbStore {
-    pub fn new(db: Arc<DbInner>, name: String) -> Result<Self> {
+    fn new(db: Arc<Db>, name: String) -> Result<Self> {
         Ok(RocksDbStore { db, name })
     }
 

@@ -1,6 +1,4 @@
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
-use axum::Json;
+use axum::{http::StatusCode, response::IntoResponse, Json};
 use noosphere_core::api::v0alpha2::PushError;
 use serde::{Deserialize, Serialize};
 

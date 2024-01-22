@@ -1,13 +1,11 @@
-use std::pin::Pin;
-
+use crate::extractors::{GatewayAuthority, GatewayScope, SphereExtractor};
 use anyhow::Result;
 use axum::{
-    body::StreamBody,
+    body::Body,
     extract::{Path, Query},
     http::StatusCode,
     Extension,
 };
-use bytes::Bytes;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_core::api::v0alpha1::ReplicateParameters;
@@ -19,12 +17,6 @@ use noosphere_core::{
 };
 use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_storage::{BlockStore, BlockStoreRetry, Storage};
-use tokio_stream::Stream;
-
-use crate::extractors::{GatewayAuthority, GatewayScope, SphereExtractor};
-
-pub type ReplicationCarStreamBody =
-    StreamBody<Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send>>>;
 
 /// Invoke to get a streamed CARv1 response that represents all the blocks
 /// needed to manifest the content associated with the given [Cid] path
@@ -50,7 +42,7 @@ pub async fn replicate_route<C, S>(
         include_content,
     }): Query<ReplicateParameters>,
     Extension(ipfs_client): Extension<KuboClient>,
-) -> Result<ReplicationCarStreamBody, StatusCode>
+) -> Result<Body, StatusCode>
 where
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
@@ -116,7 +108,7 @@ where
                     // of usage. Maybe somewhere in the ballpark of 1~10k revisions. It
                     // should be a large-but-finite number.
                     debug!("Streaming revisions from {} to {}", since, memo_version);
-                    return Ok(StreamBody::new(Box::pin(to_car_stream(
+                    return Ok(Body::from_stream(Box::pin(to_car_stream(
                         vec![memo_version],
                         memo_history_stream(store, &memo_version.into(), Some(&since), false),
                     ))));
@@ -136,7 +128,7 @@ where
     debug!("Streaming entire version for {}", memo_version);
 
     // Always fall back to a full replication
-    Ok(StreamBody::new(Box::pin(to_car_stream(
+    Ok(Body::from_stream(Box::pin(to_car_stream(
         vec![memo_version],
         memo_body_stream(store, &memo_version.into(), include_content),
     ))))

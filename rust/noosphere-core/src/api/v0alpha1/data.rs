@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use crate::api::data::{empty_string_as_none, AsQuery};
+use crate::api::{
+    data::{empty_string_as_none, AsQuery},
+    StatusCode,
+};
 use crate::{
     authority::{generate_capability, SphereAbility, SPHERE_SEMANTICS},
     data::{Bundle, Did, Jwt, Link, MemoIpld},
@@ -9,7 +12,6 @@ use crate::{
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_storage::{base64_decode, base64_encode};
-use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ucan::{

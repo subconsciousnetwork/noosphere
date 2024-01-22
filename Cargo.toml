@@ -19,7 +19,9 @@ resolver = "2"
 anyhow = { version = "1" }
 async-recursion = { version = "1" }
 async-stream = { version = "0.3" }
-axum = { version = "^0.6.18" }
+axum = { version = "^0.7.3" }
+axum-tracing-opentelemetry = { version = "0.16.0" }
+axum-extra = { version = "^0.9.1" }
 base64 = { version = "^0.21" }
 byteorder = { version = "~1.4" } # keep in sync with pinned libipld-* crates
 bytes = { version = "^1" }
@@ -32,7 +34,6 @@ futures = { version = "0.3" }
 futures-util = { version = "0.3" }
 gloo-net = { version = "0.4" }
 gloo-timers = { version = "0.3", features = ["futures"] }
-headers = { version = "=0.3.8" } # Match version used by `axum`.
 ignore = { version = "0.4.20" }
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 iroh-car = { version = "^0.3.0" }
@@ -52,7 +53,7 @@ serde_urlencoded = { version = "~0.7" }
 serde-wasm-bindgen = { version = "0.4" }
 strum = { version = "0.25" }
 strum_macros = { version = "0.25" }
-subtext = { version = "0.3.4" }
+subtext = { version = "0.3.5" }
 symlink = { version = "0.1" }
 tempfile = { version = "^3" }
 thiserror = { version = "1" }
@@ -60,7 +61,7 @@ tokio = { version = "^1" }
 tokio-stream = { version = "~0.1" }
 tokio-util = { version = "0.7" }
 tower = { version = "^0.4.13" }
-tower-http = { version = "^0.4.3" }
+tower-http = { version = "^0.5" }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "~0.3.18", features = ["env-filter", "tracing-log", "json"] }
 ucan = { version = "0.4.0" }
