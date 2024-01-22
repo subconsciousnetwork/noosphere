@@ -2,8 +2,10 @@ use anyhow::Result;
 use async_trait::async_trait;
 use axum::{
     extract::FromRequestParts,
-    headers::{authorization::Bearer, Authorization},
     http::{request::Parts, StatusCode},
+};
+use axum_extra::{
+    headers::{authorization::Bearer, Authorization},
     TypedHeader,
 };
 use noosphere_core::{

@@ -2,7 +2,7 @@ use std::pin::Pin;
 
 use anyhow::Result;
 
-use axum::{body::StreamBody, extract::Query, http::StatusCode, Extension};
+use axum::{body::Body, extract::Query, http::StatusCode, Extension};
 use bytes::Bytes;
 use noosphere_core::{
     api::v0alpha1::FetchParameters,
@@ -28,7 +28,7 @@ pub async fn fetch_route<C, S>(
     gateway_scope: GatewayScope<C, S>,
     Query(FetchParameters { since }): Query<FetchParameters>,
     Extension(ipfs_client): Extension<KuboClient>,
-) -> Result<StreamBody<impl Stream<Item = Result<Bytes, std::io::Error>>>, StatusCode>
+) -> Result<Body, StatusCode>
 where
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
@@ -56,7 +56,7 @@ where
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    Ok(StreamBody::new(stream))
+    Ok(Body::from_stream(stream))
 }
 
 /// Generates a CAR stream that can be used as a the streaming body of a

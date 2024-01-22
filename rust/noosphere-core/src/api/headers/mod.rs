@@ -1,8 +1,5 @@
-//! A collection of typed [headers::Header] implementations
+//! A collection of typed [axum_extra::headers::Header] implementations
 //! used in gateway APIs.
-
-#[cfg(doc)]
-use headers;
 
 mod ucan;
 

@@ -1,13 +1,16 @@
-use std::collections::BTreeSet;
-
+use crate::extractors::{GatewayScope, SphereExtractor};
+use crate::{
+    error::GatewayErrorResponse,
+    extractors::GatewayAuthority,
+    worker::{NameSystemJob, SyndicationJob},
+};
 use anyhow::Result;
-
 use async_stream::try_stream;
-use axum::{body::StreamBody, extract::BodyStream, Extension};
-
+use axum::{body::Body, Extension};
 use bytes::Bytes;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
+use noosphere_common::UnsharedStream;
 use noosphere_core::api::v0alpha2::{PushBody, PushError, PushResponse};
 use noosphere_core::context::{HasMutableSphereContext, SphereContentWrite, SphereCursor};
 use noosphere_core::stream::{
@@ -19,17 +22,10 @@ use noosphere_core::{
     view::Sphere,
 };
 use noosphere_storage::{block_deserialize, block_serialize, Storage};
+use std::collections::BTreeSet;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_stream::{Stream, StreamExt};
 
-use crate::extractors::{GatewayScope, SphereExtractor};
-use crate::{
-    error::GatewayErrorResponse,
-    extractors::GatewayAuthority,
-    worker::{NameSystemJob, SyndicationJob},
-};
-
-// #[debug_handler]
 #[instrument(
     level = "debug",
     skip(
@@ -38,7 +34,7 @@ use crate::{
         gateway_scope,
         syndication_tx,
         name_system_tx,
-        stream
+        body
     )
 )]
 pub async fn push_route<C, S>(
@@ -47,8 +43,8 @@ pub async fn push_route<C, S>(
     gateway_scope: GatewayScope<C, S>,
     Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<C>>>,
     Extension(name_system_tx): Extension<UnboundedSender<NameSystemJob<C>>>,
-    stream: BodyStream,
-) -> Result<StreamBody<impl Stream<Item = Result<Bytes, std::io::Error>>>, GatewayErrorResponse>
+    body: Body,
+) -> Result<Body, GatewayErrorResponse>
 where
     for<'a> C: HasMutableSphereContext<S> + 'a,
     for<'a> S: Storage + 'a,
@@ -64,16 +60,19 @@ where
             &generate_capability(counterpart.as_str(), SphereAbility::Push),
         )
         .await?;
-
     let gateway_push_routine = GatewayPushRoutine {
         gateway_sphere,
         gateway_scope,
         syndication_tx,
         name_system_tx,
-        block_stream: Box::pin(from_car_stream(stream)),
+        // In Axum 0.7+, there are `Sync` bounds required. The incoming stream
+        // is `!Sync`, but as the only consumers of the stream,
+        // consider it `Sync` via `UnsharedStream`.
+        block_stream: Box::pin(from_car_stream(UnsharedStream::new(
+            body.into_data_stream(),
+        ))),
     };
-
-    Ok(StreamBody::new(gateway_push_routine.invoke().await?))
+    Ok(Body::from_stream(gateway_push_routine.invoke().await?))
 }
 
 pub struct GatewayPushRoutine<C, S, St>

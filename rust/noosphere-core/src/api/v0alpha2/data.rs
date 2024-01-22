@@ -1,8 +1,8 @@
 use crate::{
+    api::StatusCode,
     data::{Did, Jwt, Link, MemoIpld},
     error::NoosphereError,
 };
-use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

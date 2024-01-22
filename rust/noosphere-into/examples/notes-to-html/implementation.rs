@@ -91,18 +91,16 @@ pub async fn main() -> Result<()> {
 
     sphere_into_html(cursor, &native_fs).await?;
 
-    let app =
+    let router =
         get_service(ServeDir::new(html_root.path())).layer(HandleErrorLayer::new(|_| async {
             (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong...")
         }));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let listener = tokio::net::TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 3000))).await?;
 
     println!("Serving generated HTML at http://127.0.0.1:3000/");
 
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await?;
+    axum::serve(listener, router).await?;
 
     Ok(())
 }

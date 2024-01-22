@@ -30,14 +30,14 @@ noosphere-core = { version = "0.18.0", path = "../noosphere-core", features = ["
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow = { workspace = true }
-axum = { workspace = true, features = ["headers", "macros"] }
+axum = { workspace = true, features = ["macros"] }
+axum-extra = { workspace = true, features = ["typed-header"] }
 axum-tracing-opentelemetry = { workspace = true, optional = true }
 iroh-car = { workspace = true }
 thiserror = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 bytes = { workspace = true }
-
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
