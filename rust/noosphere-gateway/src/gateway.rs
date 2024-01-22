@@ -82,6 +82,7 @@ impl Gateway {
         let (cleanup_tx, cleanup_task) = start_cleanup::<M, C, S>(manager.clone());
 
         let app = Router::new()
+            .route("/healthz", get(|| async {}))
             .route(
                 &v0alpha1::Route::Did.to_string(),
                 get(handlers::v0alpha1::did_route),
