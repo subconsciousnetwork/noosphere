@@ -68,7 +68,7 @@ ucan = { version = "0.4.0" }
 ucan-key-support = { version = "0.1.7" }
 url = { version = "^2" }
 vergen = { version = "8.2.6", features = ["build", "cargo", "git", "gitcl"] }
-vergen-pretty = { version = "0.3.0" }
+vergen-pretty = { version = "0.3.1" }
 void = { version = "1" }
 wasm-bindgen = { version = "^0.2" }
 wasm-bindgen-test = { version = "^0.3" }
