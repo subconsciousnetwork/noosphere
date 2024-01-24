@@ -4,6 +4,8 @@
 //! name system and block syndication backend (e.g., IPFS Kubo). The tests in this
 //! module represent sophisticated, complicated, nuanced or high-latency scenarios.
 
+mod utils;
+
 mod latency {
     // TODO(#629): Remove this when we migrate off of `release-please`
     extern crate noosphere_cli_dev as noosphere_cli;
@@ -135,18 +137,21 @@ mod latency {
 mod multiplayer {
     // TODO(#629): Remove this when we migrate off of `release-please`
     extern crate noosphere_cli_dev as noosphere_cli;
+    extern crate noosphere_ns_dev as noosphere_ns;
 
-    use anyhow::Result;
+    use super::utils::wait_for_petname;
+    use anyhow::{anyhow, Result};
     use noosphere_cli::helpers::{start_name_system_server, CliSimulator, SpherePair};
     use noosphere_common::helpers::wait;
     use noosphere_core::{
         context::{
-            HasMutableSphereContext, SphereAuthorityWrite, SphereContentWrite, SpherePetnameWrite,
-            SphereSync,
+            HasMutableSphereContext, HasSphereContext, SphereAuthorityWrite, SphereContentWrite,
+            SpherePetnameWrite, SphereSync,
         },
         data::Did,
         tracing::initialize_tracing,
     };
+    use noosphere_ns::{server::HttpClient as NameResolverHttpClient, utils::NameResolverPoller};
     use serde_json::Value;
     use url::Url;
 
@@ -156,7 +161,8 @@ mod multiplayer {
         initialize_tracing(None);
 
         let ipfs_url = Url::parse("http://127.0.0.1:5001").unwrap();
-        let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await.unwrap();
+        let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
+        let ns_client = NameResolverHttpClient::new(ns_url.clone()).await?;
 
         let mut pair_1 = SpherePair::new("ONE", &ipfs_url, &ns_url).await?;
         let mut pair_2 = SpherePair::new("TWO", &ipfs_url, &ns_url).await?;
@@ -176,55 +182,75 @@ mod multiplayer {
         let sphere_4_id = pair_4.client.identity.clone();
         let sphere_5_id = pair_5.client.identity.clone();
 
+        let mut initial_versions = vec![];
         for (index, pair) in [&pair_1, &pair_2, &pair_3, &pair_4, &pair_5]
             .iter()
             .enumerate()
         {
-            pair.spawn(move |mut ctx| async move {
-                let id = index + 1;
-                ctx.write(
-                    format!("content{}", id).as_str(),
-                    "text/plain",
-                    format!("foo{}", id).as_bytes(),
-                    None,
-                )
+            let version = pair
+                .spawn(move |mut ctx| async move {
+                    let id = index + 1;
+                    ctx.write(
+                        format!("content{}", id).as_str(),
+                        "text/plain",
+                        format!("foo{}", id).as_bytes(),
+                        None,
+                    )
+                    .await?;
+
+                    ctx.save(None).await?;
+                    Ok(ctx.sync().await?)
+                })
                 .await?;
-
-                ctx.save(None).await?;
-                ctx.sync().await?;
-
-                Ok(())
-            })
-            .await?;
+            initial_versions.push(version);
+        }
+        {
+            match tokio::join!(
+                ns_client.wait_for_record(&sphere_1_id, &initial_versions[0], None),
+                ns_client.wait_for_record(&sphere_2_id, &initial_versions[1], None),
+                ns_client.wait_for_record(&sphere_3_id, &initial_versions[2], None),
+                ns_client.wait_for_record(&sphere_4_id, &initial_versions[3], None),
+                ns_client.wait_for_record(&sphere_5_id, &initial_versions[4], None),
+            ) {
+                (Ok(_), Ok(_), Ok(_), Ok(_), Ok(_)) => Ok(()),
+                _ => Err(anyhow!("name record was not published.")),
+            }?;
         }
 
-        {
+        let sphere_2_version = {
             let sphere_3_id = sphere_3_id.clone();
             let sphere_4_id = sphere_4_id.clone();
+            let sphere_3_version = initial_versions[2].clone();
+            let sphere_4_version = initial_versions[3].clone();
             pair_2
                 .spawn(move |mut ctx| async move {
                     ctx.set_petname("peer3-of-peer2", Some(sphere_3_id)).await?;
                     ctx.set_petname("peer4", Some(sphere_4_id)).await?;
                     ctx.save(None).await?;
                     ctx.sync().await?;
-                    wait(1).await;
-                    ctx.sync().await?;
-                    Ok(())
+                    wait_for_petname(ctx.clone(), "peer3-of-peer2", Some(sphere_3_version), None)
+                        .await?;
+                    wait_for_petname(ctx.clone(), "peer4", Some(sphere_4_version), None).await?;
+                    Ok(ctx.version().await?)
                 })
-                .await?;
-        }
+                .await?
+        };
+        ns_client
+            .wait_for_record(&sphere_2_id, &sphere_2_version, None)
+            .await?;
 
         {
             let sphere_2_id = sphere_2_id.clone();
             let sphere_3_id = sphere_3_id.clone();
+            let sphere_3_version = initial_versions[2].clone();
             pair_1
                 .spawn(move |mut ctx| async move {
                     ctx.set_petname("peer2", Some(sphere_2_id)).await?;
                     ctx.set_petname("peer3", Some(sphere_3_id)).await?;
                     ctx.save(None).await?;
                     ctx.sync().await?;
-                    wait(1).await;
-                    ctx.sync().await?;
+                    wait_for_petname(ctx.clone(), "peer2", Some(sphere_2_version), None).await?;
+                    wait_for_petname(ctx.clone(), "peer3", Some(sphere_3_version), None).await?;
                     Ok(())
                 })
                 .await?;
@@ -249,9 +275,11 @@ mod multiplayer {
                 let authorization = ctx.authorize("cli", &Did(cli_id)).await?;
                 ctx.save(None).await?;
                 let version = ctx.sync().await?;
-                wait(1).await;
                 Ok((authorization, version))
             })
+            .await?;
+        ns_client
+            .wait_for_record(&sphere_1_id, &sphere_1_version, None)
             .await?;
 
         // Join the first sphere
@@ -286,52 +314,58 @@ mod multiplayer {
         }
 
         // Change a peer-of-my-peer
-        pair_4
-            .spawn(move |mut ctx| async move {
-                ctx.write(
-                    "content4",
-                    "text/plain",
-                    "foo4 and something new".as_bytes(),
-                    None,
-                )
-                .await?;
-                ctx.set_petname("peer5", Some(sphere_5_id)).await?;
-                ctx.save(None).await?;
-                ctx.sync().await?;
-                wait(1).await;
-                ctx.sync().await?;
-                ctx.sync().await?;
-
-                Ok(())
-            })
+        let sphere_4_version = {
+            let sphere_5_version = initial_versions[4];
+            pair_4
+                .spawn(move |mut ctx| async move {
+                    ctx.write(
+                        "content4",
+                        "text/plain",
+                        "foo4 and something new".as_bytes(),
+                        None,
+                    )
+                    .await?;
+                    ctx.set_petname("peer5", Some(sphere_5_id)).await?;
+                    ctx.save(None).await?;
+                    ctx.sync().await?;
+                    wait_for_petname(ctx.clone(), "peer5", Some(sphere_5_version), None).await?;
+                    Ok(ctx.version().await?)
+                })
+                .await?
+        };
+        ns_client
+            .wait_for_record(&sphere_4_id, &sphere_4_version, None)
             .await?;
 
         // Add another level of depth to the graph
-        pair_3
+        let sphere_3_version = pair_3
             .spawn(move |mut ctx| async move {
                 ctx.set_petname("peer4-of-peer3", Some(sphere_4_id)).await?;
                 ctx.save(None).await?;
                 ctx.sync().await?;
-                wait(1).await;
-                ctx.sync().await?;
-
-                Ok(())
+                wait_for_petname(ctx.clone(), "peer4-of-peer3", Some(sphere_4_version), None)
+                    .await?;
+                Ok(ctx.version().await?)
             })
+            .await?;
+        ns_client
+            .wait_for_record(&sphere_3_id, &sphere_3_version, None)
             .await?;
 
         // Change a peer
-        pair_2
+        let sphere_2_version = pair_2
             .spawn(move |mut ctx| async move {
                 ctx.write("newcontent", "text/plain", "new".as_bytes(), None)
                     .await?;
                 ctx.set_petname("peer4", None).await?;
                 ctx.save(None).await?;
                 ctx.sync().await?;
-                wait(1).await;
-                ctx.sync().await?;
-
-                Ok(())
+                wait_for_petname(ctx.clone(), "peer4", None, None).await?;
+                Ok(ctx.version().await?)
             })
+            .await?;
+        ns_client
+            .wait_for_record(&sphere_2_id, &sphere_2_version, None)
             .await?;
 
         // Rename a peer
@@ -355,14 +389,16 @@ mod multiplayer {
                 ctx.save(None).await?;
 
                 ctx.sync().await?;
-                wait(2).await;
-                let version = ctx.sync().await?;
-
-                Ok(version)
+                wait_for_petname(ctx.clone(), "peer3", None, None).await?;
+                wait_for_petname(ctx.clone(), "peer2", None, None).await?;
+                wait_for_petname(ctx.clone(), "peer2-renamed", Some(sphere_2_version), None)
+                    .await?;
+                Ok(ctx.version().await?)
             })
             .await?;
-
-        wait(1).await;
+        ns_client
+            .wait_for_record(&sphere_1_id, &sphere_1_version, None)
+            .await?;
 
         // Sync to get the latest remote changes
         cli.orb(&["sphere", "sync", "--auto-retry", "3"]).await?;

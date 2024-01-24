@@ -1,28 +1,23 @@
-use crate::extractors::{GatewayAuthority, GatewayScope, SphereExtractor};
+use crate::extractors::{GatewayAuthority, GatewayScope};
+use crate::GatewayManager;
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use noosphere_core::api::v0alpha1::IdentifyResponse;
-use noosphere_core::authority::{generate_capability, SphereAbility};
+use noosphere_core::authority::SphereAbility;
 use noosphere_core::context::HasMutableSphereContext;
 use noosphere_storage::Storage;
 
-pub async fn identify_route<C, S>(
-    authority: GatewayAuthority,
-    sphere_extractor: SphereExtractor<C, S>,
+pub async fn identify_route<M, C, S>(
     gateway_scope: GatewayScope<C, S>,
+    authority: GatewayAuthority<M, C, S>,
 ) -> Result<impl IntoResponse, StatusCode>
 where
+    M: GatewayManager<C, S> + 'static,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
     debug!("Invoking identify route...");
-    let mut gateway_sphere = sphere_extractor.into_inner();
-    let counterpart = &gateway_scope.counterpart;
-    authority
-        .try_authorize(
-            &mut gateway_sphere,
-            counterpart,
-            &generate_capability(counterpart.as_str(), SphereAbility::Fetch),
-        )
+    let gateway_sphere = authority
+        .try_authorize(&gateway_scope, SphereAbility::Fetch)
         .await?;
 
     let sphere_context = gateway_sphere

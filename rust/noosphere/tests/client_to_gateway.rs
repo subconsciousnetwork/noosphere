@@ -17,7 +17,7 @@ use noosphere_cli::{
         key::key_create,
         sphere::{config_set, sphere_create, sphere_join},
     },
-    helpers::{temporary_workspace, SpherePair},
+    helpers::{start_name_system_server, temporary_workspace, SpherePair},
 };
 use noosphere_core::api::v0alpha1;
 use noosphere_core::context::{
@@ -34,10 +34,13 @@ use tokio::io::AsyncReadExt;
 use tokio_stream::StreamExt;
 use url::Url;
 
+const KUBO_URL: &str = "http://127.0.0.1:5001";
+
 #[tokio::test]
 async fn gateway_tells_you_its_identity() -> Result<()> {
     initialize_tracing(None);
 
+    let (ns_url, ns_task) = start_name_system_server(&Url::parse(KUBO_URL)?).await?;
     let (mut gateway_workspace, _gateway_temporary_directories) = temporary_workspace()?;
     let (mut client_workspace, _client_temporary_directories) = temporary_workspace()?;
 
@@ -63,19 +66,18 @@ async fn gateway_tells_you_its_identity() -> Result<()> {
     )
     .await?;
 
-    let manager =
-        SingleTenantGatewayManager::new(gateway_sphere_context.clone(), client_sphere_identity)
-            .await?;
+    let manager = SingleTenantGatewayManager::new(
+        gateway_sphere_context.clone(),
+        client_sphere_identity,
+        Url::parse(KUBO_URL)?,
+        ns_url,
+        None,
+    )
+    .await?;
 
     let server_task = tokio::spawn({
         async move {
-            let gateway = Gateway::new(
-                manager,
-                Url::parse("http://127.0.0.1:5001").unwrap(),
-                Url::parse("http://127.0.0.1:6667").unwrap(),
-                None,
-            )
-            .unwrap();
+            let gateway = Gateway::new(manager).unwrap();
             gateway.start(listener).await.unwrap()
         }
     });
@@ -97,6 +99,7 @@ async fn gateway_tells_you_its_identity() -> Result<()> {
     assert_eq!(gateway_identity, did_response);
 
     server_task.abort();
+    ns_task.abort();
 
     Ok(())
 }
@@ -105,6 +108,7 @@ async fn gateway_tells_you_its_identity() -> Result<()> {
 async fn gateway_identity_can_be_verified_by_the_client_of_its_owner() -> Result<()> {
     initialize_tracing(None);
 
+    let (ns_url, ns_task) = start_name_system_server(&Url::parse(KUBO_URL)?).await?;
     let (mut gateway_workspace, _gateway_temporary_directories) = temporary_workspace()?;
     let (mut client_workspace, _client_temporary_directories) = temporary_workspace()?;
 
@@ -130,19 +134,18 @@ async fn gateway_identity_can_be_verified_by_the_client_of_its_owner() -> Result
     )
     .await?;
 
-    let manager =
-        SingleTenantGatewayManager::new(gateway_sphere_context.clone(), client_sphere_identity)
-            .await?;
+    let manager = SingleTenantGatewayManager::new(
+        gateway_sphere_context.clone(),
+        client_sphere_identity,
+        Url::parse(KUBO_URL)?,
+        ns_url,
+        None,
+    )
+    .await?;
 
     let server_task = tokio::spawn({
         async move {
-            let gateway = Gateway::new(
-                manager,
-                Url::parse("http://127.0.0.1:5001").unwrap(),
-                Url::parse("http://127.0.0.1:6667").unwrap(),
-                None,
-            )
-            .unwrap();
+            let gateway = Gateway::new(manager).unwrap();
             gateway.start(listener).await.unwrap()
         }
     });
@@ -171,6 +174,7 @@ async fn gateway_identity_can_be_verified_by_the_client_of_its_owner() -> Result
     });
 
     client_task.await.unwrap();
+    ns_task.abort();
 
     Ok(())
 }
@@ -179,6 +183,8 @@ async fn gateway_identity_can_be_verified_by_the_client_of_its_owner() -> Result
 async fn gateway_receives_a_newly_initialized_sphere_from_the_client() -> Result<()> {
     initialize_tracing(None);
 
+    let kubo_url = Url::parse(KUBO_URL)?;
+    let (ns_url, ns_task) = start_name_system_server(&kubo_url).await?;
     let (mut gateway_workspace, _gateway_temporary_directories) = temporary_workspace()?;
     let (mut client_workspace, _client_temporary_directories) = temporary_workspace()?;
 
@@ -205,19 +211,18 @@ async fn gateway_receives_a_newly_initialized_sphere_from_the_client() -> Result
     )
     .await?;
 
-    let manager =
-        SingleTenantGatewayManager::new(gateway_sphere_context.clone(), client_sphere_identity)
-            .await?;
+    let manager = SingleTenantGatewayManager::new(
+        gateway_sphere_context.clone(),
+        client_sphere_identity,
+        kubo_url,
+        ns_url,
+        None,
+    )
+    .await?;
 
     let server_task = {
         tokio::spawn(async move {
-            let gateway = Gateway::new(
-                manager,
-                Url::parse("http://127.0.0.1:5001").unwrap(),
-                Url::parse("http://127.0.0.1:6667").unwrap(),
-                None,
-            )
-            .unwrap();
+            let gateway = Gateway::new(manager).unwrap();
             gateway.start(listener).await.unwrap()
         })
     };
@@ -265,6 +270,7 @@ async fn gateway_receives_a_newly_initialized_sphere_from_the_client() -> Result
     });
 
     client_task.await.unwrap();
+    ns_task.abort();
     Ok(())
 }
 
@@ -272,6 +278,7 @@ async fn gateway_receives_a_newly_initialized_sphere_from_the_client() -> Result
 async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() -> Result<()> {
     initialize_tracing(None);
 
+    let (ns_url, ns_task) = start_name_system_server(&Url::parse(KUBO_URL)?).await?;
     let (mut gateway_workspace, _gateway_temporary_directories) = temporary_workspace()?;
     let (mut client_workspace, _client_temporary_directories) = temporary_workspace()?;
 
@@ -300,20 +307,19 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() -> Re
     )
     .await?;
 
-    let manager =
-        SingleTenantGatewayManager::new(gateway_sphere_context.clone(), client_sphere_identity)
-            .await
-            .unwrap();
+    let manager = SingleTenantGatewayManager::new(
+        gateway_sphere_context.clone(),
+        client_sphere_identity,
+        Url::parse(KUBO_URL)?,
+        ns_url,
+        None,
+    )
+    .await
+    .unwrap();
 
     let server_task = {
         tokio::spawn(async move {
-            let gateway = Gateway::new(
-                manager,
-                Url::parse("http://127.0.0.1:5001").unwrap(),
-                Url::parse("http://127.0.0.1:6667").unwrap(),
-                None,
-            )
-            .unwrap();
+            let gateway = Gateway::new(manager).unwrap();
             gateway.start(listener).await.unwrap()
         })
     };
@@ -370,6 +376,7 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() -> Re
     });
 
     client_task.await??;
+    ns_task.abort();
     Ok(())
 }
 
@@ -377,12 +384,9 @@ async fn gateway_updates_an_existing_sphere_with_changes_from_the_client() -> Re
 async fn gateway_receives_sphere_revisions_from_a_client() -> Result<()> {
     initialize_tracing(None);
 
-    let mut sphere_pair = SpherePair::new(
-        "one",
-        &Url::parse("http://127.0.0.1:5001")?,
-        &Url::parse("http://127.0.0.1:6667")?,
-    )
-    .await?;
+    let kubo_url = Url::parse(KUBO_URL)?;
+    let (ns_url, ns_task) = start_name_system_server(&kubo_url).await?;
+    let mut sphere_pair = SpherePair::new("one", &kubo_url, &ns_url).await?;
 
     sphere_pair.start_gateway().await?;
 
@@ -401,6 +405,7 @@ async fn gateway_receives_sphere_revisions_from_a_client() -> Result<()> {
         })
         .await?;
 
+    ns_task.abort();
     Ok(())
 }
 
@@ -408,12 +413,9 @@ async fn gateway_receives_sphere_revisions_from_a_client() -> Result<()> {
 async fn gateway_can_sync_an_authorized_sphere_across_multiple_replicas() -> Result<()> {
     initialize_tracing(None);
 
-    let mut sphere_pair = SpherePair::new(
-        "one",
-        &Url::parse("http://127.0.0.1:5001")?,
-        &Url::parse("http://127.0.0.1:6667")?,
-    )
-    .await?;
+    let kubo_url = Url::parse(KUBO_URL)?;
+    let (ns_url, ns_task) = start_name_system_server(&kubo_url).await?;
+    let mut sphere_pair = SpherePair::new("one", &kubo_url, &ns_url).await?;
 
     sphere_pair.start_gateway().await?;
 
@@ -482,6 +484,7 @@ async fn gateway_can_sync_an_authorized_sphere_across_multiple_replicas() -> Res
         })
         .await?;
 
+    ns_task.abort();
     Ok(())
 }
 
@@ -489,12 +492,9 @@ async fn gateway_can_sync_an_authorized_sphere_across_multiple_replicas() -> Res
 async fn gateway_enables_the_client_to_recover_a_sphere() -> Result<()> {
     initialize_tracing(None);
 
-    let mut sphere_pair = SpherePair::new(
-        "one",
-        &Url::parse("http://127.0.0.1:5001")?,
-        &Url::parse("http://127.0.0.1:6667")?,
-    )
-    .await?;
+    let kubo_url = Url::parse(KUBO_URL)?;
+    let (ns_url, ns_task) = start_name_system_server(&kubo_url).await?;
+    let mut sphere_pair = SpherePair::new("one", &kubo_url, &ns_url).await?;
 
     sphere_pair.start_gateway().await?;
 
@@ -552,5 +552,6 @@ async fn gateway_enables_the_client_to_recover_a_sphere() -> Result<()> {
         })
         .await?;
 
+    ns_task.abort();
     Ok(())
 }

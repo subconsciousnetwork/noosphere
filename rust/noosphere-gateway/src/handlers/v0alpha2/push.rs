@@ -1,9 +1,7 @@
-use crate::extractors::{GatewayScope, SphereExtractor};
-use crate::{
-    error::GatewayErrorResponse,
-    extractors::GatewayAuthority,
-    worker::{NameSystemJob, SyndicationJob},
-};
+use crate::extractors::GatewayScope;
+use crate::jobs::{GatewayJob, JobClient};
+use crate::GatewayManager;
+use crate::{error::GatewayErrorResponse, extractors::GatewayAuthority};
 use anyhow::Result;
 use async_stream::try_stream;
 use axum::{body::Body, Extension};
@@ -17,54 +15,38 @@ use noosphere_core::stream::{
     from_car_stream, memo_history_stream, put_block_stream, to_car_stream,
 };
 use noosphere_core::{
-    authority::{generate_capability, SphereAbility},
+    authority::SphereAbility,
     data::{Link, LinkRecord, MapOperation, MemoIpld},
     view::Sphere,
 };
 use noosphere_storage::{block_deserialize, block_serialize, Storage};
 use std::collections::BTreeSet;
-use tokio::sync::mpsc::UnboundedSender;
 use tokio_stream::{Stream, StreamExt};
 
 #[instrument(
     level = "debug",
-    skip(
-        authority,
-        sphere_extractor,
-        gateway_scope,
-        syndication_tx,
-        name_system_tx,
-        body
-    )
+    skip(gateway_scope, authority, job_runner_client, body)
 )]
-pub async fn push_route<C, S>(
-    authority: GatewayAuthority,
-    sphere_extractor: SphereExtractor<C, S>,
+pub async fn push_route<M, C, S>(
     gateway_scope: GatewayScope<C, S>,
-    Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<C>>>,
-    Extension(name_system_tx): Extension<UnboundedSender<NameSystemJob<C>>>,
+    authority: GatewayAuthority<M, C, S>,
+    Extension(job_runner_client): Extension<M::JobClient>,
     body: Body,
 ) -> Result<Body, GatewayErrorResponse>
 where
+    for<'a> M: GatewayManager<C, S> + 'a,
     for<'a> C: HasMutableSphereContext<S> + 'a,
     for<'a> S: Storage + 'a,
 {
     debug!("Invoking push route...");
 
-    let mut gateway_sphere = sphere_extractor.into_inner();
-    let counterpart = &gateway_scope.counterpart;
-    authority
-        .try_authorize(
-            &mut gateway_sphere,
-            counterpart,
-            &generate_capability(counterpart.as_str(), SphereAbility::Push),
-        )
+    let gateway_sphere = authority
+        .try_authorize(&gateway_scope, SphereAbility::Push)
         .await?;
-    let gateway_push_routine = GatewayPushRoutine {
+    let gateway_push_routine = GatewayPushRoutine::<M, C, S, _> {
         gateway_sphere,
         gateway_scope,
-        syndication_tx,
-        name_system_tx,
+        job_runner_client,
         // In Axum 0.7+, there are `Sync` bounds required. The incoming stream
         // is `!Sync`, but as the only consumers of the stream,
         // consider it `Sync` via `UnsharedStream`.
@@ -75,21 +57,22 @@ where
     Ok(Body::from_stream(gateway_push_routine.invoke().await?))
 }
 
-pub struct GatewayPushRoutine<C, S, St>
+pub struct GatewayPushRoutine<M, C, S, St>
 where
-    C: HasMutableSphereContext<S>,
+    M: GatewayManager<C, S> + 'static,
+    C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
     St: Stream<Item = Result<(Cid, Vec<u8>)>> + Unpin + 'static,
 {
     gateway_sphere: C,
     gateway_scope: GatewayScope<C, S>,
-    syndication_tx: UnboundedSender<SyndicationJob<C>>,
-    name_system_tx: UnboundedSender<NameSystemJob<C>>,
+    job_runner_client: M::JobClient,
     block_stream: St,
 }
 
-impl<C, S, St> GatewayPushRoutine<C, S, St>
+impl<M, C, S, St> GatewayPushRoutine<M, C, S, St>
 where
+    M: GatewayManager<C, S> + 'static,
     C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
     St: Stream<Item = Result<(Cid, Vec<u8>)>> + Unpin + 'static,
@@ -111,8 +94,8 @@ where
 
         // These steps are order-independent
         let _ = tokio::join!(
-            self.notify_name_resolver(&push_body),
-            self.notify_ipfs_syndicator(next_version)
+            self.notify_name_resolver(),
+            self.notify_ipfs_syndicator(&push_body)
         );
 
         let roots = vec![next_version.into()];
@@ -343,22 +326,14 @@ where
         Ok((next_version, block_stream))
     }
 
-    /// Notify the name system that new names may need to be resolved
-    async fn notify_name_resolver(&self, push_body: &PushBody) -> Result<()> {
-        debug!("Notifying name system of new link record...");
-        if let Some(name_record) = &push_body.name_record {
-            if let Err(error) = self.name_system_tx.send(NameSystemJob::Publish {
-                context: self.gateway_sphere.clone(),
-                record: LinkRecord::try_from(name_record)?,
-                republish: false,
-            }) {
-                warn!("Failed to request name record publish: {}", error);
-            }
-        }
-
-        if let Err(error) = self.name_system_tx.send(NameSystemJob::ResolveAll {
-            context: self.gateway_sphere.clone(),
-        }) {
+    /// Notify the name system that new names may need to be resolved.
+    async fn notify_name_resolver(&self) -> Result<()> {
+        if let Err(error) = self
+            .job_runner_client
+            .submit(GatewayJob::NameSystemResolveAll {
+                identity: self.gateway_scope.counterpart.to_owned(),
+            })
+        {
             warn!("Failed to request name system resolutions: {}", error);
         };
 
@@ -366,14 +341,21 @@ where
     }
 
     /// Request that new history be syndicated to IPFS
-    async fn notify_ipfs_syndicator(&self, next_version: Link<MemoIpld>) -> Result<()> {
+    async fn notify_ipfs_syndicator(&self, push_body: &PushBody) -> Result<()> {
         debug!("Notifying syndication worker of new blocks...");
+
+        let name_publish_on_success = if let Some(name_record) = &push_body.name_record {
+            Some(LinkRecord::try_from(name_record)?)
+        } else {
+            None
+        };
+
         // TODO(#156): This should not be happening on every push, but rather on
         // an explicit publish action. Move this to the publish handler when we
         // have added it to the gateway.
-        if let Err(error) = self.syndication_tx.send(SyndicationJob {
-            revision: next_version,
-            context: self.gateway_sphere.clone(),
+        if let Err(error) = self.job_runner_client.submit(GatewayJob::IpfsSyndication {
+            identity: self.gateway_scope.counterpart.to_owned(),
+            name_publish_on_success,
         }) {
             warn!("Failed to queue IPFS syndication job: {}", error);
         };

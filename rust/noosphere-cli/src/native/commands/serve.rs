@@ -28,9 +28,16 @@ pub async fn serve(
         .author()
         .did()
         .await?;
-    let manager = SingleTenantGatewayManager::new(sphere_context, counterpart.clone()).await?;
+    let manager = SingleTenantGatewayManager::new(
+        sphere_context,
+        counterpart.clone(),
+        ipfs_api,
+        name_resolver_api,
+        cors_origin,
+    )
+    .await?;
 
-    let gateway = Gateway::new(manager, ipfs_api, name_resolver_api, cors_origin)?;
+    let gateway = Gateway::new(manager)?;
 
     info!(
         r#"A geist is summoned to manage local sphere {}
