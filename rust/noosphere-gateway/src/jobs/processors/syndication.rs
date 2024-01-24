@@ -1,4 +1,4 @@
-use crate::GatewayManager;
+use crate::jobs::GatewayJob;
 use anyhow::Result;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
@@ -7,42 +7,25 @@ use noosphere_core::context::{
     metadata::COUNTERPART, HasMutableSphereContext, SphereContentRead, SphereContentWrite,
     SphereCursor,
 };
+use noosphere_core::data::LinkRecord;
 use noosphere_core::stream::{memo_body_stream, record_stream_orphans, to_car_stream};
 use noosphere_core::{
     data::{ContentType, Did, Link, MemoIpld},
     view::Timeline,
 };
-use noosphere_ipfs::{IpfsClient, KuboClient};
+use noosphere_ipfs::IpfsClient;
 use noosphere_storage::{block_deserialize, block_serialize, KeyValueStore, Storage};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{io::Cursor, sync::Arc};
+use tokio::io::AsyncReadExt;
 use tokio::sync::Mutex;
-use tokio::{
-    io::AsyncReadExt,
-    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
-    task::JoinHandle,
-};
-use tokio_stream::StreamExt;
 use tokio_util::io::StreamReader;
-use url::Url;
-
-/// A [SyndicationJob] is a request to syndicate the blocks of a _counterpart_
-/// sphere to the broader IPFS network.
-pub struct SyndicationJob<C> {
-    /// The revision of the _local_ sphere to discover the _counterpart_ sphere
-    /// from; the counterpart sphere's revision will need to be derived using
-    /// this checkpoint in local sphere history.
-    pub revision: Link<MemoIpld>,
-    /// The [SphereContext] that corresponds to the _local_ sphere relative to
-    /// the gateway.
-    pub context: C,
-}
 
 /// A [SyndicationCheckpoint] represents the last spot in the history of a
 /// sphere that was successfully syndicated to an IPFS node.
 #[derive(Serialize, Deserialize)]
-pub struct SyndicationCheckpoint {
+struct SyndicationCheckpoint {
     pub last_syndicated_counterpart_version: Option<Link<MemoIpld>>,
     pub syndication_epoch: u64,
 }
@@ -72,134 +55,33 @@ impl SyndicationCheckpoint {
 // Force full re-syndicate every 90 days
 const MAX_SYNDICATION_CHECKPOINT_LIFETIME: Duration = Duration::from_secs(60 * 60 * 24 * 90);
 
-// Periodic syndication check every 5 minutes
-const PERIODIC_SYNDICATION_INTERVAL_SECONDS: Duration = Duration::from_secs(5 * 60);
-
-/// Start a Tokio task that waits for [SyndicationJob] messages and then
-/// attempts to syndicate to the configured IPFS RPC. Currently only Kubo IPFS
-/// backends are supported.
-pub fn start_ipfs_syndication<M, C, S>(
-    ipfs_api: Url,
-    gateway_manager: M,
-) -> (UnboundedSender<SyndicationJob<C>>, JoinHandle<Result<()>>)
-where
-    M: GatewayManager<C, S> + 'static,
-    C: HasMutableSphereContext<S> + 'static,
-    S: Storage + 'static,
-{
-    let (tx, rx) = unbounded_channel();
-
-    let task = {
-        let tx = tx.clone();
-        tokio::task::spawn(async move {
-            let (_, syndication_result) = tokio::join!(
-                periodic_syndication_task(tx, gateway_manager),
-                ipfs_syndication_task(ipfs_api, rx)
-            );
-            syndication_result?;
-            Ok(())
-        })
-    };
-
-    (tx, task)
-}
-
-async fn periodic_syndication_task<M, C, S>(
-    tx: UnboundedSender<SyndicationJob<C>>,
-    gateway_manager: M,
-) where
-    M: GatewayManager<C, S> + 'static,
-    C: HasMutableSphereContext<S>,
-    S: Storage + 'static,
-{
-    loop {
-        let mut stream = gateway_manager.experimental_worker_only_iter();
-        loop {
-            match stream.try_next().await {
-                Ok(Some(local_sphere)) => {
-                    if let Err(error) = periodic_syndication(&tx, local_sphere).await {
-                        error!("Periodic syndication of sphere history failed: {}", error);
-                    };
-                }
-                Ok(None) => {
-                    break;
-                }
-                Err(error) => {
-                    error!("Could not iterate on managed spheres: {}", error);
-                }
-            }
-            tokio::time::sleep(Duration::from_secs(5)).await;
-        }
-        tokio::time::sleep(PERIODIC_SYNDICATION_INTERVAL_SECONDS).await;
-    }
-}
-
-async fn periodic_syndication<C, S>(
-    tx: &UnboundedSender<SyndicationJob<C>>,
-    local_sphere: C,
-) -> Result<()>
+/// Syndicate content to IPFS for given `context` since `revision`,
+/// optionally publishing a provided [LinkRecord] on success.
+#[instrument(skip(context, ipfs_client, name_publish_on_success))]
+pub async fn syndicate_to_ipfs<C, S, I>(
+    context: C,
+    revision: Option<Link<MemoIpld>>,
+    ipfs_client: I,
+    name_publish_on_success: Option<LinkRecord>,
+) -> Result<Option<GatewayJob>>
 where
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
+    I: IpfsClient + 'static,
 {
-    let latest_version = local_sphere.version().await?;
-
-    if let Err(error) = tx.send(SyndicationJob {
-        revision: latest_version,
-        context: local_sphere.clone(),
-    }) {
-        warn!("Failed to request periodic syndication: {}", error);
-    };
-
-    Ok(())
-}
-
-async fn ipfs_syndication_task<C, S>(
-    ipfs_api: Url,
-    mut receiver: UnboundedReceiver<SyndicationJob<C>>,
-) -> Result<()>
-where
-    C: HasMutableSphereContext<S>,
-    S: Storage + 'static,
-{
-    debug!("Syndicating sphere revisions to IPFS API at {}", ipfs_api);
-
-    let kubo_client = Arc::new(KuboClient::new(&ipfs_api)?);
-
-    while let Some(job) = receiver.recv().await {
-        if let Err(error) = process_job(job, kubo_client.clone(), &ipfs_api).await {
-            warn!("Error processing IPFS job: {}", error);
-        }
-    }
-    Ok(())
-}
-
-#[instrument(skip(job, kubo_client))]
-async fn process_job<C, S>(
-    job: SyndicationJob<C>,
-    kubo_client: Arc<KuboClient>,
-    ipfs_api: &Url,
-) -> Result<()>
-where
-    C: HasMutableSphereContext<S>,
-    S: Storage + 'static,
-{
-    let SyndicationJob { revision, context } = job;
-    debug!("Attempting to syndicate version DAG {revision} to IPFS");
-    let kubo_identity = kubo_client.server_identity().await.map_err(|error| {
-        anyhow::anyhow!(
-            "Failed to identify an IPFS Kubo node at {}: {}",
-            ipfs_api,
-            error
-        )
-    })?;
+    let version_str = revision.map_or_else(|| "latest".into(), |link| link.cid.to_string());
+    debug!("Attempting to syndicate version DAG {version_str} to IPFS");
+    let kubo_identity = ipfs_client
+        .server_identity()
+        .await
+        .map_err(|error| anyhow::anyhow!("IPFS client could not identify itself: {}", error))?;
     let checkpoint_key = format!("syndication/kubo/{kubo_identity}");
 
     debug!("IPFS node identified as {}", kubo_identity);
 
     // Take a lock on the `SphereContext` and look up the most recent
     // syndication checkpoint for this Kubo node
-    let (sphere_revision, mut syndication_checkpoint, db) = {
+    let (sphere_revision, mut syndication_checkpoint, db, counterpart_identity) = {
         let db = {
             let context = context.sphere_context().await?;
             context.db().clone()
@@ -235,10 +117,15 @@ where
         if Some(counterpart_revision) == syndication_checkpoint.last_syndicated_counterpart_version
         {
             warn!("Counterpart version hasn't changed; skipping syndication");
-            return Ok(());
+            return Ok(None);
         }
 
-        (counterpart_revision, syndication_checkpoint, db)
+        (
+            counterpart_revision,
+            syndication_checkpoint,
+            db,
+            counterpart_identity,
+        )
     };
 
     let timeline = Timeline::new(&db)
@@ -266,7 +153,7 @@ where
         let unshared_stream = UnsharedStream::new(Box::pin(car_stream));
         let car_reader = StreamReader::new(unshared_stream);
 
-        match kubo_client.syndicate_blocks(car_reader).await {
+        match ipfs_client.syndicate_blocks(car_reader).await {
             Ok(_) => {
                 let orphans = orphans.lock().await;
 
@@ -274,7 +161,7 @@ where
 
                 let root = Cid::from(cid);
 
-                match kubo_client
+                match ipfs_client
                     .pin_blocks(orphans.iter().filter(|orphan| *orphan != &root))
                     .await
                 {
@@ -309,13 +196,18 @@ where
 
         cursor.save(None).await?;
     }
-    Ok(())
+
+    Ok(
+        name_publish_on_success.map(|record| GatewayJob::NameSystemPublish {
+            identity: counterpart_identity,
+            record,
+        }),
+    )
 }
 
 #[cfg(all(test, feature = "test-kubo"))]
 mod tests {
-    use std::time::Duration;
-
+    use super::*;
     use anyhow::Result;
     use noosphere_common::helpers::wait;
     use noosphere_core::{
@@ -327,13 +219,9 @@ mod tests {
     };
     use noosphere_ipfs::{IpfsClient, KuboClient};
     use noosphere_storage::KeyValueStore;
+    use std::time::Duration;
     use tokio::select;
     use url::Url;
-
-    use crate::{
-        worker::{start_ipfs_syndication, SyndicationCheckpoint, SyndicationJob},
-        SingleTenantGatewayManager,
-    };
 
     #[tokio::test(flavor = "multi_thread")]
     async fn it_syndicates_a_sphere_revision_to_kubo() -> Result<()> {
@@ -359,14 +247,6 @@ mod tests {
 
         let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
         let local_kubo_client = KuboClient::new(&ipfs_url.clone())?;
-        let manager = SingleTenantGatewayManager::new(
-            gateway_sphere_context.clone(),
-            user_sphere_identity.clone(),
-        )
-        .await?;
-
-        let (syndication_tx, _syndication_join_handle) =
-            start_ipfs_syndication::<_, _, _>(ipfs_url, manager);
 
         user_sphere_context
             .write("foo", &ContentType::Text, b"bar".as_ref(), None)
@@ -386,10 +266,13 @@ mod tests {
         gateway_sphere_context.save(None).await?;
 
         debug!("Sending syndication job...");
-        syndication_tx.send(SyndicationJob {
-            revision: version.clone(),
-            context: gateway_sphere_context.clone(),
-        })?;
+        syndicate_to_ipfs(
+            gateway_sphere_context.clone(),
+            Some(version.clone()),
+            local_kubo_client.clone(),
+            None,
+        )
+        .await?;
 
         debug!("Giving syndication a moment to complete...");
 

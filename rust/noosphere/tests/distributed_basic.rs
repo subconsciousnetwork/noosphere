@@ -26,12 +26,17 @@ use noosphere_core::{
     stream::memo_history_stream,
     tracing::initialize_tracing,
 };
-use noosphere_ns::{server::HttpClient, NameResolver};
+use noosphere_ns::{
+    server::HttpClient as NameResolverHttpClient, utils::NameResolverExt, NameResolver,
+};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio_stream::StreamExt;
 use url::Url;
+
+mod utils;
+use utils::wait_for_petname;
 
 #[tokio::test]
 async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() -> Result<()> {
@@ -39,6 +44,7 @@ async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() -> R
 
     let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
     let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
+    let ns_client = NameResolverHttpClient::new(ns_url.clone()).await?;
 
     let mut base_pair = SpherePair::new("BASE", &ipfs_url, &ns_url).await?;
     let mut other_pair = SpherePair::new("OTHER", &ipfs_url, &ns_url).await?;
@@ -46,31 +52,32 @@ async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() -> R
     base_pair.start_gateway().await?;
     other_pair.start_gateway().await?;
 
+    let other_id = other_pair.client.identity.clone();
+
     let other_version = other_pair
         .spawn(|mut ctx| async move {
             ctx.write("foo", "text/plain", "bar".as_ref(), None).await?;
             let version = ctx.save(None).await?;
             ctx.sync().await?;
-            wait(1).await;
             Ok(version)
         })
+        .await?;
+    ns_client
+        .wait_for_record(&other_id, &other_version, None)
         .await?;
 
     {
         let other_pair_identity = other_pair.client.identity.clone();
-        let other_link = base_pair
-            .spawn(|mut ctx| async move {
+        base_pair
+            .spawn(move |mut ctx| async move {
                 ctx.set_petname("thirdparty", Some(other_pair_identity))
                     .await?;
                 ctx.save(None).await?;
                 ctx.sync().await?;
-                wait(1).await;
-
-                ctx.sync().await?;
-                ctx.resolve_petname("thirdparty").await
+                wait_for_petname(ctx, "thirdparty", Some(other_version), None).await?;
+                Ok(())
             })
             .await?;
-        assert_eq!(other_link, Some(other_version));
     }
 
     ns_task.abort();
@@ -79,7 +86,7 @@ async fn gateway_publishes_and_resolves_petnames_configured_by_the_client() -> R
 
     // Restart gateway and name system, ensuring republishing occurs
     let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
-    let ns_client = HttpClient::new(ns_url.clone()).await?;
+    let ns_client = NameResolverHttpClient::new(ns_url.clone()).await?;
     assert!(
         ns_client
             .resolve(&base_pair.client.identity)
@@ -112,6 +119,7 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() -> R
 
     let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
     let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
+    let ns_client = NameResolverHttpClient::new(ns_url.clone()).await?;
 
     let mut pair_1 = SpherePair::new("pair_1", &ipfs_url, &ns_url).await?;
     let mut pair_2 = SpherePair::new("pair_2", &ipfs_url, &ns_url).await?;
@@ -121,28 +129,39 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() -> R
     pair_2.start_gateway().await?;
     pair_3.start_gateway().await?;
 
+    let id_1 = pair_1.client.identity.clone();
+    let id_2 = pair_2.client.identity.clone();
+    let id_3 = pair_3.client.identity.clone();
+
     // Write some content in each sphere and track the versions after saving for later
+    let mut initial_versions = vec![];
     for pair in [&pair_1, &pair_2, &pair_3] {
         let name = pair.name.clone();
         let mut ctx = pair.sphere_context().await?;
         ctx.write("my-name", "text/plain", name.as_ref(), None)
             .await?;
         ctx.save(None).await?;
-        ctx.sync().await?;
+        initial_versions.push(ctx.sync().await?);
     }
-    wait(1).await;
+    {
+        match tokio::join!(
+            ns_client.wait_for_record(&id_1, &initial_versions[0], None),
+            ns_client.wait_for_record(&id_2, &initial_versions[1], None),
+            ns_client.wait_for_record(&id_3, &initial_versions[2], None),
+        ) {
+            (Ok(_), Ok(_), Ok(_)) => Ok(()),
+            _ => Err(anyhow!("name record was not published.")),
+        }?;
+    }
 
-    let id_2 = pair_2.client.identity.clone();
-    let id_3 = pair_3.client.identity.clone();
+    let pair_3_version = initial_versions[2].clone();
 
     let pair_2_version = pair_2
-        .spawn(|mut ctx| async move {
+        .spawn(move |mut ctx| async move {
             ctx.set_petname("pair_3".into(), Some(id_3)).await?;
             ctx.save(None).await?;
             ctx.sync().await?;
-            wait(1).await;
-            ctx.sync().await?;
-            assert!(ctx.resolve_petname("pair_3").await?.is_some());
+            wait_for_petname(ctx.clone(), "pair_3", Some(pair_3_version), None).await?;
             Ok(ctx.version().await?)
         })
         .await?;
@@ -152,9 +171,7 @@ async fn traverse_spheres_and_read_content_via_noosphere_gateway_via_ipfs() -> R
             ctx.set_petname("pair_2".into(), Some(id_2)).await?;
             ctx.save(None).await?;
             ctx.sync().await?;
-            wait(1).await;
-            ctx.sync().await?;
-            assert_eq!(ctx.resolve_petname("pair_2").await?, Some(pair_2_version));
+            wait_for_petname(ctx, "pair_2", Some(pair_2_version), None).await?;
             Ok(())
         })
         .await?;
@@ -243,23 +260,14 @@ async fn synchronize_petnames_as_they_are_added_and_removed() -> Result<()> {
             ctx.set_petname("thirdparty", Some(other_pair_id)).await?;
             ctx.save(None).await?;
             ctx.sync().await?;
-            wait(1).await;
 
-            ctx.sync().await?;
-            let other_link = ctx.resolve_petname("thirdparty").await?;
-            assert_eq!(other_link, Some(other_version.clone()));
-
-            let resolved = ctx.resolve_petname("thirdparty").await?;
-            assert!(resolved.is_some());
+            wait_for_petname(ctx.clone(), "thirdparty", Some(other_version.clone()), None).await?;
 
             info!("UNSETTING 'thirdparty' as a petname and syncing again...");
             ctx.set_petname("thirdparty", None).await?;
             ctx.save(None).await?;
             ctx.sync().await?;
-            wait(1).await;
-            ctx.sync().await?;
-            let resolved = ctx.resolve_petname("thirdparty").await?;
-            assert!(resolved.is_none());
+            wait_for_petname(ctx.clone(), "thirdparty", None, None).await?;
             let recorded = ctx.get_petname("thirdparty").await?;
             assert!(recorded.is_none());
 
@@ -268,14 +276,9 @@ async fn synchronize_petnames_as_they_are_added_and_removed() -> Result<()> {
                 .await?;
             ctx.save(None).await?;
             ctx.sync().await?;
-            wait(1).await;
-            ctx.sync().await?;
-
+            wait_for_petname(ctx.clone(), "thirdparty", Some(third_version), None).await?;
             let saved_id = ctx.get_petname("thirdparty").await?;
             assert_eq!(saved_id, Some(third_pair_id));
-
-            let third_link = ctx.resolve_petname("thirdparty").await?;
-            assert_eq!(third_link, Some(third_version.clone()));
 
             Ok(())
         })
@@ -292,6 +295,7 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
 
     let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
     let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
+    let ns_client = NameResolverHttpClient::new(ns_url.clone()).await?;
 
     let mut pair_1 = SpherePair::new("pair_1", &ipfs_url, &ns_url).await?;
     let mut pair_2 = SpherePair::new("pair_2", &ipfs_url, &ns_url).await?;
@@ -299,6 +303,10 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
     pair_1.start_gateway().await?;
     pair_2.start_gateway().await?;
 
+    let id_1 = pair_1.client.identity.clone();
+    let id_2 = pair_2.client.identity.clone();
+
+    let mut initial_versions = vec![];
     // Write some content in each sphere and track the versions after saving for later
     for pair in [&pair_1, &pair_2] {
         let name = pair.name.clone();
@@ -306,21 +314,26 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
         ctx.write("my-name", "text/plain", name.as_ref(), None)
             .await?;
         ctx.save(None).await?;
-        ctx.sync().await?;
+        initial_versions.push(ctx.sync().await?);
     }
-    wait(1).await;
+    {
+        match tokio::join!(
+            ns_client.wait_for_record(&id_1, &initial_versions[0], None),
+            ns_client.wait_for_record(&id_2, &initial_versions[1], None),
+        ) {
+            (Ok(_), Ok(_)) => Ok(()),
+            _ => Err(anyhow!("name record was not published.")),
+        }?;
+    }
 
-    let id_2 = pair_2.client.identity.clone();
-    let pair_2_version = pair_2.sphere_context().await?.version().await?;
+    let pair_2_version = initial_versions[1].clone();
 
     pair_1
         .spawn(move |mut ctx| async move {
-            ctx.set_petname("pair_2".into(), Some(id_2)).await?;
+            ctx.set_petname("pair_2".into(), Some(id_2.clone())).await?;
             ctx.save(None).await?;
             ctx.sync().await?;
-            wait(1).await;
-            ctx.sync().await?;
-            assert_eq!(ctx.resolve_petname("pair_2").await?, Some(pair_2_version));
+            wait_for_petname(ctx, "pair_2", Some(pair_2_version), None).await?;
             Ok(())
         })
         .await?;
@@ -349,7 +362,7 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
         })
         .await?;
 
-    pair_2
+    let pair_2_version = pair_2
         .spawn(|mut ctx| async move {
             ctx.write("foo", &ContentType::Text, "foo".as_bytes(), None)
                 .await?;
@@ -366,26 +379,22 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
             ctx.remove("my-name").await?;
             ctx.save(None).await?;
 
-            let latest_version = ctx.sync().await?;
-            info!("Expect version: {}", latest_version);
-
-            wait(1).await;
-
-            Ok(())
+            Ok(ctx.sync().await?)
         })
         .await?;
-
-    let pair_2_identity = pair_2.sphere_context().await?.identity().await?;
+    let id_2 = pair_2.client.identity.clone();
+    ns_client
+        .wait_for_record(&id_2, &pair_2_version, None)
+        .await?;
 
     pair_1
-        .spawn(|mut ctx| async move {
+        .spawn(move |mut ctx| async move {
             // Set and sync a new petname to "force" name resolution in the gateway
             ctx.set_petname("foo", Some(Did("did:key:foo".into())))
                 .await?;
             ctx.save(None).await?;
             ctx.sync().await?;
-            wait(1).await;
-            ctx.sync().await?;
+            wait_for_petname(ctx.clone(), "pair_2", Some(pair_2_version), None).await?;
 
             let cursor = SphereCursor::latest(Arc::new(ctx.sphere_context().await?.clone()));
             let pair_2_context = cursor
@@ -396,7 +405,7 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
             // Verify the identity hasn't been messed up to catch regressions
             // https://github.com/subconsciousnetwork/subconscious/issues/675
             let identity = pair_2_context.identity().await?;
-            assert_eq!(identity, pair_2_identity);
+            assert_eq!(identity, id_2);
 
             let version = pair_2_context.version().await?;
             info!("Have version: {}", version);
@@ -420,6 +429,7 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
 
     let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
     let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
+    let ns_client = NameResolverHttpClient::new(ns_url.clone()).await?;
 
     let mut pair_1 = SpherePair::new("pair_1", &ipfs_url, &ns_url).await?;
     let mut pair_2 = SpherePair::new("pair_2", &ipfs_url, &ns_url).await?;
@@ -431,22 +441,20 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
 
     let id_3 = pair_3.client.identity.clone();
 
-    pair_3
-        .spawn(|mut ctx| async move {
-            ctx.sync().await?;
-            Ok(())
-        })
+    let sphere_3_base_version = pair_3
+        .spawn(|mut ctx| async move { Ok(ctx.sync().await?) })
+        .await?;
+    ns_client
+        .wait_for_record(&id_3, &sphere_3_base_version, None)
         .await?;
 
     // sphere_2 follows sphere_3
     pair_2
-        .spawn(|mut ctx| async move {
+        .spawn(move |mut ctx| async move {
             ctx.set_petname("pair_3".into(), Some(id_3)).await?;
             ctx.save(None).await?;
             ctx.sync().await?;
-            wait(1).await;
-            ctx.sync().await?;
-            assert!(ctx.resolve_petname("pair_3").await?.is_some());
+            wait_for_petname(ctx.clone(), "pair_3", Some(sphere_3_base_version), None).await?;
             Ok(ctx.version().await?)
         })
         .await?;
@@ -456,13 +464,15 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
 
     // sphere_3 writes some initial content
     let sphere_3_first_version = pair_3
-        .spawn(move |mut ctx| async move {
+        .spawn(|mut ctx| async move {
             ctx.write("foo", &ContentType::Text, "foo".as_bytes(), None)
                 .await?;
             ctx.save(None).await?;
-            let cid = ctx.sync().await?;
-            Ok(cid)
+            Ok(ctx.sync().await?)
         })
+        .await?;
+    ns_client
+        .wait_for_record(&id_3, &sphere_3_first_version, None)
         .await?;
 
     {
@@ -475,17 +485,13 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
                     .await?;
                 ctx.save(None).await?;
                 ctx.sync().await?;
-                wait(1).await;
-                ctx.sync().await?;
-                assert_eq!(
-                    ctx.resolve_petname("pair_3").await?,
-                    Some(sphere_3_first_version)
-                );
+                wait_for_petname(ctx.clone(), "pair_3", Some(sphere_3_first_version), None).await?;
 
                 Ok(())
             })
             .await?;
     }
+
     // sphere_3 makes a bunch of additional changes
     let sphere_3_newest_version = pair_3
         .spawn(move |mut ctx| async move {
@@ -500,9 +506,11 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
             ctx.save(None).await?;
             ctx.remove("bar").await?;
             ctx.save(None).await?;
-            let cid = ctx.sync().await?;
-            Ok(cid)
+            Ok(ctx.sync().await?)
         })
+        .await?;
+    ns_client
+        .wait_for_record(&id_3, &sphere_3_newest_version, None)
         .await?;
 
     // sphere_1 follows sphere_2 and sphere_3, then...
@@ -515,11 +523,7 @@ async fn replicate_older_version_of_peer_than_the_one_you_have() -> Result<()> {
             ctx.set_petname("pair_3".into(), Some(id_3)).await?;
             ctx.save(None).await?;
             ctx.sync().await?;
-            wait(1).await;
-            ctx.sync().await?;
-            let cid = ctx.resolve_petname("pair_3").await?.unwrap();
-
-            assert_eq!(cid, sphere_3_newest_version);
+            wait_for_petname(ctx.clone(), "pair_3", Some(sphere_3_newest_version), None).await?;
 
             let cursor = SphereCursor::latest(Arc::new(ctx.sphere_context().await?.clone()));
             let sphere_1_sphere_3_cursor = cursor
@@ -760,6 +764,7 @@ async fn fall_back_to_local_content_when_kubo_times_out_on_block() -> Result<()>
 
     let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
     let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
+    let ns_client = NameResolverHttpClient::new(ns_url.clone()).await?;
 
     let mut pair_1 = SpherePair::new("ONE", &ipfs_url, &ns_url).await?;
     let mut pair_2 = SpherePair::new("TWO", &ipfs_url, &ns_url).await?;
@@ -774,29 +779,31 @@ async fn fall_back_to_local_content_when_kubo_times_out_on_block() -> Result<()>
             ctx.write("foo", &ContentType::Text, b"bar".as_ref(), None)
                 .await?;
             ctx.save(None).await?;
-            let fallback_version = ctx.sync().await?;
-            wait(1).await;
-
-            Ok(fallback_version)
+            Ok(ctx.sync().await?)
         })
         .await?;
-
-    pair_2
-        .spawn(|mut ctx| async move {
-            ctx.set_petname("one", Some(sphere_1_identity)).await?;
-            ctx.save(None).await?;
-            ctx.sync().await?;
-            wait(1).await;
-            ctx.sync().await?;
-
-            // Traverse to peer at a known-to-be-available version to ensure it
-            // becomes locally cached
-            let cursor = SphereCursor::latest(ctx);
-            let _ = cursor.traverse_by_petnames(&[String::from("one")]).await?;
-
-            Ok(())
-        })
+    ns_client
+        .wait_for_record(&sphere_1_identity, &fallback_version, None)
         .await?;
+
+    {
+        let pair_1_version = fallback_version.clone();
+        pair_2
+            .spawn(move |mut ctx| async move {
+                ctx.set_petname("one", Some(sphere_1_identity)).await?;
+                ctx.save(None).await?;
+                ctx.sync().await?;
+                wait_for_petname(ctx.clone(), "one", Some(pair_1_version), None).await?;
+
+                // Traverse to peer at a known-to-be-available version to ensure it
+                // becomes locally cached
+                let cursor = SphereCursor::latest(ctx);
+                let _ = cursor.traverse_by_petnames(&[String::from("one")]).await?;
+
+                Ok(())
+            })
+            .await?;
+    }
 
     let unavailable_link_record = pair_1
         .spawn(|mut ctx| async move {
@@ -842,6 +849,7 @@ async fn recover_a_sphere_and_sync_changes_with_the_noosphere() -> Result<()> {
 
     let ipfs_url = Url::parse("http://127.0.0.1:5001")?;
     let (ns_url, ns_task) = start_name_system_server(&ipfs_url).await?;
+    let ns_client = NameResolverHttpClient::new(ns_url.clone()).await?;
 
     let mut sphere_pair_1 = SpherePair::new("one", &ipfs_url, &ns_url).await?;
     let mut sphere_pair_2 = SpherePair::new("two", &ipfs_url, &ns_url).await?;
@@ -849,36 +857,39 @@ async fn recover_a_sphere_and_sync_changes_with_the_noosphere() -> Result<()> {
     sphere_pair_1.start_gateway().await?;
     sphere_pair_2.start_gateway().await?;
 
-    sphere_pair_2
+    let id_2 = sphere_pair_2.client.identity.clone();
+
+    let sphere_2_version = sphere_pair_2
         .spawn(|mut ctx| async move {
             ctx.write("foo", &ContentType::Text, b"bar".as_ref(), None)
                 .await?;
             ctx.save(None).await?;
-            ctx.sync().await?;
-            Ok(())
+            Ok(ctx.sync().await?)
         })
         .await?;
+    ns_client
+        .wait_for_record(&id_2, &sphere_2_version, None)
+        .await?;
 
-    let sphere_pair_2_identity = sphere_pair_2.client.identity.clone();
+    {
+        let sphere_pair_2_identity = id_2.clone();
+        sphere_pair_1
+            .spawn(move |mut ctx| async move {
+                for value in ["one", "two", "three"] {
+                    ctx.write(value, &ContentType::Text, value.as_bytes(), None)
+                        .await?;
+                    ctx.save(None).await?;
+                }
 
-    sphere_pair_1
-        .spawn(move |mut ctx| async move {
-            for value in ["one", "two", "three"] {
-                ctx.write(value, &ContentType::Text, value.as_bytes(), None)
-                    .await?;
+                ctx.set_petname("two", Some(sphere_pair_2_identity)).await?;
                 ctx.save(None).await?;
-            }
 
-            ctx.set_petname("two", Some(sphere_pair_2_identity)).await?;
-            ctx.save(None).await?;
-
-            ctx.sync().await?;
-            wait(1).await;
-            ctx.sync().await?;
-
-            Ok(())
-        })
-        .await?;
+                ctx.sync().await?;
+                wait_for_petname(ctx.clone(), "two", Some(sphere_2_version), None).await?;
+                Ok(())
+            })
+            .await?;
+    }
 
     {
         // NOTE: We initialize the builder before simulating corruption because
@@ -932,6 +943,9 @@ async fn recover_a_sphere_and_sync_changes_with_the_noosphere() -> Result<()> {
             Ok(ctx.sync().await?)
         })
         .await?;
+    ns_client
+        .wait_for_record(&id_2, &sphere_2_version, None)
+        .await?;
 
     sphere_pair_1
         .spawn(move |mut ctx| async move {
@@ -940,8 +954,7 @@ async fn recover_a_sphere_and_sync_changes_with_the_noosphere() -> Result<()> {
             ctx.save(None).await?;
 
             ctx.sync().await?;
-            wait(1).await;
-            ctx.sync().await?;
+            wait_for_petname(ctx.clone(), "two", Some(sphere_2_version.clone()), None).await?;
 
             let peer_ctx = SphereCursor::latest(ctx)
                 .traverse_by_petnames(&["two".into()])

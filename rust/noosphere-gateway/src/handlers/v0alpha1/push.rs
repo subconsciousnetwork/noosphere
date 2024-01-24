@@ -1,43 +1,35 @@
 use crate::{
-    extractors::{Cbor, GatewayAuthority, GatewayScope, SphereExtractor},
-    worker::{NameSystemJob, SyndicationJob},
+    extractors::{Cbor, GatewayAuthority, GatewayScope},
+    jobs::{GatewayJob, JobClient},
+    GatewayManager,
 };
 use anyhow::Result;
 use axum::{http::StatusCode, Extension};
 use noosphere_core::api::v0alpha1::{PushBody, PushError, PushResponse};
 use noosphere_core::context::{HasMutableSphereContext, SphereContentWrite, SphereCursor};
 use noosphere_core::{
-    authority::{generate_capability, SphereAbility},
+    authority::SphereAbility,
     data::{Bundle, Link, LinkRecord, MapOperation, MemoIpld},
     view::Sphere,
 };
 use noosphere_storage::Storage;
 use std::collections::BTreeSet;
-use tokio::sync::mpsc::UnboundedSender;
 use tokio_stream::StreamExt;
 
 // #[debug_handler]
 #[deprecated(since = "0.8.1", note = "Please migrate to v0alpha2")]
 #[instrument(
     level = "debug",
-    skip(
-        authority,
-        sphere_extractor,
-        gateway_scope,
-        syndication_tx,
-        name_system_tx,
-        request_body
-    )
+    skip(gateway_scope, authority, job_runner_client, request_body)
 )]
-pub async fn push_route<C, S>(
-    authority: GatewayAuthority,
-    sphere_extractor: SphereExtractor<C, S>,
+pub async fn push_route<M, C, S>(
     gateway_scope: GatewayScope<C, S>,
-    Extension(syndication_tx): Extension<UnboundedSender<SyndicationJob<C>>>,
-    Extension(name_system_tx): Extension<UnboundedSender<NameSystemJob<C>>>,
+    authority: GatewayAuthority<M, C, S>,
+    Extension(job_runner_client): Extension<M::JobClient>,
     Cbor(request_body): Cbor<PushBody>,
 ) -> Result<Cbor<PushResponse>, StatusCode>
 where
+    M: GatewayManager<C, S> + 'static,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
@@ -49,40 +41,35 @@ where
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let mut gateway_sphere = sphere_extractor.into_inner();
-    authority
-        .try_authorize(
-            &mut gateway_sphere,
-            counterpart,
-            &generate_capability(counterpart.as_str(), SphereAbility::Push),
-        )
+    let gateway_sphere = authority
+        .try_authorize(&gateway_scope, SphereAbility::Push)
         .await?;
 
-    let gateway_push_routine = GatewayPushRoutine {
+    let gateway_push_routine = GatewayPushRoutine::<M, C, S> {
         gateway_sphere,
         gateway_scope,
-        syndication_tx,
-        name_system_tx,
+        job_runner_client,
         request_body,
     };
 
     Ok(Cbor(gateway_push_routine.invoke().await?))
 }
 
-pub struct GatewayPushRoutine<C, S>
+pub struct GatewayPushRoutine<M, C, S>
 where
+    M: GatewayManager<C, S>,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
+    job_runner_client: M::JobClient,
     gateway_sphere: C,
     gateway_scope: GatewayScope<C, S>,
-    syndication_tx: UnboundedSender<SyndicationJob<C>>,
-    name_system_tx: UnboundedSender<NameSystemJob<C>>,
     request_body: PushBody,
 }
 
-impl<C, S> GatewayPushRoutine<C, S>
+impl<M, C, S> GatewayPushRoutine<M, C, S>
 where
+    M: GatewayManager<C, S>,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
@@ -314,20 +301,13 @@ where
 
     /// Notify the name system that new names may need to be resolved
     async fn notify_name_resolver(&self) -> Result<()> {
-        if let Some(name_record) = &self.request_body.name_record {
-            if let Err(error) = self.name_system_tx.send(NameSystemJob::Publish {
-                context: self.gateway_sphere.clone(),
-                record: LinkRecord::try_from(name_record)?,
-                republish: false,
-            }) {
-                warn!("Failed to request name record publish: {}", error);
-            }
-        }
-
-        if let Err(error) = self.name_system_tx.send(NameSystemJob::ResolveSince {
-            context: self.gateway_sphere.clone(),
-            since: self.request_body.local_base,
-        }) {
+        if let Err(error) = self
+            .job_runner_client
+            .submit(GatewayJob::NameSystemResolveSince {
+                identity: self.gateway_scope.counterpart.to_owned(),
+                since: self.request_body.local_base,
+            })
+        {
             warn!("Failed to request name system resolutions: {}", error);
         };
 
@@ -336,12 +316,19 @@ where
 
     /// Request that new history be syndicated to IPFS
     async fn notify_ipfs_syndicator(&self, next_version: Link<MemoIpld>) -> Result<()> {
+        let name_publish_on_success = if let Some(name_record) = &self.request_body.name_record {
+            Some(LinkRecord::try_from(name_record)?)
+        } else {
+            None
+        };
+
         // TODO(#156): This should not be happening on every push, but rather on
         // an explicit publish action. Move this to the publish handler when we
         // have added it to the gateway.
-        if let Err(error) = self.syndication_tx.send(SyndicationJob {
-            revision: next_version,
-            context: self.gateway_sphere.clone(),
+        if let Err(error) = self.job_runner_client.submit(GatewayJob::IpfsSyndication {
+            identity: self.gateway_scope.counterpart.to_owned(),
+            revision: Some(next_version),
+            name_publish_on_success,
         }) {
             warn!("Failed to queue IPFS syndication job: {}", error);
         };

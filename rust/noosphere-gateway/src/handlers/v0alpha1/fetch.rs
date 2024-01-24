@@ -6,7 +6,7 @@ use axum::{body::Body, extract::Query, http::StatusCode, Extension};
 use bytes::Bytes;
 use noosphere_core::{
     api::v0alpha1::FetchParameters,
-    authority::{generate_capability, SphereAbility},
+    authority::SphereAbility,
     context::HasMutableSphereContext,
     data::{Did, Link, MemoIpld},
     stream::{memo_history_stream, to_car_stream},
@@ -16,31 +16,25 @@ use noosphere_ipfs::{IpfsStore, KuboClient};
 use noosphere_storage::{BlockStoreRetry, SphereDb, Storage};
 use tokio_stream::{Stream, StreamExt};
 
-use crate::extractors::{GatewayAuthority, GatewayScope, SphereExtractor};
+use crate::{
+    extractors::{GatewayAuthority, GatewayScope},
+    GatewayManager,
+};
 
-#[instrument(
-    level = "debug",
-    skip(authority, sphere_extractor, gateway_scope, ipfs_client)
-)]
-pub async fn fetch_route<C, S>(
-    authority: GatewayAuthority,
-    sphere_extractor: SphereExtractor<C, S>,
+#[instrument(level = "debug", skip(gateway_scope, authority, ipfs_client))]
+pub async fn fetch_route<M, C, S>(
     gateway_scope: GatewayScope<C, S>,
+    authority: GatewayAuthority<M, C, S>,
     Query(FetchParameters { since }): Query<FetchParameters>,
     Extension(ipfs_client): Extension<KuboClient>,
 ) -> Result<Body, StatusCode>
 where
+    M: GatewayManager<C, S> + 'static,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
-    let mut gateway_sphere = sphere_extractor.into_inner();
-    let counterpart = &gateway_scope.counterpart;
-    authority
-        .try_authorize(
-            &mut gateway_sphere,
-            counterpart,
-            &generate_capability(counterpart.as_str(), SphereAbility::Fetch),
-        )
+    let gateway_sphere = authority
+        .try_authorize(&gateway_scope, SphereAbility::Fetch)
         .await?;
 
     let sphere_context = gateway_sphere.sphere_context().await.map_err(|err| {
@@ -49,12 +43,18 @@ where
     })?;
     let db = sphere_context.db();
     let identity = sphere_context.identity();
-    let stream = generate_fetch_stream(counterpart, identity, since.as_ref(), db, ipfs_client)
-        .await
-        .map_err(|err| {
-            error!("{err}");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let stream = generate_fetch_stream(
+        &gateway_scope.counterpart,
+        identity,
+        since.as_ref(),
+        db,
+        ipfs_client,
+    )
+    .await
+    .map_err(|err| {
+        error!("{err}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(Body::from_stream(stream))
 }

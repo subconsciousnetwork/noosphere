@@ -1,4 +1,7 @@
-use crate::extractors::{GatewayAuthority, GatewayScope, SphereExtractor};
+use crate::{
+    extractors::{GatewayAuthority, GatewayScope},
+    GatewayManager,
+};
 use anyhow::Result;
 use axum::{
     body::Body,
@@ -12,7 +15,7 @@ use noosphere_core::api::v0alpha1::ReplicateParameters;
 use noosphere_core::context::HasMutableSphereContext;
 use noosphere_core::stream::{memo_body_stream, memo_history_stream, to_car_stream};
 use noosphere_core::{
-    authority::{generate_capability, SphereAbility},
+    authority::SphereAbility,
     data::{ContentType, MemoIpld},
 };
 use noosphere_ipfs::{IpfsStore, KuboClient};
@@ -30,11 +33,10 @@ use noosphere_storage::{BlockStore, BlockStoreRetry, Storage};
 /// version.
 ///
 /// If `include_content` is `true`, the `since` parameter will be ignored.
-#[instrument(level = "debug", skip(authority, sphere_extractor, gateway_scope))]
-pub async fn replicate_route<C, S>(
-    authority: GatewayAuthority,
-    sphere_extractor: SphereExtractor<C, S>,
+#[instrument(level = "debug", skip(gateway_scope, authority))]
+pub async fn replicate_route<M, C, S>(
     gateway_scope: GatewayScope<C, S>,
+    authority: GatewayAuthority<M, C, S>,
     // NOTE: Cannot go from string to CID via serde
     Path(link_or_did): Path<String>,
     Query(ReplicateParameters {
@@ -44,17 +46,12 @@ pub async fn replicate_route<C, S>(
     Extension(ipfs_client): Extension<KuboClient>,
 ) -> Result<Body, StatusCode>
 where
+    M: GatewayManager<C, S> + 'static,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
-    let mut gateway_sphere = sphere_extractor.into_inner();
-    let counterpart = &gateway_scope.counterpart;
-    authority
-        .try_authorize(
-            &mut gateway_sphere,
-            counterpart,
-            &generate_capability(counterpart.as_str(), SphereAbility::Fetch),
-        )
+    let gateway_sphere = authority
+        .try_authorize(&gateway_scope, SphereAbility::Fetch)
         .await?;
 
     debug!("Invoking replicate route...");
