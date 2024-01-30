@@ -10,6 +10,22 @@
     * noosphere-storage bumped from 0.7.0 to 0.7.1
     * noosphere-collections bumped from 0.6.0 to 0.6.1
 
+## [0.18.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.18.0...noosphere-core-v0.18.1) (2024-01-30)
+
+
+### Features
+
+* add Content-Length headers when writing to a sphere. ([#582](https://github.com/subconsciousnetwork/noosphere/issues/582)) ([6cedf47](https://github.com/subconsciousnetwork/noosphere/commit/6cedf473ed234d5168c7f4470a88c486d888415a))
+* Add support for BYO tracing_subscriber ([#779](https://github.com/subconsciousnetwork/noosphere/issues/779)) ([0213b51](https://github.com/subconsciousnetwork/noosphere/commit/0213b51734b4352aa3a55f4ec3cf48ea3cec59ec))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.10.0 to 0.10.1
+    * noosphere-collections bumped from 0.7.0 to 0.7.1
+
 ## [0.18.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.17.3...noosphere-core-v0.18.0) (2023-11-21)
 
 

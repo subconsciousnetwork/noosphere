@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-cli"
-version = "0.16.0"
+version = "0.17.0"
 edition = "2021"
 description = "Reference client and pedagogical tool to demonstrate the principles of the Noosphere protocol"
 keywords = ["cli", "sync", "noosphere", "p2p", "ucan"]
@@ -50,12 +50,12 @@ mime_guess = "^2"
 witty-phrase-generator = "~0.2"
 globset = "~0.4"
 
-noosphere-ipfs = { version = "0.8.5", path = "../noosphere-ipfs" }
-noosphere-core = { version = "0.18.0", path = "../noosphere-core" }
-noosphere-storage = { version = "0.10.0", path = "../noosphere-storage" }
-noosphere-gateway = { version = "0.11.0", path = "../noosphere-gateway" }
-noosphere-ns = { version = "0.11.5", path = "../noosphere-ns", optional = true }
-noosphere = { version = "0.16.0", path = "../noosphere" }
+noosphere-ipfs = { version = "0.8.6", path = "../noosphere-ipfs" }
+noosphere-core = { version = "0.18.1", path = "../noosphere-core" }
+noosphere-storage = { version = "0.10.1", path = "../noosphere-storage" }
+noosphere-gateway = { version = "0.12.0", path = "../noosphere-gateway" }
+noosphere-ns = { version = "0.12.0", path = "../noosphere-ns", optional = true }
+noosphere = { version = "0.16.1", path = "../noosphere" }
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }
 

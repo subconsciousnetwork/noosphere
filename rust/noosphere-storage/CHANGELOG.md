@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.10.0...noosphere-storage-v0.10.1) (2024-01-30)
+
+
+### Features
+
+* Force quit rocksdb worker threads upon dropping. ([#734](https://github.com/subconsciousnetwork/noosphere/issues/734)) ([21bf742](https://github.com/subconsciousnetwork/noosphere/commit/21bf7425cb2fe4ef64ea4fc71696f8f81e5cdd5f))
+
 ## [0.10.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.9.3...noosphere-storage-v0.10.0) (2023-11-21)
 
 
