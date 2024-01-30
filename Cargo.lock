@@ -5024,9 +5024,9 @@ checksum = "1ad4cc8da4ef723ed60bced201181d83791ad433213d8c24efffda1eec85d741"
 
 [[package]]
 name = "safer-ffi"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "395ace5aff9629c7268ca8255aceb945525b2cb644015f3caec5131a6a537c11"
+checksum = "4483c5ab47f222d2c297e73a520c9003e09e2fe1f1b04edcb572e6939f303003"
 dependencies = [
  "inventory",
  "libc",
@@ -5041,9 +5041,9 @@ dependencies = [
 
 [[package]]
 name = "safer_ffi-proc_macros"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9255504d5467bae9e07d58b8de446ba6739b29bf72e1fa35b2387e30d29dcbfe"
+checksum = "bf04ebd3786110e64269a74eea58c5564dd92a1e790c0f6f9871d6fe1b8e34db"
 dependencies = [
  "macro_rules_attribute",
  "prettyplease 0.1.25",
