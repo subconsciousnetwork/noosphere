@@ -105,6 +105,35 @@
   * dependencies
     * noosphere-ns bumped from 0.9.3 to 0.9.4
 
+## [0.12.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.11.0...noosphere-gateway-v0.12.0) (2024-01-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add axum tooling to provide w3c tracecontexts in response payloads ([#780](https://github.com/subconsciousnetwork/noosphere/issues/780))
+* The gateway should not call initialize_tracing ([#767](https://github.com/subconsciousnetwork/noosphere/issues/767))
+
+### Features
+
+* Add axum tooling to provide w3c tracecontexts in response payloads ([#780](https://github.com/subconsciousnetwork/noosphere/issues/780)) ([4d84bea](https://github.com/subconsciousnetwork/noosphere/commit/4d84bead9763f48385ae428c59aafa7293311e12))
+
+
+### Bug Fixes
+
+* The gateway should not call initialize_tracing ([#767](https://github.com/subconsciousnetwork/noosphere/issues/767)) ([d388dec](https://github.com/subconsciousnetwork/noosphere/commit/d388dec99be8c064f9af44b94ec517990aeefff1))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.8.5 to 0.8.6
+    * noosphere-core bumped from 0.18.0 to 0.18.1
+    * noosphere-ns bumped from 0.11.5 to 0.12.0
+    * noosphere-storage bumped from 0.10.0 to 0.10.1
+  * dev-dependencies
+    * noosphere-core bumped from 0.18.0 to 0.18.1
+
 ## [0.11.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.10.3...noosphere-gateway-v0.11.0) (2023-11-21)
 
 

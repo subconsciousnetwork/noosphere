@@ -135,6 +135,27 @@
     * noosphere bumped from 0.15.3 to 0.15.4
     * noosphere-ipfs bumped from 0.8.3 to 0.8.4
 
+## [0.12.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.11.5...noosphere-ns-v0.12.0) (2024-01-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add axum tooling to provide w3c tracecontexts in response payloads ([#780](https://github.com/subconsciousnetwork/noosphere/issues/780))
+
+### Features
+
+* Add axum tooling to provide w3c tracecontexts in response payloads ([#780](https://github.com/subconsciousnetwork/noosphere/issues/780)) ([4d84bea](https://github.com/subconsciousnetwork/noosphere/commit/4d84bead9763f48385ae428c59aafa7293311e12))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-storage bumped from 0.10.0 to 0.10.1
+    * noosphere-core bumped from 0.18.0 to 0.18.1
+    * noosphere bumped from 0.16.0 to 0.16.1
+    * noosphere-ipfs bumped from 0.8.5 to 0.8.6
+
 ## [0.11.5](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-ns-v0.11.4...noosphere-ns-v0.11.5) (2023-11-21)
 
 

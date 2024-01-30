@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-core"
-version = "0.18.0"
+version = "0.18.1"
 edition = "2021"
 description = "Core data types of the Rust Noosphere implementation"
 keywords = ["hamt", "ipld", "noosphere", "p2p", "async"]
@@ -58,8 +58,8 @@ strum = { workspace = true }
 strum_macros = { workspace = true }
 tokio-util = { workspace = true, features = ["io"] }
 noosphere-common = { version = "0.1.2", path = "../noosphere-common" }
-noosphere-storage = { version = "0.10.0", path = "../noosphere-storage" }
-noosphere-collections = { version = "0.7.0", path = "../noosphere-collections" }
+noosphere-storage = { version = "0.10.1", path = "../noosphere-storage" }
+noosphere-collections = { version = "0.7.1", path = "../noosphere-collections" }
 
 ucan = { workspace = true }
 ucan-key-support = { workspace = true }

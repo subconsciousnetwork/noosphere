@@ -213,6 +213,30 @@
     * noosphere-ns bumped from 0.11.3 to 0.11.4
     * noosphere bumped from 0.15.3 to 0.15.4
 
+## [0.17.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.16.0...noosphere-cli-v0.17.0) (2024-01-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add axum tooling to provide w3c tracecontexts in response payloads ([#780](https://github.com/subconsciousnetwork/noosphere/issues/780))
+
+### Features
+
+* `orb version` command ([#741](https://github.com/subconsciousnetwork/noosphere/issues/741)) ([608774e](https://github.com/subconsciousnetwork/noosphere/commit/608774ec4252c4b083508284646ea0fd911fa32c))
+* Add axum tooling to provide w3c tracecontexts in response payloads ([#780](https://github.com/subconsciousnetwork/noosphere/issues/780)) ([4d84bea](https://github.com/subconsciousnetwork/noosphere/commit/4d84bead9763f48385ae428c59aafa7293311e12))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * noosphere-ipfs bumped from 0.8.5 to 0.8.6
+    * noosphere-core bumped from 0.18.0 to 0.18.1
+    * noosphere-storage bumped from 0.10.0 to 0.10.1
+    * noosphere-gateway bumped from 0.11.0 to 0.12.0
+    * noosphere-ns bumped from 0.11.5 to 0.12.0
+    * noosphere bumped from 0.16.0 to 0.16.1
+
 ## [0.16.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.15.4...noosphere-cli-v0.16.0) (2023-11-21)
 
 
