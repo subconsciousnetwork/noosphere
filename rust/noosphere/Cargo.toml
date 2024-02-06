@@ -91,4 +91,4 @@ instant = { version = "0.1.12", features = ["wasm-bindgen"] }
 gloo-timers = { workspace = true }
 
 [build-dependencies]
-cfg_aliases = "0.1.0"
+cfg_aliases = "0.2.0"
