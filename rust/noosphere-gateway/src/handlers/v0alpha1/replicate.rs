@@ -194,8 +194,8 @@ mod tests {
         },
         data::{DelegationIpld, RevocationIpld},
     };
+    use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial};
     use tokio::sync::Mutex;
-    use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
     #[tokio::test]
     async fn it_only_allows_incremental_replication_of_causally_ordered_revisions() -> Result<()> {

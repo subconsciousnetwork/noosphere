@@ -1,8 +1,9 @@
 use anyhow::{anyhow, Result};
-use serde_json::json;
-use ucan::capability::{
+use noosphere_ucan::capability::{
     Ability, CapabilitySemantics, CapabilityView, Resource, ResourceUri, Scope,
 };
+use serde_json::json;
+use std::fmt;
 use url::Url;
 
 /// The ordinal levels of authority allowed within Noosphere
@@ -20,15 +21,18 @@ pub enum SphereAbility {
 
 impl Ability for SphereAbility {}
 
-impl ToString for SphereAbility {
-    fn to_string(&self) -> String {
-        match self {
-            SphereAbility::Authorize => "sphere/authorize",
-            SphereAbility::Publish => "sphere/publish",
-            SphereAbility::Push => "sphere/push",
-            SphereAbility::Fetch => "sphere/fetch",
-        }
-        .into()
+impl fmt::Display for SphereAbility {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                SphereAbility::Authorize => "sphere/authorize",
+                SphereAbility::Publish => "sphere/publish",
+                SphereAbility::Push => "sphere/push",
+                SphereAbility::Fetch => "sphere/fetch",
+            }
+        )
     }
 }
 
@@ -62,9 +66,9 @@ impl Scope for SphereReference {
     }
 }
 
-impl ToString for SphereReference {
-    fn to_string(&self) -> String {
-        format!("sphere:{}", self.did)
+impl fmt::Display for SphereReference {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "sphere:{}", self.did)
     }
 }
 
@@ -96,7 +100,7 @@ pub const SPHERE_SEMANTICS: SphereSemantics = SphereSemantics {};
 ///
 /// ```
 /// use noosphere_core::{authority::{generate_capability, SphereAbility, SphereReference}};
-/// use ucan::capability::{CapabilityView, ResourceUri, Resource};
+/// use noosphere_ucan::capability::{CapabilityView, ResourceUri, Resource};
 /// use serde_json::json;
 ///
 /// let identity = "did:key:z6MkoE19WHXJzpLqkxbGP7uXdJX38sWZNUWwyjcuCmjhPpUP";

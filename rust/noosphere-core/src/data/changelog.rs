@@ -1,6 +1,5 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::default::Default;
 
 #[cfg(doc)]
 use crate::data::{Did, VersionedMapIpld};

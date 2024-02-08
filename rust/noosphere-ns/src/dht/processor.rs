@@ -23,7 +23,6 @@ use libp2p::{
 };
 use std::{collections::HashMap, time::Duration};
 use std::{fmt, num::NonZeroUsize};
-use tokio;
 
 /// The processing component of a [DHTNode]/[DHTProcessor] pair. Consumers
 /// should only interface with a [DHTProcessor] via [DHTNode].

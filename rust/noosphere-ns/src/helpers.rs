@@ -6,9 +6,9 @@ use noosphere_core::{
     authority::generate_ed25519_key,
     data::{Did, LinkRecord},
 };
+use noosphere_ucan::store::UcanJwtStore;
 use std::collections::HashMap;
 use tokio::sync::Mutex;
-use ucan::store::UcanJwtStore;
 
 /// An in-process network of [NameSystem] nodes for testing.
 pub struct NameSystemNetwork {

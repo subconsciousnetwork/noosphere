@@ -1,0 +1,53 @@
+[package]
+name = "noosphere-ucan"
+version = "0.4.0"
+edition = "2021"
+description = "Implement UCAN-based authorization with conciseness and ease!"
+keywords = ["ucan", "authz", "jwt", "pki"]
+categories = [
+  "authentication",
+  "cryptography",
+  "encoding",
+  "web-programming"
+]
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/noosphere-ucan"
+repository = "https://github.com/subconsciousnetwork/noosphere"
+homepage = "https://github.com/subconsciousnetwork/noosphere"
+readme = "README.md"
+rust-version = "1.75.0"
+
+[features]
+default = []
+
+[dependencies]
+anyhow = { workspace = true }
+async-recursion = { workspace = true }
+async-trait = { workspace = true }
+base64 = { workspace = true }
+bs58 = { workspace = true }
+cid = { workspace = true }
+futures = { workspace = true }
+instant = { workspace = true, features = ["wasm-bindgen"] }
+libipld-core = { workspace = true, features = ["serde-codec", "serde"] }
+libipld-json = { workspace = true }
+log = "0.4"
+rand = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+unsigned-varint = { workspace = true }
+url = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# NOTE: This is needed so that rand can be included in WASM builds
+getrandom = { workspace = true, features = ["js"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+tokio = { workspace = true, features = ["macros", "test-util"] }
+
+[dev-dependencies]
+did-key = "0.2"
+serde_ipld_dagcbor = { workspace = true }
+wasm-bindgen-test = { workspace = true }

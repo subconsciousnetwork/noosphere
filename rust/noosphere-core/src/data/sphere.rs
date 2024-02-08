@@ -60,7 +60,7 @@ impl SphereIpld {
 mod tests {
     use anyhow::Result;
     use libipld_cbor::DagCborCodec;
-    use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
+    use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 

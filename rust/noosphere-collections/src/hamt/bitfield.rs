@@ -8,7 +8,6 @@ use std::u64;
 use byteorder::{BigEndian, ByteOrder};
 use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, Serializer};
-use serde_bytes;
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct Bitfield([u64; 4]);

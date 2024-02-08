@@ -2,8 +2,7 @@
 //! producers to send messages to a single subscriber, with each message
 //! able to be responded to by the subscriber.
 
-use core::{fmt, result::Result};
-use tokio;
+use core::fmt;
 use tokio::sync::{mpsc, mpsc::error::SendError, oneshot, oneshot::error::RecvError};
 
 impl std::error::Error for ChannelError {}

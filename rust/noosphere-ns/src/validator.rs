@@ -1,7 +1,7 @@
 use crate::dht::Validator;
 use async_trait::async_trait;
 use noosphere_core::data::LinkRecord;
-use ucan::store::UcanStore;
+use noosphere_ucan::store::UcanStore;
 
 /// Implements [Validator] for the DHT.
 pub(crate) struct RecordValidator<S: UcanStore> {

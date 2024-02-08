@@ -2,21 +2,7 @@
 //! CAR-reading facilities in use by Noosphere more generally
 
 #[cfg(not(target_arch = "wasm32"))]
-use std::env;
-
-use anyhow::Result;
-use cid::Cid;
-use iroh_car::CarReader;
-use libipld_cbor::DagCborCodec;
-use libipld_core::raw::RawCodec;
-use multihash::MultihashDigest;
-
-use noosphere_core::stream::BlockLedger;
-
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::fs::File;
-
-pub fn hash_for(cid: Cid) -> &'static str {
+pub fn hash_for(cid: cid::Cid) -> &'static str {
     match multihash::Code::try_from(cid.hash().code()) {
         Ok(multihash::Code::Blake3_256) => "BLAKE3",
         Ok(multihash::Code::Sha2_256) => "SHA-256",
@@ -28,7 +14,10 @@ pub fn hash_for(cid: Cid) -> &'static str {
     }
 }
 
-pub fn codec_for(cid: Cid) -> &'static str {
+#[cfg(not(target_arch = "wasm32"))]
+pub fn codec_for(cid: cid::Cid) -> &'static str {
+    use libipld_cbor::DagCborCodec;
+    use libipld_core::raw::RawCodec;
     match cid.codec() {
         codec if codec == u64::from(DagCborCodec) => "DAG-CBOR",
         codec if codec == u64::from(RawCodec) => "Raw",
@@ -41,9 +30,17 @@ pub fn main() {}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg_attr(not(target_arch = "wasm32"), tokio::main)]
-pub async fn main() -> Result<()> {
+pub async fn main() -> anyhow::Result<()> {
+    use cid::Cid;
+    use iroh_car::CarReader;
+    use libipld_cbor::DagCborCodec;
     use libipld_core::ipld::Ipld;
+    use libipld_core::raw::RawCodec;
+    use multihash::MultihashDigest;
+    use noosphere_core::stream::BlockLedger;
     use noosphere_storage::block_decode;
+    use std::env;
+    use tokio::fs::File;
 
     let file = if let Some(arg) = env::args().nth(1) {
         println!("Opening {arg}...\n");

@@ -2,8 +2,8 @@ use crate::{authority::SUPPORTED_KEYS, data::Jwt};
 use anyhow::anyhow;
 use axum_extra::headers::{self, Header, HeaderName, HeaderValue};
 use cid::Cid;
+use noosphere_ucan::{chain::ProofChain, crypto::did::DidParser, store::UcanJwtStore};
 use once_cell::sync::Lazy;
-use ucan::{chain::ProofChain, crypto::did::DidParser, store::UcanJwtStore};
 
 static UCAN_NAME: Lazy<HeaderName> = Lazy::new(|| HeaderName::from_static("ucan"));
 

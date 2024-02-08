@@ -10,8 +10,8 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use cid::Cid;
 use noosphere_storage::{Storage, UcanStore};
+use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 use tokio_stream::StreamExt;
-use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
 /// Any type which implements [SphereAuthorityWrite] is able to manipulate the
 /// [AuthorityIpld] section of a sphere. This includes authorizing other keys
@@ -230,8 +230,8 @@ mod tests {
     use crate::data::Did;
     use anyhow::Result;
 
+    use noosphere_ucan::crypto::KeyMaterial;
     use tokio::sync::Mutex;
-    use ucan::crypto::KeyMaterial;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 

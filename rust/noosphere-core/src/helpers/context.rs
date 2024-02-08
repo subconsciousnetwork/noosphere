@@ -11,8 +11,8 @@ use crate::{
 };
 use anyhow::Result;
 use noosphere_storage::{BlockStore, MemoryStorage, SphereDb, Storage, TrackingStorage, UcanStore};
+use noosphere_ucan::crypto::KeyMaterial;
 use tokio::{io::AsyncReadExt, sync::Mutex};
-use ucan::crypto::KeyMaterial;
 
 use crate::{
     context::{

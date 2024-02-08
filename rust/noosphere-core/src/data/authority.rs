@@ -1,8 +1,8 @@
 use anyhow::Result;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
+use noosphere_ucan::{crypto::KeyMaterial, store::UcanJwtStore, Ucan};
 use std::{hash::Hash, str::FromStr};
-use ucan::{crypto::KeyMaterial, store::UcanJwtStore, Ucan};
 
 use noosphere_storage::{base64_decode, base64_encode, BlockStore, UcanStore};
 use serde::{Deserialize, Serialize};
@@ -133,7 +133,7 @@ impl RevocationIpld {
 #[cfg(test)]
 mod tests {
     use noosphere_storage::{MemoryStore, UcanStore};
-    use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
+    use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
 
     use crate::authority::generate_ed25519_key;
 

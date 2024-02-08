@@ -6,7 +6,7 @@ use libipld_cbor::DagCborCodec;
 use tokio::sync::OnceCell;
 use tokio_stream::StreamExt;
 
-use ucan::{
+use noosphere_ucan::{
     builder::UcanBuilder,
     chain::ProofChain,
     crypto::{did::DidParser, KeyMaterial},
@@ -1067,8 +1067,8 @@ mod tests {
     use anyhow::Result;
     use cid::Cid;
     use libipld_cbor::DagCborCodec;
+    use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial};
     use tokio_stream::StreamExt;
-    use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;

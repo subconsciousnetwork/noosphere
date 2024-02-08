@@ -1,6 +1,6 @@
 use anyhow::Result;
 use noosphere_storage::{MemoryStorage, SphereDb};
-use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
+use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
 
 use crate::{
     authority::{generate_capability, generate_ed25519_key, SphereAbility},

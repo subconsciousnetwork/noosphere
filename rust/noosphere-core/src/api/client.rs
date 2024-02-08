@@ -18,16 +18,16 @@ use crate::{
     data::{Link, MemoIpld},
 };
 use noosphere_storage::{block_deserialize, block_serialize, BlockStore};
-use reqwest::header::HeaderMap;
-use tokio_stream::{Stream, StreamExt};
-use tokio_util::io::StreamReader;
-use ucan::{
+use noosphere_ucan::{
     builder::UcanBuilder,
     capability::CapabilityView,
     crypto::{did::DidParser, KeyMaterial},
     store::{UcanJwtStore, UcanStore},
     ucan::Ucan,
 };
+use reqwest::header::HeaderMap;
+use tokio_stream::{Stream, StreamExt};
+use tokio_util::io::StreamReader;
 use url::Url;
 
 #[cfg(doc)]

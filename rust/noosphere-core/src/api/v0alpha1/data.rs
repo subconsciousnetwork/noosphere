@@ -12,14 +12,14 @@ use crate::{
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_storage::{base64_decode, base64_encode};
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-use ucan::{
+use noosphere_ucan::{
     chain::ProofChain,
     crypto::{did::DidParser, KeyMaterial},
     store::UcanStore,
     Ucan,
 };
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 /// The query parameters expected for the "replicate" API route.
 #[derive(Debug, Serialize, Deserialize)]

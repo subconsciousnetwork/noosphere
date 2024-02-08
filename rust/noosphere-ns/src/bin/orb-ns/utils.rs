@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 
 use noosphere::key::{InsecureKeyStorage, KeyStorage};
+use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
 use std::path::PathBuf;
-use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 pub async fn get_key_material(
     key_storage: &InsecureKeyStorage,

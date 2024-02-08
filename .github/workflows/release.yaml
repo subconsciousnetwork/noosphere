@@ -34,7 +34,9 @@ jobs:
         steps.release.outputs['rust/noosphere-into--release_created'] ||
         steps.release.outputs['rust/noosphere-ns--release_created'] ||
         steps.release.outputs['rust/noosphere-sphere--release_created'] ||
-        steps.release.outputs['rust/noosphere-storage--release_created'] }}
+        steps.release.outputs['rust/noosphere-storage--release_created'] ||
+        steps.release.outputs['rust/noosphere-ucan--release_created'] ||
+        steps.release.outputs['rust/noosphere-ucan-key-support--release_created'] }}
     steps:
       - uses: chainguard-dev/actions/setup-gitsign@main
       - name: 'Run release-please'

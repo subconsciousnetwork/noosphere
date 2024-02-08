@@ -10,7 +10,7 @@ categories = [
   "web-programming",
   "web-assembly"
 ]
-rust-version = "1.60.0"
+rust-version = "1.75.0"
 license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/noosphere-storage"
 repository = "https://github.com/subconsciousnetwork/noosphere"
@@ -19,13 +19,13 @@ readme = "README.md"
 
 [dependencies]
 anyhow = { workspace = true }
-async-trait = "~0.1"
+async-trait = { workspace = true }
 async-stream = { workspace = true }
 tokio-stream = { workspace = true }
 cid = { workspace = true }
-noosphere-common = { version = "0.1.2", path = "../noosphere-common" }
+noosphere-common = { workspace = true }
+noosphere-ucan = { workspace = true }
 tracing = "~0.1"
-ucan = { workspace = true }
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
 serde = { workspace = true }
@@ -37,7 +37,7 @@ witty-phrase-generator = "~0.2"
 wasm-bindgen-test = { workspace = true }
 rand = { workspace = true }
 noosphere-core-dev = { path = "../noosphere-core", features = ["helpers"], package = "noosphere-core" }
-noosphere-common = { path = "../noosphere-common", features = ["helpers"] }
+noosphere-common = { workspace = true, features = ["helpers"] }
 instant = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

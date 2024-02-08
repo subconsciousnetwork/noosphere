@@ -15,7 +15,7 @@ use noosphere_core::{
     data::Did,
 };
 use noosphere_storage::Storage;
-use ucan::capability::CapabilityView;
+use noosphere_ucan::capability::CapabilityView;
 
 use crate::extractors::map_bad_request;
 

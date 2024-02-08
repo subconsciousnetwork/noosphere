@@ -11,7 +11,7 @@ categories = [
   "web-programming",
   "web-assembly"
 ]
-rust-version = "1.60.0"
+rust-version = "1.75.0"
 license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/noosphere-core"
 repository = "https://github.com/subconsciousnetwork/noosphere"
@@ -27,7 +27,7 @@ helpers = []
 tracing = { workspace = true }
 cid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-async-trait = "~0.1"
+async-trait = { workspace = true }
 async-recursion = { workspace = true }
 async-stream = { workspace = true }
 # NOTE: async-once-cell 0.4.0 shipped unstable feature usage
@@ -57,18 +57,17 @@ reqwest = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 tokio-util = { workspace = true, features = ["io"] }
-noosphere-common = { version = "0.1.2", path = "../noosphere-common" }
-noosphere-storage = { version = "0.10.1", path = "../noosphere-storage" }
-noosphere-collections = { version = "0.7.1", path = "../noosphere-collections" }
-
-ucan = { workspace = true }
-ucan-key-support = { workspace = true }
+noosphere-common = { workspace = true }
+noosphere-storage = { workspace = true }
+noosphere-collections = { workspace = true }
+noosphere-ucan = { workspace = true }
+noosphere-ucan-key-support = { workspace = true }
 sentry-tracing = { workspace = true, optional = true }
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
 serde_bytes = "~0.11"
-noosphere-common = { version = "0.1.2", path = "../noosphere-common", features = ["helpers"] }
+noosphere-common = { workspace = true, features = ["helpers"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { workspace = true, features = ["full"] }
@@ -76,7 +75,7 @@ tracing-subscriber = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # NOTE: This is needed so that rand can be included in WASM builds
-getrandom = { version = "~0.2", features = ["js"] }
+getrandom = { workspace = true, features = ["js"] }
 gloo-net = { workspace = true }
 wasm-streams = { workspace = true }
 wasm-bindgen = { workspace = true }

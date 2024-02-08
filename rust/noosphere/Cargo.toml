@@ -5,7 +5,7 @@ edition = "2021"
 description = "A high-level package for dealing with accessing the Noosphere"
 keywords = ["noosphere"]
 categories = ["filesystem"]
-rust-version = "1.70.0"
+rust-version = "1.75.0"
 license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/noosphere"
 repository = "https://github.com/subconsciousnetwork/noosphere"
@@ -28,7 +28,7 @@ pkg-version = "^1.0.0"
 thiserror = { workspace = true }
 lazy_static = "^1"
 cid = { workspace = true }
-async-trait = "~0.1"
+async-trait = { workspace = true }
 async-stream = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true, features = ["serde"] }
@@ -42,19 +42,19 @@ libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
 bytes = "^1"
 
-noosphere-core = { version = "0.18.1", path = "../noosphere-core" }
-noosphere-storage = { version = "0.10.1", path = "../noosphere-storage" }
-noosphere-ipfs = { version = "0.8.6", path = "../noosphere-ipfs", optional = true }
-ucan = { workspace = true }
-ucan-key-support = { workspace = true }
+noosphere-core = { workspace = true }
+noosphere-storage = { workspace = true }
+noosphere-ipfs = { workspace = true, optional = true }
+noosphere-ucan = { workspace = true }
+noosphere-ucan-key-support = { workspace = true }
 
 [dev-dependencies]
 libipld-core = { workspace = true }
 rand = { workspace = true }
 serde_json = { workspace = true }
 
-noosphere-core = { version = "0.18.1", path = "../noosphere-core", features = ["helpers"] }
-noosphere-common = { version = "0.1.2", path = "../noosphere-common", features = ["helpers"] }
+noosphere-core = { workspace = true, features = ["helpers"] }
+noosphere-common = { workspace = true, features = ["helpers"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # TODO: We should eventually support gateway storage as a specialty target only,
@@ -64,7 +64,7 @@ rexie = { version = "~0.5" }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 js-sys = { workspace = true }
-noosphere-into = { version = "0.11.6", path = "../noosphere-into" }
+noosphere-into = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
 workspace = true

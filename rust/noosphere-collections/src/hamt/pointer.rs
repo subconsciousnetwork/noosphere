@@ -5,7 +5,6 @@
 
 use anyhow::{anyhow, Result};
 use std::cmp::Ordering;
-use std::convert::{TryFrom, TryInto};
 
 use cid::Cid;
 use libipld_core::ipld::Ipld;

@@ -48,7 +48,7 @@ pub mod test {
         tracing::initialize_tracing,
         view::SPHERE_LIFETIME,
     };
-    use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
+    use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
     pub async fn test_name_resolver_simple<N: NameResolver>(resolver: N) -> Result<()> {
         initialize_tracing(None);
