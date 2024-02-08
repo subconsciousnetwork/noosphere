@@ -29,7 +29,7 @@ cid = { version = "0.10" }
 clap-vergen = { version = "0.2.0" }
 deterministic-bloom = { version = "0.1.0" }
 directories = { version = "5" }
-ed25519-zebra = { version = "3" }
+ed25519-zebra = { version = "4" }
 fastcdc = { version = "3.1" }
 futures = { version = "0.3" }
 futures-util = { version = "0.3" }
@@ -65,8 +65,8 @@ tower = { version = "^0.4.13" }
 tower-http = { version = "^0.5" }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "~0.3.18", features = ["env-filter", "tracing-log", "json"] }
-ucan = { version = "0.4.0" }
-ucan-key-support = { version = "0.1.7" }
+ucan = { git = "https://github.com/jsantell/rs-ucan.git", branch = "ed25519-zebra-4", package = "ucan" }
+ucan-key-support = { git = "https://github.com/jsantell/rs-ucan.git", branch = "ed25519-zebra-4", package = "ucan-key-support" }
 url = { version = "^2" }
 vergen = { version = "8.2.6", features = ["build", "cargo", "git", "gitcl"] }
 vergen-pretty = { version = "0.3.1" }
