@@ -1,4 +1,4 @@
-FROM docker.io/rust:1.70 as builder
+FROM docker.io/rust:1.75 as builder
 
 WORKDIR /noosphere
 

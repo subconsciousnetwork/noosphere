@@ -1,7 +1,7 @@
 use super::{
     errors::DhtError,
     rpc::{DhtMessage, DhtMessageProcessor, DhtRequest, DhtResponse},
-    swarm::{build_swarm, DHTEvent, DHTSwarmEvent, DhtBehavior},
+    swarm::{build_swarm, DhtBehavior, DhtEvent, DhtSwarmEvent},
     types::{DhtRecord, Peer},
     DhtConfig, Validator,
 };
@@ -11,10 +11,8 @@ use libp2p::{
     identify::Event as IdentifyEvent,
     identity::Keypair,
     kad::{
-        self,
-        kbucket::{Distance, NodeStatus},
-        record::{store::RecordStore, Key},
-        KademliaEvent, PeerRecord, QueryResult, Quorum, Record,
+        self, store::RecordStore, Event as KademliaEvent, KBucketDistance, NodeStatus, PeerRecord,
+        QueryResult, Quorum, Record, RecordKey,
     },
     multiaddr::Protocol,
     swarm::{
@@ -35,7 +33,7 @@ pub struct DhtProcessor<V: Validator + 'static> {
     processor: DhtMessageProcessor,
     swarm: Swarm<DhtBehavior>,
     requests: HashMap<kad::QueryId, DhtMessage>,
-    kad_last_range: Option<(Distance, Distance)>,
+    kad_last_range: Option<(KBucketDistance, KBucketDistance)>,
     validator: Option<V>,
     active_listener: Option<ListenerId>,
     pending_listener_request: Option<DhtMessage>,
@@ -169,7 +167,10 @@ where
                     self,
                     message,
                     Ok::<kad::QueryId, DhtError>(
-                        self.swarm.behaviour_mut().kad.get_providers(Key::new(key))
+                        self.swarm
+                            .behaviour_mut()
+                            .kad
+                            .get_providers(RecordKey::new(key))
                     )
                 );
             }
@@ -204,7 +205,7 @@ where
                     self.swarm
                         .behaviour_mut()
                         .kad
-                        .start_providing(Key::new(key))
+                        .start_providing(RecordKey::new(key))
                 );
             }
             DhtRequest::GetRecord { ref key } => {
@@ -212,7 +213,10 @@ where
                     self,
                     message,
                     Ok::<kad::QueryId, DhtError>(
-                        self.swarm.behaviour_mut().kad.get_record(Key::new(key))
+                        self.swarm
+                            .behaviour_mut()
+                            .kad
+                            .get_record(RecordKey::new(key))
                     )
                 );
             }
@@ -224,7 +228,7 @@ where
                 let value_owned = value.to_owned();
                 if self.validate(value).await {
                     let record = Record {
-                        key: Key::new(key),
+                        key: RecordKey::new(key),
                         value: value_owned,
                         publisher: None,
                         expires: None,
@@ -274,11 +278,11 @@ where
     /// a swarm query. If a SwarmEvent has an associated DHTQuery,
     /// the pending query will be fulfilled.
     #[instrument(skip(self), level = "trace")]
-    async fn process_swarm_event(&mut self, event: DHTSwarmEvent) {
+    async fn process_swarm_event(&mut self, event: DhtSwarmEvent) {
         match event {
-            SwarmEvent::Behaviour(DHTEvent::Kademlia(e)) => self.process_kad_event(e).await,
-            SwarmEvent::Behaviour(DHTEvent::Identify(e)) => self.process_identify_event(e),
-            SwarmEvent::Behaviour(DHTEvent::Void) => {}
+            SwarmEvent::Behaviour(DhtEvent::Kademlia(e)) => self.process_kad_event(e).await,
+            SwarmEvent::Behaviour(DhtEvent::Identify(e)) => self.process_identify_event(e),
+            SwarmEvent::Behaviour(DhtEvent::Void) => {}
             // The following events are currently handled only for debug logging.
             SwarmEvent::NewListenAddr {
                 address: new_address,
@@ -295,7 +299,7 @@ where
                 if matches_pending {
                     let pending = self.pending_listener_request.take().unwrap();
                     let mut address = new_address;
-                    address.push(Protocol::P2p(self.peer_id.into()));
+                    address.push(Protocol::P2p(self.peer_id));
                     pending.respond(Ok(DhtResponse::Address(address)));
                 }
             }
@@ -308,15 +312,18 @@ where
             SwarmEvent::IncomingConnection {
                 local_addr: _,
                 send_back_addr: _,
+                connection_id: _,
             } => {}
             SwarmEvent::IncomingConnectionError {
                 local_addr: _,
                 send_back_addr: _,
                 error: _,
+                connection_id: _,
             } => {}
             SwarmEvent::OutgoingConnectionError {
                 peer_id: _,
                 error: _,
+                connection_id: _,
             } => {}
             SwarmEvent::ExpiredListenAddr {
                 listener_id: _,
@@ -331,7 +338,10 @@ where
                 listener_id: _,
                 error: _,
             } => {}
-            SwarmEvent::Dialing(_) => {}
+            SwarmEvent::Dialing {
+                peer_id: _,
+                connection_id: _,
+            } => {}
             _ => {}
         }
     }
@@ -486,6 +496,7 @@ where
                 peer: _,
                 address: _,
             } => {}
+            KademliaEvent::ModeChanged { new_mode: _ } => {}
         }
     }
 
@@ -494,7 +505,7 @@ where
             if info
                 .protocols
                 .iter()
-                .any(|p| p.as_bytes() == kad::protocol::DEFAULT_PROTO_NAME)
+                .any(|p| p.as_ref() == kad::PROTOCOL_NAME.as_ref())
             {
                 for addr in &info.listen_addrs {
                     self.swarm
@@ -568,7 +579,7 @@ where
     fn get_external_addresses(&mut self) -> Vec<Multiaddr> {
         self.swarm
             .external_addresses()
-            .map(|addr_record| addr_record.addr.to_owned())
+            .map(|addr_record| addr_record.to_owned())
             .collect::<Vec<Multiaddr>>()
     }
 
@@ -576,8 +587,7 @@ where
     async fn add_peers(&mut self, peers: &[libp2p::Multiaddr]) -> Result<(), DhtError> {
         for multiaddress in peers {
             let mut addr = multiaddress.to_owned();
-            if let Some(libp2p::multiaddr::Protocol::P2p(p2p_hash)) = addr.pop() {
-                let peer_id = PeerId::from_multihash(p2p_hash).unwrap();
+            if let Some(libp2p::multiaddr::Protocol::P2p(peer_id)) = addr.pop() {
                 // Do not add a peer with the same peer id, for example
                 // a set of N bootstrap nodes using a static list of
                 // N addresses/peer IDs.

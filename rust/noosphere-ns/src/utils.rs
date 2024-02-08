@@ -26,6 +26,6 @@ pub async fn wait_for_peers<T: DhtClient>(
 }
 
 pub(crate) fn make_p2p_address(mut addr: Multiaddr, peer_id: PeerId) -> Multiaddr {
-    addr.push(Protocol::P2p(peer_id.into()));
+    addr.push(Protocol::P2p(peer_id));
     addr
 }

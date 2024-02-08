@@ -25,7 +25,7 @@ macro_rules! ensure_response {
 ///
 /// ```
 /// use noosphere_ns::dht::{DhtConfig, DhtNode, Validator, AllowAllValidator};
-/// use libp2p::{identity::Keypair, core::identity::ed25519, Multiaddr};
+/// use libp2p::{identity::Keypair, Multiaddr};
 /// use std::str::FromStr;
 /// use async_trait::async_trait;
 /// use tokio;
@@ -229,6 +229,7 @@ mod test {
 
     use crate::dht::{AllowAllValidator, DhtError, DhtNode, NetworkInfo, Validator};
     use async_trait::async_trait;
+    use noosphere_core::tracing::initialize_tracing;
 
     use crate::utils::make_p2p_address;
     use futures::future::try_join_all;
@@ -326,6 +327,7 @@ mod test {
     /// Testing a detached DHTNode as a server with no peers.
     #[tokio::test]
     async fn test_dhtnode_base_case() -> Result<(), DhtError> {
+        initialize_tracing(None);
         let node = create_unfiltered_dht_node()?;
         node.listen("/ip4/127.0.0.1/tcp/0".parse().unwrap()).await?;
         let info = node.network_info().await?;
@@ -349,6 +351,7 @@ mod test {
     /// and ensuring the nodes become peers.
     #[tokio::test]
     async fn test_dhtnode_bootstrap() -> Result<(), DhtError> {
+        initialize_tracing(None);
         let num_nodes = 5;
         let mut nodes = create_network(num_nodes, Some(AllowAllValidator {})).await?;
         initialize_network(&mut nodes).await?;
@@ -374,6 +377,7 @@ mod test {
     /// Testing primitive set_record/get_record.
     #[tokio::test]
     async fn test_dhtnode_simple() -> Result<(), DhtError> {
+        initialize_tracing(None);
         let mut nodes = create_network(2, Some(AllowAllValidator {})).await?;
         initialize_network(&mut nodes).await?;
         let (node_a, node_b) = (nodes.pop().unwrap(), nodes.pop().unwrap());
@@ -388,6 +392,7 @@ mod test {
     /// Testing primitive start_providing/get_providers.
     #[tokio::test]
     async fn test_dhtnode_providers() -> Result<(), DhtError> {
+        initialize_tracing(None);
         let mut nodes = create_network(2, Some(AllowAllValidator {})).await?;
         initialize_network(&mut nodes).await?;
         let (node_a, node_b) = (nodes.pop().unwrap(), nodes.pop().unwrap());
@@ -402,6 +407,7 @@ mod test {
 
     #[tokio::test]
     async fn test_dhtnode_validator() -> Result<(), DhtError> {
+        initialize_tracing(None);
         #[derive(Clone)]
         struct MyValidator {}
 

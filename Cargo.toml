@@ -23,12 +23,13 @@ axum = { version = "^0.7.3" }
 axum-tracing-opentelemetry = { version = "0.16.0" }
 axum-extra = { version = "^0.9.1" }
 base64 = { version = "^0.21" }
-byteorder = { version = "~1.4" } # keep in sync with pinned libipld-* crates
+byteorder = { version = "~1.5" } # keep in sync with pinned libipld-* crates
 bytes = { version = "^1" }
 cid = { version = "0.10" }
 clap-vergen = { version = "0.2.0" }
 deterministic-bloom = { version = "0.1.0" }
 directories = { version = "5" }
+ed25519-zebra = { version = "3" }
 fastcdc = { version = "3.1" }
 futures = { version = "0.3" }
 futures-util = { version = "0.3" }
