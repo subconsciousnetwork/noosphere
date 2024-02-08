@@ -5,7 +5,7 @@ use std::net::Ipv4Addr;
 use ucan::store::UcanJwtStore;
 
 #[cfg(doc)]
-use libp2p::kad::KademliaConfig;
+use libp2p::kad::Config as KademliaConfig;
 
 /// [NameSystemBuilder] is an alternate interface for
 /// creating a new [NameSystem]. `key_material` and `store`

@@ -1,60 +1,59 @@
-use crate::dht::errors::DhtError;
-use crate::dht::DhtConfig;
+use crate::dht::{DhtConfig, DhtError};
+use anyhow::anyhow;
 use libp2p::{
     allow_block_list,
-    core::muxing::StreamMuxerBox,
-    core::transport::Boxed,
-    core::upgrade,
-    dns,
     identify::{Behaviour as Identify, Config as IdentifyConfig, Event as IdentifyEvent},
     identity::Keypair,
-    kad::{self, Kademlia, KademliaConfig, KademliaEvent, KademliaStoreInserts},
+    kad::{
+        self, Behaviour as KademliaBehaviour, Config as KademliaConfig, Event as KademliaEvent,
+        Mode, StoreInserts as KademliaStoreInserts,
+    },
     noise,
-    swarm::{self, NetworkBehaviour, SwarmBuilder, SwarmEvent, THandlerErr},
-    tcp, yamux, PeerId, Swarm, Transport,
+    swarm::{NetworkBehaviour, SwarmEvent},
+    tls, yamux, PeerId, Swarm, SwarmBuilder,
 };
-use std::time::Duration;
-use std::{io, result::Result};
+use std::{result::Result, time::Duration};
 use void::Void;
 
+/// Protocols are responsible for determining how long
+/// to keep idle connections alive.
 const CONNECTION_TIMEOUT_SECONDS: u64 = 20;
 
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
-pub enum DHTEvent {
+pub enum DhtEvent {
     Kademlia(KademliaEvent),
     Identify(IdentifyEvent),
     Void,
 }
 
-impl From<KademliaEvent> for DHTEvent {
+impl From<KademliaEvent> for DhtEvent {
     fn from(event: KademliaEvent) -> Self {
-        DHTEvent::Kademlia(event)
+        DhtEvent::Kademlia(event)
     }
 }
 
-impl From<IdentifyEvent> for DHTEvent {
+impl From<IdentifyEvent> for DhtEvent {
     fn from(event: IdentifyEvent) -> Self {
-        DHTEvent::Identify(event)
+        DhtEvent::Identify(event)
     }
 }
 
-impl From<Void> for DHTEvent {
+impl From<Void> for DhtEvent {
     fn from(_: Void) -> Self {
-        DHTEvent::Void
+        DhtEvent::Void
     }
 }
 
 #[derive(NetworkBehaviour)]
-#[behaviour(out_event = "DHTEvent", event_process = false)]
+#[behaviour(to_swarm = "DhtEvent", event_process = false)]
 pub struct DhtBehavior {
     pub identify: Identify,
-    pub kad: Kademlia<kad::record::store::MemoryStore>,
+    pub kad: KademliaBehaviour<kad::store::MemoryStore>,
     blocked_peers: allow_block_list::Behaviour<allow_block_list::BlockedPeers>,
 }
 
-pub type DHTSwarmEvent =
-    SwarmEvent<<DhtBehavior as swarm::NetworkBehaviour>::OutEvent, THandlerErr<DhtBehavior>>;
+pub type DhtSwarmEvent = SwarmEvent<DhtEvent>;
 
 impl DhtBehavior {
     pub fn new(keypair: &Keypair, local_peer_id: &PeerId, config: &DhtConfig) -> Self {
@@ -83,8 +82,20 @@ impl DhtBehavior {
             )));
 
             // TODO(#99): Use SphereFS storage
-            let store = kad::record::store::MemoryStore::new(local_peer_id.to_owned());
-            Kademlia::with_config(local_peer_id.to_owned(), store, cfg)
+            let store = kad::store::MemoryStore::new(local_peer_id.to_owned());
+            let mut behaviour =
+                KademliaBehaviour::with_config(local_peer_id.to_owned(), store, cfg);
+
+            // TODO(#814): Updating to libp2p 0.53 introduced DHT nodes adjusting their modes dynamically,
+            // where if a node does not have an external address, it switches to `Mode::Client`.
+            // This improves the network by culling non-accessible nodes.
+            // Manually setting to `Mode::Server` mode prevents this dynamic switching.
+            // We could explore this optimization in the future, but for now,
+            // we need to run on nightly rust, and some challenges with external addresses
+            // in tests.
+            // https://github.com/libp2p/rust-libp2p/pull/4503
+            behaviour.set_mode(Some(Mode::Server));
+            behaviour
         };
 
         let identify = {
@@ -101,30 +112,30 @@ impl DhtBehavior {
     }
 }
 
-/// Creates the Transport mechanism that describes how peers communicate.
-/// Currently, mostly an inlined form of `libp2p::tokio_development_transport`.
-fn build_transport(keypair: &Keypair) -> Result<Boxed<(PeerId, StreamMuxerBox)>, io::Error> {
-    let transport =
-        dns::TokioDnsConfig::system(tcp::tokio::Transport::new(tcp::Config::new().nodelay(true)))?;
-    let noise_keys = noise::Config::new(keypair).expect("Noise key generation failed.");
-
-    Ok(transport
-        .upgrade(upgrade::Version::V1)
-        .authenticate(noise_keys)
-        .multiplex(yamux::Config::default())
-        .timeout(std::time::Duration::from_secs(CONNECTION_TIMEOUT_SECONDS))
-        .boxed())
-}
-
 /// Builds a configured [libp2p::swarm::Swarm] instance.
 pub fn build_swarm(
     keypair: &Keypair,
     local_peer_id: &PeerId,
     config: &DhtConfig,
 ) -> Result<Swarm<DhtBehavior>, DhtError> {
-    let transport = build_transport(keypair).map_err(DhtError::from)?;
-    let behaviour = DhtBehavior::new(keypair, local_peer_id, config);
-    let swarm =
-        SwarmBuilder::with_tokio_executor(transport, behaviour, local_peer_id.to_owned()).build();
+    let swarm = SwarmBuilder::with_existing_identity(keypair.to_owned())
+        .with_tokio()
+        .with_tcp(
+            Default::default(),
+            (tls::Config::new, noise::Config::new),
+            yamux::Config::default,
+        )
+        .map_err(|e| DhtError::from(anyhow!("{}", e)))?
+        .with_dns()
+        .map_err(|e| DhtError::from(anyhow!("{}", e)))?
+        .with_behaviour(|keypair| DhtBehavior::new(keypair, local_peer_id, config))
+        .map_err(|e| DhtError::from(anyhow!("{}", e)))?
+        .with_swarm_config(|mut cfg| {
+            cfg = cfg.with_idle_connection_timeout(std::time::Duration::from_secs(
+                CONNECTION_TIMEOUT_SECONDS,
+            ));
+            cfg
+        })
+        .build();
     Ok(swarm)
 }

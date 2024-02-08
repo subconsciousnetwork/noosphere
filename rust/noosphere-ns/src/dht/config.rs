@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 #[cfg(doc)]
-use libp2p::kad::KademliaConfig;
+use libp2p::kad::Config as KademliaConfig;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct DhtConfig {
