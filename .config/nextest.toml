@@ -1,5 +1,9 @@
+[profile.default]
+fail-fast = true
+
 [profile.ci]
 retries = 4
 # Terminates test after waiting (`period` * `terminate-after`).
 # After timeout, will still retry `retries` times.
 slow-timeout = { period = "60s", terminate-after = 3 }
+fail-fast = false

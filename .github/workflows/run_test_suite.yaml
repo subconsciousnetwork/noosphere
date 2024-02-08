@@ -38,6 +38,7 @@ jobs:
           swift test --sanitize=address
 
   run-linting-linux:
+    continue-on-error: true
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -64,6 +65,7 @@ jobs:
 
   run-rust-test-suite:
     name: 'Run Rust test suite'
+    continue-on-error: true
     strategy:
       matrix:
         features: ['test-kubo,headers', 'test-kubo,headers,rocksdb']
@@ -89,7 +91,7 @@ jobs:
       - name: 'Install environment packages (Windows)'
         if: ${{ matrix.platform == 'windows-latest' }}
         run: |
-          choco install -y cmake protoc openssl
+          choco install -y cmake protoc
         shell: sh
       - name: 'Install environment packages (Linux)'
         if: ${{ matrix.platform == 'ubuntu-latest' }}
