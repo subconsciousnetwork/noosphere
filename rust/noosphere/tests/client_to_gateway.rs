@@ -28,10 +28,10 @@ use noosphere_core::data::{ContentType, Did};
 use noosphere_core::tracing::initialize_tracing;
 use noosphere_gateway::{Gateway, SingleTenantGatewayManager};
 use noosphere_storage::BlockStore;
+use noosphere_ucan::crypto::KeyMaterial;
 use std::net::TcpListener;
 use tokio::io::AsyncReadExt;
 use tokio_stream::StreamExt;
-use ucan::crypto::KeyMaterial;
 use url::Url;
 
 #[tokio::test]

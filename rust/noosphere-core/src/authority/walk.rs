@@ -1,6 +1,6 @@
 use anyhow::Result;
 use cid::Cid;
-use ucan::{store::UcanJwtStore, Ucan};
+use noosphere_ucan::{store::UcanJwtStore, Ucan};
 
 /// Walk a [Ucan] and collect all of the supporting proofs that
 /// verify the link publisher's authority to publish the link

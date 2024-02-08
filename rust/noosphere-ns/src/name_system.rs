@@ -8,8 +8,8 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use libp2p::{identity::Keypair, Multiaddr};
 use noosphere_core::data::{Did, LinkRecord};
-use ucan::{crypto::KeyMaterial, store::UcanJwtStore};
-use ucan_key_support::ed25519::Ed25519KeyMaterial;
+use noosphere_ucan::{crypto::KeyMaterial, store::UcanJwtStore};
+use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 #[cfg(doc)]
 use cid::Cid;

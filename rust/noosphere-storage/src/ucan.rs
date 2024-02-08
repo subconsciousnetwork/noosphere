@@ -6,7 +6,7 @@ use libipld_core::{
     codec::{Decode, Encode},
     raw::RawCodec,
 };
-use ucan::store::{UcanStore as UcanStoreTrait, UcanStoreConditionalSend};
+use noosphere_ucan::store::{UcanStore as UcanStoreTrait, UcanStoreConditionalSend};
 
 use crate::block::BlockStore;
 

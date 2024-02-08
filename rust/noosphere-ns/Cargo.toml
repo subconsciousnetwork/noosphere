@@ -31,14 +31,14 @@ lazy_static = "^1"
 cid = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-futures = "^0.3.30"
-async-trait = "~0.1"
-ucan = { workspace = true }
-ucan-key-support = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "io-std", "sync", "macros", "rt", "rt-multi-thread"] }
 noosphere-storage = { version = "0.10.1", path = "../noosphere-storage" }
 noosphere-core = { version = "0.18.1", path = "../noosphere-core" }
 noosphere-common = { version = "0.1.2", path = "../noosphere-common" }
+noosphere-ucan = { version = "0.4.0", path = "../noosphere-ucan" }
+noosphere-ucan-key-support = { version = "0.1.7", path = "../noosphere-ucan-key-support" }
 libp2p = { version = "0.53.2", default-features = false, features = [ "ed25519", "identify", "dns", "kad", "macros", "noise", "serde", "tcp", "tls", "tokio", "yamux" ] }
 void = { workspace = true }
 

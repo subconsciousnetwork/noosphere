@@ -33,8 +33,8 @@ use noosphere_core::{
     data::Mnemonic,
 };
 
+use noosphere_ucan::crypto::KeyMaterial;
 use tokio::sync::Mutex;
-use ucan::crypto::KeyMaterial;
 use url::Url;
 
 /// Create a sphere, assigning authority to modify it to the given key

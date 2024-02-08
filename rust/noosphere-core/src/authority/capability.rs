@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
-use serde_json::json;
-use ucan::capability::{
+use noosphere_ucan::capability::{
     Ability, CapabilitySemantics, CapabilityView, Resource, ResourceUri, Scope,
 };
+use serde_json::json;
 use url::Url;
 
 /// The ordinal levels of authority allowed within Noosphere
@@ -96,7 +96,7 @@ pub const SPHERE_SEMANTICS: SphereSemantics = SphereSemantics {};
 ///
 /// ```
 /// use noosphere_core::{authority::{generate_capability, SphereAbility, SphereReference}};
-/// use ucan::capability::{CapabilityView, ResourceUri, Resource};
+/// use noosphere_ucan::capability::{CapabilityView, ResourceUri, Resource};
 /// use serde_json::json;
 ///
 /// let identity = "did:key:z6MkoE19WHXJzpLqkxbGP7uXdJX38sWZNUWwyjcuCmjhPpUP";

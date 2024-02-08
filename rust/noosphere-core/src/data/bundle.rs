@@ -11,8 +11,8 @@ use futures::{pin_mut, StreamExt};
 use libipld_cbor::DagCborCodec;
 use libipld_core::raw::RawCodec;
 use noosphere_storage::{block_deserialize, block_serialize, BlockStore, UcanStore};
+use noosphere_ucan::{store::UcanJwtStore, Ucan};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use ucan::{store::UcanJwtStore, Ucan};
 
 use crate::{
     data::{
@@ -477,7 +477,7 @@ mod tests {
     use libipld_cbor::DagCborCodec;
     use libipld_core::{ipld::Ipld, raw::RawCodec};
     use noosphere_storage::{block_serialize, BlockStore, MemoryStore, UcanStore};
-    use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
+    use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;

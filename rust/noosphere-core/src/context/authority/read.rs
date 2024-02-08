@@ -128,7 +128,7 @@ mod tests {
     use crate::{authority::Access, data::Did};
     use anyhow::Result;
 
-    use ucan::crypto::KeyMaterial;
+    use noosphere_ucan::crypto::KeyMaterial;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 

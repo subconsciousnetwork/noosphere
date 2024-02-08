@@ -27,7 +27,7 @@ helpers = []
 tracing = { workspace = true }
 cid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-async-trait = "~0.1"
+async-trait = { workspace = true }
 async-recursion = { workspace = true }
 async-stream = { workspace = true }
 # NOTE: async-once-cell 0.4.0 shipped unstable feature usage
@@ -60,9 +60,8 @@ tokio-util = { workspace = true, features = ["io"] }
 noosphere-common = { version = "0.1.2", path = "../noosphere-common" }
 noosphere-storage = { version = "0.10.1", path = "../noosphere-storage" }
 noosphere-collections = { version = "0.7.1", path = "../noosphere-collections" }
-
-ucan = { workspace = true }
-ucan-key-support = { workspace = true }
+noosphere-ucan = { version = "0.4.0", path = "../noosphere-ucan" }
+noosphere-ucan-key-support = { version = "0.1.7", path = "../noosphere-ucan-key-support" }
 sentry-tracing = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -76,7 +75,7 @@ tracing-subscriber = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # NOTE: This is needed so that rand can be included in WASM builds
-getrandom = { version = "~0.2", features = ["js"] }
+getrandom = { workspace = true, features = ["js"] }
 gloo-net = { workspace = true }
 wasm-streams = { workspace = true }
 wasm-bindgen = { workspace = true }

@@ -19,13 +19,13 @@ readme = "README.md"
 
 [dependencies]
 anyhow = { workspace = true }
-async-trait = "~0.1"
+async-trait = { workspace = true }
 async-stream = { workspace = true }
 tokio-stream = { workspace = true }
 cid = { workspace = true }
 noosphere-common = { version = "0.1.2", path = "../noosphere-common" }
 tracing = "~0.1"
-ucan = { workspace = true }
+noosphere-ucan = { version = "0.4.0", path = "../noosphere-ucan" }
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
 serde = { workspace = true }

@@ -13,8 +13,8 @@ use noosphere_core::{
     stream::put_block_stream,
 };
 use noosphere_storage::KeyValueStore;
+use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 use tokio::sync::Mutex;
-use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
 use crate::{
     key::KeyStorage,

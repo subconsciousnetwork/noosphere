@@ -10,8 +10,8 @@ use crate::{
     view::{Sphere, SphereMutation},
 };
 use noosphere_storage::{KeyValueStore, SphereDb, Storage};
+use noosphere_ucan::crypto::{did::DidParser, KeyMaterial};
 use tokio::sync::OnceCell;
-use ucan::crypto::{did::DidParser, KeyMaterial};
 use url::Url;
 
 #[cfg(doc)]
@@ -266,8 +266,8 @@ mod tests {
     };
 
     use noosphere_storage::{MemoryStorage, SphereDb, Storage};
+    use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
     use serde_json::json;
-    use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
 
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;

@@ -5,10 +5,10 @@ use anyhow::Result;
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_storage::BlockStore;
+use noosphere_ucan::{chain::ProofChain, crypto::did::DidParser, store::UcanJwtStore, Ucan};
 use serde::{de, ser, Deserialize, Serialize};
 use std::fmt::Debug;
 use std::{convert::TryFrom, fmt::Display, ops::Deref, str::FromStr};
-use ucan::{chain::ProofChain, crypto::did::DidParser, store::UcanJwtStore, Ucan};
 
 use super::{Did, IdentitiesIpld, Jwt, Link, MemoIpld};
 
@@ -354,7 +354,7 @@ mod tests {
         view::{Sphere, SPHERE_LIFETIME},
     };
     use noosphere_storage::{MemoryStorage, SphereDb, UcanStore};
-    use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
+    use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
 
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -468,7 +468,7 @@ mod tests {
             ))
             .with_fact(LINK_RECORD_FACT_NAME, cid_link.to_string())
             .witnessed_by(&delegate_ucan, None)
-            .with_expiration(ucan::time::now() - 1234)
+            .with_expiration(noosphere_ucan::time::now() - 1234)
             .build()?
             .sign()
             .await?

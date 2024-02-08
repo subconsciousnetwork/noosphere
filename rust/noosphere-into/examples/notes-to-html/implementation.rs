@@ -23,7 +23,7 @@ use noosphere_core::{
     view::Sphere,
 };
 use noosphere_storage::{MemoryStorage, SphereDb};
-use ucan::crypto::KeyMaterial;
+use noosphere_ucan::crypto::KeyMaterial;
 
 pub async fn main() -> Result<()> {
     let storage_provider = MemoryStorage::default();

@@ -103,9 +103,9 @@ pub mod test {
         view::SPHERE_LIFETIME,
     };
     use noosphere_storage::{MemoryStorage, SphereDb};
+    use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial};
     use std::sync::Arc;
     use tokio::sync::Mutex;
-    use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
     pub async fn test_network_info<C: DhtClient>(client: Arc<Mutex<C>>) -> Result<()> {
         initialize_tracing(None);

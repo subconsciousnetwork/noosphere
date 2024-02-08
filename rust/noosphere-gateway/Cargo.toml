@@ -43,7 +43,7 @@ tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true, features = ["cors", "trace"] }
-async-trait = "~0.1"
+async-trait = { workspace = true }
 async-stream = { workspace = true }
 
 url = { workspace = true, features = ["serde"] }
@@ -54,8 +54,8 @@ noosphere-core = { version = "0.18.1", path = "../noosphere-core" }
 noosphere-ns = { version = "0.12.0", path = "../noosphere-ns" }
 noosphere-storage = { version = "0.10.1", path = "../noosphere-storage" }
 noosphere-common = { version = "0.1.2", path = "../noosphere-common" }
-ucan = { workspace = true }
-ucan-key-support = { workspace = true }
+noosphere-ucan = { version = "0.4.0", path = "../noosphere-ucan" }
+noosphere-ucan-key-support = { version = "0.1.7", path = "../noosphere-ucan-key-support" }
 cid = { workspace = true }
 
 serde = { workspace = true }

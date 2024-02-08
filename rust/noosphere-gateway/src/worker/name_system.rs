@@ -550,7 +550,7 @@ mod tests {
         helpers::simulated_sphere_context,
     };
     use noosphere_ns::helpers::KeyValueNameResolver;
-    use ucan::builder::UcanBuilder;
+    use noosphere_ucan::builder::UcanBuilder;
 
     use super::*;
 
@@ -585,7 +585,7 @@ mod tests {
                 .issued_by(&context.author().key)
                 .for_audience(identity)
                 .claiming_capability(&generate_capability(identity, SphereAbility::Publish))
-                .with_expiration(ucan::time::now() - 1000)
+                .with_expiration(noosphere_ucan::time::now() - 1000)
                 .with_fact(
                     LINK_RECORD_FACT_NAME,
                     "bafyr4iagi6t6khdrtbhmyjpjgvdlwv6pzylxhuhstxhkdp52rju7er325i".to_owned(),

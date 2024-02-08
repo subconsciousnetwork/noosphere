@@ -6,13 +6,13 @@ use noosphere_core::{
     authority::{ed25519_key_to_mnemonic, generate_ed25519_key, restore_ed25519_key},
     data::Did,
 };
+use noosphere_ucan::crypto::KeyMaterial;
+use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
 };
 use tokio::fs;
-use ucan::crypto::KeyMaterial;
-use ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
@@ -148,9 +148,9 @@ impl KeyStorage<Ed25519KeyMaterial> for InsecureKeyStorage {
 mod tests {
     use super::*;
     use crate::key::KeyStorage;
+    use noosphere_ucan::crypto::KeyMaterial;
     use tempfile::TempDir;
     use tokio::fs;
-    use ucan::crypto::KeyMaterial;
 
     #[tokio::test]
     async fn it_can_create_and_read_a_key() {

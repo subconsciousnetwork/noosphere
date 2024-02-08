@@ -6,8 +6,8 @@ use noosphere_core::context::{
     HasSphereContext, SphereAuthorityRead, SphereAuthorityWrite, SphereWalker,
 };
 use noosphere_core::data::{Did, Jwt, Link};
+use noosphere_ucan::{store::UcanJwtStore, Ucan};
 use serde_json::{json, Value};
-use ucan::{store::UcanJwtStore, Ucan};
 
 use tokio_stream::StreamExt;
 

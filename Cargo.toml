@@ -10,6 +10,8 @@ members = [
   "rust/noosphere-ipfs",
   "rust/noosphere-ns",
   "rust/noosphere-storage",
+  "rust/noosphere-ucan",
+  "rust/noosphere-ucan-key-support",
 ]
 
 # See: https://github.com/rust-lang/rust/issues/90148#issuecomment-949194352
@@ -19,20 +21,23 @@ resolver = "2"
 anyhow = { version = "1" }
 async-recursion = { version = "1" }
 async-stream = { version = "0.3" }
+async-trait = { version  = "0.1" }
 axum = { version = "^0.7.3" }
 axum-tracing-opentelemetry = { version = "0.16.0" }
 axum-extra = { version = "^0.9.1" }
 base64 = { version = "^0.21" }
+bs58 = { version = "^0.5" }
 byteorder = { version = "~1.5" } # keep in sync with pinned libipld-* crates
 bytes = { version = "^1" }
 cid = { version = "0.10" }
 clap-vergen = { version = "0.2.0" }
 deterministic-bloom = { version = "0.1.0" }
 directories = { version = "5" }
-ed25519-zebra = { version = "3" }
+ed25519-zebra = { version = "4" }
 fastcdc = { version = "3.1" }
-futures = { version = "0.3" }
+futures = { version = "^0.3.30" }
 futures-util = { version = "0.3" }
+getrandom = { version = "~0.2", features = ["js"]}
 gloo-net = { version = "0.4" }
 gloo-timers = { version = "0.3", features = ["futures"] }
 ignore = { version = "0.4.20" }
@@ -52,6 +57,7 @@ serde = { version = "^1" }
 serde_json = { version = "^1" }
 serde_urlencoded = { version = "~0.7" }
 serde-wasm-bindgen = { version = "0.4" }
+serde_ipld_dagcbor = { version = "0.4" }
 strum = { version = "0.25" }
 strum_macros = { version = "0.25" }
 subtext = { version = "0.3.5" }
@@ -65,8 +71,7 @@ tower = { version = "^0.4.13" }
 tower-http = { version = "^0.5" }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "~0.3.18", features = ["env-filter", "tracing-log", "json"] }
-ucan = { version = "0.4.0" }
-ucan-key-support = { version = "0.1.7" }
+unsigned-varint = "0.7"
 url = { version = "^2" }
 vergen = { version = "8.2.6", features = ["build", "cargo", "git", "gitcl"] }
 vergen-pretty = { version = "0.3.1" }
