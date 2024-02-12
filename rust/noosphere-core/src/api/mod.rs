@@ -11,3 +11,4 @@ pub mod v0alpha2;
 
 pub use client::*;
 pub use data::*;
+pub use route::*;
