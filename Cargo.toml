@@ -63,7 +63,7 @@ libipld-json = { version = "0.16" }
 multihash = { version = "0.18" }
 pathdiff = { version = "0.2.1" }
 rand = { version = "0.8" }
-reqwest = { version = "=0.11.20", default-features = false, features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls", "stream"] }
 sentry-tracing = { version = "0.31.8" }
 serde = { version = "^1" }
 serde_json = { version = "^1" }
@@ -98,3 +98,5 @@ web-sys = { version = "0.3" }
 opt-level = 'z'
 lto = true
 
+[patch.crates-io]
+reqwest = { git = "https://github.com/seanmonstar/reqwest", rev = "e639bdc1264c266a84dae3bae3193e07cae6861b", features = ["json", "rustls-tls", "stream"], default-features = false }
