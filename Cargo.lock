@@ -3526,7 +3526,7 @@ dependencies = [
  "libipld-cbor",
  "libipld-core",
  "libipld-json",
- "multihash 0.18.1",
+ "multihash 0.19.1",
  "noosphere-common",
  "noosphere-core",
  "noosphere-storage",
