@@ -1,0 +1,49 @@
+#!/usr/bin/env bash 
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "$SCRIPT_DIR/noodev-utils"
+
+POSITIONAL_ARGS=()
+YES_FLAG=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -y)
+      YES_FLAG="-y"
+      shift
+      ;;
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+set -- "${POSITIONAL_ARGS[@]}"
+
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    need_cmd apt-get
+    sudo apt-get update -qq $YES_FLAG
+    sudo apt-get install $YES_FLAG jq protobuf-compiler cmake curl
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    need_cmd brew
+    brew update
+    brew install protobuf cmake curl
+elif [[ "$OSTYPE" == "msys"* ]]; then
+    need_cmd choco 
+    choco install $YES_FLAG cmake protoc openssl curl
+else
+    echo "Unsupported OS: $OSTYPE"
+    exit 1
+
+if ! check_cmd rustup; then
+    curl -sSf https://sh.rustup.rs | sh -s -- $YES_FLAG
+fi
+
+rustup update
+rustup component add clippy rustfmt
+
+echo "Installed dependencies."
