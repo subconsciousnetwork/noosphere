@@ -34,7 +34,7 @@ tokio-stream = { workspace = true }
 async-stream = { workspace = true }
 
 [dev-dependencies]
-unsigned-varint = "0.7"
+unsigned-varint = "0.8"
 serde_ipld_dagcbor = "0.4"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
