@@ -2056,6 +2056,7 @@ dependencies = [
  "itoa",
  "pin-project-lite",
  "tokio",
+ "want",
 ]
 
 [[package]]
@@ -3519,7 +3520,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "cid",
- "hyper 0.14.28",
+ "hyper 1.1.0",
  "hyper-multipart-rfc7578",
  "ipfs-api-prelude",
  "iroh-car",
