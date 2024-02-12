@@ -76,7 +76,7 @@ tracing-subscriber = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # NOTE: This is needed so that rand can be included in WASM builds
-getrandom = { version = "~0.2", features = ["js"] }
+# getrandom = { version = "~0.2", features = ["js"] }
 gloo-net = { workspace = true }
 wasm-streams = { workspace = true }
 wasm-bindgen = { workspace = true }

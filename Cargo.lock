@@ -3405,7 +3405,6 @@ dependencies = [
  "fastcdc",
  "futures",
  "futures-util",
- "getrandom",
  "gloo-net",
  "http 1.0.0",
  "instant",
@@ -5814,8 +5813,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1e124130aee3fb58c5bdd6b639a0509486b0338acaaae0c84a5124b0f588b7f"
 dependencies = [
  "cfg-if",
- "serde",
- "serde_json",
  "wasm-bindgen-macro",
 ]
 
@@ -6309,3 +6306,8 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
+
+[[patch.unused]]
+name = "reqwest"
+version = "0.11.24"
+source = "git+https://github.com/seanmonstar/reqwest?rev=e639bdc1264c266a84dae3bae3193e07cae6861b#e639bdc1264c266a84dae3bae3193e07cae6861b"
