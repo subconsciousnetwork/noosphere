@@ -50,7 +50,7 @@ where
         let capability = generate_capability(counterpart_str, required_ability);
         let db = self
             .manager
-            .ucan_store()
+            .ucan_store(&gateway_scope.gateway)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -70,7 +70,7 @@ where
                 debug!("Authorized!");
                 return self
                     .manager
-                    .sphere_context(&gateway_scope.counterpart)
+                    .sphere_context(&gateway_scope.gateway)
                     .await
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
             }

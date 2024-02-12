@@ -23,6 +23,8 @@ use noosphere_core::context::SphereContext;
 pub struct GatewayScope<C, S> {
     /// [Did] of the client counterpart sphere.
     pub counterpart: Did,
+    /// [Did] of the managed gateway sphere.
+    pub gateway: Did,
     /// [Did] of the author of the managed gateway sphere.
     pub gateway_identity: Did,
     sphere_context_marker: PhantomData<C>,
@@ -31,9 +33,10 @@ pub struct GatewayScope<C, S> {
 
 impl<C, S> GatewayScope<C, S> {
     /// Creates a new [GatewayScope].
-    pub fn new(gateway_identity: Did, counterpart: Did) -> Self {
+    pub fn new(gateway_identity: Did, gateway: Did, counterpart: Did) -> Self {
         Self {
             gateway_identity,
+            gateway,
             counterpart,
             sphere_context_marker: PhantomData,
             storage_marker: PhantomData,
@@ -54,7 +57,7 @@ where
         parts: &mut Parts,
         state: &Arc<M>,
     ) -> Result<Self, Self::Rejection> {
-        let (gateway_identity, counterpart) = state.gateway_scope(parts).await?;
-        Ok(GatewayScope::new(gateway_identity, counterpart))
+        let (gateway_identity, gateway, counterpart) = state.gateway_scope(parts).await?;
+        Ok(GatewayScope::new(gateway_identity, gateway, counterpart))
     }
 }
