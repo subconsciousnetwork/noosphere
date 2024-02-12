@@ -3365,7 +3365,7 @@ dependencies = [
  "sha2 0.10.8",
  "tokio",
  "tokio-stream",
- "unsigned-varint 0.7.2",
+ "unsigned-varint 0.8.0",
  "wasm-bindgen-test",
 ]
 
