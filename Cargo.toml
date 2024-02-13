@@ -60,7 +60,6 @@ libipld = { version = "0.16" }
 libipld-core = { version = "0.16" }
 libipld-cbor = { version = "0.16" }
 libipld-json = { version = "0.16" }
-multihash = { version = "0.18" }
 pathdiff = { version = "0.2.1" }
 rand = { version = "0.8" }
 reqwest = { version = "=0.11.20", default-features = false, features = ["json", "rustls-tls", "stream"] }

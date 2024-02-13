@@ -1,11 +1,15 @@
 //! Simple utility to verify the contents of a .car file using the same
 //! CAR-reading facilities in use by Noosphere more generally
 
-#[cfg(not(target_arch = "wasm32"))]
-pub fn hash_for(cid: cid::Cid) -> &'static str {
-    match multihash::Code::try_from(cid.hash().code()) {
-        Ok(multihash::Code::Blake3_256) => "BLAKE3",
-        Ok(multihash::Code::Sha2_256) => "SHA-256",
+use cid::{
+    multihash::{Code, MultihashDigest},
+    Cid,
+};
+
+pub fn hash_for(cid: Cid) -> &'static str {
+    match Code::try_from(cid.hash().code()) {
+        Ok(Code::Blake3_256) => "BLAKE3",
+        Ok(Code::Sha2_256) => "SHA-256",
         Ok(_) => "Other",
         Err(error) => {
             println!("ERROR: {}", error);
@@ -36,7 +40,6 @@ pub async fn main() -> anyhow::Result<()> {
     use libipld_cbor::DagCborCodec;
     use libipld_core::ipld::Ipld;
     use libipld_core::raw::RawCodec;
-    use multihash::MultihashDigest;
     use noosphere_core::stream::BlockLedger;
     use noosphere_storage::block_decode;
     use std::env;

@@ -53,5 +53,4 @@ rand = { workspace = true }
 iroh-car = { workspace = true }
 libipld-cbor = { workspace = true }
 libipld-json = { workspace = true }
-multihash = { workspace = true }
 noosphere-core = { workspace = true }
