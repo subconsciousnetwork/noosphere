@@ -1,5 +1,4 @@
 use crate::DhtClient;
-use anyhow;
 use libp2p::{
     multiaddr::{Multiaddr, Protocol},
     PeerId,

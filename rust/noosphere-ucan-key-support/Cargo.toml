@@ -1,0 +1,63 @@
+[package]
+name = "noosphere-ucan-key-support"
+version = "0.1.7"
+edition = "2021"
+description = "Ready to use SigningKey implementations for the ucan crate"
+keywords = ["ucan", "authz", "jwt", "pki"]
+categories = [
+  "authorization",
+  "cryptography",
+  "encoding",
+  "web-programming"
+]
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/noosphere-ucan-key-support"
+repository = "https://github.com/subconsciousnetwork/noosphere"
+homepage = "https://github.com/subconsciousnetwork/noosphere"
+readme = "README.md"
+rust-version = "1.75.0"
+
+[features]
+default = []
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+bs58 = { workspace = true }
+ed25519-zebra = { workspace = true }
+log = "0.4"
+rsa = "0.9"
+p256 = "0.13"
+sha2 = { version = "0.10", features = ["oid"] }
+noosphere-ucan = { workspace = true }
+
+[build-dependencies]
+npm_rs = "1.0"
+
+[dev-dependencies]
+# NOTE: This is needed so that rand can be included in WASM builds
+getrandom = { workspace = true, features = ["js"] }
+rand = { workspace = true }
+wasm-bindgen-test = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+js-sys = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
+workspace = true
+features = [
+  'Window',
+  'SubtleCrypto',
+  'Crypto',
+  'CryptoKey',
+  'CryptoKeyPair',
+  'DedicatedWorkerGlobalScope'
+]
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+pollster = "0.3.0"

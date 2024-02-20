@@ -8,7 +8,6 @@ use crate::dht::{
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use noosphere_common::channel::message_channel;
 use std::time::Duration;
-use tokio;
 
 macro_rules! ensure_response {
     ($response:expr, $matcher:pat => $statement:expr) => {

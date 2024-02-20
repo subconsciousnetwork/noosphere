@@ -12,7 +12,7 @@ use libp2p::{
     swarm::{NetworkBehaviour, SwarmEvent},
     tls, yamux, PeerId, Swarm, SwarmBuilder,
 };
-use std::{result::Result, time::Duration};
+use std::time::Duration;
 use void::Void;
 
 /// Protocols are responsible for determining how long

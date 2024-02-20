@@ -3,8 +3,8 @@ use crate::utils;
 use anyhow::{anyhow, Result};
 use noosphere::key::InsecureKeyStorage;
 use noosphere_ns::{DhtConfig, Multiaddr, BOOTSTRAP_PEERS};
+use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
 use std::net::SocketAddr;
-use ucan_key_support::ed25519::Ed25519KeyMaterial;
 use url::Url;
 
 /// Configuration for [NameSystemRunner], hydrated/resolved from CLI.
@@ -98,9 +98,9 @@ impl RunnerNodeConfig {
 mod tests {
     use super::*;
     use noosphere::key::KeyStorage;
+    use noosphere_ucan::crypto::KeyMaterial;
     use std::path::PathBuf;
     use tempfile::TempDir;
-    use ucan::crypto::KeyMaterial;
 
     async fn keys_equal(key_1: &Ed25519KeyMaterial, key_2: &Ed25519KeyMaterial) -> Result<bool> {
         Ok(key_1.get_did().await? == key_2.get_did().await?)

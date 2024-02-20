@@ -2,7 +2,7 @@ use crate::data::{Did, IdentityIpld, LinkRecord};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use noosphere_storage::Storage;
-use ucan::store::UcanJwtStore;
+use noosphere_ucan::store::UcanJwtStore;
 
 use crate::context::{internal::SphereContextInternal, HasMutableSphereContext, SpherePetnameRead};
 

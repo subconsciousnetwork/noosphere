@@ -1,13 +1,12 @@
-use std::{convert::TryFrom, fmt::Display, str::FromStr};
-
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_core::{ipld::Ipld, raw::RawCodec};
 use noosphere_storage::block_encode;
-use ucan::{chain::ProofChain, crypto::did::DidParser, store::UcanJwtStore, Ucan};
+use noosphere_ucan::{chain::ProofChain, crypto::did::DidParser, store::UcanJwtStore, Ucan};
+use std::{fmt::Display, str::FromStr};
 
 #[cfg(doc)]
-use ucan::ipld::UcanIpld;
+use noosphere_ucan::ipld::UcanIpld;
 
 #[cfg(doc)]
 use crate::data::Jwt;

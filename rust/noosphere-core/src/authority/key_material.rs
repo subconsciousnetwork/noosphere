@@ -2,8 +2,8 @@ use crate::data::Mnemonic;
 use anyhow::{anyhow, Result};
 use bip39::{Language, Mnemonic as BipMnemonic};
 use ed25519_zebra::{SigningKey as Ed25519PrivateKey, VerificationKey as Ed25519PublicKey};
-use ucan::crypto::did::KeyConstructorSlice;
-use ucan_key_support::{
+use noosphere_ucan::crypto::did::KeyConstructorSlice;
+use noosphere_ucan_key_support::{
     ed25519::{bytes_to_ed25519_key, Ed25519KeyMaterial, ED25519_MAGIC_BYTES},
     rsa::{bytes_to_rsa_key, RSA_MAGIC_BYTES},
 };

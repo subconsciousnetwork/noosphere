@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use ucan::crypto::KeyMaterial;
+use noosphere_ucan::crypto::KeyMaterial;
 
 /// A trait that represents access to arbitrary key storage backends.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

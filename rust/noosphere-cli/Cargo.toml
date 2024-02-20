@@ -9,7 +9,7 @@ categories = [
   "filesystem",
   "command-line interface"
 ]
-rust-version = "1.60.0"
+rust-version = "1.75.0"
 license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/noosphere-cli"
 repository = "https://github.com/subconsciousnetwork/noosphere"
@@ -39,7 +39,7 @@ tokio = { workspace = true, features = ["full"] }
 tokio-stream = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true, features = ["cors", "trace"] }
-async-trait = "~0.1"
+async-trait = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, optional = true }
 iroh-car = { workspace = true }
@@ -50,14 +50,14 @@ mime_guess = "^2"
 witty-phrase-generator = "~0.2"
 globset = "~0.4"
 
-noosphere-ipfs = { version = "0.8.6", path = "../noosphere-ipfs" }
-noosphere-core = { version = "0.18.1", path = "../noosphere-core" }
-noosphere-storage = { version = "0.10.1", path = "../noosphere-storage" }
-noosphere-gateway = { version = "0.12.0", path = "../noosphere-gateway" }
-noosphere-ns = { version = "0.12.0", path = "../noosphere-ns", optional = true }
-noosphere = { version = "0.16.1", path = "../noosphere" }
-ucan = { workspace = true }
-ucan-key-support = { workspace = true }
+noosphere-ipfs = { workspace = true }
+noosphere-core = { workspace = true }
+noosphere-storage = { workspace = true }
+noosphere-gateway = { workspace = true }
+noosphere-ns = { workspace = true, optional = true }
+noosphere = { workspace = true }
+noosphere-ucan = { workspace = true }
+noosphere-ucan-key-support = { workspace = true }
 
 vergen-pretty = { workspace = true }
 

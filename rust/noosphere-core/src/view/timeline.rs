@@ -154,7 +154,7 @@ mod tests {
     use anyhow::Result;
     use libipld_cbor::DagCborCodec;
     use noosphere_storage::{BlockStore, MemoryStore};
-    use ucan::crypto::KeyMaterial;
+    use noosphere_ucan::crypto::KeyMaterial;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 

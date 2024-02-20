@@ -10,11 +10,11 @@ use noosphere_core::context::{
 };
 use noosphere_core::data::{Did, Link, LinkRecord, MemoIpld};
 use noosphere_storage::{KeyValueStore, SphereDb, StorageConfig};
+use noosphere_ucan::crypto::KeyMaterial;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
-use ucan::crypto::KeyMaterial;
 use url::Url;
 
 use noosphere::key::InsecureKeyStorage;

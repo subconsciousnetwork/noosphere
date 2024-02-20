@@ -9,7 +9,7 @@ categories = [
   "asynchronous",
   "web-assembly"
 ]
-rust-version = "1.60.0"
+rust-version = "1.75.0"
 license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/noosphere-collections"
 repository = "https://github.com/subconsciousnetwork/noosphere"
@@ -27,15 +27,15 @@ byteorder = { workspace = true }
 async-recursion = { workspace = true }
 libipld-core = { workspace = true }
 libipld-cbor = { workspace = true }
-noosphere-storage = { version = "0.10.1", path = "../noosphere-storage" }
+noosphere-storage = { workspace = true }
 tokio = { workspace = true, features = ["sync", "io-util"] }
 
 tokio-stream = { workspace = true }
 async-stream = { workspace = true }
 
 [dev-dependencies]
-unsigned-varint = "0.8"
-serde_ipld_dagcbor = "0.4"
+unsigned-varint = { workspace = true }
+serde_ipld_dagcbor = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

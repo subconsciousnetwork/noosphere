@@ -4,7 +4,6 @@ use crate::{
 };
 use anyhow::Result;
 use noosphere_storage::BlockStore;
-use std::ops::Fn;
 use tokio_stream::StreamExt;
 
 /// Given a [VersionedMap], visit its changelog and all of its underlying entries

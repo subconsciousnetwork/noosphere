@@ -7,11 +7,11 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use noosphere_storage::{SphereDb, Storage};
-use ucan::{
+use noosphere_ucan::{
     chain::ProofChain,
     crypto::{did::DidParser, KeyMaterial},
 };
-use ucan_key_support::ed25519::Ed25519KeyMaterial;
+use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 use super::generate_capability;
 
@@ -159,7 +159,7 @@ where
 mod tests {
     use anyhow::Result;
     use noosphere_storage::{MemoryStorage, SphereDb};
-    use ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
+    use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore};
 
     use crate::{
         authority::{generate_capability, generate_ed25519_key, Authorization, SphereAbility},

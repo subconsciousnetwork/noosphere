@@ -12,9 +12,9 @@ use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_common::{spawn, ConditionalSend, TaskQueue};
 use noosphere_storage::{BlockStore, BlockStoreTap, UcanStore};
+use noosphere_ucan::{store::UcanJwtStore, Ucan};
 use tokio::select;
 use tokio_stream::{Stream, StreamExt};
-use ucan::{store::UcanJwtStore, Ucan};
 
 use crate::stream::walk::{
     walk_versioned_map_changes_and, walk_versioned_map_elements, walk_versioned_map_elements_and,

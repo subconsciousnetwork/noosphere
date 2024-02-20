@@ -3,7 +3,7 @@ use instant::Duration;
 
 use async_trait::async_trait;
 use noosphere_storage::Storage;
-use ucan::{builder::UcanBuilder, store::UcanJwtStore};
+use noosphere_ucan::{builder::UcanBuilder, store::UcanJwtStore};
 
 use crate::{
     authority::{generate_capability, SphereAbility},

@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use libipld_cbor::DagCborCodec;
-use ucan::{builder::UcanBuilder, crypto::KeyMaterial};
+use noosphere_ucan::{builder::UcanBuilder, crypto::KeyMaterial};
 
 use crate::{
     authority::{generate_capability, Authorization, SphereAbility},

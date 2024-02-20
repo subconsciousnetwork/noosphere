@@ -1,4 +1,3 @@
-use anyhow;
 use libp2p::{kad, kad::store::Error as KadStorageError, TransportError};
 use noosphere_common::channel::ChannelError;
 use std::fmt;

@@ -8,11 +8,11 @@ use libipld_core::{
     raw::RawCodec,
 };
 use noosphere_common::ConditionalSend;
+use noosphere_ucan::store::UcanStore;
 use serde::{de::DeserializeOwned, Serialize};
 use std::future::Future;
 use std::{collections::BTreeSet, fmt::Debug};
 use tokio_stream::Stream;
-use ucan::store::UcanStore;
 
 use crate::{BlockStore, KeyValueStore, MemoryStore, Storage};
 
@@ -280,7 +280,7 @@ mod tests {
 
     use libipld_cbor::DagCborCodec;
     use libipld_core::{ipld::Ipld, raw::RawCodec};
-    use ucan::store::UcanJwtStore;
+    use noosphere_ucan::store::UcanJwtStore;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 

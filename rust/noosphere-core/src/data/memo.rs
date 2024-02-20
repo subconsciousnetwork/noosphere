@@ -7,8 +7,8 @@ use anyhow::{anyhow, Result};
 use cid::Cid;
 use libipld_cbor::DagCborCodec;
 use noosphere_common::ConditionalSend;
+use noosphere_ucan::{crypto::KeyMaterial, Ucan};
 use serde::{Deserialize, Serialize};
-use ucan::{crypto::KeyMaterial, Ucan};
 
 use crate::data::Header;
 

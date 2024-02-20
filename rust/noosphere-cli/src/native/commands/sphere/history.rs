@@ -1,8 +1,8 @@
 use anyhow::Result;
 use noosphere_core::context::HasSphereContext;
 use noosphere_core::data::MapOperation;
+use noosphere_ucan::Ucan;
 use tokio_stream::StreamExt;
-use ucan::Ucan;
 
 use crate::workspace::Workspace;
 

@@ -1,8 +1,8 @@
 use anyhow::Result;
 use noosphere_collections::hamt::Hash as HamtHash;
+use noosphere_ucan::crypto::{did::DidParser, KeyMaterial};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, hash::Hash, ops::Deref, sync::Arc};
-use ucan::crypto::{did::DidParser, KeyMaterial};
 
 use crate::authority::{restore_ed25519_key, SUPPORTED_KEYS};
 

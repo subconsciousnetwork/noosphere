@@ -18,8 +18,8 @@ mod tests {
     use anyhow::Result;
     use cid::Cid;
     use libipld_core::{codec::Codec, ipld::Ipld, raw::RawCodec};
+    use noosphere_ucan::{crypto::KeyMaterial, store::UcanJwtStore};
     use std::collections::BTreeSet;
-    use ucan::{crypto::KeyMaterial, store::UcanJwtStore};
 
     use crate::{
         authority::{generate_ed25519_key, Access},

@@ -18,6 +18,8 @@ pub static NOOSPHERE_LOG_LEVEL_CRATES: &[&str] = &[
     "noosphere_car",
     "noosphere_api",
     "noosphere_ns",
+    "noosphere_ucan",
+    "noosphere_ucan_key_support",
     "orb",
     "orb_ns",
     "tower_http",
@@ -84,11 +86,12 @@ impl From<NoosphereLog> for NoosphereLogLevel {
 
 /// The format used to display logs. The amount of minutia and noise in the format
 /// increases in the order of the variants from top to bottom.
-#[derive(Clone, Display, EnumString)]
+#[derive(Default, Clone, Display, EnumString)]
 pub enum NoosphereLogFormat {
     /// As the name implies, this is the most minimal format. `INFO` events only
     /// display the contents of the log line. Other events are prefixed with
     /// their event name.
+    #[default]
     #[strum(serialize = "minimal")]
     Minimal,
     /// Verbose formatting that includes minutia such as timestamps and code
@@ -105,17 +108,11 @@ pub enum NoosphereLogFormat {
     Structured,
 }
 
-impl Default for NoosphereLogFormat {
-    fn default() -> Self {
-        NoosphereLogFormat::Minimal
-    }
-}
-
 /// The filter level for the Noosphere-centric crates listed in
 /// [NOOSPHERE_LOG_LEVEL_CRATES]. These filter levels correspond 1:1 with those
 /// described in
 /// [`env-filter`](https://docs.rs/env_logger/0.10.0/env_logger/#enabling-logging)
-#[derive(Clone, Display, EnumString)]
+#[derive(Default, Clone, Display, EnumString)]
 pub enum NoosphereLogLevel {
     /// Equivalent to [tracing::Level::TRACE]
     #[strum(serialize = "trace")]
@@ -124,6 +121,7 @@ pub enum NoosphereLogLevel {
     #[strum(serialize = "debug")]
     Debug,
     /// Equivalent to [tracing::Level::INFO]
+    #[default]
     #[strum(serialize = "info")]
     Info,
     /// Equivalent to [tracing::Level::WARN]
@@ -135,12 +133,6 @@ pub enum NoosphereLogLevel {
     /// Disables logging entirely
     #[strum(serialize = "off")]
     Off,
-}
-
-impl Default for NoosphereLogLevel {
-    fn default() -> Self {
-        NoosphereLogLevel::Info
-    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

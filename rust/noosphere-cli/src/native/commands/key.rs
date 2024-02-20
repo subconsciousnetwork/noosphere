@@ -1,8 +1,8 @@
 //! Concrete implementations of subcommands to manage device keys
 use anyhow::Result;
 use noosphere::key::KeyStorage;
+use noosphere_ucan::crypto::KeyMaterial;
 use serde_json::json;
-use ucan::crypto::KeyMaterial;
 
 use crate::native::workspace::Workspace;
 

@@ -1,13 +1,12 @@
-use std::{collections::BTreeMap, convert::TryFrom};
-
 use anyhow::{anyhow, Result};
 use cid::Cid;
 use noosphere_core::context::{
     HasSphereContext, SphereAuthorityRead, SphereAuthorityWrite, SphereWalker,
 };
 use noosphere_core::data::{Did, Jwt, Link};
+use noosphere_ucan::{store::UcanJwtStore, Ucan};
 use serde_json::{json, Value};
-use ucan::{store::UcanJwtStore, Ucan};
+use std::collections::BTreeMap;
 
 use tokio_stream::StreamExt;
 

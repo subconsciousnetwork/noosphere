@@ -9,7 +9,7 @@ categories = [
   "web-programming",
   "file-system"
 ]
-rust-version = "1.60.0"
+rust-version = "1.75.0"
 license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/noosphere-into"
 repository = "https://github.com/subconsciousnetwork/noosphere"
@@ -17,10 +17,12 @@ homepage = "https://github.com/subconsciousnetwork/noosphere"
 readme = "README.md"
 
 [dependencies]
-noosphere-core = { version = "0.18.1", path = "../noosphere-core" }
-noosphere-storage = { version = "0.10.1", path = "../noosphere-storage" }
+noosphere-core = { workspace = true }
+noosphere-storage = { workspace = true }
+noosphere-ucan = { workspace = true }
+noosphere-ucan-key-support = { workspace = true }
 subtext = { workspace = true, features = ["stream"] }
-async-trait = "~0.1"
+async-trait = { workspace = true }
 url = { workspace = true }
 tracing = { workspace = true }
 anyhow = { workspace = true }
@@ -38,11 +40,8 @@ async-stream = { workspace = true }
 futures = { workspace = true }
 async-utf8-decoder = { version = "~0.3" }
 
-ucan = { workspace = true }
-ucan-key-support = { workspace = true }
-
 [dev-dependencies]
-noosphere-core = { version = "0.18.1", path = "../noosphere-core", features = ["helpers"] }
+noosphere-core = { workspace = true, features = ["helpers"] }
 wasm-bindgen-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

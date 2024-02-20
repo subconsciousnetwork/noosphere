@@ -16,11 +16,11 @@ mod test {
     use noosphere_core::data::{Did, LinkRecord, LINK_RECORD_FACT_NAME};
     use noosphere_core::view::SPHERE_LIFETIME;
     use noosphere_ns::{Multiaddr, PeerId};
+    use noosphere_ucan::builder::UcanBuilder;
+    use noosphere_ucan::crypto::KeyMaterial;
     use serde::Deserialize;
     use tokio;
     use tokio::sync::oneshot;
-    use ucan::builder::UcanBuilder;
-    use ucan::crypto::KeyMaterial;
     use url::Url;
 
     #[derive(Debug, Deserialize)]
