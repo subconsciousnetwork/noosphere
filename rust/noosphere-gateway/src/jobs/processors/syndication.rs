@@ -55,12 +55,11 @@ impl SyndicationCheckpoint {
 // Force full re-syndicate every 90 days
 const MAX_SYNDICATION_CHECKPOINT_LIFETIME: Duration = Duration::from_secs(60 * 60 * 24 * 90);
 
-/// Syndicate content to IPFS for given `context` since `revision`,
+/// Syndicate content to IPFS for given `context`,
 /// optionally publishing a provided [LinkRecord] on success.
 #[instrument(skip(context, ipfs_client, name_publish_on_success))]
 pub async fn syndicate_to_ipfs<C, S, I>(
     context: C,
-    revision: Option<Link<MemoIpld>>,
     ipfs_client: I,
     name_publish_on_success: Option<LinkRecord>,
 ) -> Result<Option<GatewayJob>>
@@ -69,8 +68,6 @@ where
     S: Storage + 'static,
     I: IpfsClient + 'static,
 {
-    let version_str = revision.map_or_else(|| "latest".into(), |link| link.cid.to_string());
-    debug!("Attempting to syndicate version DAG {version_str} to IPFS");
     let kubo_identity = ipfs_client
         .server_identity()
         .await
@@ -268,7 +265,6 @@ mod tests {
         debug!("Sending syndication job...");
         syndicate_to_ipfs(
             gateway_sphere_context.clone(),
-            Some(version.clone()),
             local_kubo_client.clone(),
             None,
         )

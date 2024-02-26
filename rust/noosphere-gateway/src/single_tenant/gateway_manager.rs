@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use crate::{
-    extractors::GatewayScope, single_tenant::SingleTenantJobClient, ContextResolver,
-    GatewayManager, SingleTenantContextResolver,
+    extractors::GatewayScope, single_tenant::SingleTenantJobClient, GatewayManager,
+    SingleTenantContextResolver, SphereContextResolver,
 };
 use anyhow::Result;
 use async_trait::async_trait;
@@ -22,7 +24,7 @@ where
     context: C,
     gateway_scope: GatewayScope<C, S>,
     context_resolver: SingleTenantContextResolver<C, S>,
-    job_client: SingleTenantJobClient<C, S>,
+    job_client: Arc<SingleTenantJobClient<C, S>>,
     ipfs_api: Url,
     cors_origin: Option<Url>,
     marker: std::marker::PhantomData<S>,
@@ -45,13 +47,15 @@ where
         let gateway_scope = GatewayScope::new(gateway_identity, counterpart);
         let context_resolver =
             SingleTenantContextResolver::new(context.clone(), gateway_scope.clone());
-        let job_client = SingleTenantJobClient::new(
-            context_resolver.clone(),
-            gateway_scope.clone(),
-            KuboClient::new(&ipfs_api)?,
-            name_resolver_api,
-        )
-        .await?;
+        let job_client = Arc::new(
+            SingleTenantJobClient::new(
+                context_resolver.clone(),
+                gateway_scope.clone(),
+                KuboClient::new(&ipfs_api)?,
+                name_resolver_api,
+            )
+            .await?,
+        );
         Ok(SingleTenantGatewayManager {
             context,
             gateway_scope,
@@ -70,7 +74,7 @@ where
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
 {
-    type JobClient = SingleTenantJobClient<C, S>;
+    type JobClient = Arc<SingleTenantJobClient<C, S>>;
 
     fn job_client(&self) -> Self::JobClient {
         self.job_client.clone()
@@ -86,11 +90,6 @@ where
 
     async fn ucan_store(&self) -> Result<UcanStore<S::BlockStore>> {
         let context = self.context.sphere_context().await?;
-        // @TODO CONFIRM
-        // We need to be somewhat generic here, we can't have
-        // `UcanStore<SphereDb<S>>` for some types of shared ucan stores.
-        // @TODO CONFIRM that `.to_block_store()` is functionally
-        // equivilent to `UcanStore(context.db())`
         let db = context.db().to_block_store();
         Ok(UcanStore(db))
     }

@@ -9,12 +9,19 @@ use std::{
 };
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
-/// [WorkerQueueThread] is where work is orchestrated
+#[cfg(doc)]
+use super::WorkerQueue;
+
+/// [WorkerQueueOrchestrator] is where work is orchestrated
 /// from a [WorkerQueue].
 ///
-/// Jobs are received over a message channel and stored
-/// in a local queue.
-pub(crate) struct WorkerQueueThread<P: Processor> {
+/// The orchestrator spins up worker threads, receives job requests
+/// over a message channel, and sends work to available worker
+/// threads for processing. The orchestrator is also responsible
+/// for terminating/restarting worker threads that surpass
+/// timeout configuration, and handles retrying failed jobs up
+/// to the configured limit.
+pub struct WorkerQueueOrchestrator<P: Processor> {
     workers: Vec<Worker<P>>,
     retries: usize,
     timeout: Duration,
@@ -25,18 +32,23 @@ pub(crate) struct WorkerQueueThread<P: Processor> {
     response_tx: UnboundedSender<WorkerResponse<P::Job>>,
 }
 
-impl<P> WorkerQueueThread<P>
+impl<P> WorkerQueueOrchestrator<P>
 where
     P: Processor,
 {
-    /// Creates a new [WorkerQueueThread].
+    /// Creates a new [WorkerQueueOrchestrator], creating
+    /// `worker_count` threads.
     pub fn new(
         worker_count: usize,
         worker_context: P::Context,
         retries: usize,
         timeout: Duration,
         request_rx: UnboundedReceiver<P::Job>,
-    ) -> Self {
+    ) -> Result<Self> {
+        if worker_count == 0 {
+            return Err(anyhow!("worker_count must be greater than 0."));
+        }
+
         let (response_tx, response_rx) = unbounded_channel();
 
         let mut workers = vec![];
@@ -45,7 +57,7 @@ where
             workers.push(worker);
         }
 
-        Self {
+        Ok(Self {
             job_queue: VecDeque::new(),
             workers,
             retries,
@@ -54,7 +66,7 @@ where
             response_rx: Some(response_rx),
             response_tx,
             worker_context,
-        }
+        })
     }
 
     /// Submits unprocessed jobs to available workers.
@@ -118,7 +130,7 @@ where
     fn process_timed_out_jobs(&mut self) -> Result<()> {
         /// Terminate and recreate worker at `index`.
         fn cycle_worker<P: Processor>(
-            queue_thread: &mut WorkerQueueThread<P>,
+            queue_thread: &mut WorkerQueueOrchestrator<P>,
             index: usize,
         ) -> Option<JobRequest<P>> {
             let worker = Worker::spawn(
@@ -151,9 +163,9 @@ where
     /// Returns a [Duration] of when the next check for job timeouts
     /// should occur.
     ///
-    /// For example, if the timeout is set to 3 minutes, and a job
-    /// is currently at 1 minute of processing, the next time to check
-    /// for timed out jobs is in 2 minutes.
+    /// For example, if the timeout is set to 3 minutes, and the current
+    /// longest running job is currently 1 minute into processing, the
+    /// next time to check for timed out jobs is in 2 minutes.
     fn get_timeout_check_duration(&self) -> Duration {
         let mut max_duration = self.timeout;
         let now = SystemTime::now();

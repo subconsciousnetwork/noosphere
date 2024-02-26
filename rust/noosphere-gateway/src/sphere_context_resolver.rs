@@ -9,7 +9,7 @@ use noosphere_core::context::SphereContext;
 /// Returns a [SphereContext] given a client counterpart [Did],
 /// returning the associated managed gateway sphere.
 #[async_trait]
-pub trait ContextResolver<C, S>: Clone + Send + Sync
+pub trait SphereContextResolver<C, S>: Clone + Send + Sync
 where
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,

@@ -151,7 +151,7 @@ mod multiplayer {
         data::Did,
         tracing::initialize_tracing,
     };
-    use noosphere_ns::{server::HttpClient as NameResolverHttpClient, utils::NameResolverExt};
+    use noosphere_ns::{server::HttpClient as NameResolverHttpClient, utils::NameResolverPoller};
     use serde_json::Value;
     use url::Url;
 

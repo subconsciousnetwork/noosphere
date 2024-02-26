@@ -1,6 +1,6 @@
 use crate::{
     jobs::{processors::*, worker_queue::Processor, GatewayJob, GatewayJobContext},
-    ContextResolver,
+    SphereContextResolver,
 };
 use anyhow::Result;
 use async_trait::async_trait;
@@ -14,7 +14,7 @@ use std::marker::PhantomData;
 #[derive(Clone)]
 pub struct GatewayJobProcessor<R, C, S, N, I>
 where
-    R: ContextResolver<C, S>,
+    R: SphereContextResolver<C, S>,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
     N: NameResolver + Clone,
@@ -30,7 +30,7 @@ where
 #[async_trait]
 impl<R, C, S, N, I> Processor for GatewayJobProcessor<R, C, S, N, I>
 where
-    R: ContextResolver<C, S> + 'static,
+    R: SphereContextResolver<C, S> + 'static,
     C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
     N: NameResolver + Clone + 'static,
@@ -50,7 +50,7 @@ pub async fn process_job<R, C, S, N, I>(
     job: GatewayJob,
 ) -> Result<Option<GatewayJob>>
 where
-    R: ContextResolver<C, S>,
+    R: SphereContextResolver<C, S>,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
     N: NameResolver + Clone + 'static,
@@ -62,12 +62,10 @@ where
         }
         GatewayJob::IpfsSyndication {
             identity,
-            revision,
             name_publish_on_success,
         } => {
             syndicate_to_ipfs(
                 context.context_resolver.get_context(&identity).await?,
-                revision,
                 context.ipfs_client,
                 name_publish_on_success,
             )

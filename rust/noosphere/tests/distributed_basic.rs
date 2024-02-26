@@ -27,7 +27,7 @@ use noosphere_core::{
     tracing::initialize_tracing,
 };
 use noosphere_ns::{
-    server::HttpClient as NameResolverHttpClient, utils::NameResolverExt, NameResolver,
+    server::HttpClient as NameResolverHttpClient, utils::NameResolverPoller, NameResolver,
 };
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -316,15 +316,13 @@ async fn traverse_spheres_and_get_incremental_updates_via_noosphere_gateway_via_
         ctx.save(None).await?;
         initial_versions.push(ctx.sync().await?);
     }
-    {
-        match tokio::join!(
-            ns_client.wait_for_record(&id_1, &initial_versions[0], None),
-            ns_client.wait_for_record(&id_2, &initial_versions[1], None),
-        ) {
-            (Ok(_), Ok(_)) => Ok(()),
-            _ => Err(anyhow!("name record was not published.")),
-        }?;
-    }
+    match tokio::join!(
+        ns_client.wait_for_record(&id_1, &initial_versions[0], None),
+        ns_client.wait_for_record(&id_2, &initial_versions[1], None),
+    ) {
+        (Ok(_), Ok(_)) => Ok(()),
+        _ => Err(anyhow!("name record was not published.")),
+    }?;
 
     let pair_2_version = initial_versions[1].clone();
 

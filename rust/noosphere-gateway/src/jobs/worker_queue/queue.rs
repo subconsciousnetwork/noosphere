@@ -1,51 +1,52 @@
-use super::{queue_thread::WorkerQueueThread, Processor};
+use super::{orchestrator::WorkerQueueOrchestrator, Processor};
 use anyhow::Result;
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 use tokio::{
     sync::mpsc::{unbounded_channel, UnboundedSender},
     task::JoinHandle,
 };
 
-/// An abstraction around managing several worker threads, and distributing
-/// work amongst them.
+/// [WorkerQueue] is a handle to a pool of workers,
+/// and provides an interface to submit jobs to process.
 ///
-/// To terminate all processing, all references to the [WorkerQueue]
-/// must be dropped.
-#[derive(Debug, Clone)]
-pub struct WorkerQueue<P: Processor> {
-    handle: Option<Arc<JoinHandle<Result<()>>>>,
+/// All processing and threads are terminated upon
+/// dropping [WorkerQueue].
+#[derive(Debug)]
+pub struct WorkerQueue<P: Processor + 'static> {
+    handle: JoinHandle<Result<()>>,
     request_tx: UnboundedSender<P::Job>,
 }
 
 impl<P> WorkerQueue<P>
 where
-    P: Processor,
+    P: Processor + 'static,
 {
     /// Creates a new [WorkerQueue] and starts its worker threads.
     ///
-    /// By default, `retries` is set to 1 and `timeout` is 3 minutes.
+    /// By default, `worker_count` is 1, `retries` is 0,
+    /// and `timeout` is 5 minutes.
     pub fn spawn(
         worker_count: usize,
         worker_context: P::Context,
         retries: Option<usize>,
         timeout: Option<Duration>,
-    ) -> Self {
+    ) -> Result<Self> {
         let (request_tx, request_rx) = unbounded_channel();
-        let handle = Some(Arc::new(tokio::spawn(async move {
-            let workers = WorkerQueueThread::<P>::new(
-                worker_count,
-                worker_context,
-                retries.unwrap_or(1),
-                timeout.unwrap_or_else(|| Duration::from_secs(60 * 5)),
-                request_rx,
-            );
+        let workers = WorkerQueueOrchestrator::<P>::new(
+            worker_count,
+            worker_context,
+            retries.unwrap_or(0),
+            timeout.unwrap_or_else(|| Duration::from_secs(60 * 5)),
+            request_rx,
+        )?;
+        let handle = tokio::spawn(async move {
             workers.start().await.map_err(|error| {
-                error!("Unrecoverable WorkerQueueThread error: {}", error);
+                error!("Unrecoverable WorkerQueueOrchestrator error: {}", error);
                 error
             })
-        })));
+        });
 
-        Self { handle, request_tx }
+        Ok(Self { handle, request_tx })
     }
 
     /// Submit a job to be performed on an available worker thread.
@@ -58,13 +59,9 @@ where
 
 impl<P> Drop for WorkerQueue<P>
 where
-    P: Processor,
+    P: Processor + 'static,
 {
     fn drop(&mut self) {
-        if let Some(probably_handle) = self.handle.take() {
-            if let Some(handle) = Arc::into_inner(probably_handle) {
-                handle.abort();
-            }
-        }
+        self.handle.abort();
     }
 }

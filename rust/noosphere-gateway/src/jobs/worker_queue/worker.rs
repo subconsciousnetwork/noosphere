@@ -7,7 +7,7 @@ use tokio::{
     time::Duration,
 };
 
-pub(crate) type WorkerResponse<J> = (usize, Result<Option<J>>);
+pub type WorkerResponse<J> = (usize, Result<Option<J>>);
 
 /// A job with additional metadata to handle time outs and retries.
 pub struct JobRequest<P: Processor> {
@@ -29,12 +29,18 @@ where
         }
     }
 
+    /// Marks [JobRequest] as starting a new attempt.
+    pub fn mark_attempt_start(&mut self) {
+        self.attempt += 1;
+        self.start_time = Some(SystemTime::now());
+    }
+
     /// Marks [JobRequest] as a failed attempt, clearing
     /// its last start time, and returns whether this job
     /// should be retried or not.
     pub fn mark_attempt_failed(&mut self, retries: usize) -> bool {
         self.start_time = None;
-        self.attempt < retries
+        self.attempt <= retries
     }
 }
 
@@ -45,13 +51,19 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("JobRequest")
             .field("job", &self.job)
-            .field("attempts", &self.attempt)
+            .field("attempt", &self.attempt)
             .finish()
     }
 }
 
-/// Provides an interface to perform a job via [Processor]
-/// on another thread.
+/// Represents a worker thread, providing an interface
+/// to perform a job via [Processor] on the worker thread.
+///
+/// Job results are sent to the orchestrator thread upon completion,
+/// with [WorkerQueueOrchestrator] responsible for updating
+/// [Worker] state correctly.
+///
+/// The worker thread is disposed upon [Worker] dropping.
 pub struct Worker<P: Processor> {
     active_job: Option<JobRequest<P>>,
     request_tx: UnboundedSender<P::Job>,
@@ -121,8 +133,7 @@ where
         }
 
         let job = job_request.job.clone();
-        job_request.attempt += 1;
-        job_request.start_time = Some(SystemTime::now());
+        job_request.mark_attempt_start();
 
         self.active_job = Some(job_request);
         // This should only fail if all of our channels

@@ -3,6 +3,7 @@ use anyhow::{anyhow, Result};
 use std::time::Duration;
 
 /// Builder helper for [WorkerQueue].
+/// Uses the same defaults as [WorkerQueue].
 pub struct WorkerQueueBuilder<P: Processor> {
     worker_count: usize,
     retries: Option<usize>,
@@ -18,8 +19,8 @@ where
     pub fn new() -> Self {
         Self {
             worker_count: 1,
-            retries: Some(1),
-            timeout: Some(Duration::from_secs(60 * 3)),
+            retries: None,
+            timeout: None,
             context: None,
         }
     }
@@ -57,12 +58,12 @@ where
             return Err(anyhow!("context must be provided."));
         }
 
-        Ok(WorkerQueue::spawn(
+        WorkerQueue::spawn(
             self.worker_count,
             self.context.unwrap(),
             self.retries,
             self.timeout,
-        ))
+        )
     }
 }
 

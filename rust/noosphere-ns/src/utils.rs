@@ -10,7 +10,7 @@ use tokio::time;
 
 /// Additional utilites for [NameResolver] implementations.
 #[async_trait]
-pub trait NameResolverExt: NameResolver {
+pub trait NameResolverPoller: NameResolver {
     /// Polls a [NameResolver] until `identity` resolves to [LinkRecord]
     /// containing `link`, or `timeout` seconds have elapsed (defaults to 5 seconds).
     ///
@@ -45,7 +45,7 @@ pub trait NameResolverExt: NameResolver {
         }
     }
 }
-impl<T> NameResolverExt for T where T: NameResolver {}
+impl<T> NameResolverPoller for T where T: NameResolver {}
 
 /// A utility for [NameSystemClient] in tests.
 /// Async function returns once there are at least

@@ -29,19 +29,26 @@ const JOB_RETRIES: usize = 1;
 /// and potentially restarted.
 const TIMEOUT_SECONDS: u64 = 180;
 
-type GatewayWorkerQueue<C, S> = WorkerQueue<
-    GatewayJobProcessor<SingleTenantContextResolver<C, S>, C, S, NameSystemHttpClient, KuboClient>,
+type GatewayWorkerQueue<C, S> = Arc<
+    WorkerQueue<
+        GatewayJobProcessor<
+            SingleTenantContextResolver<C, S>,
+            C,
+            S,
+            NameSystemHttpClient,
+            KuboClient,
+        >,
+    >,
 >;
 
 /// [JobClient] implementation for [SingleTenantGatewayManager].
-#[derive(Clone)]
 pub struct SingleTenantJobClient<C, S>
 where
     C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
 {
     worker_queue: GatewayWorkerQueue<C, S>,
-    scheduler_handle: Option<Arc<JoinHandle<Result<()>>>>,
+    scheduler_handle: JoinHandle<Result<()>>,
     sphere_context_marker: PhantomData<C>,
     storage_marker: PhantomData<S>,
 }
@@ -60,12 +67,14 @@ where
     ) -> Result<Self> {
         let name_resolver = NameSystemHttpClient::new(name_resolver_api).await?;
         let worker_context = GatewayJobContext::new(context_resolver, name_resolver, ipfs_client);
-        let worker_queue = WorkerQueueBuilder::new()
-            .with_worker_count(WORKER_COUNT)
-            .with_context(worker_context)
-            .with_retries(JOB_RETRIES)
-            .with_timeout(Duration::from_secs(TIMEOUT_SECONDS))
-            .build()?;
+        let worker_queue = Arc::new(
+            WorkerQueueBuilder::new()
+                .with_worker_count(WORKER_COUNT)
+                .with_context(worker_context)
+                .with_retries(JOB_RETRIES)
+                .with_timeout(Duration::from_secs(TIMEOUT_SECONDS))
+                .build()?,
+        );
 
         let scheduler_queue = worker_queue.clone();
         let scheduler_handle =
@@ -74,7 +83,7 @@ where
             );
 
         Ok(Self {
-            scheduler_handle: Some(Arc::new(scheduler_handle)),
+            scheduler_handle,
             worker_queue,
             sphere_context_marker: PhantomData,
             storage_marker: PhantomData,
@@ -82,7 +91,7 @@ where
     }
 }
 
-impl<C, S> JobClient for SingleTenantJobClient<C, S>
+impl<C, S> JobClient for Arc<SingleTenantJobClient<C, S>>
 where
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
@@ -98,11 +107,7 @@ where
     S: Storage + 'static,
 {
     fn drop(&mut self) {
-        if let Some(probably_handle) = self.scheduler_handle.take() {
-            if let Some(handle) = Arc::into_inner(probably_handle) {
-                handle.abort();
-            }
-        }
+        self.scheduler_handle.abort();
     }
 }
 
@@ -151,7 +156,6 @@ where
             &queue,
             GatewayJob::IpfsSyndication {
                 identity: identity.clone(),
-                revision: None,
                 name_publish_on_success: None,
             },
             60 * 5, // 5 minutes

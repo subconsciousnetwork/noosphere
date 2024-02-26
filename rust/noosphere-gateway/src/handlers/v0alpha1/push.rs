@@ -82,10 +82,7 @@ where
         let (next_version, new_blocks) = self.update_gateway_sphere().await?;
 
         // These steps are order-independent
-        let _ = tokio::join!(
-            self.notify_name_resolver(),
-            self.notify_ipfs_syndicator(next_version)
-        );
+        let _ = tokio::join!(self.notify_name_resolver(), self.notify_ipfs_syndicator());
 
         Ok(PushResponse::Accepted {
             new_tip: next_version,
@@ -315,7 +312,7 @@ where
     }
 
     /// Request that new history be syndicated to IPFS
-    async fn notify_ipfs_syndicator(&self, next_version: Link<MemoIpld>) -> Result<()> {
+    async fn notify_ipfs_syndicator(&self) -> Result<()> {
         let name_publish_on_success = if let Some(name_record) = &self.request_body.name_record {
             Some(LinkRecord::try_from(name_record)?)
         } else {
@@ -327,7 +324,6 @@ where
         // have added it to the gateway.
         if let Err(error) = self.job_runner_client.submit(GatewayJob::IpfsSyndication {
             identity: self.gateway_scope.counterpart.to_owned(),
-            revision: Some(next_version),
             name_publish_on_success,
         }) {
             warn!("Failed to queue IPFS syndication job: {}", error);

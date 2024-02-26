@@ -15,13 +15,6 @@ pub enum GatewayJob {
     IpfsSyndication {
         /// Counterpart sphere associated with this job.
         identity: Did,
-        /// The revision of the sphere to discover the _counterpart_ sphere
-        /// from; the counterpart sphere's revision will need to be derived using
-        /// this checkpoint in local sphere history.
-        /// If not specified, uses the latest local revision.
-        ///
-        /// @TODO this looks currently unused, confirm
-        revision: Option<Link<MemoIpld>>,
         /// If provided, queues up a subsequent [GatewayJob::NameSystemPublish]
         /// job to run upon success with the provided link record.
         name_publish_on_success: Option<LinkRecord>,

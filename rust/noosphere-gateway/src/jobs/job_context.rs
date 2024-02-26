@@ -1,4 +1,4 @@
-use crate::ContextResolver;
+use crate::SphereContextResolver;
 use noosphere_core::context::HasMutableSphereContext;
 use noosphere_ipfs::IpfsClient;
 use noosphere_ns::NameResolver;
@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 pub struct GatewayJobContext<R, C, S, N, I>
 where
     Self: Send,
-    R: ContextResolver<C, S>,
+    R: SphereContextResolver<C, S>,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
     N: NameResolver + Clone,
@@ -29,7 +29,7 @@ where
 
 impl<R, C, S, N, I> GatewayJobContext<R, C, S, N, I>
 where
-    R: ContextResolver<C, S>,
+    R: SphereContextResolver<C, S>,
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
     N: NameResolver + Clone,

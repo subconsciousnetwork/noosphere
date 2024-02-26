@@ -18,7 +18,7 @@ where
     S: Storage + 'static,
 {
     /// Type of [JobClient] for this [GatewayManager].
-    type JobClient: JobClient;
+    type JobClient: JobClient + Clone;
 
     /// Returns the [JobClient] for the gateway.
     fn job_client(&self) -> Self::JobClient;

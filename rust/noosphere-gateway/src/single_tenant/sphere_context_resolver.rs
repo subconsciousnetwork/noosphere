@@ -1,4 +1,4 @@
-use crate::{extractors::GatewayScope, ContextResolver};
+use crate::{extractors::GatewayScope, SphereContextResolver};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use noosphere_core::context::HasMutableSphereContext;
@@ -34,7 +34,7 @@ where
 }
 
 #[async_trait]
-impl<C, S> ContextResolver<C, S> for SingleTenantContextResolver<C, S>
+impl<C, S> SphereContextResolver<C, S> for SingleTenantContextResolver<C, S>
 where
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,

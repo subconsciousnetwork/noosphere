@@ -1,10 +1,29 @@
-//! Contains a generic worker queue in service of Noosphere
-//! Gateway job processing.
+//! Queue and distribute work among threads.
+//!
+//! [WorkerQueue] spawns an orchestrator thread that
+//! distributes work among long-lived worker threads.
+//!
+//! The [WorkerQueue] [Processor] describes the type
+//! of job requests ([Processor::Job]) and how the work
+//! is performed. Processors report job completion as
+//! [anyhow::Result<Option<Processor::Job>>], and
+//! an error results in the job being rescheduled to run
+//! again if a retry limit was configured.
+//! If an `Ok(Some(job))` value is returned, the new job
+//! will be put in the queue for subsequent processing
+//! as a way to schedule composite jobs.
+//!
+//! A timeout can also be configured, where jobs are aborted
+//! if a job reaches the timeout, and retried if under a
+//! configured retry limit.
+//!
+//! All processing and threads are terminated upon dropping
+//! the [WorkerQueue] handle.
 
 mod builder;
+mod orchestrator;
 mod processor;
 mod queue;
-mod queue_thread;
 mod worker;
 
 pub use builder::*;
@@ -16,6 +35,7 @@ mod tests {
     use super::*;
     use anyhow::{anyhow, Result};
     use async_trait::async_trait;
+    use noosphere_core::tracing::initialize_tracing;
     use std::{sync::Arc, time::Duration};
     use tokio::sync::Mutex;
 
@@ -88,7 +108,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_worker_queue_simple() -> Result<()> {
+    async fn it_processes_trivial_jobs() -> Result<()> {
+        initialize_tracing(None);
         let context: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 
         let queue = WorkerQueueBuilder::<TestProcessor>::new()
@@ -113,7 +134,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_worker_queue_subsequent_job() -> Result<()> {
+    async fn it_processes_jobs_queued_from_other_jobs() -> Result<()> {
+        initialize_tracing(None);
         let context: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 
         let queue = WorkerQueueBuilder::<TestProcessor>::new()
@@ -140,7 +162,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_worker_queue_retries() -> Result<()> {
+    async fn it_retries_jobs_upon_failure() -> Result<()> {
+        initialize_tracing(None);
         let context: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 
         let queue = WorkerQueueBuilder::<TestProcessor>::new()
@@ -161,7 +184,8 @@ mod tests {
             queue.submit(job.to_owned())?;
         }
 
-        // We expect 2 additional `WillFail` jobs due to retries.
+        // We expect 3 additional `WillFail` jobs due to retries.
+        jobs.push(TestJob::WillFail("expectedfailure".into()));
         jobs.push(TestJob::WillFail("expectedfailure".into()));
         jobs.push(TestJob::WillFail("expectedfailure".into()));
 
@@ -170,13 +194,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_worker_queue_timeouts() -> Result<()> {
+    async fn it_retries_jobs_that_timeout() -> Result<()> {
+        initialize_tracing(None);
         let context: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 
         let queue = WorkerQueueBuilder::<TestProcessor>::new()
             .with_worker_count(1)
             .with_timeout(Duration::from_secs(1))
-            .with_retries(2)
+            .with_retries(1)
             .with_context(context.clone())
             .build()?;
 

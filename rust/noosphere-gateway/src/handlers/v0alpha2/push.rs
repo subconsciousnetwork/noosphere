@@ -95,7 +95,7 @@ where
         // These steps are order-independent
         let _ = tokio::join!(
             self.notify_name_resolver(),
-            self.notify_ipfs_syndicator(next_version, &push_body)
+            self.notify_ipfs_syndicator(&push_body)
         );
 
         let roots = vec![next_version.into()];
@@ -341,11 +341,7 @@ where
     }
 
     /// Request that new history be syndicated to IPFS
-    async fn notify_ipfs_syndicator(
-        &self,
-        next_version: Link<MemoIpld>,
-        push_body: &PushBody,
-    ) -> Result<()> {
+    async fn notify_ipfs_syndicator(&self, push_body: &PushBody) -> Result<()> {
         debug!("Notifying syndication worker of new blocks...");
 
         let name_publish_on_success = if let Some(name_record) = &push_body.name_record {
@@ -359,7 +355,6 @@ where
         // have added it to the gateway.
         if let Err(error) = self.job_runner_client.submit(GatewayJob::IpfsSyndication {
             identity: self.gateway_scope.counterpart.to_owned(),
-            revision: Some(next_version),
             name_publish_on_success,
         }) {
             warn!("Failed to queue IPFS syndication job: {}", error);
