@@ -15,9 +15,9 @@ pub type HashedKey = [u8; 32];
 
 /// Algorithm used as the hasher for the Hamt.
 pub trait HashAlgorithm: TargetConditionalSendSync {
-    fn hash<X: ?Sized>(key: &X) -> HashedKey
+    fn hash<X>(key: &X) -> HashedKey
     where
-        X: Hash;
+        X: ?Sized + Hash;
 }
 
 /// Type is needed because the Sha256 hasher does not implement `std::hash::Hasher`
@@ -40,9 +40,9 @@ impl Hasher for Sha2HasherWrapper {
 pub enum Sha256 {}
 
 impl HashAlgorithm for Sha256 {
-    fn hash<X: ?Sized>(key: &X) -> HashedKey
+    fn hash<X>(key: &X) -> HashedKey
     where
-        X: Hash,
+        X: ?Sized + Hash,
     {
         let mut hasher = Sha2HasherWrapper::default();
         key.hash(&mut hasher);
@@ -77,9 +77,9 @@ pub enum Identity {}
 
 #[cfg(feature = "identity")]
 impl HashAlgorithm for Identity {
-    fn hash<X: ?Sized>(key: &X) -> HashedKey
+    fn hash<X>(key: &X) -> HashedKey
     where
-        X: Hash,
+        X: ?Sized + Hash,
     {
         let mut ident_hasher = IdentityHasher::default();
         key.hash(&mut ident_hasher);

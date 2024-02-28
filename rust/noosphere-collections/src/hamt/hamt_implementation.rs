@@ -245,10 +245,10 @@ where
     /// }
     /// ```
     #[inline]
-    pub async fn get<Q: ?Sized>(&self, k: &Q) -> Result<Option<&V>>
+    pub async fn get<Q>(&self, k: &Q) -> Result<Option<&V>>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq + TargetConditionalSendSync,
+        Q: ?Sized + Hash + Eq + TargetConditionalSendSync,
         V: DeserializeOwned,
     {
         match self.root.get(k, &self.store, self.bit_width).await? {
@@ -281,10 +281,10 @@ where
     /// }
     /// ```
     #[inline]
-    pub async fn contains_key<Q: ?Sized>(&self, k: &Q) -> Result<bool>
+    pub async fn contains_key<Q>(&self, k: &Q) -> Result<bool>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq + TargetConditionalSendSync,
+        Q: ?Sized + Hash + Eq + TargetConditionalSendSync,
     {
         Ok(self
             .root
@@ -317,10 +317,10 @@ where
     ///     assert_eq!(map.delete(&1).await.unwrap(), None);
     /// }
     /// ```
-    pub async fn delete<Q: ?Sized>(&mut self, k: &Q) -> Result<Option<(K, V)>>
+    pub async fn delete<Q>(&mut self, k: &Q) -> Result<Option<(K, V)>>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq + TargetConditionalSendSync,
+        Q: ?Sized + Hash + Eq + TargetConditionalSendSync,
     {
         self.root.remove_entry(k, &self.store, self.bit_width).await
     }

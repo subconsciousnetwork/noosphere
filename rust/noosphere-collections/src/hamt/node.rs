@@ -93,7 +93,7 @@ where
     H: HashAlgorithm + TargetConditionalSendSync,
     V: Serialize + DeserializeOwned + TargetConditionalSendSync,
 {
-    pub async fn set<S: BlockStore>(
+    pub async fn set<S>(
         &mut self,
         key: K,
         value: V,
@@ -103,6 +103,7 @@ where
     ) -> Result<(Option<V>, bool)>
     where
         V: PartialEq,
+        S: BlockStore,
     {
         self.modify_value(
             HashBits::new(H::hash(&key)),
@@ -117,21 +118,17 @@ where
     }
 
     #[inline]
-    pub async fn get<Q: ?Sized + TargetConditionalSendSync, S: BlockStore>(
-        &self,
-        k: &Q,
-        store: &S,
-        bit_width: u32,
-    ) -> Result<Option<&V>>
+    pub async fn get<Q, S>(&self, k: &Q, store: &S, bit_width: u32) -> Result<Option<&V>>
     where
         K: Borrow<Q>,
-        Q: Eq + Hash,
+        Q: ?Sized + TargetConditionalSendSync + Eq + Hash,
+        S: BlockStore,
     {
         Ok(self.search(k, store, bit_width).await?.map(|kv| kv.value()))
     }
 
     #[inline]
-    pub async fn remove_entry<Q: ?Sized, S>(
+    pub async fn remove_entry<Q, S>(
         &mut self,
         k: &Q,
         store: &S,
@@ -139,7 +136,7 @@ where
     ) -> Result<Option<(K, V)>>
     where
         K: Borrow<Q>,
-        Q: Eq + Hash + TargetConditionalSendSync,
+        Q: ?Sized + TargetConditionalSendSync + Eq + Hash,
         S: BlockStore,
     {
         self.rm_value(HashBits::new(H::hash(k)), bit_width, 0, k, store)
@@ -241,7 +238,7 @@ where
     }
 
     /// Search for a key.
-    async fn search<Q: ?Sized + TargetConditionalSendSync, S: BlockStore>(
+    async fn search<Q, S>(
         &self,
         q: &Q,
         store: &S,
@@ -249,7 +246,8 @@ where
     ) -> Result<Option<&KeyValuePair<K, V>>>
     where
         K: Borrow<Q>,
-        Q: Eq + Hash,
+        Q: ?Sized + TargetConditionalSendSync + Eq + Hash,
+        S: BlockStore,
     {
         self.get_value(HashBits::new(H::hash(q)), bit_width, 0, q, store)
             .await
@@ -257,7 +255,7 @@ where
 
     #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
     #[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
-    async fn get_value<Q: ?Sized + TargetConditionalSendSync, S: BlockStore>(
+    async fn get_value<Q, S>(
         &self,
         mut hashed_key: HashBits,
         bit_width: u32,
@@ -267,7 +265,8 @@ where
     ) -> Result<Option<&KeyValuePair<K, V>>>
     where
         K: Borrow<Q>,
-        Q: Eq + Hash,
+        Q: ?Sized + TargetConditionalSendSync + Eq + Hash,
+        S: BlockStore,
     {
         let idx = hashed_key.next(bit_width)?;
 
@@ -315,7 +314,7 @@ where
     #[allow(clippy::too_many_arguments)]
     #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
     #[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
-    async fn modify_value<S: BlockStore>(
+    async fn modify_value<S>(
         &mut self,
         mut hashed_key: HashBits,
         bit_width: u32,
@@ -327,6 +326,7 @@ where
     ) -> Result<(Option<V>, bool)>
     where
         V: PartialEq + TargetConditionalSendSync,
+        S: BlockStore,
     {
         let idx = hashed_key.next(bit_width)?;
 
@@ -446,7 +446,7 @@ where
     /// Internal method to delete entries.
     #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
     #[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
-    async fn rm_value<Q: ?Sized + TargetConditionalSendSync, S: BlockStore>(
+    async fn rm_value<Q, S>(
         &mut self,
         mut hashed_key: HashBits,
         bit_width: u32,
@@ -456,7 +456,8 @@ where
     ) -> Result<Option<(K, V)>>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: ?Sized + TargetConditionalSendSync + Eq + Hash,
+        S: BlockStore,
     {
         let idx = hashed_key.next(bit_width)?;
 
@@ -521,7 +522,10 @@ where
 
     #[cfg_attr(target_arch="wasm32", async_recursion(?Send))]
     #[cfg_attr(not(target_arch = "wasm32"), async_recursion)]
-    pub async fn flush<S: BlockStore>(&mut self, store: &mut S) -> Result<()> {
+    pub async fn flush<S>(&mut self, store: &mut S) -> Result<()>
+    where
+        S: BlockStore,
+    {
         for pointer in &mut self.pointers {
             if let Pointer::Dirty(node) = pointer {
                 // Flush cached sub node to clear it's cache
