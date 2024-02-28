@@ -1,10 +1,9 @@
-use std::collections::BTreeMap;
-
 use crate::{
     builder::UcanBuilder,
     capability::{Capabilities, Capability, CapabilitySemantics},
     chain::ProofChain,
     crypto::did::DidParser,
+    key_material::ed25519::Ed25519KeyMaterial,
     store::UcanJwtStore,
     tests::fixtures::{
         Blake2bMemoryStore, EmailSemantics, Identities, WNFSSemantics, SUPPORTED_KEYS,
@@ -12,8 +11,8 @@ use crate::{
     time::now,
 };
 use cid::multihash::Code;
-use did_key::PatchedKeyPair;
 use serde_json::json;
+use std::collections::BTreeMap;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
@@ -152,7 +151,7 @@ async fn it_prevents_duplicate_proofs() {
     assert_eq!(
         next_ucan.proofs(),
         &Some(vec![ucan
-            .to_cid(UcanBuilder::<PatchedKeyPair>::default_hasher())
+            .to_cid(UcanBuilder::<Ed25519KeyMaterial>::default_hasher())
             .unwrap()
             .to_string()])
     )

@@ -1,8 +1,10 @@
-use crate::rsa::RsaKeyMaterial;
+use crate::{
+    crypto::{JwtSignatureAlgorithm, KeyMaterial},
+    key_material::rsa::RsaKeyMaterial,
+};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use js_sys::{Array, ArrayBuffer, Boolean, Object, Reflect, Uint8Array};
-use noosphere_ucan::crypto::{JwtSignatureAlgorithm, KeyMaterial};
 use rsa::{pkcs1::DecodeRsaPublicKey, RsaPublicKey};
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
@@ -212,10 +214,10 @@ mod tests {
     wasm_bindgen_test_configure!(run_in_browser);
 
     use super::WebCryptoRsaKeyMaterial;
-    use crate::rsa::{bytes_to_rsa_key, RSA_MAGIC_BYTES};
-    use noosphere_ucan::{
+    use crate::{
         builder::UcanBuilder,
         crypto::{did::DidParser, KeyMaterial},
+        key_material::rsa::{bytes_to_rsa_key, RSA_MAGIC_BYTES},
         ucan::Ucan,
     };
 

@@ -76,15 +76,15 @@
 //! [DID spec]: https://www.w3.org/TR/did-core/
 //! [DID Key spec]: https://w3c-ccg.github.io/did-method-key/
 
-pub mod crypto;
-pub mod time;
-
 pub mod builder;
 pub mod capability;
 pub mod chain;
+pub mod crypto;
 pub mod ipld;
+pub mod key_material;
 pub mod serde;
 pub mod store;
+pub mod time;
 pub mod ucan;
 pub use self::ucan::Ucan;
 

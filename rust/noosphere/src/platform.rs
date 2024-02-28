@@ -7,7 +7,7 @@
 mod inner {
     #![allow(missing_docs)]
 
-    use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
+    use noosphere_ucan::key_material::ed25519::Ed25519KeyMaterial;
 
     use crate::key::InsecureKeyStorage;
 
@@ -55,7 +55,7 @@ mod inner {
 
     use crate::key::WebCryptoKeyStorage;
 
-    use noosphere_ucan_key_support::web_crypto::WebCryptoRsaKeyMaterial;
+    use noosphere_ucan::key_material::web_crypto::WebCryptoRsaKeyMaterial;
     use std::sync::Arc;
 
     pub type PlatformKeyMaterial = Arc<WebCryptoRsaKeyMaterial>;
@@ -103,7 +103,7 @@ mod inner {
 #[cfg(all(native, not(apple)))]
 mod inner {
     use crate::key::InsecureKeyStorage;
-    use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
+    use noosphere_ucan::key_material::ed25519::Ed25519KeyMaterial;
 
     /// The default key type produced by the [crate::key::KeyStorage]
     /// implementation in use for this platform

@@ -7,9 +7,13 @@ use crate::{
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use libp2p::{identity::Keypair, Multiaddr};
-use noosphere_core::data::{Did, LinkRecord};
-use noosphere_ucan::{crypto::KeyMaterial, store::UcanJwtStore};
-use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
+use noosphere_core::{
+    authority::ed25519_key_to_bytes,
+    data::{Did, LinkRecord},
+};
+use noosphere_ucan::{
+    crypto::KeyMaterial, key_material::ed25519::Ed25519KeyMaterial, store::UcanJwtStore,
+};
 
 #[cfg(doc)]
 use cid::Cid;
@@ -30,13 +34,8 @@ pub trait NameSystemKeyMaterial: KeyMaterial + Clone {
 impl NameSystemKeyMaterial for Ed25519KeyMaterial {
     fn to_dht_keypair(&self) -> anyhow::Result<Keypair> {
         pub const ED25519_KEY_LENGTH: usize = 32;
-        let mut bytes: [u8; ED25519_KEY_LENGTH] = [0u8; ED25519_KEY_LENGTH];
-        bytes[..ED25519_KEY_LENGTH].copy_from_slice(
-            self.1
-                .ok_or_else(|| anyhow!("Private key required in order to deserialize."))?
-                .as_ref(),
-        );
-        let kp = Keypair::ed25519_from_bytes(&mut bytes)
+        let mut bytes = ed25519_key_to_bytes(self)?;
+        let kp = Keypair::ed25519_from_bytes(&mut bytes[..ED25519_KEY_LENGTH])
             .map_err(|_| anyhow::anyhow!("Could not decode ED25519 key."))?;
         Ok(kp)
     }

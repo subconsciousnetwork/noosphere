@@ -7,11 +7,11 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use noosphere_storage::{SphereDb, Storage};
+use noosphere_ucan::key_material::ed25519::Ed25519KeyMaterial;
 use noosphere_ucan::{
     chain::ProofChain,
     crypto::{did::DidParser, KeyMaterial},
 };
-use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 use super::generate_capability;
 

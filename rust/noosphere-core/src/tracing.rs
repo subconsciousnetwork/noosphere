@@ -19,7 +19,6 @@ pub static NOOSPHERE_LOG_LEVEL_CRATES: &[&str] = &[
     "noosphere_api",
     "noosphere_ns",
     "noosphere_ucan",
-    "noosphere_ucan_key_support",
     "orb",
     "orb_ns",
     "tower_http",

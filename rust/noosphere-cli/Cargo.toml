@@ -57,7 +57,6 @@ noosphere-gateway = { workspace = true }
 noosphere-ns = { workspace = true, optional = true }
 noosphere = { workspace = true }
 noosphere-ucan = { workspace = true }
-noosphere-ucan-key-support = { workspace = true }
 
 vergen-pretty = { workspace = true }
 

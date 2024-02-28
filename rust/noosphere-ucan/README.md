@@ -9,6 +9,15 @@ read the [spec][spec].
 
 This project was forked from the official [rs-ucan] implementation, pending the finalization and broad adoption of the v1.0.0 spec (which represents a major breaking change from v0.10.0).
 
+## Key Materials
+
+Key material helpers are provided under `noosphere_ucan::key_material::*` and can be enabled via features:
+
+* `ed25519`
+* `rsa`
+* `p256`
+* `web-crypto-rsa` (`wasm32` only)
+
 [spec]: https://github.com/ucan-wg/spec
 [ucan website]: https://ucan.xyz
 [rs-ucan]: https://github.com/ucan-wg/rs-ucan

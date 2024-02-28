@@ -6,8 +6,7 @@ use noosphere_core::{
     authority::{ed25519_key_to_mnemonic, generate_ed25519_key, restore_ed25519_key},
     data::Did,
 };
-use noosphere_ucan::crypto::KeyMaterial;
-use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
+use noosphere_ucan::{crypto::KeyMaterial, key_material::ed25519::Ed25519KeyMaterial};
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},

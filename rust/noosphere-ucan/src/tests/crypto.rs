@@ -1,8 +1,6 @@
 mod did_from_keypair {
+    use crate::{crypto::KeyMaterial, key_material::ed25519::bytes_to_ed25519_key};
     use base64::Engine;
-    use did_key::{from_existing_key, Ed25519KeyPair, KeyMaterial as _KeyMaterial};
-
-    use crate::crypto::KeyMaterial;
 
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
@@ -16,9 +14,7 @@ mod did_from_keypair {
         let pub_key = base64::engine::general_purpose::STANDARD
             .decode("Hv+AVRD2WUjUFOsSNbsmrp9fokuwrUnjBcr92f0kxw4=")
             .unwrap();
-        let key = Ed25519KeyPair::from_public_key(&pub_key);
-        let keypair = from_existing_key::<Ed25519KeyPair>(&key.public_key_bytes(), None);
-
+        let keypair = bytes_to_ed25519_key(pub_key).unwrap();
         let expected_did = "did:key:z6MkgYGF3thn8k1Fv4p4dWXKtsXCnLH7q9yw4QgNPULDmDKB";
         let result_did = keypair.get_did().await.unwrap();
 

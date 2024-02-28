@@ -19,6 +19,10 @@ rust-version = "1.75.0"
 
 [features]
 default = []
+ed25519 = ["dep:ed25519-dalek"]
+rsa = ["dep:rsa", "dep:sha2"]
+p256 = ["dep:p256"]
+web-crypto-rsa = ["dep:rsa", "dep:sha2", "dep:js-sys", "dep:web-sys", "dep:wasm-bindgen", "dep:wasm-bindgen-futures"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -31,23 +35,33 @@ futures = { workspace = true }
 instant = { workspace = true, features = ["wasm-bindgen"] }
 libipld-core = { workspace = true, features = ["serde-codec", "serde"] }
 libipld-json = { workspace = true }
-log = "0.4"
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
+tracing = { workspace = true }
 unsigned-varint = { workspace = true }
 url = { workspace = true }
+# Optional dependencies
+ed25519-dalek = { workspace = true, features = ["rand_core"], optional = true }
+rsa = { version = "0.9", optional = true }
+p256 = { version = "0.13", optional = true }
+sha2 = { version = "0.10", features = ["oid"], optional = true }
+web-sys = { workspace = true, features = ['Window', 'SubtleCrypto', 'Crypto', 'CryptoKey', 'CryptoKeyPair', 'DedicatedWorkerGlobalScope'], optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # NOTE: This is needed so that rand can be included in WASM builds
 getrandom = { workspace = true, features = ["js"] }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-tokio = { workspace = true, features = ["macros", "test-util"] }
-
 [dev-dependencies]
-did-key = "0.2"
 serde_ipld_dagcbor = { workspace = true }
 wasm-bindgen-test = { workspace = true }
+# Always include ed25519 in tests
+ed25519-dalek = { workspace = true, features = ["rand_core"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt", "test-util"] }

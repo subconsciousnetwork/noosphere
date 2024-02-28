@@ -11,7 +11,6 @@ members = [
   "rust/noosphere-ns",
   "rust/noosphere-storage",
   "rust/noosphere-ucan",
-  "rust/noosphere-ucan-key-support",
 ]
 
 # See: https://github.com/rust-lang/rust/issues/90148#issuecomment-949194352
@@ -29,7 +28,6 @@ noosphere-ipfs = { path = "rust/noosphere-ipfs" }
 noosphere-ns = { path = "rust/noosphere-ns" }
 noosphere-storage = { path = "rust/noosphere-storage" }
 noosphere-ucan = { path = "rust/noosphere-ucan" }
-noosphere-ucan-key-support = { path = "rust/noosphere-ucan-key-support" }
 anyhow = { version = "1" }
 async-recursion = { version = "1" }
 async-stream = { version = "0.3" }
@@ -45,7 +43,7 @@ cid = { version = "0.10" }
 clap-vergen = { version = "0.2.0" }
 deterministic-bloom = { version = "0.1.0" }
 directories = { version = "5" }
-ed25519-zebra = { version = "4" }
+ed25519-dalek = { version = "2" }
 fastcdc = { version = "3.1" }
 futures = { version = "^0.3.30" }
 futures-util = { version = "0.3" }

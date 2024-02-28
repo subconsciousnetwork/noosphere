@@ -1,15 +1,13 @@
+use crate::crypto::{JwtSignatureAlgorithm, KeyMaterial};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-
 use rsa::{
     pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey},
     Pkcs1v15Sign, RsaPrivateKey, RsaPublicKey,
 };
-
-use noosphere_ucan::crypto::{JwtSignatureAlgorithm, KeyMaterial};
 use sha2::{Digest, Sha256};
 
-pub use noosphere_ucan::crypto::did::RSA_MAGIC_BYTES;
+pub use crate::crypto::did::RSA_MAGIC_BYTES;
 
 pub fn bytes_to_rsa_key(bytes: Vec<u8>) -> Result<Box<dyn KeyMaterial>> {
     println!("Trying to parse RSA key...");
@@ -34,7 +32,7 @@ impl KeyMaterial for RsaKeyMaterial {
             Ok(document) => [RSA_MAGIC_BYTES, document.as_bytes()].concat(),
             Err(error) => {
                 // TODO: Probably shouldn't swallow this error...
-                warn!("Could not get RSA public key bytes for DID: {:?}", error);
+                tracing::warn!("Could not get RSA public key bytes for DID: {:?}", error);
                 Vec::new()
             }
         };
@@ -50,7 +48,7 @@ impl KeyMaterial for RsaKeyMaterial {
             Some(private_key) => {
                 let padding = Pkcs1v15Sign::new::<Sha256>();
                 let signature = private_key.sign(padding, hashed.as_ref())?;
-                info!("SIGNED!");
+                tracing::info!("SIGNED!");
                 Ok(signature)
             }
             None => Err(anyhow!("No private key; cannot sign data")),
@@ -72,8 +70,7 @@ impl KeyMaterial for RsaKeyMaterial {
 #[cfg(test)]
 mod tests {
     use super::{bytes_to_rsa_key, RsaKeyMaterial, RSA_MAGIC_BYTES};
-
-    use noosphere_ucan::{
+    use crate::{
         builder::UcanBuilder,
         crypto::{did::DidParser, KeyMaterial},
         ucan::Ucan,

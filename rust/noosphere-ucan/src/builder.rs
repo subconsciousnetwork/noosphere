@@ -10,7 +10,6 @@ use crate::{
 use anyhow::{anyhow, Result};
 use base64::Engine;
 use cid::multihash::Code;
-use log::warn;
 use rand::Rng;
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -201,7 +200,7 @@ where
             Ok(value) => {
                 self.facts.insert(key.to_owned(), value);
             }
-            Err(error) => warn!("Could not add fact to UCAN: {}", error),
+            Err(error) => tracing::warn!("Could not add fact to UCAN: {}", error),
         }
         self
     }
@@ -220,7 +219,7 @@ where
     pub fn witnessed_by(mut self, authority: &Ucan, hasher: Option<Code>) -> Self {
         match authority.to_cid(hasher.unwrap_or_else(|| UcanBuilder::<K>::default_hasher())) {
             Ok(proof) => self.proofs.push(proof.to_string()),
-            Err(error) => warn!("Failed to add authority to proofs: {}", error),
+            Err(error) => tracing::warn!("Failed to add authority to proofs: {}", error),
         }
 
         self
@@ -267,10 +266,10 @@ where
                     Some(capability) => {
                         self.capabilities.push(Capability::from(&capability));
                     }
-                    None => warn!("Could not produce delegation capability"),
+                    None => tracing::warn!("Could not produce delegation capability"),
                 }
             }
-            Err(error) => warn!("Could not encode authoritative UCAN: {:?}", error),
+            Err(error) => tracing::warn!("Could not encode authoritative UCAN: {:?}", error),
         };
 
         self

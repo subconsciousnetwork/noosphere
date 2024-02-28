@@ -14,9 +14,9 @@ use noosphere_storage::{derive_cid, MemoryStorage, SphereDb};
 
 use libipld_cbor::DagCborCodec;
 use noosphere_ucan::{
-    builder::UcanBuilder, crypto::KeyMaterial, store::UcanJwtStore, time::now, Ucan,
+    builder::UcanBuilder, crypto::KeyMaterial, key_material::ed25519::Ed25519KeyMaterial,
+    store::UcanJwtStore, time::now, Ucan,
 };
-use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
 
 /// Data related to an owner and managed sphere identities
 /// and the publishing tokens it can issue.

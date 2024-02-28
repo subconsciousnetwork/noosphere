@@ -3,7 +3,7 @@ use crate::utils;
 use anyhow::{anyhow, Result};
 use noosphere::key::InsecureKeyStorage;
 use noosphere_ns::{DhtConfig, Multiaddr, BOOTSTRAP_PEERS};
-use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
+use noosphere_ucan::key_material::ed25519::Ed25519KeyMaterial;
 use std::net::SocketAddr;
 use url::Url;
 
