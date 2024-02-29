@@ -56,11 +56,17 @@ async fn start_gateway_for_workspace(
     let client_sphere_identity = client_sphere_identity.to_owned();
     let ns_url = ns_url.clone();
     let ipfs_url = ipfs_url.clone();
-    let manager =
-        SingleTenantGatewayManager::new(gateway_sphere_context, client_sphere_identity).await?;
+    let manager = SingleTenantGatewayManager::new(
+        gateway_sphere_context,
+        client_sphere_identity,
+        ipfs_url,
+        ns_url,
+        None,
+    )
+    .await?;
 
     let join_handle = tokio::spawn(async move {
-        let gateway = Gateway::new(manager, ipfs_url, ns_url, None).unwrap();
+        let gateway = Gateway::new(manager).unwrap();
         gateway.start(gateway_listener).await.unwrap()
     });
 

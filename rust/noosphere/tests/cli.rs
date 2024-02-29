@@ -7,10 +7,14 @@
 extern crate noosphere_cli_dev as noosphere_cli;
 
 use anyhow::Result;
-use noosphere_cli::{helpers::CliSimulator, paths::SPHERE_DIRECTORY};
+use noosphere_cli::{
+    helpers::{start_name_system_server, CliSimulator},
+    paths::SPHERE_DIRECTORY,
+};
 use noosphere_common::helpers::wait;
 use noosphere_core::tracing::initialize_tracing;
 use serde_json::Value;
+use url::Url;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn orb_status_errors_on_empty_directory() -> Result<()> {
@@ -41,6 +45,9 @@ async fn orb_sphere_create_initializes_a_sphere() -> Result<()> {
 async fn orb_can_enable_multiple_replicas_to_synchronize() -> Result<()> {
     initialize_tracing(None);
 
+    let (ns_url, ns_task) =
+        start_name_system_server(&Url::parse("https://127.0.0.1:5001")?).await?;
+
     let first_replica = CliSimulator::new()?;
     let second_replica = CliSimulator::new()?;
 
@@ -66,7 +73,11 @@ async fn orb_can_enable_multiple_replicas_to_synchronize() -> Result<()> {
         .orb(&["sphere", "config", "set", "counterpart", &client_sphere_id])
         .await?;
 
-    let gateway_task = tokio::task::spawn(async move { gateway.orb(&["serve"]).await });
+    let gateway_task = tokio::task::spawn(async move {
+        gateway
+            .orb(&["serve", "--name-resolver-api", ns_url.as_str()])
+            .await
+    });
 
     wait(1).await;
 
@@ -151,6 +162,6 @@ async fn orb_can_enable_multiple_replicas_to_synchronize() -> Result<()> {
     assert_eq!(foo_contents.as_str(), "foobar");
 
     gateway_task.abort();
-
+    ns_task.abort();
     Ok(())
 }

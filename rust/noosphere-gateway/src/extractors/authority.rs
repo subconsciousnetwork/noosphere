@@ -1,3 +1,7 @@
+use crate::{
+    extractors::{map_bad_request, GatewayScope},
+    GatewayManager,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use axum::{
@@ -10,14 +14,11 @@ use axum_extra::{
 };
 use noosphere_core::{
     api::headers::{self as noosphere_headers},
-    authority::{SphereAbility, SphereReference, SPHERE_SEMANTICS},
+    authority::{generate_capability, SphereAbility, SPHERE_SEMANTICS},
     context::HasMutableSphereContext,
-    data::Did,
 };
 use noosphere_storage::Storage;
-use noosphere_ucan::capability::CapabilityView;
-
-use crate::extractors::map_bad_request;
+use std::{marker::PhantomData, sync::Arc};
 
 /// Represents the scope of a gateway request's authorization and sphere
 /// access.
@@ -26,29 +27,32 @@ use crate::extractors::map_bad_request;
 /// represented by its `ucan` headers. Any request handler can use a [GatewayAuthority]
 /// to test if a required capability is satisfied by the authorization
 /// presented by the maker of the request.
-pub struct GatewayAuthority {
+pub struct GatewayAuthority<M, C, S> {
     bearer: Bearer,
     ucans: noosphere_headers::Ucan,
+    manager: Arc<M>,
+    sphere_context_marker: PhantomData<C>,
+    storage_marker: PhantomData<S>,
 }
 
-impl GatewayAuthority {
-    pub async fn try_authorize<C, S>(
+impl<M, C, S> GatewayAuthority<M, C, S>
+where
+    M: GatewayManager<C, S> + 'static,
+    C: HasMutableSphereContext<S>,
+    S: Storage + 'static,
+{
+    pub async fn try_authorize(
         &self,
-        sphere_context: &mut C,
-        counterpart: &Did,
-        capability: &CapabilityView<SphereReference, SphereAbility>,
-    ) -> Result<(), StatusCode>
-    where
-        C: HasMutableSphereContext<S>,
-        S: Storage + 'static,
-    {
-        let db = {
-            let sphere_context: C::SphereContext = sphere_context
-                .sphere_context()
-                .await
-                .map_err(map_bad_request)?;
-            sphere_context.db().clone()
-        };
+        gateway_scope: &GatewayScope<C, S>,
+        required_ability: SphereAbility,
+    ) -> Result<C, StatusCode> {
+        let counterpart_str = gateway_scope.counterpart.as_str();
+        let capability = generate_capability(counterpart_str, required_ability);
+        let db = self
+            .manager
+            .ucan_store()
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let proof_chain = self
             .ucans
@@ -60,11 +64,15 @@ impl GatewayAuthority {
 
         for capability_info in capability_infos {
             trace!("Checking capability: {:?}", capability_info.capability);
-            if capability_info.originators.contains(counterpart.as_str())
-                && capability_info.capability.enables(capability)
+            if capability_info.originators.contains(counterpart_str)
+                && capability_info.capability.enables(&capability)
             {
                 debug!("Authorized!");
-                return Ok(());
+                return self
+                    .manager
+                    .sphere_context(&gateway_scope.counterpart)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
             }
         }
 
@@ -73,13 +81,18 @@ impl GatewayAuthority {
 }
 
 #[async_trait]
-impl<State> FromRequestParts<State> for GatewayAuthority
+impl<M, C, S> FromRequestParts<Arc<M>> for GatewayAuthority<M, C, S>
 where
-    State: Send + Sync,
+    M: GatewayManager<C, S> + 'static,
+    C: HasMutableSphereContext<S>,
+    S: Storage + 'static,
 {
     type Rejection = StatusCode;
 
-    async fn from_request_parts(parts: &mut Parts, state: &State) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<M>,
+    ) -> Result<Self, Self::Rejection> {
         let TypedHeader(Authorization(bearer)) =
             TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state)
                 .await
@@ -91,6 +104,13 @@ where
                 .map_err(map_bad_request)?
                 .0;
 
-        Ok(GatewayAuthority { bearer, ucans })
+        let manager = state.to_owned();
+        Ok(GatewayAuthority {
+            bearer,
+            ucans,
+            manager,
+            sphere_context_marker: PhantomData,
+            storage_marker: PhantomData,
+        })
     }
 }

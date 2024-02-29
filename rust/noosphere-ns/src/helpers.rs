@@ -7,7 +7,7 @@ use noosphere_core::{
     data::{Did, LinkRecord},
 };
 use noosphere_ucan::store::UcanJwtStore;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 /// An in-process network of [NameSystem] nodes for testing.
@@ -70,14 +70,15 @@ impl NameSystemNetwork {
     }
 }
 
+#[derive(Clone)]
 pub struct KeyValueNameResolver {
-    store: Mutex<HashMap<Did, LinkRecord>>,
+    store: Arc<Mutex<HashMap<Did, LinkRecord>>>,
 }
 
 impl KeyValueNameResolver {
     pub fn new() -> Self {
         KeyValueNameResolver {
-            store: Mutex::new(HashMap::new()),
+            store: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }

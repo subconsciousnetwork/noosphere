@@ -6,6 +6,7 @@ use noosphere_core::data::{Did, LinkRecord};
 use reqwest::Body;
 use url::Url;
 
+#[derive(Clone)]
 pub struct HttpClient {
     api_base: Url,
     client: reqwest::Client,

@@ -151,7 +151,6 @@ impl LinkRecord {
         let facts = if let Some(facts) = self.0.facts() {
             facts
         } else {
-            warn!("No facts found in the link record!");
             return None;
         };
 
