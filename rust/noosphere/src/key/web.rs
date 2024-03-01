@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use noosphere_ucan_key_support::web_crypto::WebCryptoRsaKeyMaterial;
+use noosphere_ucan::key_material::web_crypto::WebCryptoRsaKeyMaterial;
 use rexie::{KeyRange, ObjectStore, Rexie, RexieBuilder, Store, Transaction, TransactionMode};
 use std::sync::Arc;
 use wasm_bindgen::{JsCast, JsValue};

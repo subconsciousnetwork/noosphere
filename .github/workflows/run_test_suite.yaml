@@ -117,10 +117,12 @@ jobs:
           ${{ matrix.features }}
           ${{ matrix.toolchain}}" > test-results/target
 
-          FEATURES="";
+          UCAN_FEATURES="noosphere-ucan/p256,noosphere-ucan/rsa,noosphere-ucan/ed25519"
+
+          FEATURES="$UCAN_FEATURES"
 
           if [ -n "${{matrix.features}}" ]; then
-            FEATURES="--features ${{matrix.features}}"
+            FEATURES="--features ${{matrix.features}},$UCAN_FEATURES"
           fi
 
           cargo +${{ matrix.toolchain }} nextest run $FEATURES --profile ci --color always 2>&1 | tee test-results/log
@@ -202,7 +204,9 @@ jobs:
         shell: bash
       - name: 'Run Rust headless browser tests'
         working-directory: ./rust
-        run: CHROMEDRIVER=/usr/local/bin/chromedriver cargo test --target wasm32-unknown-unknown
+        run: |
+          WASM_UCAN_FEATURES="noosphere-ucan/web-crypto-rsa,noosphere-ucan/p256,noosphere-ucan/rsa,noosphere-ucan/ed25519"
+          CHROMEDRIVER=/usr/local/bin/chromedriver cargo test --target wasm32-unknown-unknown --features $WASM_UCAN_FEATURES
         shell: bash
 
   run-test-suite-web-typescript:

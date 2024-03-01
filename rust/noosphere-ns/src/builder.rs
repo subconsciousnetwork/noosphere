@@ -17,7 +17,7 @@ use libp2p::kad::Config as KademliaConfig;
 /// use noosphere_core::authority::generate_ed25519_key;
 /// use noosphere_storage::{SphereDb, MemoryStorage};
 /// use noosphere_ns::{BOOTSTRAP_PEERS, NameSystem, DhtClient, NameSystemBuilder};
-/// use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
+/// use noosphere_ucan::key_material::ed25519::Ed25519KeyMaterial;
 /// use tokio;
 ///
 /// #[tokio::main(flavor = "multi_thread")]
@@ -181,7 +181,7 @@ mod tests {
     use libp2p::PeerId;
     use noosphere_core::authority::generate_ed25519_key;
     use noosphere_storage::{MemoryStorage, SphereDb};
-    use noosphere_ucan_key_support::ed25519::Ed25519KeyMaterial;
+    use noosphere_ucan::key_material::ed25519::Ed25519KeyMaterial;
 
     #[tokio::test]
     async fn test_name_system_builder() -> Result<(), anyhow::Error> {

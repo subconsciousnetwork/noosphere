@@ -37,8 +37,7 @@ tokio = { workspace = true, features = ["io-util", "io-std", "sync", "macros", "
 noosphere-storage = { workspace = true }
 noosphere-core = { workspace = true }
 noosphere-common = { workspace = true }
-noosphere-ucan = { workspace = true }
-noosphere-ucan-key-support = { workspace = true }
+noosphere-ucan = { workspace = true, features = ["ed25519"] }
 libp2p = { version = "0.53.2", default-features = false, features = [ "ed25519", "identify", "dns", "kad", "macros", "noise", "serde", "tcp", "tls", "tokio", "yamux" ] }
 void = { workspace = true }
 

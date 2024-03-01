@@ -20,7 +20,6 @@ readme = "README.md"
 noosphere-core = { workspace = true }
 noosphere-storage = { workspace = true }
 noosphere-ucan = { workspace = true }
-noosphere-ucan-key-support = { workspace = true }
 subtext = { workspace = true, features = ["stream"] }
 async-trait = { workspace = true }
 url = { workspace = true }

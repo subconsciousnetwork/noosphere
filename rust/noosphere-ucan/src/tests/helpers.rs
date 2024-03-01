@@ -1,7 +1,9 @@
 use super::fixtures::{EmailSemantics, Identities};
-use crate::{builder::UcanBuilder, capability::CapabilitySemantics};
+use crate::{
+    builder::UcanBuilder, capability::CapabilitySemantics,
+    key_material::ed25519::Ed25519KeyMaterial,
+};
 use anyhow::Result;
-use did_key::PatchedKeyPair;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_ipld_dagcbor::{from_slice, to_vec};
 
@@ -12,7 +14,9 @@ where
     Ok(from_slice(&to_vec(data)?)?)
 }
 
-pub async fn scaffold_ucan_builder(identities: &Identities) -> Result<UcanBuilder<PatchedKeyPair>> {
+pub async fn scaffold_ucan_builder(
+    identities: &Identities,
+) -> Result<UcanBuilder<Ed25519KeyMaterial>> {
     let email_semantics = EmailSemantics {};
     let send_email_as_bob = email_semantics
         .parse("mailto:bob@email.com".into(), "email/send".into(), None)

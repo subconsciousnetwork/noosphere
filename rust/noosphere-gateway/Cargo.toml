@@ -55,7 +55,6 @@ noosphere-ns = { workspace = true }
 noosphere-storage = { workspace = true }
 noosphere-common = { workspace = true }
 noosphere-ucan = { workspace = true }
-noosphere-ucan-key-support = { workspace = true }
 cid = { workspace = true }
 
 serde = { workspace = true }
