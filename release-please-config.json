@@ -20,7 +20,6 @@
     "rust/noosphere-ns": {},
     "rust/noosphere-storage": {},
     "rust/noosphere-ucan": {},
-    "rust/noosphere-ucan-key-support": {},
     "rust/noosphere": {
       "draft": true
     }
