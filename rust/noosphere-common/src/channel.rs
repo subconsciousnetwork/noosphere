@@ -143,7 +143,7 @@ pub fn message_channel<Q, S, E>() -> (MessageClient<Q, S, E>, MessageProcessor<Q
 mod tests {
     enum Request {
         Ping(),
-        SetFlag(u32),
+        SetFlag(),
         Shutdown(),
         Throw(),
     }
@@ -176,7 +176,7 @@ mod tests {
                                 message: String::from("thrown!"),
                             }));
                         }
-                        Request::SetFlag(_) => {
+                        Request::SetFlag() => {
                             set_flags += 1;
                             let success = m.respond(Ok(Response::GenericResult(true)));
                             assert!(
@@ -199,8 +199,8 @@ mod tests {
         let res = client.send(Request::Ping()).await?;
         matches!(res, Ok(Response::Pong()));
 
-        for n in 0..10 {
-            client.send_oneshot(Request::SetFlag(n))?;
+        for _ in 0..10 {
+            client.send_oneshot(Request::SetFlag())?;
         }
 
         let res = client.send(Request::Throw()).await?;

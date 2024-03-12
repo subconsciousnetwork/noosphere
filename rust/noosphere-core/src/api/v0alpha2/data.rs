@@ -1,7 +1,6 @@
 use crate::{
     api::StatusCode,
     data::{Did, Jwt, Link, MemoIpld},
-    error::NoosphereError,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -69,12 +68,6 @@ impl From<&PushError> for StatusCode {
             PushError::UpToDate => StatusCode::NOT_MODIFIED,
             PushError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
-    }
-}
-
-impl From<NoosphereError> for PushError {
-    fn from(error: NoosphereError) -> Self {
-        error.into()
     }
 }
 

@@ -66,13 +66,7 @@ impl RunnerNodeConfig {
                 None => {
                     let key_name: String =
                         key.ok_or_else(|| anyhow!("--key or --config must be provided."))?;
-
-                    let bootstrap_peers = if let Some(peers) = peers {
-                        peers
-                    } else {
-                        vec![]
-                    };
-
+                    let bootstrap_peers = peers.unwrap_or_default();
                     let dht_config = DhtConfig::default();
 
                     let config = CLIConfigFile {

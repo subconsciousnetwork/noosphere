@@ -212,10 +212,7 @@ pub fn ns_sphere_traverse_by_petname_blocking(
 
         Ok(sphere)
     };
-    match error_out.try_or_initialize(closure) {
-        Some(maybe_sphere) => maybe_sphere,
-        None => None,
-    }
+    error_out.try_or_initialize(closure).unwrap_or_default()
 }
 
 #[ffi_export]
@@ -315,48 +312,49 @@ pub fn ns_sphere_content_read_blocking(
     slashlink: char_p::Ref<'_>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> Option<repr_c::Box<NsSphereFile>> {
-    match error_out.try_or_initialize(|| {
-        noosphere
-            .async_runtime()
-            .block_on(async {
-                let slashlink = Slashlink::from_str(slashlink.to_str())?;
+    error_out
+        .try_or_initialize(|| {
+            noosphere
+                .async_runtime()
+                .block_on(async {
+                    let slashlink = Slashlink::from_str(slashlink.to_str())?;
 
-                let slug = match slashlink.slug {
-                    Some(slug) => slug,
-                    None => return Err(anyhow!("No slug specified in slashlink!")),
-                };
+                    let slug = match slashlink.slug {
+                        Some(slug) => slug,
+                        None => return Err(anyhow!("No slug specified in slashlink!")),
+                    };
 
-                let cursor = match slashlink.peer {
-                    Peer::Name(petnames) => {
-                        match sphere.inner().traverse_by_petnames(&petnames).await? {
-                            Some(sphere_context) => sphere_context,
-                            None => return Ok(None),
+                    let cursor = match slashlink.peer {
+                        Peer::Name(petnames) => {
+                            match sphere.inner().traverse_by_petnames(&petnames).await? {
+                                Some(sphere_context) => sphere_context,
+                                None => return Ok(None),
+                            }
                         }
-                    }
-                    Peer::None => sphere.inner().clone(),
-                    Peer::Did(_) => return Err(anyhow!("DID peer in slashlink not yet supported")),
-                };
+                        Peer::None => sphere.inner().clone(),
+                        Peer::Did(_) => {
+                            return Err(anyhow!("DID peer in slashlink not yet supported"))
+                        }
+                    };
 
-                info!(
-                    "Reading sphere {} slug {}...",
-                    cursor.identity().await?,
-                    slug
-                );
+                    info!(
+                        "Reading sphere {} slug {}...",
+                        cursor.identity().await?,
+                        slug
+                    );
 
-                let file = cursor.read(&slug).await?;
+                    let file = cursor.read(&slug).await?;
 
-                Ok(file.map(|sphere_file| {
-                    Box::new(NsSphereFile {
-                        inner: sphere_file.boxed(),
-                    })
-                    .into()
-                }))
-            })
-            .map_err(|error| error.into())
-    }) {
-        Some(maybe_file) => maybe_file,
-        None => None,
-    }
+                    Ok(file.map(|sphere_file| {
+                        Box::new(NsSphereFile {
+                            inner: sphere_file.boxed(),
+                        })
+                        .into()
+                    }))
+                })
+                .map_err(|error| error.into())
+        })
+        .unwrap_or_default()
 }
 
 #[ffi_export]
@@ -467,28 +465,25 @@ pub fn ns_sphere_content_list(
     sphere: &NsSphere,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> c_slice::Box<char_p::Box> {
-    let possible_output = error_out.try_or_initialize(|| {
-        noosphere.async_runtime().block_on(async {
-            let slug_set = SphereWalker::from(sphere.inner()).list_slugs().await?;
-            let mut all_slugs: Vec<char_p::Box> = Vec::new();
+    error_out
+        .try_or_initialize(|| {
+            noosphere.async_runtime().block_on(async {
+                let slug_set = SphereWalker::from(sphere.inner()).list_slugs().await?;
+                let mut all_slugs: Vec<char_p::Box> = Vec::new();
 
-            for slug in slug_set.into_iter() {
-                all_slugs.push(
-                    slug.try_into()
-                        .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?,
-                );
-            }
+                for slug in slug_set.into_iter() {
+                    all_slugs.push(
+                        slug.try_into()
+                            .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?,
+                    );
+                }
 
-            Ok(all_slugs)
+                Ok(all_slugs)
+            })
         })
-    });
-
-    match possible_output {
-        Some(slugs) => slugs,
-        None => Vec::new(),
-    }
-    .into_boxed_slice()
-    .into()
+        .unwrap_or_default()
+        .into_boxed_slice()
+        .into()
 }
 
 #[ffi_export]
@@ -509,39 +504,36 @@ pub fn ns_sphere_content_changes(
     since_cid: Option<char_p::Ref<'_>>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> c_slice::Box<char_p::Box> {
-    let possible_output = error_out.try_or_initialize(|| {
-        noosphere.async_runtime().block_on(async {
-            let since = match since_cid {
-                Some(cid_string) => Some(
-                    Cid::from_str(cid_string.to_str())
-                        .map_err(|error| anyhow!(error))?
-                        .into(),
-                ),
-                None => None,
-            };
+    error_out
+        .try_or_initialize(|| {
+            noosphere.async_runtime().block_on(async {
+                let since = match since_cid {
+                    Some(cid_string) => Some(
+                        Cid::from_str(cid_string.to_str())
+                            .map_err(|error| anyhow!(error))?
+                            .into(),
+                    ),
+                    None => None,
+                };
 
-            let changed_slug_set = SphereWalker::from(sphere.inner())
-                .content_changes(since.as_ref())
-                .await?;
-            let mut changed_slugs: Vec<char_p::Box> = Vec::new();
+                let changed_slug_set = SphereWalker::from(sphere.inner())
+                    .content_changes(since.as_ref())
+                    .await?;
+                let mut changed_slugs: Vec<char_p::Box> = Vec::new();
 
-            for slug in changed_slug_set.into_iter() {
-                changed_slugs.push(
-                    slug.try_into()
-                        .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?,
-                );
-            }
+                for slug in changed_slug_set.into_iter() {
+                    changed_slugs.push(
+                        slug.try_into()
+                            .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?,
+                    );
+                }
 
-            Ok(changed_slugs)
+                Ok(changed_slugs)
+            })
         })
-    });
-
-    match possible_output {
-        Some(slugs) => slugs,
-        None => Vec::new(),
-    }
-    .into_boxed_slice()
-    .into()
+        .unwrap_or_default()
+        .into_boxed_slice()
+        .into()
 }
 
 #[ffi_export]
