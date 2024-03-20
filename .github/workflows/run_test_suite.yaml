@@ -101,7 +101,7 @@ jobs:
       - name: 'Install IPFS Kubo'
         uses: ibnesayeed/setup-ipfs@master
         with:
-          ipfs_version: v0.17.0
+          ipfs_version: v0.27.0
           run_daemon: true
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@v1.4.4
