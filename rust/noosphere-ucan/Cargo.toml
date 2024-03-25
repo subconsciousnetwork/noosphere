@@ -53,10 +53,6 @@ wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
 js-sys = { workspace = true, optional = true }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-# NOTE: This is needed so that rand can be included in WASM builds
-getrandom = { workspace = true, features = ["js"] }
-
 [dev-dependencies]
 serde_ipld_dagcbor = { workspace = true }
 wasm-bindgen-test = { workspace = true }

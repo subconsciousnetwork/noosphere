@@ -47,7 +47,6 @@ ed25519-dalek = { version = "2" }
 fastcdc = { version = "3.1" }
 futures = { version = "^0.3.30" }
 futures-util = { version = "0.3" }
-getrandom = { version = "~0.2", features = ["js"]}
 gloo-net = { version = "0.4" }
 gloo-timers = { version = "0.3", features = ["futures"] }
 ignore = { version = "0.4.20" }
