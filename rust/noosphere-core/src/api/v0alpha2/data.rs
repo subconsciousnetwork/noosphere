@@ -1,7 +1,5 @@
-use crate::{
-    api::StatusCode,
-    data::{Did, Jwt, Link, MemoIpld},
-};
+use crate::data::{Did, Jwt, Link, MemoIpld};
+use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
