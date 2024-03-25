@@ -192,10 +192,7 @@ pub fn ns_sphere_petname_resolve(
             Ok(None)
         }
     };
-    match error_out.try_or_initialize(closure) {
-        Some(maybe_version) => maybe_version,
-        None => None,
-    }
+    error_out.try_or_initialize(closure).unwrap_or_default()
 }
 
 #[ffi_export]
@@ -207,29 +204,26 @@ pub fn ns_sphere_petname_list(
     sphere: &NsSphere,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> c_slice::Box<char_p::Box> {
-    let possible_output = error_out.try_or_initialize(|| {
-        noosphere.async_runtime().block_on(async {
-            let petname_set = SphereWalker::from(sphere.inner()).list_petnames().await?;
-            let mut all_petnames: Vec<char_p::Box> = Vec::new();
+    error_out
+        .try_or_initialize(|| {
+            noosphere.async_runtime().block_on(async {
+                let petname_set = SphereWalker::from(sphere.inner()).list_petnames().await?;
+                let mut all_petnames: Vec<char_p::Box> = Vec::new();
 
-            for petname in petname_set.into_iter() {
-                all_petnames.push(
-                    petname
-                        .try_into()
-                        .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?,
-                );
-            }
+                for petname in petname_set.into_iter() {
+                    all_petnames.push(
+                        petname
+                            .try_into()
+                            .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?,
+                    );
+                }
 
-            Ok(all_petnames)
+                Ok(all_petnames)
+            })
         })
-    });
-
-    match possible_output {
-        Some(slugs) => slugs,
-        None => Vec::new(),
-    }
-    .into_boxed_slice()
-    .into()
+        .unwrap_or_default()
+        .into_boxed_slice()
+        .into()
 }
 
 #[ffi_export]
@@ -254,38 +248,35 @@ pub fn ns_sphere_petname_changes(
     since_cid: Option<char_p::Ref<'_>>,
     error_out: Option<Out<'_, repr_c::Box<NsError>>>,
 ) -> c_slice::Box<char_p::Box> {
-    let possible_output = error_out.try_or_initialize(|| {
-        noosphere.async_runtime().block_on(async {
-            let since = match since_cid {
-                Some(cid_string) => Some(
-                    Cid::from_str(cid_string.to_str())
-                        .map_err(|error| anyhow!(error))?
-                        .into(),
-                ),
-                None => None,
-            };
+    error_out
+        .try_or_initialize(|| {
+            noosphere.async_runtime().block_on(async {
+                let since = match since_cid {
+                    Some(cid_string) => Some(
+                        Cid::from_str(cid_string.to_str())
+                            .map_err(|error| anyhow!(error))?
+                            .into(),
+                    ),
+                    None => None,
+                };
 
-            let changed_petname_set = SphereWalker::from(sphere.inner())
-                .petname_changes(since.as_ref())
-                .await?;
-            let mut changed_petnames: Vec<char_p::Box> = Vec::new();
+                let changed_petname_set = SphereWalker::from(sphere.inner())
+                    .petname_changes(since.as_ref())
+                    .await?;
+                let mut changed_petnames: Vec<char_p::Box> = Vec::new();
 
-            for petname in changed_petname_set.into_iter() {
-                changed_petnames.push(
-                    petname
-                        .try_into()
-                        .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?,
-                );
-            }
+                for petname in changed_petname_set.into_iter() {
+                    changed_petnames.push(
+                        petname
+                            .try_into()
+                            .map_err(|error: InvalidNulTerminator<String>| anyhow!(error))?,
+                    );
+                }
 
-            Ok(changed_petnames)
+                Ok(changed_petnames)
+            })
         })
-    });
-
-    match possible_output {
-        Some(petnames) => petnames,
-        None => Vec::new(),
-    }
-    .into_boxed_slice()
-    .into()
+        .unwrap_or_default()
+        .into_boxed_slice()
+        .into()
 }

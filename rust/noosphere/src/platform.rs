@@ -4,9 +4,8 @@
 //! use on a per-platform basis.
 
 #[cfg(apple)]
+#[allow(missing_docs)]
 mod inner {
-    #![allow(missing_docs)]
-
     use noosphere_ucan::key_material::ed25519::Ed25519KeyMaterial;
 
     use crate::key::InsecureKeyStorage;
@@ -50,8 +49,8 @@ mod inner {
 }
 
 #[cfg(wasm)]
+#[allow(missing_docs)]
 mod inner {
-    #![allow(missing_docs)]
 
     use crate::key::WebCryptoKeyStorage;
 

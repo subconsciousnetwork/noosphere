@@ -48,7 +48,7 @@ pub async fn simulated_sphere_context(
 
 /// Generate a [SphereContext] using the storage provided, intended for tests and
 /// benchmarks. You can pass a [Access] to control access.
-pub async fn generate_sphere_context<S: Storage>(
+pub async fn generate_sphere_context<S: Storage + 'static>(
     profile: Access,
     mut db: SphereDb<S>,
 ) -> Result<(Arc<Mutex<SphereContext<S>>>, Mnemonic)> {

@@ -7,7 +7,6 @@ use crate::api::{
 use crate::{
     authority::{generate_capability, SphereAbility, SPHERE_SEMANTICS},
     data::{Bundle, Did, Jwt, Link, MemoIpld},
-    error::NoosphereError,
 };
 use anyhow::{anyhow, Result};
 use cid::Cid;
@@ -172,12 +171,6 @@ pub enum PushError {
     #[allow(missing_docs)]
     #[error("Internal error")]
     Internal(anyhow::Error),
-}
-
-impl From<NoosphereError> for PushError {
-    fn from(error: NoosphereError) -> Self {
-        error.into()
-    }
 }
 
 impl From<anyhow::Error> for PushError {

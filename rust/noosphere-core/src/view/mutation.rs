@@ -258,7 +258,7 @@ where
             ));
         }
 
-        self.changes = changelog.changes.clone();
+        self.changes.clone_from(&changelog.changes);
 
         Ok(())
     }
