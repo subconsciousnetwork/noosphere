@@ -11,7 +11,3 @@ pub mod v0alpha2;
 
 pub use client::*;
 pub use data::*;
-
-// Re-export `http::StatusCode` here as our preferred `StatusCode` instance,
-// disambiguating from other crate's implementations.
-pub(crate) use http::StatusCode;

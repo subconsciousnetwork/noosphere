@@ -1,7 +1,7 @@
-use std::str::FromStr;
-
 use crate::{
-    api::{route::RouteUrl, v0alpha1, v0alpha2, StatusCode},
+    api::{route::RouteUrl, v0alpha1, v0alpha2},
+    authority::{generate_capability, Author, SphereAbility, SphereReference},
+    data::{Link, MemoIpld},
     error::NoosphereError,
     stream::{from_car_stream, memo_history_stream, put_block_stream, to_car_stream},
 };
@@ -9,14 +9,10 @@ use anyhow::{anyhow, Result};
 use async_stream::try_stream;
 use bytes::Bytes;
 use cid::Cid;
+use http::StatusCode;
 use iroh_car::CarReader;
 use libipld_cbor::DagCborCodec;
 use noosphere_common::{ConditionalSend, ConditionalSync, UnsharedStream};
-
-use crate::{
-    authority::{generate_capability, Author, SphereAbility, SphereReference},
-    data::{Link, MemoIpld},
-};
 use noosphere_storage::{block_deserialize, block_serialize, BlockStore};
 use noosphere_ucan::{
     builder::UcanBuilder,
@@ -26,6 +22,7 @@ use noosphere_ucan::{
     ucan::Ucan,
 };
 use reqwest::header::HeaderMap;
+use std::str::FromStr;
 use tokio_stream::{Stream, StreamExt};
 use tokio_util::io::StreamReader;
 use url::Url;
@@ -93,7 +90,7 @@ where
             client.get(url).send().await?
         };
 
-        match translate_status_code(did_response.status())? {
+        match did_response.status() {
             StatusCode::OK => (),
             _ => return Err(anyhow!("Unable to look up gateway identity")),
         };
@@ -475,7 +472,7 @@ where
                 v0alpha2::PushError::BrokenUpstream
             })?;
 
-        let status = translate_status_code(response.status())?;
+        let status = response.status();
         trace!("Checking response ({})...", status);
 
         if status == StatusCode::CONFLICT {
@@ -530,23 +527,4 @@ where
 
         Ok(push_response)
     }
-}
-
-/// Both `reqwest` and `axum` re-export `StatusCode` from the `http` crate.
-///
-/// We're stuck on reqwest@0.11.20 [1] that uses an older version
-/// of `http::StatusCode`, whereas axum >= 0.7 uses the 1.0 release
-/// of several HTTP libraries (`http`, `http-body`, `hyper`) [2], which
-/// we'd like to use as our canonical representation.
-///
-/// This utility converts between the old `reqwest::StatusCode` to the
-/// >=1.0 implementation. Notably, we do not pull in all of `axum`
-/// into the `noosphere-core` crate, only the common underlying
-/// crate `http@1.0.0` (or greater).
-///
-/// [1] https://github.com/subconsciousnetwork/noosphere/issues/686
-/// [2] https://github.com/tokio-rs/axum/blob/5b6204168a676497d2f4188af603546d9ebfe20a/axum/CHANGELOG.md#070-27-november-2023
-fn translate_status_code(reqwest_code: reqwest::StatusCode) -> Result<StatusCode> {
-    let code: u16 = reqwest_code.into();
-    Ok(code.try_into()?)
 }
