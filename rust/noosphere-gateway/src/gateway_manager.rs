@@ -29,14 +29,14 @@ where
     /// An optional [Url] to configure CORS layers.
     fn cors_origin(&self) -> Option<Url>;
 
-    /// A sphere-agnostic block store for authorization.
-    async fn ucan_store(&self) -> Result<UcanStore<S::BlockStore>>;
+    /// Retrieve a [UcanStore] for `sphere_identity`.
+    async fn ucan_store(&self, sphere_identity: &Did) -> Result<UcanStore<S::BlockStore>>;
 
-    /// Retrieve a sphere context that maps to `counterpart`.
-    async fn sphere_context(&self, counterpart: &Did) -> Result<C>;
+    /// Retrieve a sphere context that maps to `sphere_identity`.
+    async fn sphere_context(&self, sphere_identity: &Did) -> Result<C>;
 
     /// Extract the specified gateway identity (0) and counterpart (1)
     /// from an [axum] request. This function should be deterministic in
     /// order to take advantage of caching.
-    async fn gateway_scope(&self, parts: &mut Parts) -> Result<(Did, Did), StatusCode>;
+    async fn gateway_scope(&self, parts: &mut Parts) -> Result<(Did, Did, Did), StatusCode>;
 }

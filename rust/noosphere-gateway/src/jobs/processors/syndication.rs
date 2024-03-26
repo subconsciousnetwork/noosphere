@@ -78,7 +78,7 @@ where
 
     // Take a lock on the `SphereContext` and look up the most recent
     // syndication checkpoint for this Kubo node
-    let (sphere_revision, mut syndication_checkpoint, db, counterpart_identity) = {
+    let (sphere_revision, mut syndication_checkpoint, db, sphere_identity) = {
         let db = {
             let context = context.sphere_context().await?;
             context.db().clone()
@@ -87,7 +87,7 @@ where
         let counterpart_identity = db.require_key::<_, Did>(COUNTERPART).await?;
         let sphere = context.to_sphere().await?;
         let content = sphere.get_content().await?;
-
+        let sphere_identity = context.identity().await?;
         let counterpart_revision = *content.require(&counterpart_identity).await?;
 
         let syndication_checkpoint = match context.read(&checkpoint_key).await? {
@@ -121,7 +121,7 @@ where
             counterpart_revision,
             syndication_checkpoint,
             db,
-            counterpart_identity,
+            sphere_identity,
         )
     };
 
@@ -196,7 +196,7 @@ where
 
     Ok(
         name_publish_on_success.map(|record| GatewayJob::NameSystemPublish {
-            identity: counterpart_identity,
+            identity: sphere_identity,
             record,
         }),
     )

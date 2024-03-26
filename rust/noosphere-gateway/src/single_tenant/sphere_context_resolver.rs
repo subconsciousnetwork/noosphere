@@ -40,7 +40,7 @@ where
     S: Storage + 'static,
 {
     async fn get_context(&self, did: &Did) -> Result<C> {
-        match &self.gateway_scope.counterpart == did {
+        match &self.gateway_scope.gateway == did {
             true => Ok(self.context.clone()),
             false => Err(anyhow!(
                 "No sphere context found with gateway identity: {did}."
