@@ -34,7 +34,7 @@ async-stream = { version = "0.3" }
 async-trait = { version  = "0.1" }
 axum = { version = "^0.7.3" }
 axum-tracing-opentelemetry = { version = "0.16.0" }
-axum-extra = { version = "^0.9.1" }
+axum-extra = { version = "^0.9.3" }
 base64 = { version = "^0.21" }
 bs58 = { version = "^0.5" }
 byteorder = { version = "~1.5" } # keep in sync with pinned libipld-* crates
