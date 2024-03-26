@@ -105,6 +105,13 @@
   * dependencies
     * noosphere-ns bumped from 0.9.3 to 0.9.4
 
+## [0.12.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.12.0...noosphere-gateway-v0.12.1) (2024-03-26)
+
+
+### Features
+
+* Move "noosphere-ucan-key-support" features into "noosphere-ucan" under feature flags, replace ed25519-zebra with ed25519-dalek. ([#840](https://github.com/subconsciousnetwork/noosphere/issues/840)) ([78a4056](https://github.com/subconsciousnetwork/noosphere/commit/78a40561dc8a6d2537f28ba8cc252eadad560167))
+
 ## [0.12.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-gateway-v0.11.0...noosphere-gateway-v0.12.0) (2024-01-30)
 
 

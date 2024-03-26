@@ -10,6 +10,13 @@
     * noosphere-storage bumped from 0.7.0 to 0.7.1
     * noosphere-collections bumped from 0.6.0 to 0.6.1
 
+## [0.18.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.18.1...noosphere-core-v0.18.2) (2024-03-26)
+
+
+### Features
+
+* Move "noosphere-ucan-key-support" features into "noosphere-ucan" under feature flags, replace ed25519-zebra with ed25519-dalek. ([#840](https://github.com/subconsciousnetwork/noosphere/issues/840)) ([78a4056](https://github.com/subconsciousnetwork/noosphere/commit/78a40561dc8a6d2537f28ba8cc252eadad560167))
+
 ## [0.18.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-core-v0.18.0...noosphere-core-v0.18.1) (2024-01-30)
 
 
