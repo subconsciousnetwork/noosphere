@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<C, S> JobClient for Arc<SingleTenantJobClient<C, S>>
+impl<C, S> JobClient for SingleTenantJobClient<C, S>
 where
     C: HasMutableSphereContext<S>,
     S: Storage + 'static,
@@ -136,7 +136,7 @@ where
     C: HasMutableSphereContext<S> + 'static,
     S: Storage + 'static,
 {
-    let identity = scope.counterpart;
+    let identity = scope.gateway;
     let _ = tokio::join!(
         schedule(
             &queue,

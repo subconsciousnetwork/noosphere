@@ -54,7 +54,9 @@ wasm-bindgen-futures = { workspace = true, optional = true }
 js-sys = { workspace = true, optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-# NOTE: This is needed so that rand can be included in WASM builds
+# NOTE: This is a transitive dependency used by other
+# crypto/random crates that requires us setting the "js"
+# in order to provide the functionality in JS environments.
 getrandom = { workspace = true, features = ["js"] }
 
 [dev-dependencies]

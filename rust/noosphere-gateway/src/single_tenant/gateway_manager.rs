@@ -43,8 +43,11 @@ where
         name_resolver_api: Url,
         cors_origin: Option<Url>,
     ) -> Result<Self> {
-        let gateway_identity = context.sphere_context().await?.author().did().await?;
-        let gateway_scope = GatewayScope::new(gateway_identity, counterpart);
+        let (gateway, gateway_identity) = {
+            let ctx = context.sphere_context().await?;
+            (ctx.identity().to_owned(), ctx.author().did().await?)
+        };
+        let gateway_scope = GatewayScope::new(gateway_identity, gateway, counterpart);
         let context_resolver =
             SingleTenantContextResolver::new(context.clone(), gateway_scope.clone());
         let job_client = Arc::new(
@@ -88,19 +91,27 @@ where
         self.cors_origin.to_owned()
     }
 
-    async fn ucan_store(&self) -> Result<UcanStore<S::BlockStore>> {
-        let context = self.context.sphere_context().await?;
-        let db = context.db().to_block_store();
-        Ok(UcanStore(db))
+    async fn ucan_store(&self, sphere_identity: &Did) -> Result<UcanStore<S::BlockStore>> {
+        match &self.gateway_scope.gateway == sphere_identity {
+            true => {
+                let context = self.context.sphere_context().await?;
+                let db = context.db().to_block_store();
+                Ok(UcanStore(db))
+            }
+            false => Err(anyhow::anyhow!(
+                "No ucan store found with identity: {sphere_identity}."
+            )),
+        }
     }
 
-    async fn sphere_context(&self, counterpart: &Did) -> Result<C> {
-        self.context_resolver.get_context(counterpart).await
+    async fn sphere_context(&self, sphere_identity: &Did) -> Result<C> {
+        self.context_resolver.get_context(sphere_identity).await
     }
 
-    async fn gateway_scope(&self, _: &mut Parts) -> Result<(Did, Did), StatusCode> {
+    async fn gateway_scope(&self, _: &mut Parts) -> Result<(Did, Did, Did), StatusCode> {
         Ok((
             self.gateway_scope.gateway_identity.clone(),
+            self.gateway_scope.gateway.clone(),
             self.gateway_scope.counterpart.clone(),
         ))
     }

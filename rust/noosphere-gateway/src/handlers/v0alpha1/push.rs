@@ -301,7 +301,7 @@ where
         if let Err(error) = self
             .job_runner_client
             .submit(GatewayJob::NameSystemResolveSince {
-                identity: self.gateway_scope.counterpart.to_owned(),
+                identity: self.gateway_scope.gateway.to_owned(),
                 since: self.request_body.local_base,
             })
         {
@@ -323,7 +323,7 @@ where
         // an explicit publish action. Move this to the publish handler when we
         // have added it to the gateway.
         if let Err(error) = self.job_runner_client.submit(GatewayJob::IpfsSyndication {
-            identity: self.gateway_scope.counterpart.to_owned(),
+            identity: self.gateway_scope.gateway.to_owned(),
             name_publish_on_success,
         }) {
             warn!("Failed to queue IPFS syndication job: {}", error);
