@@ -1,15 +1,11 @@
-use std::fmt::Display;
-
-use crate::api::{
-    data::{empty_string_as_none, AsQuery},
-    StatusCode,
-};
 use crate::{
+    api::data::{empty_string_as_none, AsQuery},
     authority::{generate_capability, SphereAbility, SPHERE_SEMANTICS},
     data::{Bundle, Did, Jwt, Link, MemoIpld},
 };
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use http::StatusCode;
 use noosphere_storage::{base64_decode, base64_encode};
 use noosphere_ucan::{
     chain::ProofChain,
@@ -18,6 +14,7 @@ use noosphere_ucan::{
     Ucan,
 };
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use thiserror::Error;
 
 /// The query parameters expected for the "replicate" API route.
