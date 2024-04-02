@@ -32,7 +32,7 @@ anyhow = { version = "1" }
 async-recursion = { version = "1" }
 async-stream = { version = "0.3" }
 async-trait = { version  = "0.1" }
-axum = { version = "^0.7.3" }
+axum = { version = "^0.7.5" }
 axum-tracing-opentelemetry = { version = "0.16.0" }
 axum-extra = { version = "^0.9.3" }
 base64 = { version = "^0.21" }
