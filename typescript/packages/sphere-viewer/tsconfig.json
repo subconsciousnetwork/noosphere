@@ -4,7 +4,8 @@
     "rootDir": "./src",
     "outDir": "./lib",
     "tsBuildInfoFile": "tsconfig.tsbuildinfo",
-    "useDefineForClassFields": false
+    "useDefineForClassFields": false,
+    "declaration": false
   },
   "include": ["src/**/*.ts"],
   "exclude": []
