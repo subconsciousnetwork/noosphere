@@ -72,7 +72,7 @@ features = [
 ]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-safer-ffi = { version = "0.1.5", features = ["proc_macros", "python-headers"] }
+safer-ffi = { version = "0.1.7", features = ["proc_macros", "python-headers"] }
 tokio = { workspace = true, features = ["full"] }
 noosphere-ucan = { workspace = true, features = ["ed25519"] }
 
