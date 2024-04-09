@@ -3,8 +3,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::u64;
-
 use byteorder::{BigEndian, ByteOrder};
 use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, Serializer};
@@ -111,16 +109,16 @@ impl Bitfield {
         if bit < 64 {
             self.0[0] = set_bits_leq(self.0[0], bit);
         } else if bit < 128 {
-            self.0[0] = std::u64::MAX;
+            self.0[0] = u64::MAX;
             self.0[1] = set_bits_leq(self.0[1], bit - 64);
         } else if bit < 192 {
-            self.0[0] = std::u64::MAX;
-            self.0[1] = std::u64::MAX;
+            self.0[0] = u64::MAX;
+            self.0[1] = u64::MAX;
             self.0[2] = set_bits_leq(self.0[2], bit - 128);
         } else {
-            self.0[0] = std::u64::MAX;
-            self.0[1] = std::u64::MAX;
-            self.0[2] = std::u64::MAX;
+            self.0[0] = u64::MAX;
+            self.0[1] = u64::MAX;
+            self.0[2] = u64::MAX;
             self.0[3] = set_bits_leq(self.0[3], bit - 192);
         }
 
