@@ -1,9 +1,11 @@
 use noosphere_core::data::{Did, Link, LinkRecord, MemoIpld};
+use serde::{Deserialize, Serialize};
 
 /// Various tasks that are performed by a job runner.
 /// All jobs are scoped by an `identity` [Did], the
 /// counterpart client sphere.
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type")]
 pub enum GatewayJob {
     /// Compact history for the sphere.
     CompactHistory {
