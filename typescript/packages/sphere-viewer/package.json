@@ -19,7 +19,7 @@
     "lit": "^3.1.2",
     "lit-redux-watch": "^0.3.8",
     "reselect": "^5.1.0",
-    "typescript": "~5.4.4",
+    "typescript": "~5.4.5",
     "vite": "^5.2.8",
     "vite-plugin-wasm": "^3.3.0",
     "vite-plugin-top-level-await": "^1.4.1",
