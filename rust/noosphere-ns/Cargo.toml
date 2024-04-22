@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-ns"
-version = "0.12.0"
+version = "0.12.1"
 edition = "2021"
 description = "A P2P name system for Noosphere"
 keywords = [

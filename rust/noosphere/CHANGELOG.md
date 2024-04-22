@@ -102,6 +102,13 @@
   * dev-dependencies
     * noosphere-core bumped from 0.18.0 to 0.18.1
 
+## [0.16.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.16.1...noosphere-v0.16.2) (2024-04-22)
+
+
+### Features
+
+* Move "noosphere-ucan-key-support" features into "noosphere-ucan" under feature flags, replace ed25519-zebra with ed25519-dalek. ([#840](https://github.com/subconsciousnetwork/noosphere/issues/840)) ([78a4056](https://github.com/subconsciousnetwork/noosphere/commit/78a40561dc8a6d2537f28ba8cc252eadad560167))
+
 ## [0.16.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-v0.15.4...noosphere-v0.16.0) (2023-11-21)
 
 

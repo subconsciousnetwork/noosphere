@@ -1,6 +1,6 @@
 [package]
 name = "noosphere-ucan"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "Implement UCAN-based authorization with conciseness and ease!"
 keywords = ["ucan", "authz", "jwt", "pki"]

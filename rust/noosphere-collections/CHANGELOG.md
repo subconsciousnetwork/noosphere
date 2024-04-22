@@ -44,6 +44,8 @@
   * dependencies
     * noosphere-storage bumped from 0.10.0 to 0.10.1
 
+
+
 ## [0.7.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-collections-v0.6.7...noosphere-collections-v0.7.0) (2023-11-21)
 
 
