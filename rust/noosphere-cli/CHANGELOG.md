@@ -213,6 +213,13 @@
     * noosphere-ns bumped from 0.11.3 to 0.11.4
     * noosphere bumped from 0.15.3 to 0.15.4
 
+## [0.17.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.17.0...noosphere-cli-v0.17.1) (2024-04-22)
+
+
+### Features
+
+* Move "noosphere-ucan-key-support" features into "noosphere-ucan" under feature flags, replace ed25519-zebra with ed25519-dalek. ([#840](https://github.com/subconsciousnetwork/noosphere/issues/840)) ([78a4056](https://github.com/subconsciousnetwork/noosphere/commit/78a40561dc8a6d2537f28ba8cc252eadad560167))
+
 ## [0.17.0](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-cli-v0.16.0...noosphere-cli-v0.17.0) (2024-01-30)
 
 

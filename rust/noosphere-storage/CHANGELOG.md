@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.2](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.10.1...noosphere-storage-v0.10.2) (2024-04-22)
+
+
+### Bug Fixes
+
+* some fixes for downstream cloud hosting work: ([#850](https://github.com/subconsciousnetwork/noosphere/issues/850)) ([2525625](https://github.com/subconsciousnetwork/noosphere/commit/2525625c3239f8886bbbd2a713bb9fde08fc693e))
+
 ## [0.10.1](https://github.com/subconsciousnetwork/noosphere/compare/noosphere-storage-v0.10.0...noosphere-storage-v0.10.1) (2024-01-30)
 
 
