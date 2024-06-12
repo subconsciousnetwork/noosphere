@@ -73,8 +73,9 @@ impl SpherePaths {
         path.is_absolute() && path.join(SPHERE_DIRECTORY).is_dir()
     }
 
-    // Root is the path that contains the .sphere folder
-    fn new(root: &Path) -> Self {
+    /// Construct a new [SpherePaths] given a `root` path, a directory
+    /// that will contain a `.sphere` directory.
+    pub fn new(root: &Path) -> Self {
         let sphere = root.join(SPHERE_DIRECTORY);
 
         Self {
@@ -90,25 +91,23 @@ impl SpherePaths {
         }
     }
 
-    /// Initialize [SpherePaths] for a given root path. This has the effect of
+    /// Initialize [SpherePaths] given its root path. This has the effect of
     /// creating the "private" directory hierarchy (starting from
     /// [SPHERE_DIRECTORY] inside the root).
-    pub async fn initialize(root: &Path) -> Result<Self> {
-        if !root.is_absolute() {
+    pub async fn initialize(&self) -> Result<()> {
+        if !self.root.is_absolute() {
             return Err(anyhow!(
                 "Must use an absolute path to initialize sphere directories; got {:?}",
-                root
+                self.root
             ));
         }
 
-        let paths = Self::new(root);
+        std::fs::create_dir_all(&self.storage)?;
+        std::fs::create_dir_all(&self.content)?;
+        std::fs::create_dir_all(&self.peers)?;
+        std::fs::create_dir_all(&self.slugs)?;
 
-        std::fs::create_dir_all(&paths.storage)?;
-        std::fs::create_dir_all(&paths.content)?;
-        std::fs::create_dir_all(&paths.peers)?;
-        std::fs::create_dir_all(&paths.slugs)?;
-
-        Ok(paths)
+        Ok(())
     }
 
     /// Attempt to discover an existing workspace root by traversing ancestor
